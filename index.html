@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AOBA">
+  <meta property="og:title" content="AOBA">
+  <meta property="og:description" content="Click.">
+  <meta property="og:image" content="assets/aoba-idle.webp">
   <title>AOBA</title>
+  <link rel="preload" href="assets/aoba-active.webp" as="image">
   <style>
     /* --- Reset & Base --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -61,6 +66,11 @@
       height: clamp(300px, 55vh, 600px);
       width: auto;
       pointer-events: none;
+    }
+
+    #character:hover {
+      filter: brightness(1.05);
+      transition: filter 0.2s ease;
     }
 
     /* --- Particle Container --- */
