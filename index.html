@@ -102,14 +102,16 @@
     /* --- Click Counter --- */
     #click-counter {
       position: fixed;
-      bottom: 16px;
-      right: 20px;
-      font-size: 1.2rem;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.4rem;
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.6);
+      color: rgba(255, 255, 255, 0.7);
       z-index: 50;
       user-select: none;
       pointer-events: none;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
     }
 
     /* --- Volume Control --- */
@@ -212,10 +214,27 @@
   <!-- Disclaimer -->
   <div id="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used in this database are the property and copyright of the respective authors.</div>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
   <!-- anime.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
 
   <script>
+    // --- Firebase ---
+    firebase.initializeApp({
+      apiKey: "AIzaSyCAu6HNLjIpOjcncR3fbmeEMGNUPHnNBkQ",
+      authDomain: "aobing-dfe10.firebaseapp.com",
+      databaseURL: "https://aobing-dfe10-default-rtdb.firebaseio.com",
+      projectId: "aobing-dfe10",
+      storageBucket: "aobing-dfe10.firebasestorage.app",
+      messagingSenderId: "322502890597",
+      appId: "1:322502890597:web:e8679668c108b80355e28c"
+    });
+    const db = firebase.database();
+    const clicksRef = db.ref('clicks');
+
     const { animate, createTimeline } = anime;
 
     // --- Intro Animation (~2s) ---
@@ -339,12 +358,17 @@
     const aobaSound = document.getElementById('aoba-sound');
 
     let bounceAnimation = null;
-    let clickCount = 0;
     const clickCounter = document.getElementById('click-counter');
 
+    // Listen for global click count updates in real-time
+    clicksRef.on('value', (snapshot) => {
+      const count = snapshot.val() || 0;
+      clickCounter.textContent = count.toLocaleString();
+    });
+
     character.addEventListener('click', () => {
-      clickCount++;
-      clickCounter.textContent = clickCount;
+      // Increment global counter atomically
+      clicksRef.transaction((current) => (current || 0) + 1);
       // 1. Restart sound (allows spam clicking)
       aobaSound.currentTime = 0;
       aobaSound.play();
