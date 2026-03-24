@@ -104,7 +104,44 @@
   <script src="https://cdn.jsdelivr.net/npm/animejs/dist/bundles/anime.umd.min.js"></script>
 
   <script>
-    // Scripts will be added in subsequent tasks
+    const { animate, createTimeline } = anime;
+
+    // --- Intro Animation (~2s) ---
+    function playIntro() {
+      const tl = createTimeline({
+        defaults: { ease: 'outExpo' },
+        onComplete: () => {
+          document.getElementById('curtain')?.remove();
+          document.getElementById('intro-text')?.remove();
+        }
+      });
+
+      // T=300ms: Curtain slides up
+      tl.add('#curtain', {
+        translateY: '-100%',
+        duration: 800,
+        ease: 'inOutQuad',
+      }, 300);
+
+      // T=800ms: "AOBA" text fades in and tweens up to center
+      tl.add('#intro-text', {
+        opacity: [0, 1],
+        translateY: ['2rem', '0'],
+        duration: 600,
+        ease: 'outExpo',
+      }, 800);
+
+      // T=1800ms: Text tweens upward off-screen
+      tl.add('#intro-text', {
+        translateY: [0, '-100vh'],
+        opacity: [1, 0],
+        duration: 500,
+        ease: 'inQuad',
+      }, 1800);
+    }
+
+    // Run intro on page load
+    document.addEventListener('DOMContentLoaded', playIntro);
   </script>
 </body>
 </html>
