@@ -142,6 +142,96 @@
 
     // Run intro on page load
     document.addEventListener('DOMContentLoaded', playIntro);
+
+    // --- Text Particles (Cookie Clicker style) ---
+    const PARTICLE_TEXTS = ['AOBA!', 'AAAA!', 'sensei!', 'KYAAA!', 'あおば!', 'AOBA!!', 'きゃー!'];
+    const PARTICLE_COLORS = ['#ff6b6b', '#ffa94d', '#69db7c', '#4dabf7', '#da77f2', '#ffd43b', '#ff8787'];
+
+    function spawnParticles() {
+      const container = document.getElementById('particles');
+      const count = 5 + Math.floor(Math.random() * 4); // 5-8 particles per click
+
+      for (let i = 0; i < count; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.textContent = PARTICLE_TEXTS[Math.floor(Math.random() * PARTICLE_TEXTS.length)];
+
+        // Random styling
+        const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+        const fontSize = 14 + Math.floor(Math.random() * 14); // 14-28px
+        const startX = 10 + Math.random() * 80; // 10-90% from left
+
+        particle.style.cssText = `
+          left: ${startX}%;
+          bottom: -40px;
+          color: ${color};
+          font-size: ${fontSize}px;
+        `;
+
+        container.appendChild(particle);
+
+        // Animate upward with drift and fade
+        const drift = -30 + Math.random() * 60; // -30 to +30px horizontal drift
+        const duration = 1500 + Math.random() * 1000; // 1.5-2.5s
+        const delay = Math.random() * 300; // 0-300ms stagger
+
+        animate(particle, {
+          translateY: [0, -(window.innerHeight + 100)],
+          translateX: [0, drift],
+          opacity: [1, 0],
+          duration: duration,
+          delay: delay,
+          ease: 'outQuad',
+          onComplete: () => {
+            particle.remove();
+          },
+        });
+      }
+    }
+
+    // --- Click Interaction ---
+    const character = document.getElementById('character');
+    const aobaImg = document.getElementById('aoba-img');
+    const aobaSound = document.getElementById('aoba-sound');
+
+    let bounceAnimation = null;
+
+    character.addEventListener('click', () => {
+      // 1. Restart sound (allows spam clicking)
+      aobaSound.currentTime = 0;
+      aobaSound.play();
+
+      // 2. Swap to active image
+      aobaImg.src = 'assets/aoba-active.webp';
+
+      // 3. Damped bounce animation
+      // Cancel any existing bounce
+      if (bounceAnimation) {
+        bounceAnimation.pause();
+      }
+
+      // Reset position before new bounce
+      character.style.transform = '';
+
+      bounceAnimation = animate(character, {
+        translateY: [
+          { to: '-80px', duration: 300, ease: 'outQuad' },
+          { to: '0px', duration: 400, ease: 'outBounce' },
+        ],
+      });
+
+      // 4. Spawn text particles
+      spawnParticles();
+    });
+
+    // Swap back to idle and stop bounce when sound ends
+    aobaSound.addEventListener('ended', () => {
+      aobaImg.src = 'assets/aoba-idle.webp';
+      if (bounceAnimation) {
+        bounceAnimation.pause();
+        character.style.transform = '';
+      }
+    });
   </script>
 </body>
 </html>
