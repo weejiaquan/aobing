@@ -18,6 +18,7 @@
       width: 100vw;
       height: 100vh;
       background-color: #1a1a2e;
+      background-image: url('assets/bg.png');
       background-size: cover;
       background-position: center;
       display: flex;
@@ -33,24 +34,37 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: white;
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
 
     /* --- Intro Text --- */
     #intro-text {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       font-size: clamp(4rem, 10vw, 8rem);
       font-weight: 900;
       color: #2b4c8c;
       letter-spacing: 0.15em;
       text-shadow: 0 2px 10px rgba(43, 76, 140, 0.3);
-      z-index: 101;
-      opacity: 0;
       user-select: none;
+    }
+
+    #intro-hint {
+      font-size: 1.1rem;
+      color: rgba(43, 76, 140, 0.5);
+      user-select: none;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
     }
 
     /* --- Character --- */
@@ -63,7 +77,7 @@
     }
 
     #character img {
-      height: clamp(300px, 55vh, 600px);
+      height: 90vh;
       width: auto;
       pointer-events: none;
     }
@@ -85,6 +99,78 @@
       overflow: hidden;
     }
 
+    /* --- Click Counter --- */
+    #click-counter {
+      position: fixed;
+      bottom: 16px;
+      right: 20px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.6);
+      z-index: 50;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* --- Volume Control --- */
+    #volume-control {
+      position: fixed;
+      bottom: 16px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 6px 12px;
+      z-index: 50;
+      user-select: none;
+      transition: background 0.2s ease;
+    }
+
+    #volume-control:hover {
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    #mute-btn {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+
+    #volume-slider {
+      width: 0;
+      opacity: 0;
+      transition: width 0.3s ease, opacity 0.3s ease;
+      accent-color: #4dabf7;
+      cursor: pointer;
+    }
+
+    #volume-control:hover #volume-slider {
+      width: 80px;
+      opacity: 1;
+    }
+
+    /* --- Disclaimer --- */
+    #disclaimer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.65rem;
+      color: rgba(255, 255, 255, 0.35);
+      padding: 4px 16px;
+      z-index: 50;
+      user-select: none;
+      pointer-events: none;
+    }
+
     .particle {
       position: absolute;
       font-weight: 900;
@@ -96,8 +182,9 @@
 </head>
 <body>
   <!-- Intro Elements -->
-  <div id="curtain"></div>
-  <div id="intro-text">AOBA</div>
+  <div id="curtain">
+    <div id="intro-hint">Click to begin</div>
+  </div>
 
   <!-- Character (clickable) -->
   <div id="character">
@@ -107,8 +194,23 @@
   <!-- Floating text particles container -->
   <div id="particles"></div>
 
+  <!-- Click counter -->
+  <div id="click-counter">0</div>
+
   <!-- Sound -->
   <audio id="aoba-sound" src="assets/aobing.mp3" preload="auto"></audio>
+
+  <!-- BGM -->
+  <audio id="bgm" src="assets/bgm.mp3" preload="auto" loop></audio>
+
+  <!-- Volume Control -->
+  <div id="volume-control">
+    <button id="mute-btn">🔊</button>
+    <input type="range" id="volume-slider" min="0" max="100" value="10">
+  </div>
+
+  <!-- Disclaimer -->
+  <div id="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used in this database are the property and copyright of the respective authors.</div>
 
   <!-- anime.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
@@ -122,39 +224,71 @@
         defaults: { ease: 'outExpo' },
         onComplete: () => {
           document.getElementById('curtain')?.remove();
-          document.getElementById('intro-text')?.remove();
         }
       });
 
-      // T=300ms: Curtain slides up
+      // T=300ms: Curtain (with text inside) slides up
       tl.add('#curtain', {
         translateY: '-100%',
-        duration: 800,
+        duration: 1200,
         ease: 'inOutQuad',
       }, 300);
-
-      // T=800ms: "AOBA" text fades in and tweens up to center
-      tl.add('#intro-text', {
-        opacity: [0, 1],
-        translateY: ['2rem', '0'],
-        duration: 600,
-        ease: 'outExpo',
-      }, 800);
-
-      // T=1800ms: Text tweens upward off-screen
-      tl.add('#intro-text', {
-        translateY: [0, '-100vh'],
-        opacity: [1, 0],
-        duration: 500,
-        ease: 'inQuad',
-      }, 1800);
     }
 
-    // Run intro on page load
-    document.addEventListener('DOMContentLoaded', playIntro);
+    // Run intro on curtain click + start BGM
+    const bgm = document.getElementById('bgm');
+    const muteBtn = document.getElementById('mute-btn');
+    const volumeSlider = document.getElementById('volume-slider');
+    bgm.volume = 0.1;
+    let bgmPlaying = false;
+    let lastVolume = 0.1;
+
+    document.getElementById('curtain').addEventListener('click', () => {
+      playIntro();
+      bgm.play().then(() => {
+        bgmPlaying = true;
+        muteBtn.textContent = '🔊';
+      }).catch(() => {});
+    }, { once: true });
+
+    // Mute/unmute toggle
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (bgm.volume > 0) {
+        lastVolume = bgm.volume;
+        bgm.volume = 0;
+        volumeSlider.value = 0;
+        muteBtn.textContent = '🔇';
+      } else {
+        bgm.volume = lastVolume;
+        volumeSlider.value = lastVolume * 100;
+        muteBtn.textContent = '🔊';
+        if (!bgmPlaying) {
+          bgm.play();
+          bgmPlaying = true;
+        }
+      }
+    });
+
+    // Volume slider
+    volumeSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const vol = e.target.value / 100;
+      bgm.volume = vol;
+      if (vol === 0) {
+        muteBtn.textContent = '🔇';
+      } else {
+        muteBtn.textContent = '🔊';
+        lastVolume = vol;
+        if (!bgmPlaying) {
+          bgm.play();
+          bgmPlaying = true;
+        }
+      }
+    });
 
     // --- Text Particles (Cookie Clicker style) ---
-    const PARTICLE_TEXTS = ['AOBA!', 'AAAA!', 'sensei!', 'KYAAA!', 'あおば!', 'AOBA!!', 'きゃー!'];
+    const PARTICLE_TEXTS = ['うぇ', '💢', '😭', 'うぇぇ', '😤', '😢', '💢💢', 'うぇっ', '😡', '😿'];
     const PARTICLE_COLORS = ['#ff6b6b', '#ffa94d', '#69db7c', '#4dabf7', '#da77f2', '#ffd43b', '#ff8787'];
 
     function spawnParticles() {
@@ -168,7 +302,7 @@
 
         // Random styling
         const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
-        const fontSize = 14 + Math.floor(Math.random() * 11); // 14-24px
+        const fontSize = 28 + Math.floor(Math.random() * 20); // 28-48px
         const startX = 10 + Math.random() * 80; // 10-90% from left
 
         particle.style.cssText = `
@@ -205,8 +339,12 @@
     const aobaSound = document.getElementById('aoba-sound');
 
     let bounceAnimation = null;
+    let clickCount = 0;
+    const clickCounter = document.getElementById('click-counter');
 
     character.addEventListener('click', () => {
+      clickCount++;
+      clickCounter.textContent = clickCount;
       // 1. Restart sound (allows spam clicking)
       aobaSound.currentTime = 0;
       aobaSound.play();
