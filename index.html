@@ -7,7 +7,8 @@
   <meta property="og:title" content="AOBA">
   <meta property="og:description" content="Click.">
   <meta property="og:image" content="assets/aoba-idle.webp">
-  <title>AOBA</title>
+  <title>Aobing IT!</title>
+  <link rel="icon" type="image/png" href="assets/aobaplush-idle.png">
   <link rel="preload" href="assets/aoba-active.webp" as="image">
   <style>
     /* --- Reset & Base --- */
@@ -61,7 +62,9 @@
 
     #character img {
       height: 90vh;
+      max-width: 90vw;
       width: auto;
+      object-fit: contain;
       pointer-events: none;
     }
 
@@ -97,10 +100,9 @@
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
     }
 
-    /* --- Settings Button --- */
+    /* --- Panel Buttons (shared) --- */
     .panel-btn {
       position: fixed;
-      bottom: 16px;
       width: 40px;
       height: 40px;
       background: rgba(0, 0, 0, 0.4);
@@ -126,6 +128,7 @@
     }
 
     #settings-btn {
+      top: 16px;
       left: 20px;
       transition: background 0.2s ease, color 0.2s ease, transform 0.3s ease;
     }
@@ -137,7 +140,7 @@
     /* --- Settings Panel --- */
     #settings-panel {
       position: fixed;
-      bottom: 66px;
+      top: 66px;
       left: 20px;
       width: 240px;
       background: rgba(10, 10, 30, 0.85);
@@ -149,7 +152,7 @@
       z-index: 60;
       color: white;
       font-size: 0.85rem;
-      transform: translateY(10px);
+      transform: translateY(-10px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
@@ -256,12 +259,12 @@
     }
 
     /* --- Skins Button --- */
-    #skins-btn { left: 70px; }
+    #skins-btn { top: 16px; left: 70px; }
 
     /* --- Skins Panel --- */
     #skins-panel {
       position: fixed;
-      bottom: 66px;
+      top: 66px;
       left: 70px;
       width: 200px;
       background: rgba(10, 10, 30, 0.85);
@@ -273,7 +276,7 @@
       z-index: 60;
       color: white;
       font-size: 0.85rem;
-      transform: translateY(10px);
+      transform: translateY(-10px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
@@ -330,12 +333,12 @@
     }
 
     /* --- Stats Button --- */
-    #stats-btn { right: 20px; }
+    #stats-btn { top: 16px; right: 20px; }
 
     /* --- Stats Panel --- */
     #stats-panel {
       position: fixed;
-      bottom: 66px;
+      top: 66px;
       right: 20px;
       width: 220px;
       background: rgba(10, 10, 30, 0.85);
@@ -347,7 +350,7 @@
       z-index: 60;
       color: white;
       font-size: 0.85rem;
-      transform: translateY(10px);
+      transform: translateY(-10px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
@@ -423,11 +426,12 @@
       width: 100%;
       text-align: center;
       font-size: 0.65rem;
-      color: rgba(255, 255, 255, 0.35);
-      padding: 4px 16px;
+      color: rgba(255, 255, 255, 0.5);
+      padding: 6px 16px;
       z-index: 50;
       user-select: none;
       pointer-events: none;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
     }
 
     .particle {
@@ -436,6 +440,82 @@
       white-space: nowrap;
       pointer-events: none;
       user-select: none;
+    }
+
+    /* --- Mobile (portrait phones) --- */
+    @media (max-width: 480px) {
+      #character img {
+        height: auto;
+        max-height: 70vh;
+        max-width: 85vw;
+      }
+
+      #click-counter {
+        font-size: 1.1rem;
+      }
+
+      .panel-btn {
+        width: 36px;
+        height: 36px;
+      }
+
+      #settings-btn { top: 12px; left: 12px; }
+      #skins-btn { top: 12px; left: 56px; }
+      #stats-btn { top: 12px; right: 12px; }
+
+      #settings-panel,
+      #skins-panel,
+      #stats-panel {
+        top: 56px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+      }
+
+      #disclaimer {
+        font-size: 0.55rem;
+        padding: 2px 10px 2px;
+        bottom: 0;
+      }
+    }
+
+    /* --- Small phones (< 360px width or < 600px height) --- */
+    @media (max-width: 360px), (max-height: 600px) {
+      #character img {
+        max-height: 60vh;
+      }
+    }
+
+    /* --- Landscape phones --- */
+    @media (max-height: 500px) and (orientation: landscape) {
+      #character img {
+        height: 80vh;
+        max-height: 80vh;
+      }
+
+      .panel-btn {
+        width: 32px;
+        height: 32px;
+      }
+
+      #settings-btn, #skins-btn, #stats-btn { top: 8px; }
+
+      #settings-panel,
+      #skins-panel,
+      #stats-panel {
+        top: 46px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      #click-counter {
+        font-size: 1rem;
+        top: 6px;
+      }
+
+      #disclaimer {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -455,7 +535,6 @@
   <div id="click-counter">0</div>
 
   <!-- Sound -->
-  <audio id="aoba-sound" src="assets/aobing.mp3" preload="auto"></audio>
 
   <!-- BGM -->
   <audio id="bgm" src="assets/bgm.mp3" preload="auto" loop></audio>
@@ -655,12 +734,12 @@
 
     function applySkin(skin) {
       const aobaImg = document.getElementById('aoba-img');
-      const aobaSound = document.getElementById('aoba-sound');
       aobaImg.src = skin.idle;
-      aobaSound.src = skin.sound;
       // Preload active image
       const preload = new Image();
       preload.src = skin.active;
+      // Rebuild sound pool for new skin (pool may not exist yet on first call)
+      if (window._soundPoolReady) buildSoundPool();
     }
 
     function renderSkinList() {
@@ -762,19 +841,29 @@
     const PARTICLE_TEXTS = ['うぇ', '💢', '😭', 'うぇぇ', '😤', '😢', '💢💢', 'うぇっ', '😡', '😿'];
     const PARTICLE_COLORS = ['#ff6b6b', '#ffa94d', '#69db7c', '#4dabf7', '#da77f2', '#ffd43b', '#ff8787'];
 
+    const MAX_PARTICLES = 60;
+    let activeParticles = 0;
+
     function spawnParticles() {
       const container = document.getElementById('particles');
-      const count = 5 + Math.floor(Math.random() * 4); // 5-8 particles per click
+      const isMobileScreen = window.innerWidth < 480;
+      const count = isMobileScreen
+        ? 3 + Math.floor(Math.random() * 3)
+        : 5 + Math.floor(Math.random() * 4);
 
-      for (let i = 0; i < count; i++) {
+      const toSpawn = Math.min(count, MAX_PARTICLES - activeParticles);
+      if (toSpawn <= 0) return;
+
+      for (let i = 0; i < toSpawn; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         particle.textContent = PARTICLE_TEXTS[Math.floor(Math.random() * PARTICLE_TEXTS.length)];
 
-        // Random styling
         const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
-        const fontSize = 28 + Math.floor(Math.random() * 20); // 28-48px
-        const startX = 10 + Math.random() * 80; // 10-90% from left
+        const fontSize = isMobileScreen
+          ? 18 + Math.floor(Math.random() * 14)
+          : 28 + Math.floor(Math.random() * 20);
+        const startX = 10 + Math.random() * 80;
 
         particle.style.cssText = `
           left: ${startX}%;
@@ -784,11 +873,11 @@
         `;
 
         container.appendChild(particle);
+        activeParticles++;
 
-        // Animate upward with drift and fade
-        const drift = -30 + Math.random() * 60; // -30 to +30px horizontal drift
-        const duration = 1500 + Math.random() * 1000; // 1.5-2.5s
-        const delay = Math.random() * 300; // 0-300ms stagger
+        const drift = -30 + Math.random() * 60;
+        const duration = 1500 + Math.random() * 1000;
+        const delay = Math.random() * 300;
 
         animate(particle, {
           translateY: [0, -(window.innerHeight + 100)],
@@ -799,6 +888,7 @@
           ease: 'outQuad',
           onComplete: () => {
             particle.remove();
+            activeParticles--;
           },
         });
       }
@@ -807,8 +897,62 @@
     // --- Click Interaction ---
     const character = document.getElementById('character');
     const aobaImg = document.getElementById('aoba-img');
-    const aobaSound = document.getElementById('aoba-sound');
+    const POOL_SIZE = 50;
+    const soundPool = [];
+    const slotActive = new Array(POOL_SIZE).fill(false);
+    let poolIndex = 0;
+    let activeSounds = 0;
 
+    function goIdle() {
+      aobaImg.src = getSkin(settings.skin).idle;
+      if (bounceAnimation) {
+        bounceAnimation.pause();
+        character.style.transform = '';
+      }
+    }
+
+    function buildSoundPool() {
+      const src = getSkin(settings.skin).sound;
+      soundPool.length = 0;
+      slotActive.fill(false);
+      poolIndex = 0;
+      activeSounds = 0;
+      for (let i = 0; i < POOL_SIZE; i++) {
+        const a = new Audio(src);
+        a.preload = 'auto';
+        const idx = i;
+        a.addEventListener('ended', () => {
+          if (slotActive[idx]) {
+            slotActive[idx] = false;
+            activeSounds--;
+            if (activeSounds === 0) goIdle();
+          }
+        });
+        soundPool.push(a);
+      }
+    }
+    buildSoundPool();
+    window._soundPoolReady = true;
+
+    function playsfx() {
+      const idx = poolIndex;
+      const sfx = soundPool[idx];
+      poolIndex = (poolIndex + 1) % POOL_SIZE;
+      // If this slot was still playing, don't double-count
+      if (!slotActive[idx]) {
+        activeSounds++;
+      }
+      slotActive[idx] = true;
+      sfx.volume = settings.sfxVol / 100;
+      sfx.currentTime = 0;
+      sfx.play().catch(() => {
+        if (slotActive[idx]) {
+          slotActive[idx] = false;
+          activeSounds--;
+          if (activeSounds === 0) goIdle();
+        }
+      });
+    }
     let bounceAnimation = null;
     const clickCounter = document.getElementById('click-counter');
 
@@ -907,9 +1051,7 @@
           db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
             .transaction((c) => (c || 0) + 1);
 
-          aobaSound.volume = settings.sfxVol / 100;
-          aobaSound.currentTime = 0;
-          aobaSound.play();
+          playsfx();
 
           aobaImg.src = getSkin(settings.skin).active;
 
@@ -929,7 +1071,7 @@
     document.getElementById('curtain').addEventListener('click', endIntro);
     startIntroWalk();
 
-    character.addEventListener('click', () => {
+    function triggerClick() {
       // During intro, end intro (first click counts)
       if (introActive) {
         endIntro();
@@ -952,10 +1094,8 @@
       db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
         .transaction((current) => (current || 0) + 1);
 
-      // 1. Play SFX at configured volume
-      aobaSound.volume = settings.sfxVol / 100;
-      aobaSound.currentTime = 0;
-      aobaSound.play();
+      // 1. Play SFX — each click spawns its own audio, oldest evicted at cap
+      playsfx();
 
       // 2. Swap to active image
       aobaImg.src = getSkin(settings.skin).active;
@@ -975,16 +1115,11 @@
 
       // 4. Spawn text particles (if effects enabled)
       if (settings.effects) spawnParticles();
-    });
+    }
 
-    // Swap back to idle and stop bounce when sound ends
-    aobaSound.addEventListener('ended', () => {
-      aobaImg.src = getSkin(settings.skin).idle;
-      if (bounceAnimation) {
-        bounceAnimation.pause();
-        character.style.transform = '';
-      }
-    });
+    character.addEventListener('click', triggerClick);
+    document.addEventListener('keydown', triggerClick);
+
   </script>
 </body>
 </html>
