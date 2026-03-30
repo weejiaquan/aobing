@@ -571,7 +571,8 @@
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-panel">
     <div class="stats-date" id="stats-date"></div>
-    <div class="stats-today"><span id="today-count">0</span> <span>today</span></div>
+    <div class="stats-today"><span id="today-count">0</span> <span>clicks today</span></div>
+    <div class="stats-today"><span id="visitor-count">0</span> <span>visitors today</span></div>
     <div class="stats-subtitle">Top countries</div>
     <div id="country-list"><div class="stats-empty">No clicks yet today</div></div>
     <hr class="settings-divider">
@@ -621,6 +622,18 @@
       .then(r => r.json())
       .then(d => { visitorCountry = d.country_code || null; })
       .catch(() => {});
+
+    // --- Track unique daily visitors ---
+    let visitorId = localStorage.getItem('aobing_visitor_id');
+    if (!visitorId) {
+      visitorId = crypto.randomUUID();
+      localStorage.setItem('aobing_visitor_id', visitorId);
+    }
+    const visitKey = 'aobing_visited_' + todayKey();
+    if (!sessionStorage.getItem(visitKey)) {
+      sessionStorage.setItem(visitKey, '1');
+      db.ref('daily/' + todayKey() + '/visitors/' + visitorId).set(true);
+    }
 
     const { animate, createTimeline } = anime;
 
@@ -796,9 +809,16 @@
 
     const dailyTotalRef = db.ref('daily/' + today + '/total');
     const dailyCountriesRef = db.ref('daily/' + today + '/countries');
+    const dailyVisitorsRef = db.ref('daily/' + today + '/visitors');
+    const visitorCountEl = document.getElementById('visitor-count');
 
     dailyTotalRef.on('value', (snap) => {
       todayCountEl.textContent = (snap.val() || 0).toLocaleString();
+    });
+
+    dailyVisitorsRef.on('value', (snap) => {
+      const data = snap.val();
+      visitorCountEl.textContent = data ? Object.keys(data).length.toLocaleString() : '0';
     });
 
     dailyCountriesRef.on('value', (snap) => {
