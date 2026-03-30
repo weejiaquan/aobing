@@ -5,6 +5,27 @@
       ".write": true,
       ".validate": "newData.isNumber()"
     },
+    "daily": {
+      ".read": true,
+      "$date": {
+        "total": {
+          ".write": true,
+          ".validate": "newData.isNumber()"
+        },
+        "countries": {
+          "$country": {
+            ".write": true,
+            ".validate": "newData.isNumber() && $country.length == 2"
+          }
+        },
+        "skins": {
+          "$skinId": {
+            ".write": true,
+            ".validate": "newData.isNumber() && $skinId.length <= 20"
+          }
+        }
+      }
+    },
     ".read": false,
     ".write": false
   }
