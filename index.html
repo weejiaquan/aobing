@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AOBA">
-  <meta property="og:title" content="AOBA">
-  <meta property="og:description" content="Click.">
+  <meta name="description" content="Click to make Aoba squeak!">
+  <meta property="og:title" content="Aobing IT!">
+  <meta property="og:description" content="Click to make Aoba squeak!">
   <meta property="og:image" content="assets/aoba-idle.webp">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Aobing IT!">
+  <meta name="twitter:description" content="Click to make Aoba squeak!">
+  <meta name="twitter:image" content="assets/aoba-idle.webp">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#1a1a2e">
   <title>Aobing IT!</title>
   <link rel="icon" type="image/png" href="assets/aobaplush-idle.png">
   <link rel="preload" href="assets/aoba-active.webp" as="image">
@@ -963,7 +969,7 @@
         activeSounds++;
       }
       slotActive[idx] = true;
-      sfx.volume = (settings.sfxVol / 100) / Math.max(1, activeSounds);
+      sfx.volume = (settings.sfxVol / 100) / Math.sqrt(Math.max(1, activeSounds));
       sfx.currentTime = 0;
       sfx.play().catch(() => {
         if (slotActive[idx]) {
