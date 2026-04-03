@@ -32,7 +32,7 @@
     user-select: none;
   }
 
-  /* SPINE BACKGROUND — receives mouse events */
+  /* SPINE BACKGROUND — receives mouse + touch events */
   #spine-canvas {
     position: fixed;
     inset: 0;
@@ -40,6 +40,7 @@
     height: 100%;
     z-index: 0;
     cursor: pointer;
+    touch-action: none;
   }
 
   /* QUIZ UI — anchored to bottom */
@@ -882,6 +883,10 @@ function resizeSpine() {
   let width = baseW;
   let height = baseH;
 
+  // Portrait mode: zoom out so head is reachable
+  const isPortrait = w < h;
+  const portraitScale = isPortrait ? 1.4 : 1;
+
   if (wr < hr) {
     width = height * (w / h);
     spineTranspose = baseH / h;
@@ -891,6 +896,10 @@ function resizeSpine() {
   } else {
     spineTranspose = baseH / h;
   }
+
+  width *= portraitScale;
+  height *= portraitScale;
+  spineTranspose *= portraitScale;
 
   spineMvp.ortho2d(centerX - width / 2, centerY - height / 2, width, height);
   spineGl.viewport(0, 0, w, h);
@@ -1039,12 +1048,15 @@ function spineReleasedMouse() {
   spineMouseSelect = -1;
 }
 
+let lastTouchPos = { x: 0, y: 0 };
+
 function setupInteraction() {
   TPoint = spineData.skeleton.findBone('Touch_Point');
   TEye   = spineData.skeleton.findBone('Touch_Eye');
   PPointX = TPoint.x; PPointY = TPoint.y;
   EPointX = TEye.x;   EPointY = TEye.y;
 
+  // Mouse events
   spineCanvas.addEventListener('mousedown', (e) => {
     if (!spineData || !spineAcceptingClick) return;
     spineAcceptingClick = false;
@@ -1052,6 +1064,32 @@ function setupInteraction() {
   });
   spineCanvas.addEventListener('mouseup', () => { if (spineData) spineReleasedMouse(); });
   spineCanvas.addEventListener('mousemove', (e) => { if (spineData) spineMovedMouse(e.clientX, e.clientY, e.movementX, e.movementY); });
+
+  // Touch events (mobile)
+  spineCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!spineData || !spineAcceptingClick) return;
+    const t = e.touches[0];
+    lastTouchPos = { x: t.clientX, y: t.clientY };
+    spineAcceptingClick = false;
+    spinePressedMouse(t.clientX, t.clientY);
+  }, { passive: false });
+
+  spineCanvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (spineData) spineReleasedMouse();
+  }, { passive: false });
+
+  spineCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!spineData) return;
+    const t = e.touches[0];
+    const dx = t.clientX - lastTouchPos.x;
+    const dy = t.clientY - lastTouchPos.y;
+    spineMovedMouse(t.clientX, t.clientY, dx, dy);
+    lastTouchPos = { x: t.clientX, y: t.clientY };
+  }, { passive: false });
+
   spineAcceptingClick = true;
 }
 
@@ -1084,10 +1122,13 @@ function restorePanel() {
 
 document.getElementById('mini-bar-inner').addEventListener('click', restorePanel);
 
-// Auto-minimize when spine canvas is clicked (interacting with Kei)
+// Auto-minimize when spine canvas is clicked/touched (interacting with Kei)
 // Grace period prevents instant re-minimize after a new question renders
 let minimizeGrace = false;
 spineCanvas.addEventListener('mousedown', () => {
+  if (!minimizeGrace) minimizePanel();
+});
+spineCanvas.addEventListener('touchstart', () => {
   if (!minimizeGrace) minimizePanel();
 });
 
