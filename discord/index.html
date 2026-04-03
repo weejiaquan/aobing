@@ -1182,7 +1182,7 @@ spinePressedMouse = function(x, y) {
     // Q5: voiceline interaction
     if (interactionMode === 'voiceline') {
       trackVoiceline();
-      setTimeout(() => completeInteractionQuestion(), 2000);
+      setTimeout(() => completeInteractionQuestion(), 3000);
     } else {
       trackVoiceline();
     }
@@ -1374,8 +1374,8 @@ function renderQuestion() {
     } else {
       document.getElementById('chase-counter').textContent = 'Click on me to make me talk!';
     }
-    // Auto-minimize after a short delay so user reads the instruction
-    setTimeout(() => { minimizePanel(); }, 800);
+    // Panel stays visible — user reads the prompt, then clicks on Kei to interact
+    // (clicking the canvas auto-minimizes the panel)
     return;
   }
 
