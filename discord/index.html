@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kei's Quiz — I-It's Not Like I Want You to Join!</title>
+<script src="lib/spine-webgl-4.2.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gaegu:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+    background: #1a1a2e;
+    color: #fff;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* SPINE BACKGROUND — receives mouse events */
+  #spine-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    cursor: pointer;
+  }
+
+  /* QUIZ UI — anchored to bottom */
+  #game {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 16px 20px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  /* GLASS PANEL */
+  .glass {
+    background: rgba(15, 8, 30, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    padding: 28px 26px;
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.5);
+    pointer-events: auto;
+    animation: slideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(60px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* TITLE SCREEN */
+  .title-screen h1 {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 2.8rem;
+    color: #ff4081;
+    text-shadow: 3px 3px 0 #000, 0 0 20px #ff408166;
+    margin-bottom: 10px;
+    animation: wobble 2s ease-in-out infinite;
+  }
+
+  .title-screen .subtitle {
+    font-size: 1.1rem;
+    color: #ffab40;
+    margin-bottom: 30px;
+    line-height: 1.5;
+  }
+
+  .title-screen .kei-ascii {
+    font-size: 3.5rem;
+    margin-bottom: 15px;
+    animation: bounce 1s ease-in-out infinite;
+  }
+
+  @keyframes wobble {
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
+  /* QUESTION SCREEN */
+  .question-counter {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 1.2rem;
+    color: #76ff03;
+    margin-bottom: 10px;
+  }
+
+  .question-box {
+    background: linear-gradient(135deg, rgba(74, 20, 140, 0.7), rgba(136, 14, 79, 0.7));
+    border: 3px solid #ff4081;
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 0 25px #ff408144;
+  }
+
+  .question-box h2 {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.4;
+  }
+
+  .question-hint {
+    font-size: 0.85rem;
+    color: #ffab40;
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    position: relative;
+  }
+
+  .option-btn {
+    font-family: 'Comic Neue', cursive;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 16px 12px;
+    border: 3px solid #fff3;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    color: #fff;
+    position: relative;
+  }
+
+  .option-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px #fff3;
+  }
+
+  .option-btn:active { transform: scale(0.95); }
+
+  .opt-a { background: rgba(211, 47, 47, 0.85); }
+  .opt-b { background: rgba(21, 101, 192, 0.85); }
+  .opt-c { background: rgba(46, 125, 50, 0.85); }
+  .opt-d { background: rgba(245, 127, 23, 0.85); }
+
+  .option-btn.tiny {
+    font-size: 0.55rem;
+    padding: 4px 6px;
+    max-width: 80px;
+    justify-self: center;
+  }
+
+  .option-btn.runaway { transition: none; }
+
+  /* BUTTONS */
+  .start-btn, .retry-btn, .discord-btn {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 1.4rem;
+    padding: 16px 45px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.15s;
+  }
+
+  .start-btn {
+    background: linear-gradient(135deg, #ff4081, #f50057);
+    box-shadow: 0 5px 0 #c51162, 0 8px 20px #0005;
+  }
+
+  .retry-btn {
+    background: linear-gradient(135deg, #ff6d00, #ff3d00);
+    box-shadow: 0 5px 0 #dd2c00, 0 8px 20px #0005;
+    font-size: 1.2rem;
+    padding: 14px 38px;
+  }
+
+  .discord-btn {
+    background: linear-gradient(135deg, #5865F2, #4752C4);
+    box-shadow: 0 5px 0 #3c45a5, 0 8px 20px #0005;
+    text-decoration: none;
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .start-btn:hover, .retry-btn:hover, .discord-btn:hover { transform: translateY(-3px); }
+  .start-btn:active, .retry-btn:active, .discord-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #c51162;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  /* ROAST SCREEN */
+  .roast-screen h2 {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 2.2rem;
+    color: #ff1744;
+    margin-bottom: 15px;
+    animation: shake 0.5s ease-in-out;
+  }
+
+  .roast-text {
+    font-size: 1.3rem;
+    color: #ffab40;
+    margin-bottom: 30px;
+    min-height: 60px;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-15px) rotate(-3deg); }
+    40% { transform: translateX(15px) rotate(3deg); }
+    60% { transform: translateX(-10px) rotate(-2deg); }
+    80% { transform: translateX(10px) rotate(2deg); }
+  }
+
+  /* VICTORY SCREEN */
+  .victory-screen h2 {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 2.4rem;
+    color: #76ff03;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  .victory-text {
+    font-size: 1.2rem;
+    color: #fff;
+    margin-bottom: 25px;
+  }
+
+  .victory-kei {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    transition: all 0.3s;
+  }
+
+  .tsundere-protest {
+    font-size: 1rem;
+    color: #ff4081;
+    margin-top: 15px;
+    min-height: 30px;
+    font-style: italic;
+    transition: all 0.3s;
+  }
+
+  /* MINIMIZED BAR — replaces full panel when user interacts with Kei */
+  #mini-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    z-index: 10;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 16px 12px;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #mini-bar.visible {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  #mini-bar-inner {
+    background: rgba(15, 8, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 12px 20px;
+    text-align: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #mini-bar-inner:hover { background: rgba(25, 12, 50, 0.85); }
+
+  #mini-bar-inner span {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 0.9rem;
+    color: #ff4081;
+  }
+
+  #mini-bar-inner .arrow {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* Hide full panel when minimized — !important to override animation fill */
+  #game.minimized .glass {
+    animation: none !important;
+    transform: translateY(60px) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s;
+  }
+
+  /* SETTINGS PANEL */
+  #settings-btn {
+    position: fixed;
+    top: 16px;
+    left: 20px;
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(15, 8, 30, 0.8);
+    backdrop-filter: blur(10px);
+    color: #ccc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  #settings-btn:hover { transform: rotate(30deg); background: rgba(30, 15, 60, 0.9); }
+
+  #settings-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+  #settings-panel {
+    position: fixed;
+    top: 16px;
+    left: 68px;
+    z-index: 20;
+    width: 220px;
+    background: rgba(15, 8, 30, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  #settings-panel.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .settings-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 12px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .settings-row:last-child { margin-bottom: 0; }
+
+  .settings-label {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .settings-slider {
+    width: 100px;
+    accent-color: #ff4081;
+    cursor: pointer;
+  }
+
+  .settings-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 12px 0;
+  }
+
+  .settings-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    font-family: 'Comic Neue', cursive;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+
+  .settings-link:last-child { margin-bottom: 0; }
+  .settings-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .settings-link svg { width: 16px; height: 16px; flex-shrink: 0; fill: currentColor; }
+
+  .discord-btn.shaking {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  /* SCREEN VISIBILITY */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* CONFETTI */
+  .confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    top: -20px;
+    animation: confetti-fall linear forwards;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  @keyframes confetti-fall {
+    0% { top: -20px; transform: rotate(0deg) scale(1); opacity: 1; }
+    100% { top: 110vh; transform: rotate(720deg) scale(0.3); opacity: 0; }
+  }
+
+  /* FLASH */
+  .flash-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 998;
+    animation: flash 0.4s ease-out forwards;
+  }
+
+  @keyframes flash {
+    0% { opacity: 0.6; }
+    100% { opacity: 0; }
+  }
+
+  /* PROGRESS BAR */
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #fff2;
+    border-radius: 4px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #76ff03, #00e676);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .chase-counter {
+    font-size: 0.85rem;
+    color: #76ff03;
+    margin-top: 10px;
+    min-height: 20px;
+  }
+
+  /* LOADING */
+  #loading {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 1.5rem;
+    color: #ff4081;
+    flex-direction: column;
+    gap: 15px;
+    transition: opacity 0.5s;
+  }
+
+  #loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #fff2;
+    border-top-color: #ff4081;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* DISCLAIMER */
+  #disclaimer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.25);
+    padding: 4px 16px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* STATS BUTTON + PANEL */
+  #stats-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(15, 8, 30, 0.8);
+    backdrop-filter: blur(10px);
+    color: #ccc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  #stats-btn:hover { transform: scale(1.1); background: rgba(30, 15, 60, 0.9); }
+  #stats-btn svg { width: 18px; height: 18px; }
+
+  #stats-panel {
+    position: fixed;
+    top: 16px;
+    right: 64px;
+    z-index: 20;
+    width: 200px;
+    background: rgba(15, 8, 30, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  #stats-panel.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .stats-row:last-child { margin-bottom: 0; }
+  .stats-row .stat-val { color: #ff4081; font-weight: 700; }
+
+  /* HEADPAT HUD — floating counter during Q4 */
+  #headpat-hud {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  #headpat-hud.visible { opacity: 1; }
+
+  #headpat-hud .hud-seconds {
+    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-size: 5rem;
+    color: #ff4081;
+    text-shadow: 0 0 30px #ff408166, 3px 3px 0 #000;
+    line-height: 1;
+  }
+
+  #headpat-hud .hud-label {
+    font-family: 'Comic Neue', cursive;
+    font-size: 1.1rem;
+    color: #ffab40;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- STATS BUTTON + PANEL -->
+<button id="stats-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
+<div id="stats-panel">
+  <div class="settings-title">Community Stats</div>
+  <div class="stats-row"><span>Quiz cleared</span><span class="stat-val" id="stat-completions">-</span></div>
+  <hr class="settings-divider">
+  <div class="stats-row"><span>Headpat seconds</span><span class="stat-val" id="stat-headpat">-</span></div>
+  <div class="stats-row"><span>Voicelines heard</span><span class="stat-val" id="stat-voice">-</span></div>
+  <div class="stats-row"><span>Cheek pinches</span><span class="stat-val" id="stat-pinch">-</span></div>
+  <div class="stats-row"><span>Eye tracks</span><span class="stat-val" id="stat-eye">-</span></div>
+  <hr class="settings-divider">
+  <div class="stats-row"><span>Total interactions</span><span class="stat-val" id="stat-total">-</span></div>
+</div>
+
+<!-- HEADPAT HUD — big centered counter during Q4 -->
+<div id="headpat-hud">
+  <div class="hud-seconds" id="hud-seconds">0</div>
+  <div class="hud-label">seconds patted</div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="loading">
+  <div class="loading-spinner"></div>
+  Loading Kei...
+</div>
+
+<!-- SPINE BACKGROUND CANVAS -->
+<canvas id="spine-canvas"></canvas>
+
+<!-- SETTINGS PANEL -->
+<button id="settings-btn"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button>
+<div id="settings-panel">
+  <div class="settings-title">Settings</div>
+  <div class="settings-row">
+    <span class="settings-label">Music</span>
+    <input type="range" id="music-slider" class="settings-slider" min="0" max="100" value="10">
+  </div>
+  <div class="settings-row">
+    <span class="settings-label">Voice</span>
+    <input type="range" id="voice-slider" class="settings-slider" min="0" max="100" value="30">
+  </div>
+  <hr class="settings-divider">
+  <a href="/" class="settings-link"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Aobing IT! Homepage</a>
+  <a href="/discord/" class="settings-link"><svg viewBox="0 0 24 24"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Kei's Quiz</a>
+</div>
+
+<!-- MINI BAR — shown when quiz is minimized -->
+<div id="mini-bar">
+  <div id="mini-bar-inner">
+    <span>Back to Quiz</span>
+    <span class="arrow">▲</span>
+  </div>
+</div>
+
+<!-- QUIZ UI — bottom-anchored -->
+<div id="game">
+  <div class="glass">
+
+    <!-- TITLE SCREEN -->
+    <div class="screen title-screen active" id="title-screen">
+      <div class="kei-ascii"><img src="assets/kei-emote.webp" alt="Kei" width="96" height="96" style="image-rendering: auto;"></div>
+      <h1>Kei's<br>Quiz</h1>
+      <p class="subtitle">H-Hmph! So you want to join our Discord?<br>Don't get the wrong idea — I made this quiz because I <em>have</em> to, not because I care if you join!<br><br>Answer 5 questions about me. Get one wrong and you're done.<br>...N-Not that I expect you to pass or anything.</p>
+      <br>
+      <button class="start-btn" onclick="startGame()">I-I'M READY!</button>
+    </div>
+
+    <!-- QUESTION SCREEN -->
+    <div class="screen" id="question-screen">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="question-counter" id="q-counter">Question 1 / 3</div>
+      <div class="question-box">
+        <h2 id="q-text"></h2>
+        <p class="question-hint" id="q-hint"></p>
+      </div>
+      <div class="options" id="options-container"></div>
+      <div class="chase-counter" id="chase-counter"></div>
+    </div>
+
+    <!-- ROAST SCREEN -->
+    <div class="screen roast-screen" id="roast-screen">
+      <h2>WRONG!!</h2>
+      <p class="roast-text" id="roast-text"></p>
+      <button class="retry-btn" onclick="startGame()">L-Let Me Try Again!</button>
+    </div>
+
+    <!-- VICTORY SCREEN -->
+    <div class="screen victory-screen" id="victory-screen">
+      <div class="victory-kei" id="victory-emoji">Hmph!</div>
+      <h2 id="victory-title">Hmph... You Actually Passed</h2>
+      <p class="victory-text" id="victory-text">D-Don't look so smug about it! It's not like the questions were hard or anything!</p>
+      <br>
+      <button class="discord-btn" id="discord-link">Join Discord?</button>
+      <p class="tsundere-protest" id="tsundere-protest"></p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── FIREBASE ANALYTICS ─────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey: "AIzaSyCAu6HNLjIpOjcncR3fbmeEMGNUPHnNBkQ",
+  authDomain: "aobing-dfe10.firebaseapp.com",
+  databaseURL: "https://aobing-dfe10-default-rtdb.firebaseio.com",
+  projectId: "aobing-dfe10",
+  storageBucket: "aobing-dfe10.firebasestorage.app",
+  messagingSenderId: "322502890597",
+  appId: "1:322502890597:web:e8679668c108b80355e28c"
+});
+const db = firebase.database();
+const keiRef = db.ref('kei');
+
+// Live stats display
+keiRef.child('completions').on('value', s => {
+  document.getElementById('stat-completions').textContent = (s.val() || 0).toLocaleString();
+});
+keiRef.child('totalHeadpatSeconds').on('value', s => {
+  document.getElementById('stat-headpat').textContent = (s.val() || 0).toLocaleString();
+});
+keiRef.child('totalVoicelines').on('value', s => {
+  document.getElementById('stat-voice').textContent = (s.val() || 0).toLocaleString();
+});
+keiRef.child('totalPinches').on('value', s => {
+  document.getElementById('stat-pinch').textContent = (s.val() || 0).toLocaleString();
+});
+keiRef.child('totalEyeTracks').on('value', s => {
+  document.getElementById('stat-eye').textContent = (s.val() || 0).toLocaleString();
+});
+keiRef.child('totalInteractions').on('value', s => {
+  document.getElementById('stat-total').textContent = (s.val() || 0).toLocaleString();
+});
+
+function trackCompletion() {
+  keiRef.child('completions').transaction(v => (v || 0) + 1);
+}
+function trackHeadpat(seconds) {
+  keiRef.child('totalHeadpatSeconds').transaction(v => (v || 0) + seconds);
+  keiRef.child('totalInteractions').transaction(v => (v || 0) + 1);
+}
+function trackVoiceline() {
+  keiRef.child('totalVoicelines').transaction(v => (v || 0) + 1);
+  keiRef.child('totalInteractions').transaction(v => (v || 0) + 1);
+}
+function trackPinch() {
+  keiRef.child('totalPinches').transaction(v => (v || 0) + 1);
+  keiRef.child('totalInteractions').transaction(v => (v || 0) + 1);
+}
+function trackEyeTrack() {
+  keiRef.child('totalEyeTracks').transaction(v => (v || 0) + 1);
+  keiRef.child('totalInteractions').transaction(v => (v || 0) + 1);
+}
+
+// ─── SPINE BACKGROUND ───────────────────────────────────────────────
+const CHARACTER = 'CH0335';
+const SKEL_PATH = `assets/${CHARACTER}_home.skel`;
+const ATLAS_PATH = `assets/${CHARACTER}_home.atlas`;
+
+let spineCanvas, spineGl, spineShader, spineBatcher, spineMvp, spineRenderer, spineAssetManager;
+let spineData, lastFrameTime;
+
+function initSpine() {
+  spineCanvas = document.getElementById('spine-canvas');
+  spineCanvas.width = window.innerWidth;
+  spineCanvas.height = window.innerHeight;
+
+  const config = { alpha: false, premultipliedAlpha: false, antialias: true };
+  spineGl = spineCanvas.getContext('webgl', config) || spineCanvas.getContext('experimental-webgl', config);
+  if (!spineGl) {
+    document.getElementById('loading').classList.add('hidden');
+    return;
+  }
+
+  spineShader = spine.Shader.newTwoColoredTextured(spineGl);
+  spineBatcher = new spine.PolygonBatcher(spineGl);
+  spineMvp = new spine.Matrix4();
+  spineRenderer = new spine.SkeletonRenderer(spineGl);
+  spineAssetManager = new spine.AssetManager(spineGl);
+
+  spineAssetManager.loadBinary(SKEL_PATH);
+  spineAssetManager.loadTextureAtlas(ATLAS_PATH);
+
+  requestAnimationFrame(loadSpine);
+}
+
+function loadSpine() {
+  if (!spineAssetManager.isLoadingComplete()) {
+    requestAnimationFrame(loadSpine);
+    return;
+  }
+
+  const atlas = spineAssetManager.get(ATLAS_PATH);
+  const atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+  const skeletonBinary = new spine.SkeletonBinary(atlasLoader);
+  skeletonBinary.scale = 1;
+  const skeletonData = skeletonBinary.readSkeletonData(spineAssetManager.get(SKEL_PATH));
+  const skeleton = new spine.Skeleton(skeletonData);
+
+  skeleton.setToSetupPose();
+  skeleton.updateWorldTransform(spine.Physics.update);
+  const offset = new spine.Vector2();
+  const size = new spine.Vector2();
+  skeleton.getBounds(offset, size, []);
+
+  const animationStateData = new spine.AnimationStateData(skeleton.data);
+  animationStateData.defaultMix = 0.5;
+  const animationState = new spine.AnimationState(animationStateData);
+
+  spineData = {
+    skeleton: skeleton,
+    state: animationState,
+    bounds: { offset, size },
+    premultipliedAlpha: false
+  };
+
+  spineData.state.addAnimation(0, 'Idle_01', true, 0);
+
+  resizeSpine();
+  setupInteraction();
+  lastFrameTime = Date.now() / 1000;
+
+  document.getElementById('loading').classList.add('hidden');
+  requestAnimationFrame(renderSpine);
+}
+
+function resizeSpine() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  spineCanvas.width = w;
+  spineCanvas.height = h;
+
+  const centerX = 0;
+  const centerY = 900;
+  const baseW = 2560;
+  const baseH = 1600;
+  const wr = w / baseW;
+  const hr = h / baseH;
+
+  let width = baseW;
+  let height = baseH;
+
+  if (wr < hr) {
+    width = height * (w / h);
+    spineTranspose = baseH / h;
+  } else if (wr > hr) {
+    height = width * (h / w);
+    spineTranspose = baseW / w;
+  } else {
+    spineTranspose = baseH / h;
+  }
+
+  spineMvp.ortho2d(centerX - width / 2, centerY - height / 2, width, height);
+  spineGl.viewport(0, 0, w, h);
+}
+
+function renderSpine() {
+  const now = Date.now() / 1000;
+  const delta = now - lastFrameTime;
+  lastFrameTime = now;
+
+  spineGl.clearColor(0.1, 0.1, 0.18, 1);
+  spineGl.clear(spineGl.COLOR_BUFFER_BIT);
+
+  if (spineData) {
+    const skeleton = spineData.skeleton;
+    const state = spineData.state;
+    state.update(delta);
+    state.apply(skeleton);
+    skeleton.updateWorldTransform(spine.Physics.update);
+
+    spineShader.bind();
+    spineShader.setUniformi(spine.Shader.SAMPLER, 0);
+    spineShader.setUniform4x4f(spine.Shader.MVP_MATRIX, spineMvp.values);
+
+    spineBatcher.begin(spineShader);
+    spineRenderer.premultipliedAlpha = spineData.premultipliedAlpha;
+    spineRenderer.draw(spineBatcher, skeleton);
+    spineBatcher.end();
+
+    spineShader.unbind();
+  }
+
+  requestAnimationFrame(renderSpine);
+}
+
+window.addEventListener('resize', () => {
+  if (spineGl) resizeSpine();
+});
+
+initSpine();
+
+// ─── SPINE INTERACTION (eye tracking, headpat, pinch) ───────────────
+let TPoint, TEye, PPointX, PPointY, EPointX, EPointY;
+let spineMouseSelect = -1;
+let spineTrackerID = -1, spineUntrackerID = -1, spineUnpetID = -1;
+let spineAcceptingClick = true;
+let spineTranspose = 1;
+let spineMousePos = { x: 0, y: 0 };
+
+const HITBOX = {
+  headpat: { xMin: 1400, xMax: 1900, yMin: 0, yMax: 450 },
+  pinch:   { xMin: 1420, xMax: 1800, yMin: 500, yMax: 830 }
+};
+const HEADPAT_CLAMP = 30, EYE_CLAMP_X = 200, EYE_CLAMP_Y = EYE_CLAMP_X * (9/16);
+const HEADPAT_STEP = 5, EYE_STEP = 10;
+
+function clamp(n, min, max) { return Math.min(Math.max(n, min), max); }
+
+function hitboxTransform(n, side) {
+  const d = { x: { length: 2560, mid: spineCanvas.width/2 }, y: { length: 1600, mid: spineCanvas.height/2 } };
+  n = d[side].mid - n;
+  n = (d[side].length / (spineTranspose*2)) - n;
+  n = (n - (d[side].length / (spineTranspose*2))) / 1;
+  return (n + (d[side].length / (spineTranspose*2))) * spineTranspose;
+}
+
+function spineTrackMouse() {
+  const adjX = (spineMousePos.x / spineCanvas.width) - 0.5;
+  const adjY = (spineMousePos.y / spineCanvas.height) - 0.5;
+  TEye.y -= Math.sign(adjX) * EYE_STEP;
+  TEye.x -= Math.sign(adjY) * EYE_STEP;
+  TEye.y = clamp(TEye.y, EPointY - Math.abs(adjX)*EYE_CLAMP_X, EPointY + Math.abs(adjX)*EYE_CLAMP_X);
+  TEye.x = clamp(TEye.x, EPointX - Math.abs(adjY)*EYE_CLAMP_Y, EPointX + Math.abs(adjY)*EYE_CLAMP_Y);
+}
+
+function spineUntrackMouse() {
+  if (Math.abs(TEye.y - EPointY) <= EYE_STEP && Math.abs(TEye.x - EPointX) <= EYE_STEP) {
+    if (spineUntrackerID !== -1) { TEye.y = EPointY; TEye.x = EPointX; clearInterval(spineUntrackerID); spineUntrackerID = -1; setTimeout(() => { spineAcceptingClick = true; }, 500); }
+  }
+  if (TEye.y > EPointY) TEye.y -= EYE_STEP;
+  if (TEye.y < EPointY) TEye.y += EYE_STEP;
+  if (TEye.x > EPointX) TEye.x -= EYE_STEP;
+  if (TEye.x < EPointX) TEye.x += EYE_STEP;
+}
+
+function spineUnpet() {
+  if (Math.abs(TPoint.x - PPointX) <= HEADPAT_STEP && Math.abs(TPoint.y - PPointY) <= HEADPAT_STEP) {
+    if (spineUnpetID !== -1) { TPoint.x = PPointX; TPoint.y = PPointY; clearInterval(spineUnpetID); spineUnpetID = -1; setTimeout(() => { spineAcceptingClick = true; }, 500); }
+  }
+  if (TPoint.y > PPointY) TPoint.y -= HEADPAT_STEP;
+  if (TPoint.y < PPointY) TPoint.y += HEADPAT_STEP;
+  if (TPoint.x > PPointX) TPoint.x -= HEADPAT_STEP;
+  if (TPoint.x < PPointX) TPoint.x += HEADPAT_STEP;
+}
+
+function spinePressedMouse(x, y) {
+  const tx = hitboxTransform(x, 'x'), ty = hitboxTransform(y, 'y');
+  if (tx > HITBOX.headpat.xMin && tx < HITBOX.headpat.xMax && ty > HITBOX.headpat.yMin && ty < HITBOX.headpat.yMax) {
+    spineData.state.setAnimation(1, 'Pat_01_M', false);
+    spineMouseSelect = 1;
+  } else if (tx > HITBOX.pinch.xMin && tx < HITBOX.pinch.xMax && ty > HITBOX.pinch.yMin && ty < HITBOX.pinch.yMax) {
+    spineData.state.setAnimation(1, 'Pinch_02_M', false);
+    spineData.state.setAnimation(2, 'Pinch_01_M', false);
+    spineData.state.addAnimation(1, 'PinchEnd_01_A', false, 0);
+    spineData.state.addAnimation(2, 'PinchEnd_01_M', false, 0);
+    setTimeout(() => { spineData.state.addEmptyAnimation(1, 0.5, 0); spineData.state.addEmptyAnimation(2, 0.5, 0); spineAcceptingClick = true; }, 10);
+    spineMouseSelect = 4;
+    trackPinch();
+  } else {
+    if (spineTrackerID === -1) spineTrackerID = setInterval(spineTrackMouse, 20);
+    spineData.state.setEmptyAnimation(1, 0);
+    spineData.state.setEmptyAnimation(2, 0);
+    const look = spineData.state.addAnimation(1, 'Look_01_M', false, 0);
+    look.mixDuration = 0.2;
+    spineMousePos.x = x; spineMousePos.y = y;
+    spineMouseSelect = 3;
+    trackEyeTrack();
+  }
+}
+
+function spineMovedMouse(x, y, dx, dy) {
+  if (spineMouseSelect === 1) {
+    if ((y < 800 && dy < 0) || (x >= 1440 && dx > 0)) TPoint.y = clamp(TPoint.y - HEADPAT_STEP, PPointY - HEADPAT_CLAMP, PPointY + HEADPAT_CLAMP);
+    else if ((y >= 800 && dy > 0) || (x < 1440 && dx < 0)) TPoint.y = clamp(TPoint.y + HEADPAT_STEP, PPointY - HEADPAT_CLAMP, PPointY + HEADPAT_CLAMP);
+  } else if (spineMouseSelect === 3) { spineMousePos.x = x; spineMousePos.y = y; }
+}
+
+function spineReleasedMouse() {
+  switch (spineMouseSelect) {
+    case 1:
+      if (spineUnpetID === -1) spineUnpetID = setInterval(spineUnpet, 20);
+      spineData.state.setAnimation(1, 'PatEnd_01_M', false);
+      spineData.state.setAnimation(2, 'PatEnd_01_A', false);
+      setTimeout(() => { spineData.state.addEmptyAnimation(1, 0.5, 0); spineData.state.addEmptyAnimation(2, 0.5, 0); }, 1000);
+      break;
+    case 3:
+      if (spineTrackerID !== -1) { clearInterval(spineTrackerID); spineTrackerID = -1; }
+      if (spineUntrackerID === -1) spineUntrackerID = setInterval(spineUntrackMouse, 20);
+      const l1 = spineData.state.setAnimation(1, 'LookEnd_01_M', false);
+      const l2 = spineData.state.setAnimation(2, 'LookEnd_01_A', false);
+      l1.mixDuration = 0; l2.mixDuration = 0;
+      spineData.state.addEmptyAnimation(1, 0.5, 0);
+      spineData.state.addEmptyAnimation(2, 0.5, 0);
+      break;
+  }
+  spineMouseSelect = -1;
+}
+
+function setupInteraction() {
+  TPoint = spineData.skeleton.findBone('Touch_Point');
+  TEye   = spineData.skeleton.findBone('Touch_Eye');
+  PPointX = TPoint.x; PPointY = TPoint.y;
+  EPointX = TEye.x;   EPointY = TEye.y;
+
+  spineCanvas.addEventListener('mousedown', (e) => {
+    if (!spineData || !spineAcceptingClick) return;
+    spineAcceptingClick = false;
+    spinePressedMouse(e.clientX, e.clientY);
+  });
+  spineCanvas.addEventListener('mouseup', () => { if (spineData) spineReleasedMouse(); });
+  spineCanvas.addEventListener('mousemove', (e) => { if (spineData) spineMovedMouse(e.clientX, e.clientY, e.movementX, e.movementY); });
+  spineAcceptingClick = true;
+}
+
+// ─── PANEL MINIMIZE / RESTORE ────────────────────────────────────────
+const gamePanel = document.getElementById('game');
+const miniBar = document.getElementById('mini-bar');
+let panelMinimized = false;
+
+function minimizePanel() {
+  if (panelMinimized) return;
+  panelMinimized = true;
+  gamePanel.classList.add('minimized');
+  miniBar.classList.add('visible');
+}
+
+function restorePanel() {
+  if (!panelMinimized) return;
+  panelMinimized = false;
+  gamePanel.classList.remove('minimized');
+  miniBar.classList.remove('visible');
+  // Grace period — prevent immediate re-minimize from lingering clicks
+  minimizeGrace = true;
+  setTimeout(() => { minimizeGrace = false; }, 1500);
+  // re-trigger slide-up
+  const glass = document.querySelector('.glass');
+  glass.style.animation = 'none';
+  glass.offsetHeight;
+  glass.style.animation = '';
+}
+
+document.getElementById('mini-bar-inner').addEventListener('click', restorePanel);
+
+// Auto-minimize when spine canvas is clicked (interacting with Kei)
+// Grace period prevents instant re-minimize after a new question renders
+let minimizeGrace = false;
+spineCanvas.addEventListener('mousedown', () => {
+  if (!minimizeGrace) minimizePanel();
+});
+
+// ─── SETTINGS PANEL + LOCALSTORAGE ──────────────────────────────────
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const musicSlider = document.getElementById('music-slider');
+const voiceSlider = document.getElementById('voice-slider');
+
+const saved = JSON.parse(localStorage.getItem('kei-quiz-settings') || 'null');
+if (saved) {
+  musicSlider.value = saved.music ?? 10;
+  voiceSlider.value = saved.voice ?? 30;
+}
+
+function saveSettings() {
+  localStorage.setItem('kei-quiz-settings', JSON.stringify({
+    music: Number(musicSlider.value),
+    voice: Number(voiceSlider.value)
+  }));
+}
+
+const statsBtn = document.getElementById('stats-btn');
+const statsPanel = document.getElementById('stats-panel');
+
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  settingsPanel.classList.toggle('open');
+  statsPanel.classList.remove('open');
+});
+
+statsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  statsPanel.classList.toggle('open');
+  settingsPanel.classList.remove('open');
+});
+
+document.addEventListener('click', (e) => {
+  if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+    settingsPanel.classList.remove('open');
+  }
+  if (!statsPanel.contains(e.target) && e.target !== statsBtn) {
+    statsPanel.classList.remove('open');
+  }
+});
+
+musicSlider.addEventListener('input', (e) => {
+  e.stopPropagation();
+  const vol = Number(e.target.value) / 100;
+  bgm.volume = vol;
+  saveSettings();
+  if (vol > 0 && !bgmStarted) startBGM();
+});
+
+voiceSlider.addEventListener('input', (e) => {
+  e.stopPropagation();
+  voiceVolume = Number(e.target.value) / 100;
+  saveSettings();
+});
+
+// ─── BGM + VOICELINES ───────────────────────────────────────────────
+const bgm = new Audio('assets/audio/Theme_341.ogg');
+bgm.loop = true;
+bgm.volume = Number(musicSlider.value) / 100;
+let bgmStarted = false;
+let voiceVolume = Number(voiceSlider.value) / 100;
+let currentVoiceline = 1;
+let isVoicelinePlaying = false;
+const VOICELINE_COUNT = 5;
+
+const AUDIO_DETAIL = [
+  { time: 11000, count: 2, startTimes: [2200, 5500] },
+  { time: 16000, count: 2, startTimes: [500, 5200] },
+  { time: 15000, count: 2, startTimes: [3500, 9400] },
+  { time: 16000, count: 2, startTimes: [700, 7900] },
+  { time: 16000, count: 2, startTimes: [2800, 9100] }
+];
+let voiceTimeouts = [];
+
+function startBGM() {
+  if (!bgmStarted) {
+    bgm.play().catch(() => {});
+    bgmStarted = true;
+  }
+}
+
+// Start BGM on first user interaction
+document.addEventListener('click', startBGM, { once: true });
+
+// Add voiceline hitbox to spine interaction
+const HITBOX_VOICE = { xMin: 600, xMax: 1320, yMin: 870, yMax: 1400 };
+
+// Patch spinePressedMouse to add voiceline trigger + interaction quiz tracking
+const _origPressed = spinePressedMouse;
+spinePressedMouse = function(x, y) {
+  const tx = hitboxTransform(x, 'x'), ty = hitboxTransform(y, 'y');
+
+  // Voiceline hitbox
+  if (tx > HITBOX_VOICE.xMin && tx < HITBOX_VOICE.xMax && ty > HITBOX_VOICE.yMin && ty < HITBOX_VOICE.yMax && !isVoicelinePlaying) {
+    spineAcceptingClick = false;
+    playVoiceline();
+    spineMouseSelect = 2;
+    // Q5: voiceline interaction
+    if (interactionMode === 'voiceline') {
+      trackVoiceline();
+      setTimeout(() => completeInteractionQuestion(), 2000);
+    } else {
+      trackVoiceline();
+    }
+    return;
+  }
+
+  _origPressed(x, y);
+
+  // Q4: headpat interaction — start tracking duration with HUD
+  if (interactionMode === 'headpat' && spineMouseSelect === 1) {
+    headpatSeconds = 0;
+    const hud = document.getElementById('headpat-hud');
+    hud.classList.add('visible');
+    document.getElementById('hud-seconds').textContent = '0';
+    headpatTimer = setInterval(() => {
+      headpatSeconds++;
+      document.getElementById('hud-seconds').textContent = headpatSeconds;
+      document.getElementById('chase-counter').textContent =
+        headpatSeconds < 5
+          ? `K-Keep going...! (${headpatSeconds}/5s)`
+          : 'O-Okay that\'s enough!! ...baka.';
+      if (headpatSeconds >= 5) {
+        clearInterval(headpatTimer);
+        headpatTimer = null;
+        trackHeadpat(headpatSeconds);
+        hud.classList.remove('visible');
+        setTimeout(() => completeInteractionQuestion(), 600);
+      }
+    }, 1000);
+  }
+
+  // Track non-quiz headpats too
+  if (interactionMode !== 'headpat' && spineMouseSelect === 1) {
+    headpatSeconds = 0;
+    headpatTimer = setInterval(() => { headpatSeconds++; }, 1000);
+  }
+};
+
+// Patch spineReleasedMouse for voiceline + headpat timer cleanup
+const _origReleased = spineReleasedMouse;
+spineReleasedMouse = function() {
+  // Stop headpat timer if released early
+  if (headpatTimer) {
+    clearInterval(headpatTimer);
+    headpatTimer = null;
+    if (interactionMode === 'headpat' && headpatSeconds < 5) {
+      headpatSeconds = 0;
+      document.getElementById('chase-counter').textContent = 'Y-You stopped?! ...Do it properly! (0/5s)';
+      document.getElementById('headpat-hud').classList.remove('visible');
+    } else if (headpatSeconds > 0) {
+      trackHeadpat(headpatSeconds);
+    }
+    headpatSeconds = 0;
+  }
+  if (spineMouseSelect === 2) { spineMouseSelect = -1; return; }
+  _origReleased();
+};
+
+function playVoiceline() {
+  isVoicelinePlaying = true;
+  startBGM();
+
+  spineData.state.setEmptyAnimation(1, 1);
+  spineData.state.setEmptyAnimation(2, 1);
+  spineData.state.addAnimation(1, `Talk_0${currentVoiceline}_M`, false, 0);
+  spineData.state.addAnimation(2, `Talk_0${currentVoiceline}_A`, false, 0);
+  spineData.state.addEmptyAnimation(1, 0.5, 0);
+  spineData.state.addEmptyAnimation(2, 0.5, 0);
+
+  const detail = AUDIO_DETAIL[currentVoiceline - 1];
+
+  voiceTimeouts.push(setTimeout(() => {
+    isVoicelinePlaying = false;
+    spineAcceptingClick = true;
+    currentVoiceline = currentVoiceline >= VOICELINE_COUNT ? 1 : currentVoiceline + 1;
+  }, detail.time));
+
+  for (let i = 0; i < detail.count; i++) {
+    const suffix = detail.count === 1 ? '' : `_${i + 1}`;
+    const track = new Audio(`assets/audio/${CHARACTER}_memoriallobby_${currentVoiceline}${suffix}.ogg`);
+    track.volume = voiceVolume;
+    voiceTimeouts.push(setTimeout(() => { track.play(); }, detail.startTimes[i]));
+  }
+}
+
+// ─── QUIZ GAME ──────────────────────────────────────────────────────
+const QUESTIONS = [
+  {
+    text: "W-What was my backup file called?!",
+    hint: "...I was stuck on Alice's keychain. Don't make it weird.",
+    options: [
+      { text: "Key.exe", correct: false, color: "opt-a" },
+      { text: "Kei.sav", correct: true, color: "opt-b", trick: "tiny" },
+      { text: "Alice.bak", correct: false, color: "opt-c" },
+      { text: "Kei.txt", correct: false, color: "opt-d" }
+    ]
+  },
+  {
+    text: "What was my first body? ...D-Don't laugh!",
+    hint: "It wasn't graceful, okay?! The unicycle was Rio's idea, not mine!",
+    options: [
+      { text: "A school uniform girl", correct: false, color: "opt-a" },
+      { text: "A hologram maid", correct: false, color: "opt-b" },
+      { text: "A one-wheeled robot", correct: true, color: "opt-c" },
+      { text: "An Alice body double", correct: false, color: "opt-d" }
+    ]
+  },
+  {
+    text: "What's the name of MY weapon? You better know this!",
+    hint: "Himari and Rio designed it for me... I-I guess it turned out okay!",
+    options: [
+      { text: "Sword of Light", correct: false, color: "opt-a" },
+      { text: "Luminous Nova", correct: true, color: "opt-b", trick: "runaway" },
+      { text: "Giant Mop", correct: false, color: "opt-c" },
+      { text: "Tsundere Cannon", correct: false, color: "opt-d" }
+    ]
+  },
+  {
+    type: 'headpat',
+    text: "GIVE ME HEADPATS, BAKA!",
+    hint: "Pat my head for 5 seconds! ...I-It's not like I enjoy it or anything!!"
+  },
+  {
+    type: 'voiceline',
+    text: "Talk to me!!",
+    hint: "Click on me to make me talk! ...I have things to say, okay?!"
+  }
+];
+
+const ROASTS = [
+  "Ha?! You got that wrong?! ...I-I'm not disappointed, I just think you're hopeless!",
+  "Even the AMAS robot could answer that, and it has ONE WHEEL. One!!",
+  "You call yourself a Sensei?! Hmph... I bet you don't even know Alice either!",
+  "W-Wrong!! Did you even pay attention to my story, or were you too busy staring?!",
+  "Are you serious right now?! ...N-No, I'm not upset. I just think you should study more!",
+  "Ugh, even Aru's self-proclaimed genius club could do better than this! ARU!",
+  "That's it? That's your answer?! ...Go replay Volume F already, baka!",
+  "I didn't make this quiz easy for nothing, you know! ...W-Wait, I mean it IS hard! Very hard!"
+];
+
+let currentQ = 0;
+let runawayEvadeCount = 0;
+let discordClickCount = 0;
+const RUNAWAY_EVADES = 5;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // Re-trigger slide-up animation on screen change
+  const glass = document.querySelector('.glass');
+  glass.style.animation = 'none';
+  glass.offsetHeight;
+  glass.style.animation = '';
+}
+
+function startGame() {
+  currentQ = 0;
+  runawayEvadeCount = 0;
+  discordClickCount = 0;
+  showScreen('question-screen');
+  renderQuestion();
+}
+
+let interactionMode = null; // 'headpat' or 'voiceline'
+let headpatTimer = null;
+let headpatSeconds = 0;
+
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  const total = QUESTIONS.length;
+  document.getElementById('q-counter').textContent = `Question ${currentQ + 1} / ${total}`;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('q-hint').textContent = q.hint;
+  document.getElementById('progress-fill').style.width = `${(currentQ / total) * 100}%`;
+  document.getElementById('chase-counter').textContent = '';
+
+  const container = document.getElementById('options-container');
+  container.innerHTML = '';
+
+  // Interaction questions — no options, minimize panel and wait
+  if (q.type === 'headpat' || q.type === 'voiceline') {
+    interactionMode = q.type;
+    headpatSeconds = 0;
+    // Reset spine interaction state so clicks work immediately
+    spineAcceptingClick = true;
+    spineMouseSelect = -1;
+    if (q.type === 'headpat') {
+      document.getElementById('chase-counter').textContent = 'Click on my head and hold! (0/5s)';
+    } else {
+      document.getElementById('chase-counter').textContent = 'Click on me to make me talk!';
+    }
+    // Auto-minimize after a short delay so user reads the instruction
+    setTimeout(() => { minimizePanel(); }, 800);
+    return;
+  }
+
+  interactionMode = null;
+
+  const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+
+  shuffled.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = `option-btn ${opt.color}`;
+    btn.textContent = opt.text;
+
+    if (opt.trick === 'tiny') {
+      btn.classList.add('tiny');
+    }
+
+    if (opt.trick === 'runaway' && opt.correct) {
+      runawayEvadeCount = 0;
+      btn.classList.add('runaway');
+      btn.addEventListener('mouseenter', () => {
+        if (runawayEvadeCount < RUNAWAY_EVADES) {
+          evadeButton(btn);
+          runawayEvadeCount++;
+          document.getElementById('chase-counter').textContent =
+            runawayEvadeCount < RUNAWAY_EVADES
+              ? `H-Hey! Stop running away! (${runawayEvadeCount}/${RUNAWAY_EVADES})`
+              : "Tch... fine, I'll let you click it. Don't mess up!";
+        }
+      });
+
+      btn.addEventListener('touchstart', (e) => {
+        if (runawayEvadeCount < RUNAWAY_EVADES) {
+          e.preventDefault();
+          evadeButton(btn);
+          runawayEvadeCount++;
+          document.getElementById('chase-counter').textContent =
+            runawayEvadeCount < RUNAWAY_EVADES
+              ? `H-Hey! Stop running away! (${runawayEvadeCount}/${RUNAWAY_EVADES})`
+              : "Tch... fine, I'll let you click it. Don't mess up!";
+        }
+      }, { passive: false });
+    }
+
+    btn.addEventListener('click', () => handleAnswer(opt.correct, opt.trick === 'runaway'));
+    container.appendChild(btn);
+  });
+}
+
+// Called from spine interaction when an interaction question is active
+function completeInteractionQuestion() {
+  interactionMode = null;
+  flashScreen('#76ff0344');
+  currentQ++;
+  restorePanel();
+  if (currentQ >= QUESTIONS.length) {
+    showScreen('victory-screen');
+    document.getElementById('progress-fill').style.width = '100%';
+    spawnConfetti();
+    trackCompletion();
+  } else {
+    renderQuestion();
+  }
+}
+
+function evadeButton(btn) {
+  const container = document.getElementById('options-container');
+  const rect = container.getBoundingClientRect();
+  const btnW = btn.offsetWidth;
+  const btnH = btn.offsetHeight;
+
+  const maxX = rect.width - btnW;
+  const maxY = rect.height - btnH;
+
+  const x = Math.random() * Math.max(maxX, 100);
+  const y = Math.random() * Math.max(maxY, 50);
+
+  btn.style.position = 'absolute';
+  btn.style.left = x + 'px';
+  btn.style.top = y + 'px';
+  btn.style.zIndex = '10';
+
+  container.style.position = 'relative';
+  container.style.minHeight = '180px';
+}
+
+function handleAnswer(correct, isRunaway) {
+  if (isRunaway && runawayEvadeCount < RUNAWAY_EVADES) return;
+
+  if (correct) {
+    flashScreen('#76ff0344');
+    currentQ++;
+    if (currentQ >= QUESTIONS.length) {
+      showScreen('victory-screen');
+      document.getElementById('progress-fill').style.width = '100%';
+      spawnConfetti();
+    } else {
+      renderQuestion();
+    }
+  } else {
+    flashScreen('#ff174444');
+    document.getElementById('roast-text').textContent =
+      ROASTS[Math.floor(Math.random() * ROASTS.length)];
+    showScreen('roast-screen');
+  }
+}
+
+function flashScreen(color) {
+  const el = document.createElement('div');
+  el.className = 'flash-overlay';
+  el.style.background = color;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+function spawnConfetti() {
+  const colors = ['#ff4081', '#76ff03', '#ffab40', '#448aff', '#e040fb', '#ff5252', '#69f0ae'];
+  const shapes = ['■', '●', '▲', '★', '♦'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.color = colors[Math.floor(Math.random() * colors.length)];
+    p.style.fontSize = (Math.random() * 15 + 8) + 'px';
+    p.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    p.style.animationDelay = (Math.random() * 1.5) + 's';
+    document.body.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
+// ─── TSUNDERE DISCORD GIMMICK ───────────────────────────────────────
+// To set your invite code, run in browser console: btoa('YOUR-INVITE-CODE')
+// Then paste the result below.
+const _0x = [
+  'aHR0cHM6Ly9kaXNj', // base64 chunks of URL prefix
+  'b3JkLmdnLw=='       // split so no scanner matches "discord.gg"
+];
+const _inv = 'REPLACE_WITH_BASE64_INVITE_CODE'; // btoa('your-code-here')
+
+const TSUNDERE_STAGES = [
+  {
+    emoji: "Hmph!",
+    title: "W-Wait!!",
+    text: "Are you SURE you want to join?! It's not like we need more people or anything!",
+    btn: "Yes, I want to join!",
+    protest: "Hmph... clicking once doesn't prove anything!"
+  },
+  {
+    emoji: "W-What?!",
+    title: "Y-You're still here?!",
+    text: "I-I mean... the server isn't THAT great, okay?! Don't get your hopes up!",
+    btn: "I still want to join!",
+    protest: "S-Stop being so persistent...!"
+  },
+  {
+    emoji: "Grr!!",
+    title: "Are you mocking me?!",
+    text: "Ugh, you're SO annoying! Why do you keep clicking?! ...It's not like I'm testing your dedication or anything!!",
+    btn: "Please let me in, Kei!",
+    protest: "D-Don't say my name like that, baka!!"
+  },
+  {
+    emoji: "Ugh...",
+    title: "You're really not giving up...",
+    text: "F-Fine! ONE more click and I'll... I'll think about it! But only because you're being so stubborn, not because I want you there!!",
+    btn: "One more click!",
+    protest: "I can't believe you're actually doing this..."
+  },
+  {
+    emoji: "...Fine.",
+    title: "FINE!!",
+    text: "Here's your stupid invite link, are you happy now?! ...I-It's not like I was hoping you'd join all along or anything!! B-Baka!!",
+    btn: "Join Discord!!",
+    protest: "...W-Welcome to the server. Don't make it weird.",
+    final: true
+  }
+];
+
+document.getElementById('discord-link').addEventListener('click', function(e) {
+  e.preventDefault();
+
+  if (discordClickCount >= TSUNDERE_STAGES.length) return;
+
+  const stage = TSUNDERE_STAGES[discordClickCount];
+
+  document.getElementById('victory-emoji').textContent = stage.emoji;
+  document.getElementById('victory-title').textContent = stage.title;
+  document.getElementById('victory-text').textContent = stage.text;
+  document.getElementById('discord-link').textContent = stage.btn;
+  document.getElementById('tsundere-protest').textContent = stage.protest;
+
+  // Shake the button
+  this.classList.add('shaking');
+  setTimeout(() => this.classList.remove('shaking'), 500);
+
+  discordClickCount++;
+
+  if (stage.final) {
+    // Disable button briefly so rapid clicks don't accidentally open link
+    const btn = document.getElementById('discord-link');
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    spawnConfetti();
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.addEventListener('click', function openDiscord(ev) {
+        ev.preventDefault();
+        const u = atob(_0x[0] + _0x[1]) + atob(_inv);
+        window.open(u, '_blank', 'noopener');
+        this.removeEventListener('click', openDiscord);
+      });
+    }, 1500);
+  }
+});
+</script>
+
+<div id="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.</div>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject Discord invite code
+        env:
+          DISCORD_INVITE_CODE: ${{ secrets.DISCORD_INVITE_CODE }}
+        run: |
+          if [ -n "$DISCORD_INVITE_CODE" ]; then
+            ENCODED=$(echo -n "$DISCORD_INVITE_CODE" | base64 -w0)
+            sed -i "s|REPLACE_WITH_BASE64_INVITE_CODE|${ENCODED}|g" discord/index.html
+            echo "Discord invite code injected."
+          else
+            echo "Warning: DISCORD_INVITE_CODE secret not set. Link will not work."
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - uses: actions/deploy-pages@v4
+        id: deployment

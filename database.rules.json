@@ -26,6 +26,33 @@
         }
       }
     },
+    "kei": {
+      ".read": true,
+      "completions": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      },
+      "totalHeadpatSeconds": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      },
+      "totalVoicelines": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      },
+      "totalInteractions": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      },
+      "totalPinches": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      },
+      "totalEyeTracks": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      }
+    },
     ".read": false,
     ".write": false
   }
