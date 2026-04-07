@@ -1005,9 +1005,6 @@ function spinePressedMouse(x, y) {
   } else if (tx > HITBOX.pinch.xMin && tx < HITBOX.pinch.xMax && ty > HITBOX.pinch.yMin && ty < HITBOX.pinch.yMax) {
     spineData.state.setAnimation(1, 'Pinch_02_M', false);
     spineData.state.setAnimation(2, 'Pinch_01_M', false);
-    spineData.state.addAnimation(1, 'PinchEnd_01_A', false, 0);
-    spineData.state.addAnimation(2, 'PinchEnd_01_M', false, 0);
-    setTimeout(() => { spineData.state.addEmptyAnimation(1, 0.5, 0); spineData.state.addEmptyAnimation(2, 0.5, 0); spineAcceptingClick = true; }, 10);
     spineMouseSelect = 4;
     trackPinch();
   } else {
@@ -1026,7 +1023,11 @@ function spineMovedMouse(x, y, dx, dy) {
   if (spineMouseSelect === 1) {
     if ((y < 800 && dy < 0) || (x >= 1440 && dx > 0)) TPoint.y = clamp(TPoint.y - HEADPAT_STEP, PPointY - HEADPAT_CLAMP, PPointY + HEADPAT_CLAMP);
     else if ((y >= 800 && dy > 0) || (x < 1440 && dx < 0)) TPoint.y = clamp(TPoint.y + HEADPAT_STEP, PPointY - HEADPAT_CLAMP, PPointY + HEADPAT_CLAMP);
-  } else if (spineMouseSelect === 3) { spineMousePos.x = x; spineMousePos.y = y; }
+  } else if (spineMouseSelect === 3) { spineMousePos.x = x; spineMousePos.y = y;
+  } else if (spineMouseSelect === 4) {
+    TPoint.y = clamp(TPoint.y - dx, PPointY - HEADPAT_CLAMP, PPointY + HEADPAT_CLAMP);
+    TPoint.x = clamp(TPoint.x - dy, PPointX - HEADPAT_CLAMP, PPointX + HEADPAT_CLAMP);
+  }
 }
 
 function spineReleasedMouse() {
@@ -1045,6 +1046,12 @@ function spineReleasedMouse() {
       l1.mixDuration = 0; l2.mixDuration = 0;
       spineData.state.addEmptyAnimation(1, 0.5, 0);
       spineData.state.addEmptyAnimation(2, 0.5, 0);
+      break;
+    case 4:
+      if (spineUnpetID === -1) spineUnpetID = setInterval(spineUnpet, 20);
+      spineData.state.setAnimation(1, 'PinchEnd_01_A', false);
+      spineData.state.setAnimation(2, 'PinchEnd_01_M', false);
+      setTimeout(() => { spineData.state.addEmptyAnimation(1, 0.5, 0); spineData.state.addEmptyAnimation(2, 0.5, 0); }, 1000);
       break;
   }
   spineMouseSelect = -1;
