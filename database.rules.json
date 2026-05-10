@@ -23,6 +23,12 @@
             ".write": true,
             ".validate": "newData.isNumber() && $skinId.length <= 20"
           }
+        },
+        "visitors": {
+          "$visitorId": {
+            ".write": true,
+            ".validate": "newData.isBoolean() && $visitorId.length <= 64"
+          }
         }
       }
     },
