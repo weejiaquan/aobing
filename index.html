@@ -365,88 +365,215 @@
     /* --- Stats Button --- */
     #stats-btn { top: 16px; right: 20px; }
 
-    /* --- Stats Panel --- */
-    #stats-panel {
+    /* --- Stats Modal --- */
+    #stats-modal {
       position: fixed;
-      top: 66px;
-      right: 20px;
-      width: 220px;
-      background: rgba(10, 10, 30, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      padding: 16px;
-      z-index: 60;
-      color: white;
-      font-size: 0.85rem;
-      transform: translateY(-10px);
+      inset: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s ease, transform 0.25s ease;
+      transition: opacity 0.25s ease;
     }
 
-    #stats-panel.open {
-      transform: translateY(0);
+    #stats-modal.open {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .stats-date {
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.4);
-      margin-bottom: 4px;
+    .stats-dialog {
+      position: relative;
+      width: min(960px, 92vw);
+      max-height: 90vh;
+      background: rgba(10, 10, 30, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 22px 24px;
+      color: white;
+      font-size: 0.85rem;
+      overflow-y: auto;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 0.25s ease;
     }
 
-    .stats-today {
-      font-size: 1.4rem;
+    #stats-modal.open .stats-dialog {
+      transform: translateY(0) scale(1);
+    }
+
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .stats-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: white;
+    }
+
+    .stats-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 10px;
+      border-radius: 6px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .stats-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .stats-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stats-date-input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: white;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color-scheme: dark;
+    }
+
+    .stats-presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .stats-preset {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .stats-preset:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+    }
+
+    .stats-preset.active {
+      background: rgba(77, 171, 247, 0.18);
+      border-color: rgba(77, 171, 247, 0.6);
+      color: #4dabf7;
+    }
+
+    .stats-tiles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stats-tile {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .stats-tile-value {
+      font-size: 1.6rem;
       font-weight: 700;
       color: #4dabf7;
-      margin-bottom: 12px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
     }
 
-    .stats-today span {
-      font-size: 0.75rem;
-      font-weight: 400;
+    .stats-tile-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       color: rgba(255, 255, 255, 0.45);
+      margin-top: 6px;
     }
 
-    .stats-subtitle {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .stats-grid + .stats-grid {
+      margin-top: 14px;
+    }
+
+    .stats-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .stats-card-title {
       font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.4);
-      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 10px;
     }
 
-    .country-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 3px 0;
-      font-size: 0.8rem;
+    .stats-chart-wrap {
+      position: relative;
+      height: 180px;
     }
 
-    .country-flag {
-      margin-right: 6px;
-    }
-
-    .country-name {
-      flex: 1;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .country-count {
-      color: rgba(255, 255, 255, 0.5);
-      font-variant-numeric: tabular-nums;
+    .stats-chart-wrap.tall {
+      height: 220px;
     }
 
     .stats-empty {
-      font-size: 0.75rem;
-      color: rgba(255, 255, 255, 0.3);
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.35);
       font-style: italic;
+      padding: 30px 0;
+      text-align: center;
     }
+
+    .stats-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 0.8rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .stats-loading.show { opacity: 1; }
 
     /* --- Disclaimer --- */
     #disclaimer {
@@ -494,18 +621,38 @@
       #stats-btn { top: 12px; right: 12px; }
 
       #settings-panel,
-      #skins-panel,
-      #stats-panel {
+      #skins-panel {
         top: 56px;
         left: 12px;
         right: 12px;
         width: auto;
       }
 
+      .stats-dialog {
+        width: 96vw;
+        max-height: 94vh;
+        padding: 16px 14px;
+      }
+
+      .stats-tiles {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
       #disclaimer {
         font-size: 0.55rem;
         padding: 2px 10px 2px;
         bottom: 0;
+      }
+    }
+
+    /* --- Tablet stack --- */
+    @media (max-width: 720px) and (min-width: 481px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -531,8 +678,7 @@
       #settings-btn, #skins-btn, #stats-btn { top: 8px; }
 
       #settings-panel,
-      #skins-panel,
-      #stats-panel {
+      #skins-panel {
         top: 46px;
         max-height: 60vh;
         overflow-y: auto;
@@ -601,15 +747,62 @@
 
   <!-- Stats -->
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
-  <div id="stats-panel">
-    <div class="stats-date" id="stats-date"></div>
-    <div class="stats-today"><span id="today-count">0</span> <span>clicks today</span></div>
-    <div class="stats-today"><span id="visitor-count">0</span> <span>visitors today</span></div>
-    <div class="stats-subtitle">Top countries</div>
-    <div id="country-list"><div class="stats-empty">No clicks yet today</div></div>
-    <hr class="settings-divider">
-    <div class="stats-subtitle">Skins used</div>
-    <div id="skin-stats"><div class="stats-empty">No data yet</div></div>
+  <div id="stats-modal" aria-hidden="true">
+    <div class="stats-dialog" role="dialog" aria-label="Analytics">
+      <div class="stats-header">
+        <div class="stats-title">Analytics</div>
+        <button class="stats-close" id="stats-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="stats-controls">
+        <input type="date" id="stats-date-input" class="stats-date-input">
+        <div class="stats-presets">
+          <button class="stats-preset active" data-preset="today">Today</button>
+          <button class="stats-preset" data-preset="7d">7d</button>
+          <button class="stats-preset" data-preset="30d">30d</button>
+          <button class="stats-preset" data-preset="all">All time</button>
+        </div>
+      </div>
+      <div class="stats-tiles">
+        <div class="stats-tile">
+          <div class="stats-tile-value" id="tile-clicks">0</div>
+          <div class="stats-tile-label" id="tile-clicks-label">Clicks today</div>
+        </div>
+        <div class="stats-tile">
+          <div class="stats-tile-value" id="tile-visitors">0</div>
+          <div class="stats-tile-label" id="tile-visitors-label">Visitors today</div>
+        </div>
+        <div class="stats-tile">
+          <div class="stats-tile-value" id="tile-cpv">&mdash;</div>
+          <div class="stats-tile-label">Clicks per visitor</div>
+        </div>
+      </div>
+      <div class="stats-grid" id="stats-trend-grid" style="display:none;">
+        <div class="stats-card">
+          <div class="stats-card-title">Clicks over time</div>
+          <div class="stats-chart-wrap"><canvas id="chart-clicks"></canvas></div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-card-title">Visitors over time</div>
+          <div class="stats-chart-wrap"><canvas id="chart-visitors"></canvas></div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stats-card">
+          <div class="stats-card-title">Top countries</div>
+          <div class="stats-chart-wrap tall">
+            <canvas id="chart-countries"></canvas>
+            <div class="stats-empty" id="countries-empty" style="display:none;">No data</div>
+          </div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-card-title">Skins used</div>
+          <div class="stats-chart-wrap tall">
+            <canvas id="chart-skins"></canvas>
+            <div class="stats-empty" id="skins-empty" style="display:none;">No data</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Disclaimer -->
@@ -621,6 +814,9 @@
 
   <!-- anime.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
+
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <script>
     // --- Firebase ---
@@ -759,13 +955,33 @@
       applySettings(settings);
     });
 
-    // --- Stats Panel Toggle ---
+    // --- Stats Modal Toggle ---
     const statsBtn = document.getElementById('stats-btn');
-    const statsPanel = document.getElementById('stats-panel');
+    const statsModal = document.getElementById('stats-modal');
+    const statsCloseBtn = document.getElementById('stats-close');
+
+    function openStatsModal() {
+      statsModal.classList.add('open');
+      statsModal.setAttribute('aria-hidden', 'false');
+      loadStats();
+    }
+    function closeStatsModal() {
+      statsModal.classList.remove('open');
+      statsModal.setAttribute('aria-hidden', 'true');
+      detachLiveStats();
+    }
 
     statsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      statsPanel.classList.toggle('open');
+      if (statsModal.classList.contains('open')) closeStatsModal();
+      else openStatsModal();
+    });
+    statsCloseBtn.addEventListener('click', closeStatsModal);
+    statsModal.addEventListener('click', (e) => {
+      if (e.target === statsModal) closeStatsModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && statsModal.classList.contains('open')) closeStatsModal();
     });
 
     // --- Skins Panel ---
@@ -823,71 +1039,325 @@
       if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
         settingsPanel.classList.remove('open');
       }
-      if (!statsPanel.contains(e.target) && e.target !== statsBtn) {
-        statsPanel.classList.remove('open');
-      }
       if (!skinsPanel.contains(e.target) && e.target !== skinsBtn) {
         skinsPanel.classList.remove('open');
       }
     });
 
-    // --- Daily Stats (real-time) ---
-    const statsDateEl = document.getElementById('stats-date');
-    const todayCountEl = document.getElementById('today-count');
-    const countryListEl = document.getElementById('country-list');
-
+    // dailyTotalRef is still used by the click handlers below to increment today's total.
+    // NOTE: bound at page load — clicks made past midnight on a stale tab will land on yesterday's bucket.
     const today = todayKey();
-    statsDateEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
     const dailyTotalRef = db.ref('daily/' + today + '/total');
-    const dailyCountriesRef = db.ref('daily/' + today + '/countries');
-    const dailyVisitorsRef = db.ref('daily/' + today + '/visitors');
-    const visitorCountEl = document.getElementById('visitor-count');
 
-    dailyTotalRef.on('value', (snap) => {
-      todayCountEl.textContent = (snap.val() || 0).toLocaleString();
+    // --- Analytics Modal Data ---
+    const dateInput = document.getElementById('stats-date-input');
+    const presetBtns = document.querySelectorAll('.stats-preset');
+    const tileClicks = document.getElementById('tile-clicks');
+    const tileClicksLabel = document.getElementById('tile-clicks-label');
+    const tileVisitors = document.getElementById('tile-visitors');
+    const tileVisitorsLabel = document.getElementById('tile-visitors-label');
+    const tileCpv = document.getElementById('tile-cpv');
+    const trendGrid = document.getElementById('stats-trend-grid');
+    const countriesEmpty = document.getElementById('countries-empty');
+    const skinsEmpty = document.getElementById('skins-empty');
+    const chartCountriesCanvas = document.getElementById('chart-countries');
+    const chartSkinsCanvas = document.getElementById('chart-skins');
+
+    let currentPreset = 'today';
+    let currentDate = todayKey();
+    let liveTodayUnsub = null;
+    let dailyDatesCache = null;
+    const charts = { clicks: null, visitors: null, countries: null, skins: null };
+
+    dateInput.value = currentDate;
+    dateInput.max = currentDate;
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentPreset = btn.dataset.preset;
+        presetBtns.forEach(b => b.classList.toggle('active', b === btn));
+        loadStats();
+      });
     });
 
-    dailyVisitorsRef.on('value', (snap) => {
-      const data = snap.val();
-      visitorCountEl.textContent = data ? Object.keys(data).length.toLocaleString() : '0';
+    dateInput.addEventListener('change', () => {
+      if (!dateInput.value) return;
+      currentDate = dateInput.value;
+      currentPreset = 'date';
+      presetBtns.forEach(b => b.classList.remove('active'));
+      loadStats();
     });
 
-    dailyCountriesRef.on('value', (snap) => {
-      const data = snap.val();
-      if (!data) {
-        countryListEl.innerHTML = '<div class="stats-empty">No clicks yet today</div>';
-        return;
+    function detachLiveStats() {
+      if (liveTodayUnsub) { liveTodayUnsub(); liveTodayUnsub = null; }
+    }
+
+    function destroyCharts() {
+      Object.keys(charts).forEach(k => {
+        if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+      });
+    }
+
+    function shiftDate(yyyymmdd, deltaDays) {
+      const d = new Date(yyyymmdd + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + deltaDays);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function enumerateDates(from, to) {
+      const out = [];
+      let d = from;
+      while (d <= to) {
+        out.push(d);
+        d = shiftDate(d, 1);
       }
-      const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 8);
-      countryListEl.innerHTML = sorted.map(([code, count]) =>
-        `<div class="country-row">
-          <span class="country-flag">${countryFlag(code)}</span>
-          <span class="country-name">${code}</span>
-          <span class="country-count">${count.toLocaleString()}</span>
-        </div>`
-      ).join('');
-    });
+      return out;
+    }
 
-    // --- Skin Stats (real-time) ---
-    const skinStatsEl = document.getElementById('skin-stats');
-    const dailySkinsRef = db.ref('daily/' + today + '/skins');
-
-    dailySkinsRef.on('value', (snap) => {
-      const data = snap.val();
-      if (!data) {
-        skinStatsEl.innerHTML = '<div class="stats-empty">No data yet</div>';
-        return;
+    async function ensureDailyDatesCache() {
+      if (dailyDatesCache) return dailyDatesCache;
+      const snap = await db.ref('daily').once('value');
+      const val = snap.val() || {};
+      dailyDatesCache = Object.keys(val).sort();
+      if (dailyDatesCache.length) {
+        dateInput.min = dailyDatesCache[0];
       }
-      const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
-      skinStatsEl.innerHTML = sorted.map(([id, count]) => {
-        const skin = getSkin(id);
-        return `<div class="country-row">
-          <span class="country-name">${skin.name}</span>
-          <span class="country-count">${count.toLocaleString()}</span>
-        </div>`;
-      }).join('');
-    });
+      return dailyDatesCache;
+    }
+
+    function dateRangeFromState() {
+      const t = todayKey();
+      if (currentPreset === 'today') return { from: t, to: t, label: 'today' };
+      if (currentPreset === '7d')    return { from: shiftDate(t, -6),  to: t, label: 'last 7 days' };
+      if (currentPreset === '30d')   return { from: shiftDate(t, -29), to: t, label: 'last 30 days' };
+      if (currentPreset === 'all')   return { from: null, to: null,    label: 'all time' };
+      return { from: currentDate, to: currentDate, label: currentDate };
+    }
+
+    async function loadStats() {
+      detachLiveStats();
+      destroyCharts();
+      const range = dateRangeFromState();
+
+      let dailyData;
+      if (range.from === null) {
+        await ensureDailyDatesCache();
+        const snap = await db.ref('daily').once('value');
+        dailyData = snap.val() || {};
+      } else {
+        const snap = await db.ref('daily').orderByKey().startAt(range.from).endAt(range.to).once('value');
+        dailyData = snap.val() || {};
+      }
+
+      const dates = range.from === null
+        ? Object.keys(dailyData).sort()
+        : enumerateDates(range.from, range.to);
+
+      const clicksByDate = {};
+      const visitorsByDate = {};
+      const countryTotals = {};
+      const skinTotals = {};
+      let totalClicks = 0;
+      let totalVisitors = 0;
+
+      dates.forEach(d => {
+        const day = dailyData[d] || {};
+        const c = day.total || 0;
+        const v = day.visitors ? Object.keys(day.visitors).length : 0;
+        clicksByDate[d] = c;
+        visitorsByDate[d] = v;
+        totalClicks += c;
+        totalVisitors += v;
+        if (day.countries) {
+          Object.entries(day.countries).forEach(([code, n]) => {
+            countryTotals[code] = (countryTotals[code] || 0) + n;
+          });
+        }
+        if (day.skins) {
+          Object.entries(day.skins).forEach(([id, n]) => {
+            skinTotals[id] = (skinTotals[id] || 0) + n;
+          });
+        }
+      });
+
+      const isSingleDay = dates.length <= 1;
+      const isToday = isSingleDay && dates[0] === todayKey();
+      const labelSuffix = isSingleDay ? '' : ` (${range.label})`;
+
+      tileClicksLabel.textContent  = (isToday ? 'Clicks today'   : 'Clicks')   + (isSingleDay ? '' : labelSuffix);
+      tileVisitorsLabel.textContent = (isToday ? 'Visitors today' : 'Visitors') + (isSingleDay ? '' : labelSuffix);
+      tileClicks.textContent = totalClicks.toLocaleString();
+      tileVisitors.textContent = totalVisitors.toLocaleString();
+      tileCpv.textContent = totalVisitors > 0 ? (totalClicks / totalVisitors).toFixed(1) : '—';
+
+      // Live tick for today's tiles
+      if (isToday) {
+        const t = todayKey();
+        const liveTotalRef = db.ref('daily/' + t + '/total');
+        const liveVisitorsRef = db.ref('daily/' + t + '/visitors');
+        let lastClicks = totalClicks;
+        let lastVisitors = totalVisitors;
+        const totalCb = (snap) => {
+          lastClicks = snap.val() || 0;
+          tileClicks.textContent = lastClicks.toLocaleString();
+          tileCpv.textContent = lastVisitors > 0 ? (lastClicks / lastVisitors).toFixed(1) : '—';
+        };
+        const visCb = (snap) => {
+          const data = snap.val();
+          lastVisitors = data ? Object.keys(data).length : 0;
+          tileVisitors.textContent = lastVisitors.toLocaleString();
+          tileCpv.textContent = lastVisitors > 0 ? (lastClicks / lastVisitors).toFixed(1) : '—';
+        };
+        liveTotalRef.on('value', totalCb);
+        liveVisitorsRef.on('value', visCb);
+        liveTodayUnsub = () => {
+          liveTotalRef.off('value', totalCb);
+          liveVisitorsRef.off('value', visCb);
+        };
+      }
+
+      // Trend lines: only meaningful for ranges > 1 day
+      if (isSingleDay) {
+        trendGrid.style.display = 'none';
+      } else {
+        trendGrid.style.display = '';
+        const labels = dates.map(d => d.slice(5));
+        const showPoints = dates.length <= 14;
+        charts.clicks = new Chart(document.getElementById('chart-clicks'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Clicks',
+              data: dates.map(d => clicksByDate[d] || 0),
+              borderColor: '#4dabf7',
+              backgroundColor: 'rgba(77,171,247,0.18)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true,
+              pointRadius: showPoints ? 3 : 0,
+              pointHoverRadius: 5,
+            }],
+          },
+          options: chartLineOptions(),
+        });
+        charts.visitors = new Chart(document.getElementById('chart-visitors'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Visitors',
+              data: dates.map(d => visitorsByDate[d] || 0),
+              borderColor: '#ffa94d',
+              backgroundColor: 'rgba(255,169,77,0.18)',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true,
+              pointRadius: showPoints ? 3 : 0,
+              pointHoverRadius: 5,
+            }],
+          },
+          options: chartLineOptions(),
+        });
+      }
+
+      // Countries
+      const sortedCountries = Object.entries(countryTotals).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      if (sortedCountries.length === 0) {
+        countriesEmpty.style.display = '';
+        chartCountriesCanvas.style.display = 'none';
+      } else {
+        countriesEmpty.style.display = 'none';
+        chartCountriesCanvas.style.display = '';
+        charts.countries = new Chart(chartCountriesCanvas, {
+          type: 'bar',
+          data: {
+            labels: sortedCountries.map(([code]) => `${countryFlag(code)} ${code}`),
+            datasets: [{
+              label: 'Clicks',
+              data: sortedCountries.map(([, n]) => n),
+              backgroundColor: 'rgba(77,171,247,0.55)',
+              borderColor: '#4dabf7',
+              borderWidth: 1,
+              borderRadius: 4,
+            }],
+          },
+          options: {
+            ...chartLineOptions(),
+            indexAxis: 'y',
+          },
+        });
+      }
+
+      // Skins
+      const sortedSkins = Object.entries(skinTotals).sort((a, b) => b[1] - a[1]);
+      if (sortedSkins.length === 0) {
+        skinsEmpty.style.display = '';
+        chartSkinsCanvas.style.display = 'none';
+      } else {
+        skinsEmpty.style.display = 'none';
+        chartSkinsCanvas.style.display = '';
+        const palette = ['#4dabf7', '#da77f2', '#69db7c', '#ffa94d', '#ff6b6b', '#ffd43b'];
+        charts.skins = new Chart(chartSkinsCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: sortedSkins.map(([id]) => getSkin(id).name),
+            datasets: [{
+              data: sortedSkins.map(([, n]) => n),
+              backgroundColor: sortedSkins.map((_, i) => palette[i % palette.length]),
+              borderColor: 'rgba(10,10,30,0.8)',
+              borderWidth: 2,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 }, boxWidth: 12 },
+              },
+              tooltip: tooltipStyle(),
+            },
+          },
+        });
+      }
+    }
+
+    function chartLineOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: tooltipStyle(),
+        },
+        scales: {
+          x: {
+            ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, precision: 0 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+        },
+      };
+    }
+
+    function tooltipStyle() {
+      return {
+        backgroundColor: 'rgba(10,10,30,0.95)',
+        borderColor: 'rgba(255,255,255,0.15)',
+        borderWidth: 1,
+        titleColor: 'white',
+        bodyColor: 'rgba(255,255,255,0.85)',
+        padding: 10,
+        cornerRadius: 8,
+      };
+    }
 
     // --- Text Particles (Cookie Clicker style) ---
     const PARTICLE_TEXTS = ['うぇ', '💢', '😭', 'うぇぇ', '😤', '😢', '💢💢', 'うぇっ', '😡', '😿'];
