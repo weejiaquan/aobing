@@ -237,18 +237,18 @@ function hideBubble() {
 
 ### Activity reset
 
-Any of the following resets the idle timer (calls `scheduleIdleBubble()` after first running its own logic):
+Two categories of activity:
 
-- `triggerClick` (character click / keypress).
-- `mousemove` on `document` — throttled to once per 500 ms (to avoid timer churn).
-- `keydown` on `document` (already triggers click, so handled).
-- Touch / click events on `settings-btn`, `skins-btn`, `stats-btn`, `curtain`, panel sliders/toggles.
-- The bubble's own click.
+**Active input** (`pointerdown`, `keydown`) — dismisses any visible bubble AND re-arms the 15 s idle timer. This is what the user feels as "I clicked, so the bubble goes away." Covers character click, panel button clicks, curtain click, bubble click itself, and keyboard interaction.
+
+**Passive activity** (`mousemove`) — only re-arms the timer. A visible bubble stays readable while the user glances at the mouse; a fresh bubble won't spawn until the user goes idle again.
 
 Concrete wiring:
-- `document.addEventListener('pointerdown', scheduleIdleBubble)` — covers character click, panel buttons, curtain, bubble click (all bubble to document).
-- `document.addEventListener('mousemove', scheduleIdleBubble)` — throttled to once per 500 ms.
-- `document.addEventListener('keydown', scheduleIdleBubble)` — keypress doesn't fire pointer events, so explicit listener needed. (The existing `keydown → triggerClick` listener stays; both fire.)
+- `document.addEventListener('pointerdown', activeInputReset)` — covers character click, panel buttons, curtain, bubble click (all bubble to document).
+- `document.addEventListener('keydown', activeInputReset)` — keypress doesn't fire pointer events.
+- `document.addEventListener('mousemove', () => { /* throttled 500 ms */ scheduleIdleBubble(); })` — passive.
+
+Where `activeInputReset()` = `if bubble visible → hideBubble(); scheduleIdleBubble();`.
 
 Pointerdown bubbles through panel buttons too, so we don't need per-button hooks.
 

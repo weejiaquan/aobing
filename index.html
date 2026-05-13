@@ -79,6 +79,66 @@
       transition: filter 0.2s ease;
     }
 
+    /* --- Idle Text Bubble --- */
+    #idle-bubble {
+      position: absolute;
+      top: 4%;
+      right: -4%;
+      max-width: 220px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.94);
+      color: #1a1a2e;
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.3;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      user-select: none;
+    }
+
+    #idle-bubble:not([hidden]) {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #idle-bubble[hidden] {
+      display: block; /* keep present so transition runs */
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+    }
+
+    #idle-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 18px;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid rgba(255, 255, 255, 0.94);
+      filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.15));
+    }
+
+    @media (max-width: 480px) {
+      #idle-bubble {
+        max-width: 170px;
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        top: 2%;
+        right: -2%;
+      }
+    }
+
     /* --- Particle Container --- */
     #particles {
       position: fixed;
@@ -316,6 +376,60 @@
       transform: translateY(0);
       opacity: 1;
       pointer-events: auto;
+    }
+
+    .skin-group {
+      margin-bottom: 8px;
+    }
+
+    .skin-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .skin-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 4px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.85);
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .skin-group-header:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .skin-group-caret {
+      display: inline-block;
+      width: 12px;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.55);
+      text-align: center;
+    }
+
+    .skin-group-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      flex: 1;
+    }
+
+    .skin-group-meta {
+      font-size: 0.65rem;
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .skin-group-body {
+      padding-left: 12px;
+      margin-top: 2px;
     }
 
     .skin-item {
@@ -701,6 +815,9 @@
 
   <!-- Character (clickable) -->
   <div id="character">
+    <button id="idle-bubble" type="button" hidden aria-live="polite">
+      <span id="idle-bubble-text"></span>
+    </button>
     <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba">
   </div>
 
@@ -865,11 +982,49 @@
 
     const { animate, createTimeline } = anime;
 
-    // --- Skins Registry ---
-    const SKINS = [
-      { id: 'aoba', name: 'Aoba', tag: 'Default', idle: 'assets/aoba-idle.webp', active: 'assets/aoba-active.webp', sound: 'assets/aobing.mp3' },
-      { id: 'aobaplush', name: 'Aoba Plush', tag: 'Plushie', idle: 'assets/aobaplush-idle.png', active: 'assets/aobaplush-active.png', sound: 'assets/aobing.mp3' },
+    // --- Characters Registry ---
+    // Each character bundles SFX, BGM, background, and idle texts shared across its variants.
+    // A variant may declare its own `bgm` to override the character default (none do yet).
+    // Empty string for sfx/bgm/bg = suppressed (no sound, no music, body color falls back).
+    const CHARACTERS = [
+      {
+        id: 'aoba',
+        name: 'Aoba',
+        sfx: 'assets/aobing.mp3',
+        bgm: 'assets/bgm.mp3',
+        bg:  'assets/bg.png',
+        idleTexts: ['hi'],
+        variants: [
+          { id: 'aoba',      name: 'Aoba',       tag: 'Default', idle: 'assets/aoba-idle.webp',      active: 'assets/aoba-active.webp' },
+          { id: 'aobaplush', name: 'Aoba Plush', tag: 'Plushie', idle: 'assets/aobaplush-idle.png',  active: 'assets/aobaplush-active.png' },
+        ],
+      },
+      {
+        id: 'mari',
+        name: 'Mari',
+        sfx: '',
+        bgm: '',
+        bg:  '',
+        idleTexts: ['hi'],
+        variants: [
+          { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.webp',      active: 'assets/mari-active.webp' },
+          { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.webp', active: 'assets/maritrack-active.webp' },
+          { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp' },
+        ],
+      },
     ];
+
+    function getVariant(variantId) {
+      for (const c of CHARACTERS) {
+        const v = c.variants.find(v => v.id === variantId);
+        if (v) return { character: c, variant: v };
+      }
+      return { character: CHARACTERS[0], variant: CHARACTERS[0].variants[0] };
+    }
+
+    function resolveBgm(character, variant) {
+      return (variant && variant.bgm) ? variant.bgm : character.bgm;
+    }
 
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
@@ -944,7 +1099,7 @@
       musicSlider.value = s.musicVol;
       sfxSlider.value = s.sfxVol;
       effectsToggle.classList.toggle('on', s.effects);
-      applySkin(getSkin(s.skin));
+      applyVariant(s.skin);
       renderSkinList();
     }
 
@@ -989,43 +1144,104 @@
     const skinsPanel = document.getElementById('skins-panel');
     const skinListEl = document.getElementById('skin-list');
 
-    function getSkin(id) {
-      return SKINS.find(s => s.id === id) || SKINS[0];
-    }
+    function applyVariant(variantId) {
+      const { character, variant } = getVariant(variantId);
 
-    function applySkin(skin) {
+      // Sprite swap + active preload
       const aobaImg = document.getElementById('aoba-img');
-      aobaImg.src = skin.idle;
-      // Preload active image
+      aobaImg.src = variant.idle;
       const preload = new Image();
-      preload.src = skin.active;
-      // Rebuild sound pool for new skin (pool may not exist yet on first call)
+      preload.src = variant.active;
+
+      // Body background — empty string clears it so the solid #1a1a2e shows
+      document.body.style.backgroundImage = character.bg ? `url('${character.bg}')` : 'none';
+
+      // SFX pool rebuild (pool may not exist yet on first call)
       if (window._soundPoolReady) buildSoundPool();
+
+      // BGM swap. Empty src = stop and clear. Resume playback only if BGM was already
+      // running (i.e. intro is past and music volume > 0).
+      const newBgm = resolveBgm(character, variant);
+      if (!newBgm) {
+        bgm.pause();
+        bgm.removeAttribute('src');
+        bgm.load();
+        bgmPlaying = false;
+      } else {
+        // currentSrc resolves to absolute URL; compare with absolute form of target
+        const targetAbs = new URL(newBgm, document.baseURI).href;
+        if (bgm.currentSrc !== targetAbs) {
+          const wasPlaying = bgmPlaying;
+          bgm.pause();
+          bgm.src = newBgm;
+          bgm.load();
+          if (wasPlaying && settings.musicVol > 0) {
+            bgm.play().catch(() => {});
+          }
+        }
+      }
+
+      // Idle bubble: hide any existing bubble and re-arm for the new character
+      if (window._idleBubbleReady) {
+        hideBubble();
+        scheduleIdleBubble();
+      }
     }
 
     function renderSkinList() {
-      skinListEl.innerHTML = SKINS.map(s =>
-        `<div class="skin-item${s.id === settings.skin ? ' active' : ''}" data-skin="${s.id}">
-          <img class="skin-thumb" src="${s.idle}" alt="${s.name}">
-          <div class="skin-info">
-            <div class="skin-name">${s.name}</div>
-            <div class="skin-tag">${s.tag}</div>
-          </div>
-        </div>`
-      ).join('');
+      skinListEl.innerHTML = CHARACTERS.map(c => {
+        const activeVariant = c.variants.find(v => v.id === settings.skin);
+        const isOpen = !!activeVariant;
+        const meta = activeVariant
+          ? activeVariant.tag
+          : (c.variants.length === 1 ? '1 variant' : `${c.variants.length} variants`);
+        const variantsHtml = c.variants.map(v =>
+          `<div class="skin-item${v.id === settings.skin ? ' active' : ''}" data-variant="${v.id}">
+            <img class="skin-thumb" src="${v.idle}" alt="${v.name}">
+            <div class="skin-info">
+              <div class="skin-name">${v.name}</div>
+              <div class="skin-tag">${v.tag}</div>
+            </div>
+          </div>`
+        ).join('');
+        return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
+          <button class="skin-group-header" type="button">
+            <span class="skin-group-caret">${isOpen ? '▼' : '▶'}</span>
+            <span class="skin-group-name">${c.name}</span>
+            <span class="skin-group-meta">${meta}</span>
+          </button>
+          <div class="skin-group-body"${isOpen ? '' : ' hidden'}>${variantsHtml}</div>
+        </div>`;
+      }).join('');
     }
 
     renderSkinList();
-    applySkin(getSkin(settings.skin));
+    applyVariant(settings.skin);
 
     skinListEl.addEventListener('click', (e) => {
+      const header = e.target.closest('.skin-group-header');
+      if (header) {
+        const group = header.parentElement;
+        const nowOpen = group.dataset.open !== 'true';
+        group.dataset.open = nowOpen ? 'true' : 'false';
+        const body = group.querySelector('.skin-group-body');
+        const caret = group.querySelector('.skin-group-caret');
+        if (nowOpen) {
+          body.hidden = false;
+          caret.textContent = '▼';
+        } else {
+          body.hidden = true;
+          caret.textContent = '▶';
+        }
+        return;
+      }
       const item = e.target.closest('.skin-item');
       if (!item) return;
-      const id = item.dataset.skin;
+      const id = item.dataset.variant;
       if (id === settings.skin) return;
       settings.skin = id;
       saveSettings(settings);
-      applySkin(getSkin(id));
+      applyVariant(id);
       renderSkinList();
     });
 
@@ -1301,7 +1517,7 @@
         charts.skins = new Chart(chartSkinsCanvas, {
           type: 'doughnut',
           data: {
-            labels: sortedSkins.map(([id]) => getSkin(id).name),
+            labels: sortedSkins.map(([id]) => getVariant(id).variant.name),
             datasets: [{
               data: sortedSkins.map(([, n]) => n),
               backgroundColor: sortedSkins.map((_, i) => palette[i % palette.length]),
@@ -1426,7 +1642,7 @@
     let activeSounds = 0;
 
     function goIdle() {
-      aobaImg.src = getSkin(settings.skin).idle;
+      aobaImg.src = getVariant(settings.skin).variant.idle;
       if (bounceAnimation) {
         bounceAnimation.pause();
         character.style.transform = '';
@@ -1434,13 +1650,14 @@
     }
 
     function buildSoundPool() {
-      const src = getSkin(settings.skin).sound;
+      const { character: ch } = getVariant(settings.skin);
       soundPool.length = 0;
       slotActive.fill(false);
       poolIndex = 0;
       activeSounds = 0;
+      if (!ch.sfx) return; // silent character — empty pool; playsfx no-ops
       for (let i = 0; i < POOL_SIZE; i++) {
-        const a = new Audio(src);
+        const a = new Audio(ch.sfx);
         a.preload = 'auto';
         const idx = i;
         a.addEventListener('ended', () => {
@@ -1457,6 +1674,7 @@
     window._soundPoolReady = true;
 
     function playsfx() {
+      if (soundPool.length === 0) return; // silent character
       const idx = poolIndex;
       const sfx = soundPool[idx];
       poolIndex = (poolIndex + 1) % POOL_SIZE;
@@ -1564,6 +1782,7 @@
           }
 
           // First click — full click effects
+          const { character: ch, variant: v } = getVariant(settings.skin);
           clicksRef.transaction((c) => (c || 0) + 1);
           dailyTotalRef.transaction((c) => (c || 0) + 1);
           if (visitorCountry) {
@@ -1572,20 +1791,28 @@
           }
           db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
             .transaction((c) => (c || 0) + 1);
+          db.ref('daily/' + todayKey() + '/characters/' + ch.id)
+            .transaction((c) => (c || 0) + 1);
 
           playsfx();
 
-          aobaImg.src = getSkin(settings.skin).active;
+          aobaImg.src = v.active;
 
           bounceAnimation = animate(character, {
             translateY: [
               { to: '-80px', duration: 300, ease: 'outQuad' },
               { to: '0px', duration: 400, ease: 'outBounce' },
             ],
+            onComplete: () => { if (soundPool.length === 0) goIdle(); },
           });
 
           if (settings.effects) spawnParticles();
-          bgm.play().then(() => { bgmPlaying = true; }).catch(() => {});
+          if (ch.bgm || v.bgm) {
+            bgm.play().then(() => { bgmPlaying = true; }).catch(() => {});
+          }
+
+          // Arm the idle-text bubble timer now that intro is over
+          scheduleIdleBubble();
         }
       });
     }
@@ -1600,6 +1827,8 @@
         return;
       }
 
+      const { character: ch, variant: v } = getVariant(settings.skin);
+
       // Increment global counter atomically
       clicksRef.transaction((current) => (current || 0) + 1);
 
@@ -1612,15 +1841,19 @@
           .transaction((current) => (current || 0) + 1);
       }
 
-      // Increment skin counter
+      // Increment skin counter (per-variant)
       db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
+        .transaction((current) => (current || 0) + 1);
+
+      // Increment character counter
+      db.ref('daily/' + todayKey() + '/characters/' + ch.id)
         .transaction((current) => (current || 0) + 1);
 
       // 1. Play SFX — each click spawns its own audio, oldest evicted at cap
       playsfx();
 
       // 2. Swap to active image
-      aobaImg.src = getSkin(settings.skin).active;
+      aobaImg.src = v.active;
 
       // 3. Damped bounce animation
       if (bounceAnimation) {
@@ -1633,6 +1866,7 @@
           { to: '-80px', duration: 300, ease: 'outQuad' },
           { to: '0px', duration: 400, ease: 'outBounce' },
         ],
+        onComplete: () => { if (soundPool.length === 0) goIdle(); },
       });
 
       // 4. Spawn text particles (if effects enabled)
@@ -1641,6 +1875,63 @@
 
     character.addEventListener('click', triggerClick);
     document.addEventListener('keydown', triggerClick);
+
+    // --- Idle Text Bubble ---
+    const IDLE_BUBBLE_DELAY_MS = 15000;
+    const IDLE_BUBBLE_DURATION_MS = 5000;
+    const idleBubbleEl = document.getElementById('idle-bubble');
+    const idleBubbleTextEl = document.getElementById('idle-bubble-text');
+    let idleTimer = null;
+    let bubbleHideTimer = null;
+
+    function hideBubble() {
+      if (bubbleHideTimer) { clearTimeout(bubbleHideTimer); bubbleHideTimer = null; }
+      idleBubbleEl.hidden = true;
+    }
+
+    function showBubble() {
+      const { character: ch } = getVariant(settings.skin);
+      if (!ch.idleTexts || ch.idleTexts.length === 0) return;
+      const text = ch.idleTexts[Math.floor(Math.random() * ch.idleTexts.length)];
+      idleBubbleTextEl.textContent = text;
+      idleBubbleEl.hidden = false;
+      bubbleHideTimer = setTimeout(() => {
+        hideBubble();
+        scheduleIdleBubble();
+      }, IDLE_BUBBLE_DURATION_MS);
+    }
+
+    function scheduleIdleBubble() {
+      if (introActive) return; // only after intro ends
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(showBubble, IDLE_BUBBLE_DELAY_MS);
+    }
+
+    idleBubbleEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideBubble();
+      scheduleIdleBubble();
+    });
+
+    // Activity reset listeners.
+    // Active input (pointerdown / keydown) dismisses any visible bubble and re-arms.
+    // Mousemove is passive — it only re-arms, so a visible bubble stays readable while
+    // the user glances at the mouse.
+    let lastMouseReset = 0;
+    function activeInputReset() {
+      if (!idleBubbleEl.hidden) hideBubble();
+      scheduleIdleBubble();
+    }
+    document.addEventListener('pointerdown', activeInputReset);
+    document.addEventListener('keydown', activeInputReset);
+    document.addEventListener('mousemove', () => {
+      const now = Date.now();
+      if (now - lastMouseReset < 500) return;
+      lastMouseReset = now;
+      scheduleIdleBubble();
+    });
+
+    window._idleBubbleReady = true;
 
   </script>
 </body>

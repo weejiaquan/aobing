@@ -24,6 +24,12 @@
             ".validate": "newData.isNumber() && $skinId.length <= 20"
           }
         },
+        "characters": {
+          "$characterId": {
+            ".write": true,
+            ".validate": "newData.isNumber() && $characterId.length <= 20"
+          }
+        },
         "visitors": {
           "$visitorId": {
             ".write": true,
