@@ -5,6 +5,13 @@
       ".write": true,
       ".validate": "newData.isNumber()"
     },
+    "skins": {
+      ".read": true,
+      "$variantId": {
+        ".write": true,
+        ".validate": "newData.isNumber() && $variantId.length <= 20"
+      }
+    },
     "daily": {
       ".read": true,
       "$date": {
