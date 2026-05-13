@@ -182,13 +182,16 @@
     }
 
     /* --- Combo Display --- */
-    /* Anchored to the upper-right so it sits below the idle bubble without
-       covering the character's face. Right-aligned content gives a clean
-       "stack hanging from the corner" feel similar to BA's rhythm modes. */
+    /* Anchored just to the right of the character body. The character image
+       is height:90vh with auto width — most BA-style portraits sit at roughly
+       a 0.6 aspect ratio, so the right edge is ~27vh from viewport centre.
+       Using calc(50% + 28vh) keeps the combo close to the character on
+       widescreen instead of drifting into the empty far-right corner. */
     #combo-display {
       position: fixed;
       top: 22%;
-      right: 7%;
+      left: calc(50% + 28vh);
+      right: auto;
       z-index: 70;
       pointer-events: none;
       user-select: none;
@@ -292,9 +295,11 @@
       will-change: transform, opacity;
     }
 
-    /* Mobile shrink */
+    /* Mobile shrink — character is narrower relative to the viewport on phones,
+       so the calc-based anchor would push the combo off-screen. Fall back to a
+       simple top-right corner offset. */
     @media (max-width: 480px) {
-      #combo-display { top: 16%; right: 4%; }
+      #combo-display { top: 16%; left: auto; right: 4%; }
       .combo-number { font-size: 2.6rem; }
       .combo-label  { font-size: 0.75rem; letter-spacing: 0.16em; }
       .combo-bar    { width: 100px; height: 4px; }
