@@ -641,6 +641,10 @@
       margin-top: 14px;
     }
 
+    .stats-grid-full {
+      grid-template-columns: 1fr;
+    }
+
     .stats-card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -912,7 +916,16 @@
           </div>
         </div>
         <div class="stats-card">
-          <div class="stats-card-title">Skins used</div>
+          <div class="stats-card-title">Characters used</div>
+          <div class="stats-chart-wrap tall">
+            <canvas id="chart-characters"></canvas>
+            <div class="stats-empty" id="characters-empty" style="display:none;">No data</div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-grid stats-grid-full">
+        <div class="stats-card">
+          <div class="stats-card-title">Skins per character</div>
           <div class="stats-chart-wrap tall">
             <canvas id="chart-skins"></canvas>
             <div class="stats-empty" id="skins-empty" style="display:none;">No data</div>
@@ -982,6 +995,9 @@
 
     const { animate, createTimeline } = anime;
 
+    // Intro state — read by applyVariant during initial setup, so it lives at the top.
+    let introActive = true;
+
     // --- Characters Registry ---
     // Each character bundles SFX, BGM, background, and idle texts shared across its variants.
     // A variant may declare its own `bgm` to override the character default (none do yet).
@@ -1004,12 +1020,12 @@
         name: 'Mari',
         sfx: '',
         bgm: '',
-        bg:  '',
+        bg:  '',  // each variant supplies its own bg
         idleTexts: ['hi'],
         variants: [
-          { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.webp',      active: 'assets/mari-active.webp' },
-          { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.webp', active: 'assets/maritrack-active.webp' },
-          { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp' },
+          { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.webp',      active: 'assets/mari-active.webp',      bg: 'assets/mari-bg.png' },
+          { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.webp', active: 'assets/maritrack-active.webp', bg: 'assets/maritrack-bg.png' },
+          { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp',  bg: 'assets/mariidol-bg.png' },
         ],
       },
     ];
@@ -1024,6 +1040,10 @@
 
     function resolveBgm(character, variant) {
       return (variant && variant.bgm) ? variant.bgm : character.bgm;
+    }
+
+    function resolveBg(character, variant) {
+      return (variant && variant.bg) ? variant.bg : character.bg;
     }
 
     // --- Settings Persistence ---
@@ -1058,6 +1078,10 @@
     if (!settings.effects) effectsToggle.classList.remove('on');
 
     let bgmPlaying = false;
+    // Track the currently-loaded BGM src ourselves — browsers can keep <audio>.currentSrc
+    // populated even after removeAttribute('src') + load(), so we can't trust it for
+    // change-detection. HTML default matches Aoba's bgm.
+    let currentBgmSrc = 'assets/bgm.mp3';
 
     // --- Settings Panel Toggle ---
     settingsBtn.addEventListener('click', (e) => {
@@ -1153,31 +1177,35 @@
       const preload = new Image();
       preload.src = variant.active;
 
-      // Body background — empty string clears it so the solid #1a1a2e shows
-      document.body.style.backgroundImage = character.bg ? `url('${character.bg}')` : 'none';
+      // Body background — variant.bg overrides character.bg. Empty string clears it
+      // so the solid #1a1a2e shows.
+      const newBg = resolveBg(character, variant);
+      document.body.style.backgroundImage = newBg ? `url('${newBg}')` : 'none';
 
       // SFX pool rebuild (pool may not exist yet on first call)
       if (window._soundPoolReady) buildSoundPool();
 
-      // BGM swap. Empty src = stop and clear. Resume playback only if BGM was already
-      // running (i.e. intro is past and music volume > 0).
+      // BGM swap. Empty src = stop and clear. Non-empty + post-intro + vol > 0 = play.
+      // We treat switching to a music-having character as a positive intent to hear it,
+      // not a gate on whether playback was already running (otherwise Mari → Aoba never resumes).
+      // Compare against our JS-tracked currentBgmSrc rather than bgm.currentSrc — the
+      // <audio> element can hold onto the previous URL even after removeAttribute('src').
       const newBgm = resolveBgm(character, variant);
       if (!newBgm) {
-        bgm.pause();
-        bgm.removeAttribute('src');
-        bgm.load();
-        bgmPlaying = false;
-      } else {
-        // currentSrc resolves to absolute URL; compare with absolute form of target
-        const targetAbs = new URL(newBgm, document.baseURI).href;
-        if (bgm.currentSrc !== targetAbs) {
-          const wasPlaying = bgmPlaying;
+        if (currentBgmSrc) {
           bgm.pause();
-          bgm.src = newBgm;
+          bgm.removeAttribute('src');
           bgm.load();
-          if (wasPlaying && settings.musicVol > 0) {
-            bgm.play().catch(() => {});
-          }
+          currentBgmSrc = '';
+          bgmPlaying = false;
+        }
+      } else if (newBgm !== currentBgmSrc) {
+        bgm.pause();
+        bgm.src = newBgm;
+        bgm.load();
+        currentBgmSrc = newBgm;
+        if (!introActive && settings.musicVol > 0) {
+          bgm.play().then(() => { bgmPlaying = true; }).catch(() => {});
         }
       }
 
@@ -1276,14 +1304,16 @@
     const trendGrid = document.getElementById('stats-trend-grid');
     const countriesEmpty = document.getElementById('countries-empty');
     const skinsEmpty = document.getElementById('skins-empty');
+    const charactersEmpty = document.getElementById('characters-empty');
     const chartCountriesCanvas = document.getElementById('chart-countries');
     const chartSkinsCanvas = document.getElementById('chart-skins');
+    const chartCharactersCanvas = document.getElementById('chart-characters');
 
     let currentPreset = 'today';
     let currentDate = todayKey();
     let liveTodayUnsub = null;
     let dailyDatesCache = null;
-    const charts = { clicks: null, visitors: null, countries: null, skins: null };
+    const charts = { clicks: null, visitors: null, countries: null, skins: null, characters: null };
 
     dateInput.value = currentDate;
     dateInput.max = currentDate;
@@ -1373,6 +1403,7 @@
       const visitorsByDate = {};
       const countryTotals = {};
       const skinTotals = {};
+      const characterTotals = {};
       let totalClicks = 0;
       let totalVisitors = 0;
 
@@ -1394,7 +1425,26 @@
             skinTotals[id] = (skinTotals[id] || 0) + n;
           });
         }
+        if (day.characters) {
+          Object.entries(day.characters).forEach(([id, n]) => {
+            characterTotals[id] = (characterTotals[id] || 0) + n;
+          });
+        }
       });
+
+      // Back-compat: if the new daily/{date}/characters/ data is empty (early days, or
+      // historic dates before this rollout), reconstruct character totals from skinTotals
+      // by mapping each known variant ID to its parent character.
+      if (Object.keys(characterTotals).length === 0 && Object.keys(skinTotals).length > 0) {
+        Object.entries(skinTotals).forEach(([variantId, n]) => {
+          const { character } = getVariant(variantId);
+          // getVariant falls back to CHARACTERS[0] for unknown IDs — only count if it
+          // was actually found, otherwise the count would be misattributed to Aoba.
+          const known = CHARACTERS.some(c => c.variants.some(v => v.id === variantId));
+          if (!known) return;
+          characterTotals[character.id] = (characterTotals[character.id] || 0) + n;
+        });
+      }
 
       const isSingleDay = dates.length <= 1;
       const isToday = isSingleDay && dates[0] === todayKey();
@@ -1505,22 +1555,26 @@
         });
       }
 
-      // Skins
-      const sortedSkins = Object.entries(skinTotals).sort((a, b) => b[1] - a[1]);
-      if (sortedSkins.length === 0) {
-        skinsEmpty.style.display = '';
-        chartSkinsCanvas.style.display = 'none';
+      // Characters used (doughnut over the new daily/{date}/characters/ data,
+      // with skin-derived fallback applied above)
+      const characterPalette = ['#4dabf7', '#da77f2', '#69db7c', '#ffa94d', '#ff6b6b', '#ffd43b'];
+      const sortedCharacters = Object.entries(characterTotals).sort((a, b) => b[1] - a[1]);
+      if (sortedCharacters.length === 0) {
+        charactersEmpty.style.display = '';
+        chartCharactersCanvas.style.display = 'none';
       } else {
-        skinsEmpty.style.display = 'none';
-        chartSkinsCanvas.style.display = '';
-        const palette = ['#4dabf7', '#da77f2', '#69db7c', '#ffa94d', '#ff6b6b', '#ffd43b'];
-        charts.skins = new Chart(chartSkinsCanvas, {
+        charactersEmpty.style.display = 'none';
+        chartCharactersCanvas.style.display = '';
+        charts.characters = new Chart(chartCharactersCanvas, {
           type: 'doughnut',
           data: {
-            labels: sortedSkins.map(([id]) => getVariant(id).variant.name),
+            labels: sortedCharacters.map(([id]) => {
+              const ch = CHARACTERS.find(c => c.id === id);
+              return ch ? ch.name : id;
+            }),
             datasets: [{
-              data: sortedSkins.map(([, n]) => n),
-              backgroundColor: sortedSkins.map((_, i) => palette[i % palette.length]),
+              data: sortedCharacters.map(([, n]) => n),
+              backgroundColor: sortedCharacters.map((_, i) => characterPalette[i % characterPalette.length]),
               borderColor: 'rgba(10,10,30,0.8)',
               borderWidth: 2,
             }],
@@ -1535,6 +1589,78 @@
                 labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 }, boxWidth: 12 },
               },
               tooltip: tooltipStyle(),
+            },
+          },
+        });
+      }
+
+      // Skins per character — horizontal stacked bar. One bar per character; each variant
+      // contributes a colored segment. Variants get a hue shifted from their character's
+      // primary palette color so a related family reads as a group.
+      const variantShades = ['', 'aa', '77', '55'];
+      const characterDatasets = [];
+      let anySkinData = false;
+      CHARACTERS.forEach((c, ci) => {
+        const base = characterPalette[ci % characterPalette.length];
+        c.variants.forEach((v, vi) => {
+          const count = skinTotals[v.id] || 0;
+          if (count > 0) anySkinData = true;
+          characterDatasets.push({
+            label: v.name,
+            data: CHARACTERS.map(cc => cc.id === c.id ? count : 0),
+            backgroundColor: base + (variantShades[vi % variantShades.length] || ''),
+            borderColor: 'rgba(10,10,30,0.4)',
+            borderWidth: 1,
+            stack: c.id,
+          });
+        });
+      });
+      if (!anySkinData) {
+        skinsEmpty.style.display = '';
+        chartSkinsCanvas.style.display = 'none';
+      } else {
+        skinsEmpty.style.display = 'none';
+        chartSkinsCanvas.style.display = '';
+        charts.skins = new Chart(chartSkinsCanvas, {
+          type: 'bar',
+          data: {
+            labels: CHARACTERS.map(c => c.name),
+            datasets: characterDatasets,
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 }, boxWidth: 12 },
+                // Hide zero-data variants from legend to avoid clutter when characters
+                // have no clicks yet (especially the new Mari before populating sound).
+                filter: (item, data) => {
+                  const ds = data.datasets[item.datasetIndex];
+                  return ds.data.some(v => v > 0);
+                },
+              },
+              tooltip: {
+                ...tooltipStyle(),
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x}`,
+                },
+              },
+            },
+            scales: {
+              x: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, precision: 0 },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+              },
+              y: {
+                stacked: true,
+                ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 11 } },
+                grid: { display: false },
+              },
             },
           },
         });
@@ -1703,7 +1829,8 @@
     });
 
     // --- Intro Walking Animation ---
-    let introActive = true;
+    // (introActive is hoisted to the top of the script so applyVariant can read it during
+    // initial setup without hitting the TDZ.)
     let walkTimer = null;
     let currentWalkAnim = null;
     let walkDirection = 1;
