@@ -164,19 +164,69 @@
       overflow: hidden;
     }
 
-    /* --- Click Counter --- */
+    /* --- BA-style stat pill (shared by counter + clock) --- */
+    .ba-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px 6px 10px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 248, 252, 0.85));
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 22px;
+      color: #1f2c40;
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(0, 30, 60, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      user-select: none;
+    }
+
+    .ba-pill .pill-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      color: #3a86d8;
+      flex-shrink: 0;
+    }
+
+    .ba-pill .pill-icon svg {
+      width: 100%;
+      height: 100%;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .ba-pill .pill-value {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    /* --- Click Counter (BA pill at top-center) --- */
     #click-counter {
       position: fixed;
-      top: 16px;
+      top: 14px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.05rem;
       z-index: 50;
-      user-select: none;
       pointer-events: none;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    #click-counter .pill-value { min-width: 4ch; text-align: right; }
+
+    /* --- System Time (BA pill at bottom-right) --- */
+    #system-time {
+      position: fixed;
+      right: 16px;
+      bottom: 28px;
+      font-size: 0.95rem;
+      z-index: 50;
+      pointer-events: none;
     }
 
     /* --- Panel Buttons (shared) --- */
@@ -739,8 +789,20 @@
       }
 
       #click-counter {
-        font-size: 1.1rem;
+        font-size: 0.95rem;
       }
+
+      #system-time {
+        font-size: 0.85rem;
+        right: 10px;
+        bottom: 24px;
+      }
+
+      .ba-pill {
+        padding: 5px 12px 5px 9px;
+      }
+
+      .ba-pill .pill-icon { width: 18px; height: 18px; }
 
       .panel-btn {
         width: 36px;
@@ -841,8 +903,21 @@
   <!-- Floating text particles container -->
   <div id="particles"></div>
 
-  <!-- Click counter -->
-  <div id="click-counter">0</div>
+  <!-- Click counter (BA-style pill) -->
+  <div id="click-counter" class="ba-pill">
+    <span class="pill-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 1 1 4 0v6"/><path d="M13 8a2 2 0 1 1 4 0v4"/><path d="M17 10a2 2 0 1 1 4 0v5a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-3l-3-5a2 2 0 0 1 3-2.5L9 13V6"/></svg>
+    </span>
+    <span class="pill-value">0</span>
+  </div>
+
+  <!-- System time (BA-style pill bottom-right) -->
+  <div id="system-time" class="ba-pill">
+    <span class="pill-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </span>
+    <span class="pill-value">--:--</span>
+  </div>
 
   <!-- Sound -->
 
@@ -1863,13 +1938,27 @@
       });
     }
     let bounceAnimation = null;
-    const clickCounter = document.getElementById('click-counter');
+    const clickCounter = document.querySelector('#click-counter .pill-value');
 
     // Listen for global click count updates in real-time
     clicksRef.on('value', (snapshot) => {
       const count = snapshot.val() || 0;
       clickCounter.textContent = count.toLocaleString();
     });
+
+    // System time pill — updates every minute, aligned to the next minute boundary
+    const timeEl = document.querySelector('#system-time .pill-value');
+    function renderTime() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      timeEl.textContent = `${hh}:${mm}`;
+    }
+    renderTime();
+    setTimeout(function tick() {
+      renderTime();
+      setTimeout(tick, 60000);
+    }, 60000 - (Date.now() % 60000));
 
     // --- Intro Walking Animation ---
     // (introActive is hoisted to the top of the script so applyVariant can read it during
