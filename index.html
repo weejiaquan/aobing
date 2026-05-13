@@ -17,6 +17,26 @@
   <link rel="icon" type="image/png" href="assets/aobaplush-idle.png">
   <link rel="preload" href="assets/aoba-active.webp" as="image">
   <style>
+    /* --- BA palette ---------------------------------------------------------
+       Light translucent cards, cyan accents, navy text. Used by every chrome
+       element so the look stays consistent across panels.                   */
+    :root {
+      --ba-card-bg:      linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,249,255,0.92));
+      --ba-card-bg-soft: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(240,247,255,0.86));
+      --ba-card-border:  1px solid rgba(160, 195, 230, 0.45);
+      --ba-card-shadow:  0 14px 40px rgba(0, 30, 60, 0.22);
+      --ba-pill-shadow:  0 4px 14px rgba(0, 30, 60, 0.18);
+      --ba-text:         #1f2c40;
+      --ba-text-muted:   rgba(31, 44, 64, 0.6);
+      --ba-text-faint:   rgba(31, 44, 64, 0.42);
+      --ba-accent:       #4dabf7;      /* cyan/sky blue — same as the existing chart accent */
+      --ba-accent-strong:#3a86d8;
+      --ba-accent-soft:  rgba(77, 171, 247, 0.16);
+      --ba-yellow:       #f4cb4d;
+      --ba-divider:      rgba(60, 90, 130, 0.15);
+      --ba-hover:        rgba(77, 171, 247, 0.10);
+    }
+
     /* --- Reset & Base --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -64,6 +84,15 @@
       cursor: pointer;
       user-select: none;
       -webkit-user-drag: none;
+      /* Continuous slow float, ~5s up + 5s down. Uses the standalone `translate`
+         property so it composes with anime.js `transform` animations (intro walk,
+         click bounce) rather than fighting them. */
+      animation: idle-float 10s ease-in-out infinite;
+    }
+
+    @keyframes idle-float {
+      0%, 100% { translate: 0 0; }
+      50%      { translate: 0 -14px; }
     }
 
     #character img {
@@ -229,27 +258,28 @@
       pointer-events: none;
     }
 
-    /* --- Panel Buttons (shared) --- */
+    /* --- Panel Buttons (BA white pill-square) --- */
     .panel-btn {
       position: fixed;
       width: 40px;
       height: 40px;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 50%;
-      color: rgba(255, 255, 255, 0.7);
+      background: var(--ba-card-bg-soft);
+      border: var(--ba-card-border);
+      border-radius: 12px;
+      color: var(--ba-accent-strong);
       cursor: pointer;
       z-index: 60;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s ease, color 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
       user-select: none;
+      box-shadow: var(--ba-pill-shadow);
     }
 
     .panel-btn:hover {
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
+      background: linear-gradient(180deg, #ffffff, #e6f2ff);
+      color: #1d6fcc;
     }
 
     .panel-btn svg {
@@ -266,25 +296,26 @@
       transform: rotate(45deg);
     }
 
-    /* --- Settings Panel --- */
+    /* --- Settings Panel (BA white card) --- */
     #settings-panel {
       position: fixed;
       top: 66px;
       left: 20px;
-      width: 240px;
-      background: rgba(10, 10, 30, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      padding: 16px;
+      width: 250px;
+      background: var(--ba-card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      padding: 14px 16px 16px;
       z-index: 60;
-      color: white;
+      color: var(--ba-text);
       font-size: 0.85rem;
       transform: translateY(-10px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
+      box-shadow: var(--ba-card-shadow);
     }
 
     #settings-panel.open {
@@ -293,13 +324,26 @@
       pointer-events: auto;
     }
 
+    /* BA-style section header — small cyan bar to the left of the label */
     .settings-title {
-      font-size: 0.75rem;
-      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.45);
+      letter-spacing: 0.08em;
+      color: var(--ba-accent-strong);
       margin-bottom: 12px;
+    }
+
+    .settings-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 14px;
+      background: var(--ba-accent);
+      border-radius: 2px;
     }
 
     .settings-row {
@@ -314,22 +358,23 @@
     }
 
     .settings-label {
-      font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ba-text);
     }
 
     .settings-slider {
-      width: 100px;
-      accent-color: #4dabf7;
+      width: 110px;
+      accent-color: var(--ba-accent);
       cursor: pointer;
     }
 
     .settings-toggle {
       position: relative;
-      width: 36px;
-      height: 20px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
+      width: 38px;
+      height: 22px;
+      background: rgba(60, 90, 130, 0.18);
+      border-radius: 12px;
       cursor: pointer;
       border: none;
       padding: 0;
@@ -337,7 +382,7 @@
     }
 
     .settings-toggle.on {
-      background: #4dabf7;
+      background: var(--ba-accent);
     }
 
     .settings-toggle::after {
@@ -345,10 +390,11 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       background: white;
       border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 30, 60, 0.2);
       transition: transform 0.2s ease;
     }
 
@@ -358,13 +404,13 @@
 
     .settings-divider {
       border: none;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      margin: 10px 0;
+      border-top: 1px solid var(--ba-divider);
+      margin: 12px 0;
     }
 
     .settings-version {
       font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--ba-text-faint);
       text-align: center;
     }
 
@@ -372,19 +418,22 @@
       display: block;
       width: 100%;
       margin-top: 8px;
-      padding: 5px 0;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 6px;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 0.7rem;
+      padding: 6px 0;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 8px;
+      color: var(--ba-text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
       cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
     }
 
     .settings-reset:hover {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.8);
+      background: var(--ba-hover);
+      color: var(--ba-accent-strong);
+      border-color: rgba(77, 171, 247, 0.4);
     }
 
     .settings-link {
@@ -393,20 +442,22 @@
       gap: 6px;
       width: 100%;
       margin-top: 6px;
-      padding: 5px 8px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 6px;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 0.7rem;
+      padding: 6px 10px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 8px;
+      color: var(--ba-text-muted);
+      font-size: 0.74rem;
+      font-weight: 700;
       cursor: pointer;
       text-decoration: none;
-      transition: background 0.2s ease, color 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
     }
 
     .settings-link:hover {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.8);
+      background: var(--ba-hover);
+      color: var(--ba-accent-strong);
+      border-color: rgba(77, 171, 247, 0.4);
     }
 
     .settings-link svg { width: 14px; height: 14px; flex-shrink: 0; fill: currentColor; }
@@ -414,25 +465,26 @@
     /* --- Skins Button --- */
     #skins-btn { top: 16px; left: 70px; }
 
-    /* --- Skins Panel --- */
+    /* --- Skins Panel (BA white card) --- */
     #skins-panel {
       position: fixed;
       top: 66px;
       left: 70px;
-      width: 200px;
-      background: rgba(10, 10, 30, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      padding: 16px;
+      width: 220px;
+      background: var(--ba-card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      padding: 14px 16px;
       z-index: 60;
-      color: white;
+      color: var(--ba-text);
       font-size: 0.85rem;
       transform: translateY(-10px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
+      box-shadow: var(--ba-card-shadow);
     }
 
     #skins-panel.open {
@@ -442,7 +494,7 @@
     }
 
     .skin-group {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .skin-group:last-child {
@@ -454,45 +506,47 @@
       align-items: center;
       gap: 8px;
       width: 100%;
-      padding: 6px 4px;
+      padding: 7px 6px;
       background: transparent;
       border: none;
-      border-radius: 6px;
-      color: rgba(255, 255, 255, 0.85);
-      font: inherit;
+      border-radius: 8px;
+      color: var(--ba-text);
+      font-family: inherit;
       cursor: pointer;
       text-align: left;
       transition: background 0.15s ease;
     }
 
     .skin-group-header:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--ba-hover);
     }
 
     .skin-group-caret {
       display: inline-block;
       width: 12px;
       font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.55);
+      color: var(--ba-accent-strong);
       text-align: center;
     }
 
     .skin-group-name {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
       flex: 1;
+      color: var(--ba-text);
     }
 
     .skin-group-meta {
-      font-size: 0.65rem;
-      color: rgba(255, 255, 255, 0.35);
+      font-size: 0.66rem;
+      color: var(--ba-text-faint);
+      font-weight: 600;
     }
 
     .skin-group-body {
-      padding-left: 12px;
-      margin-top: 2px;
+      padding-left: 10px;
+      margin-top: 4px;
+      border-left: 2px solid var(--ba-divider);
     }
 
     .skin-item {
@@ -500,27 +554,34 @@
       align-items: center;
       gap: 10px;
       padding: 8px;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       border: 1px solid transparent;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      background: rgba(255, 255, 255, 0.5);
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      margin-bottom: 4px;
     }
 
+    .skin-item:last-child { margin-bottom: 0; }
+
     .skin-item:hover {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.85);
+      border-color: var(--ba-divider);
     }
 
     .skin-item.active {
-      border-color: #4dabf7;
-      background: rgba(77, 171, 247, 0.1);
+      border-color: var(--ba-accent);
+      background: var(--ba-accent-soft);
+      box-shadow: 0 2px 8px rgba(77, 171, 247, 0.25);
     }
 
     .skin-thumb {
       width: 36px;
       height: 36px;
-      border-radius: 6px;
+      border-radius: 8px;
       object-fit: cover;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(220, 235, 250, 0.6);
+      border: 1px solid rgba(160, 195, 230, 0.35);
     }
 
     .skin-info {
@@ -529,20 +590,21 @@
     }
 
     .skin-name {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ba-text);
     }
 
     .skin-tag {
-      font-size: 0.65rem;
-      color: rgba(255, 255, 255, 0.35);
+      font-size: 0.66rem;
+      color: var(--ba-text-faint);
+      font-weight: 600;
     }
 
     /* --- Stats Button --- */
     #stats-btn { top: 16px; right: 20px; }
 
-    /* --- Stats Modal --- */
+    /* --- Stats Modal (BA white card) --- */
     #stats-modal {
       position: fixed;
       inset: 0;
@@ -550,9 +612,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      background: rgba(20, 40, 70, 0.45);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease;
@@ -567,17 +629,18 @@
       position: relative;
       width: min(960px, 92vw);
       max-height: 90vh;
-      background: rgba(10, 10, 30, 0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
+      background: var(--ba-card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: var(--ba-card-border);
+      border-radius: 18px;
       padding: 22px 24px;
-      color: white;
+      color: var(--ba-text);
       font-size: 0.85rem;
       overflow-y: auto;
       transform: translateY(12px) scale(0.98);
       transition: transform 0.25s ease;
+      box-shadow: 0 24px 80px rgba(0, 30, 60, 0.35);
     }
 
     #stats-modal.open .stats-dialog {
@@ -588,31 +651,45 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--ba-divider);
     }
 
     .stats-title {
-      font-size: 1.1rem;
-      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.15rem;
+      font-weight: 800;
       letter-spacing: 0.02em;
-      color: white;
+      color: var(--ba-accent-strong);
+    }
+
+    .stats-title::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 22px;
+      background: var(--ba-accent);
+      border-radius: 3px;
     }
 
     .stats-close {
-      background: none;
-      border: none;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 1.6rem;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      color: var(--ba-text-muted);
+      font-size: 1.5rem;
       line-height: 1;
       cursor: pointer;
-      padding: 2px 10px;
-      border-radius: 6px;
+      padding: 2px 12px;
+      border-radius: 10px;
       transition: background 0.2s ease, color 0.2s ease;
     }
 
     .stats-close:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
+      background: var(--ba-hover);
+      color: var(--ba-accent-strong);
     }
 
     .stats-controls {
@@ -622,18 +699,19 @@
       align-items: center;
       margin-bottom: 16px;
       padding-bottom: 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid var(--ba-divider);
     }
 
     .stats-date-input {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      color: white;
-      padding: 6px 10px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 10px;
+      color: var(--ba-text);
+      padding: 7px 12px;
       font-family: inherit;
-      font-size: 0.8rem;
-      color-scheme: dark;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color-scheme: light;
     }
 
     .stats-presets {
@@ -643,25 +721,26 @@
     }
 
     .stats-preset {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
-      color: rgba(255, 255, 255, 0.7);
-      padding: 6px 12px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 10px;
+      color: var(--ba-text-muted);
+      padding: 7px 14px;
       font-size: 0.78rem;
+      font-weight: 700;
       cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
 
     .stats-preset:hover {
-      background: rgba(255, 255, 255, 0.12);
-      color: white;
+      background: var(--ba-hover);
+      color: var(--ba-accent-strong);
     }
 
     .stats-preset.active {
-      background: rgba(77, 171, 247, 0.18);
-      border-color: rgba(77, 171, 247, 0.6);
-      color: #4dabf7;
+      background: var(--ba-accent-soft);
+      border-color: var(--ba-accent);
+      color: var(--ba-accent-strong);
     }
 
     .stats-tiles {
@@ -672,16 +751,17 @@
     }
 
     .stats-tile {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 14px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
     .stats-tile-value {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #4dabf7;
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--ba-accent-strong);
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
     }
@@ -690,7 +770,8 @@
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: rgba(255, 255, 255, 0.45);
+      color: var(--ba-text-faint);
+      font-weight: 700;
       margin-top: 6px;
     }
 
@@ -709,19 +790,32 @@
     }
 
     .stats-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 12px;
       padding: 14px 16px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
     .stats-card-title {
-      font-size: 0.7rem;
-      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.74rem;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.45);
+      letter-spacing: 0.08em;
+      color: var(--ba-accent-strong);
       margin-bottom: 10px;
+    }
+
+    .stats-card-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 12px;
+      background: var(--ba-accent);
+      border-radius: 2px;
     }
 
     .stats-chart-wrap {
@@ -735,7 +829,7 @@
 
     .stats-empty {
       font-size: 0.78rem;
-      color: rgba(255, 255, 255, 0.35);
+      color: var(--ba-text-faint);
       font-style: italic;
       padding: 30px 0;
       text-align: center;
@@ -747,7 +841,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(255, 255, 255, 0.4);
+      color: var(--ba-text-faint);
       font-size: 0.8rem;
       pointer-events: none;
       opacity: 0;
@@ -763,13 +857,15 @@
       left: 0;
       width: 100%;
       text-align: center;
-      font-size: 0.65rem;
-      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.66rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
       padding: 6px 16px;
       z-index: 50;
       user-select: none;
       pointer-events: none;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+      text-shadow: 0 1px 3px rgba(0, 30, 60, 0.55);
+      background: linear-gradient(to top, rgba(20, 40, 70, 0.45), transparent);
     }
 
     .particle {
@@ -1668,7 +1764,7 @@
             datasets: [{
               data: sortedCharacters.map(([, n]) => n),
               backgroundColor: sortedCharacters.map((_, i) => characterPalette[i % characterPalette.length]),
-              borderColor: 'rgba(10,10,30,0.8)',
+              borderColor: 'rgba(255,255,255,0.9)',
               borderWidth: 2,
             }],
           },
@@ -1679,7 +1775,7 @@
             plugins: {
               legend: {
                 position: 'bottom',
-                labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 }, boxWidth: 12 },
+                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
               },
               tooltip: tooltipStyle(),
             },
@@ -1702,7 +1798,7 @@
             label: v.name,
             data: CHARACTERS.map(cc => cc.id === c.id ? count : 0),
             backgroundColor: base + (variantShades[vi % variantShades.length] || ''),
-            borderColor: 'rgba(10,10,30,0.4)',
+            borderColor: 'rgba(255,255,255,0.7)',
             borderWidth: 1,
             stack: c.id,
           });
@@ -1727,7 +1823,7 @@
             plugins: {
               legend: {
                 position: 'bottom',
-                labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 }, boxWidth: 12 },
+                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
                 // Hide zero-data variants from legend to avoid clutter when characters
                 // have no clicks yet (especially the new Mari before populating sound).
                 filter: (item, data) => {
@@ -1746,13 +1842,15 @@
               x: {
                 stacked: true,
                 beginAtZero: true,
-                ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, precision: 0 },
-                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, precision: 0 },
+                grid: { color: 'rgba(60,90,130,0.10)' },
+                border: { color: 'rgba(60,90,130,0.15)' },
               },
               y: {
                 stacked: true,
-                ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 11 } },
+                ticks: { color: 'rgba(31,44,64,0.8)', font: { size: 11, weight: '700' } },
                 grid: { display: false },
+                border: { color: 'rgba(60,90,130,0.15)' },
               },
             },
           },
@@ -1770,13 +1868,15 @@
         },
         scales: {
           x: {
-            ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+            grid: { color: 'rgba(60,90,130,0.10)' },
+            border: { color: 'rgba(60,90,130,0.15)' },
           },
           y: {
             beginAtZero: true,
-            ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, precision: 0 },
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, precision: 0 },
+            grid: { color: 'rgba(60,90,130,0.10)' },
+            border: { color: 'rgba(60,90,130,0.15)' },
           },
         },
       };
@@ -1784,13 +1884,16 @@
 
     function tooltipStyle() {
       return {
-        backgroundColor: 'rgba(10,10,30,0.95)',
-        borderColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: 'rgba(255,255,255,0.98)',
+        borderColor: 'rgba(160,195,230,0.55)',
         borderWidth: 1,
-        titleColor: 'white',
-        bodyColor: 'rgba(255,255,255,0.85)',
+        titleColor: '#1f2c40',
+        titleFont: { weight: '700' },
+        bodyColor: 'rgba(31,44,64,0.85)',
+        bodyFont: { weight: '600' },
         padding: 10,
-        cornerRadius: 8,
+        cornerRadius: 10,
+        boxShadow: '0 6px 20px rgba(0,30,60,0.18)',
       };
     }
 
