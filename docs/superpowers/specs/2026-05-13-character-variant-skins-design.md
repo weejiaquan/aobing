@@ -1,6 +1,6 @@
 ---
 name: character-variant-skins
-description: Restructure the flat skins registry into a two-level character → variant hierarchy with per-character SFX, BGM, and background, plus a new Mari character with three variants.
+description: Restructure the flat skins registry into a two-level character → variant hierarchy with per-character SFX, BGM, background, and idle-text bubble, plus a new Mari character with three variants.
 status: backlog
 created: 2026-05-13T00:00:00Z
 updated: 2026-05-13T00:00:00Z
@@ -10,11 +10,11 @@ updated: 2026-05-13T00:00:00Z
 
 ## Goal
 
-Replace the current flat `SKINS` registry with a two-level **character → variant** hierarchy so each character bundles a shared SFX, BGM, and background image, with variants able to override the BGM individually. Add **Mari** as a second character with three variants (Mari, Track Mari, Idol Mari) using sprites from `static.wikia.nocookie.net`.
+Replace the current flat `SKINS` registry with a two-level **character → variant** hierarchy so each character bundles a shared SFX, BGM, and background image, with variants able to override the BGM individually. Add **Mari** as a second character with three variants (Mari, Track Mari, Idol Mari) using sprites from `static.wikia.nocookie.net`. Also add a per-character **idle-text bubble** that surfaces a random line when the user has been idle 15 s.
 
 ## Scope
 
-- `index.html` only — registry, panel rendering, skin-apply logic, asset preload, stats writes.
+- `index.html` only — registry, panel rendering, skin-apply logic, asset preload, stats writes, idle-bubble markup + CSS + JS.
 - `database.rules.json` — one new write rule path.
 - `assets/` — six new Mari sprite files.
 
@@ -39,6 +39,7 @@ const CHARACTERS = [
     sfx: 'assets/aobing.mp3',
     bgm: 'assets/bgm.mp3',
     bg:  'assets/bg.png',
+    idleTexts: ['hi'],
     variants: [
       { id: 'aoba',      name: 'Aoba',       tag: 'Default', idle: 'assets/aoba-idle.webp',     active: 'assets/aoba-active.webp' },
       { id: 'aobaplush', name: 'Aoba Plush', tag: 'Plushie', idle: 'assets/aobaplush-idle.png', active: 'assets/aobaplush-active.png' },
@@ -50,6 +51,7 @@ const CHARACTERS = [
     sfx: '',  // populate later
     bgm: '',  // populate later
     bg:  '',  // populate later
+    idleTexts: ['hi'],  // populate later
     variants: [
       { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.png',      active: 'assets/mari-active.png' },
       { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.png', active: 'assets/maritrack-active.png' },
@@ -62,6 +64,7 @@ const CHARACTERS = [
 ### Field semantics
 
 - **Character.sfx / bgm / bg** — strings. Empty string = suppressed.
+- **Character.idleTexts** — array of strings. Empty array = no idle bubble for that character. Random pick on each idle trigger (uniform; same line may repeat across cycles).
 - **Variant.bgm** (optional override) — if present and non-empty, takes precedence over character bgm for that variant. Not declared on any current variant; reserved so Track Mari / Idol Mari can hold their own song later without a code change.
 - **Variant.id** — globally unique. Used for `settings.skin` and the existing `daily/{date}/skins/{variantId}` stats path.
 
@@ -178,6 +181,102 @@ This keeps the idle return reliable for both cases.
 
 ---
 
+## Idle Text Bubble
+
+A small speech-bubble UI anchored to the top-right of the character sprite. Surfaces a random line from the active character's `idleTexts` after 15 s of inactivity, auto-hides after 5 s, and is dismissable by click.
+
+### Markup
+
+Added inside `#character`, above the `<img>`:
+
+```html
+<div id="character">
+  <button id="idle-bubble" type="button" hidden>
+    <span id="idle-bubble-text"></span>
+  </button>
+  <img id="aoba-img" …>
+</div>
+```
+
+Using a `<button>` so it's keyboard-focusable and inherits click semantics. `hidden` attribute is the default off-state.
+
+### Position & style
+
+- `position: absolute` inside `#character` (which is `position: relative`).
+- Anchored top-right of the sprite: `top: 4%; right: -8%;` (the sprite is `height: 90vh` centered, so right-of-sprite negative offset reads as "just outside the sprite's shoulder"). Specific values to be tuned during implementation; goal is "looks like a chat bubble emerging from the upper-right of the character".
+- Visual: rounded rect with a small triangular tail pointing down-left toward the character. White-ish bg (`rgba(255,255,255,0.92)`), dark text, soft drop-shadow, max-width ~220px, padding ~10px 14px, font ~0.95rem. Reset browser button defaults (border:none, font:inherit, cursor:pointer).
+- `pointer-events: auto` on the bubble (whole `#character` is clickable; the bubble click is intercepted — see below).
+- Animated entrance/exit: fade + slight upward translate (CSS transition on `opacity` + `transform`, ~180 ms).
+
+### Behavior
+
+State carried in module-scoped variables:
+
+```js
+let idleTimer = null;          // setTimeout id for the 15s wait
+let bubbleHideTimer = null;    // setTimeout id for the 5s auto-hide
+let bubbleVisible = false;
+```
+
+Lifecycle:
+
+1. **Schedule**: `scheduleIdleBubble()` clears `idleTimer` and starts a fresh 15 s timeout. Called whenever idle should restart (see "Activity reset" below).
+2. **Show**: After 15 s, if the active character has a non-empty `idleTexts`, pick a random entry, set `#idle-bubble-text` textContent, remove `hidden`, set `bubbleVisible = true`, start 5 s `bubbleHideTimer`. If the character has no idle texts (e.g. empty array), skip showing and **don't reschedule** — wait for the next activity event to start a fresh 15 s wait.
+3. **Auto-hide**: After 5 s, `hideBubble()` (see below) runs. Then call `scheduleIdleBubble()` so the next 15 s idle period begins immediately.
+4. **Click-dismiss**: Clicking the bubble runs `hideBubble()` and calls `scheduleIdleBubble()` (the click itself counts as activity, so it resets the timer to 15 s from now).
+5. **Variant change**: `applyVariant()` calls `hideBubble()` (if visible) then `scheduleIdleBubble()` so the new character's bubble can fire 15 s from now.
+
+`hideBubble()`:
+```js
+function hideBubble() {
+  if (bubbleHideTimer) { clearTimeout(bubbleHideTimer); bubbleHideTimer = null; }
+  document.getElementById('idle-bubble').hidden = true;
+  bubbleVisible = false;
+}
+```
+
+### Activity reset
+
+Any of the following resets the idle timer (calls `scheduleIdleBubble()` after first running its own logic):
+
+- `triggerClick` (character click / keypress).
+- `mousemove` on `document` — throttled to once per 500 ms (to avoid timer churn).
+- `keydown` on `document` (already triggers click, so handled).
+- Touch / click events on `settings-btn`, `skins-btn`, `stats-btn`, `curtain`, panel sliders/toggles.
+- The bubble's own click.
+
+Concrete wiring:
+- `document.addEventListener('pointerdown', scheduleIdleBubble)` — covers character click, panel buttons, curtain, bubble click (all bubble to document).
+- `document.addEventListener('mousemove', scheduleIdleBubble)` — throttled to once per 500 ms.
+- `document.addEventListener('keydown', scheduleIdleBubble)` — keypress doesn't fire pointer events, so explicit listener needed. (The existing `keydown → triggerClick` listener stays; both fire.)
+
+Pointerdown bubbles through panel buttons too, so we don't need per-button hooks.
+
+### Bubble click handler
+
+```js
+idleBubbleEl.addEventListener('click', (e) => {
+  e.stopPropagation();   // don't trigger character click
+  hideBubble();
+  scheduleIdleBubble();
+});
+```
+
+`stopPropagation` is important because the bubble lives inside `#character`, which has its own `click` handler that fires `triggerClick`. Without it, clicking the bubble would also squeak.
+
+### Intro interaction
+
+`scheduleIdleBubble()` is started for the first time after `endIntro()` finishes (right after the first BGM `play()`). Before that, no idle timer runs. While the curtain is up, no bubble can appear.
+
+### Edge cases
+
+- **Tab hidden** — `setTimeout` is throttled by browsers when the tab is backgrounded; we accept the resulting drift (bubble might appear right after refocus). Acceptable.
+- **User dismisses, then immediately interacts** — bubble's `click` schedules 15 s, then the activity listener also schedules 15 s. Both call `scheduleIdleBubble()` which clears and resets — idempotent.
+- **Settings panel open during idle** — the panel's transparent overlay doesn't block bubble visibility; bubble still appears. Acceptable (mirrors the existing behavior where the character is always visible behind panels).
+- **Variant has no `idleTexts` field** — treat as empty array. No bubble.
+
+---
+
 ## Stats Schema
 
 Keep the existing per-variant write and **add** a per-character write. This adds one more write to the existing per-click set (`clicksRef`, `dailyTotalRef`, `countries`, `skins`):
@@ -254,5 +353,9 @@ Manual checks against the running page:
 6. Reset Defaults → returns to Aoba variant with bgm/bg/sfx restored.
 7. Open Analytics modal — Skins chart still renders with variant breakdown. Inspect Firebase: `daily/{today}/characters/aoba` and `.../characters/mari` increment correctly.
 8. Refresh with `localStorage.aobing-settings.skin = 'mariidol'` set — page loads with Idol Mari selected and Mari group open.
+9. After clicking the curtain to start, leave the page alone for ~15 s. Bubble fades in at top-right of Aoba with text "hi". After 5 s it fades out. After another 15 s of inactivity, it reappears.
+10. While bubble is visible, click it. It disappears immediately; clicking the bubble does **not** cause a character squeak. After 15 s of inactivity, it reappears with a fresh random pick.
+11. Move the mouse around continuously — bubble never appears. Stop moving for 15 s — bubble appears.
+12. Switch to Mari (which has `idleTexts: ['hi']`) — wait 15 s — bubble appears over Mari. Switch to a character whose `idleTexts` is empty (manually test by editing the array) — wait 15 s — no bubble appears.
 
 No automated tests (the project has none currently — single static HTML page).
