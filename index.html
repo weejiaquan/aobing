@@ -79,21 +79,22 @@
       transition: filter 0.2s ease;
     }
 
-    /* --- Idle Text Bubble --- */
+    /* --- Idle Text Bubble (translucent VN-style box) --- */
     #idle-bubble {
       position: absolute;
       top: 4%;
       right: -4%;
-      max-width: 220px;
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.94);
+      max-width: 320px;
+      min-height: 1.5em;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.5);
       color: #1a1a2e;
       border: none;
-      border-radius: 14px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
       font: inherit;
-      font-size: 0.95rem;
-      font-weight: 600;
+      font-size: 1.4rem;
+      font-weight: 800;
       line-height: 1.3;
       cursor: pointer;
       pointer-events: auto;
@@ -102,6 +103,28 @@
       transform: translateY(6px);
       transition: opacity 0.18s ease, transform 0.18s ease;
       user-select: none;
+      text-align: left;
+      white-space: pre-wrap;
+    }
+
+    #idle-bubble-text {
+      display: inline-block;
+    }
+
+    /* Blinking caret while typing — anchored to the end of the revealed text */
+    #idle-bubble.typing #idle-bubble-text::after {
+      content: '';
+      display: inline-block;
+      width: 0.08em;
+      height: 1em;
+      margin-left: 0.1em;
+      vertical-align: -0.15em;
+      background: currentColor;
+      animation: bubble-caret 0.7s steps(1) infinite;
+    }
+
+    @keyframes bubble-caret {
+      50% { opacity: 0; }
     }
 
     #idle-bubble:not([hidden]) {
@@ -116,24 +139,11 @@
       pointer-events: none;
     }
 
-    #idle-bubble::after {
-      content: '';
-      position: absolute;
-      bottom: -8px;
-      left: 18px;
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-top: 10px solid rgba(255, 255, 255, 0.94);
-      filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.15));
-    }
-
     @media (max-width: 480px) {
       #idle-bubble {
-        max-width: 170px;
-        font-size: 0.85rem;
-        padding: 8px 12px;
+        max-width: 220px;
+        font-size: 1.1rem;
+        padding: 10px 14px;
         top: 2%;
         right: -2%;
       }
@@ -1006,7 +1016,7 @@
       {
         id: 'aoba',
         name: 'Aoba',
-        sfx: 'assets/aobing.mp3',
+        sfx: ['assets/aobing.mp3'],
         bgm: 'assets/bgm.mp3',
         bg:  'assets/bg.png',
         idleTexts: ['hi'],
@@ -1018,14 +1028,19 @@
       {
         id: 'mari',
         name: 'Mari',
-        sfx: '',
-        bgm: '',
+        sfx: [
+          'assets/mari-sfx-1.mp3',
+          'assets/mari-sfx-2.mp3',
+          'assets/mari-sfx-3.mp3',
+          'assets/mari-sfx-4.mp3',
+        ],
+        bgm: '',  // each variant supplies its own bgm
         bg:  '',  // each variant supplies its own bg
         idleTexts: ['hi'],
         variants: [
-          { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.webp',      active: 'assets/mari-active.webp',      bg: 'assets/mari-bg.png' },
-          { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.webp', active: 'assets/maritrack-active.webp', bg: 'assets/maritrack-bg.png' },
-          { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp',  bg: 'assets/mariidol-bg.png' },
+          { id: 'mari',      name: 'Mari',       tag: 'Default', idle: 'assets/mari-idle.webp',      active: 'assets/mari-active.webp',      bg: 'assets/mari-bg.png',      bgm: 'assets/mari-bgm.mp3' },
+          { id: 'maritrack', name: 'Track Mari', tag: 'Track',   idle: 'assets/maritrack-idle.webp', active: 'assets/maritrack-active.webp', bg: 'assets/maritrack-bg.png', bgm: 'assets/maritrack-bgm.mp3' },
+          { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp',  bg: 'assets/mariidol-bg.png',  bgm: 'assets/mariidol-bgm.mp3' },
         ],
       },
     ];
@@ -1761,61 +1776,86 @@
     // --- Click Interaction ---
     const character = document.getElementById('character');
     const aobaImg = document.getElementById('aoba-img');
-    const POOL_SIZE = 50;
-    const soundPool = [];
-    const slotActive = new Array(POOL_SIZE).fill(false);
-    let poolIndex = 0;
+    // Soundpool layout: one sub-pool per sfx entry. soundPools[i] is an array of
+    // pre-allocated Audio elements all bound to sfxList[i]. POOL_BUDGET total stays
+    // ~constant regardless of how many sfx the character has (50 audio elements is
+    // plenty for spam-click; min 10 per source so 5+ source characters still feel
+    // responsive).
+    const POOL_BUDGET = 50;
+    const MIN_PER_SOURCE = 10;
+    let soundPools = [];        // soundPools[srcIdx] = Audio[]
+    let poolCursors = [];       // poolCursors[srcIdx] = next slot to play within that sub-pool
+    let slotActiveByPool = [];  // slotActiveByPool[srcIdx][slot] = bool
+    let sfxCycleIndex = 0;      // which sound plays on the next click (cycles 0..N-1)
     let activeSounds = 0;
+    // Legacy flat array — kept so the "no SFX → no-op" check in playsfx still works.
+    const soundPool = [];
 
     function goIdle() {
+      // Revert sprite only. The bounce ends at translateY=0 naturally, so no transform
+      // reset needed; ripping the transform out mid-arc was causing the "animation
+      // jumped" artifact when short Mari sfx ended before the 700ms bounce finished.
       aobaImg.src = getVariant(settings.skin).variant.idle;
-      if (bounceAnimation) {
-        bounceAnimation.pause();
-        character.style.transform = '';
-      }
     }
 
     function buildSoundPool() {
       const { character: ch } = getVariant(settings.skin);
       soundPool.length = 0;
-      slotActive.fill(false);
-      poolIndex = 0;
+      soundPools = [];
+      poolCursors = [];
+      slotActiveByPool = [];
+      sfxCycleIndex = 0;
       activeSounds = 0;
-      if (!ch.sfx) return; // silent character — empty pool; playsfx no-ops
-      for (let i = 0; i < POOL_SIZE; i++) {
-        const a = new Audio(ch.sfx);
-        a.preload = 'auto';
-        const idx = i;
-        a.addEventListener('ended', () => {
-          if (slotActive[idx]) {
-            slotActive[idx] = false;
-            activeSounds--;
-            if (activeSounds === 0) goIdle();
-          }
-        });
-        soundPool.push(a);
-      }
+      const sfxList = Array.isArray(ch.sfx) ? ch.sfx : (ch.sfx ? [ch.sfx] : []);
+      if (sfxList.length === 0) return;
+      const perSource = Math.max(MIN_PER_SOURCE, Math.floor(POOL_BUDGET / sfxList.length));
+      sfxList.forEach((src, srcIdx) => {
+        const sub = [];
+        const activeFlags = new Array(perSource).fill(false);
+        for (let i = 0; i < perSource; i++) {
+          const a = new Audio(src);
+          a.preload = 'auto';
+          const slotIdx = i;
+          a.addEventListener('ended', () => {
+            // Decrement so future plays don't over-duck volume. Sprite reset is driven
+            // by the bounce animation's onComplete, NOT by sfx end — short Mari sounds
+            // would otherwise yank the sprite back to idle before the bounce arc is done.
+            if (activeFlags[slotIdx]) {
+              activeFlags[slotIdx] = false;
+              activeSounds--;
+            }
+          });
+          sub.push(a);
+          soundPool.push(a); // populate legacy flat array so playsfx's empty-check still works
+        }
+        soundPools.push(sub);
+        slotActiveByPool.push(activeFlags);
+        poolCursors.push(0);
+      });
     }
     buildSoundPool();
     window._soundPoolReady = true;
 
     function playsfx() {
-      if (soundPool.length === 0) return; // silent character
-      const idx = poolIndex;
-      const sfx = soundPool[idx];
-      poolIndex = (poolIndex + 1) % POOL_SIZE;
-      // If this slot was still playing, don't double-count
-      if (!slotActive[idx]) {
-        activeSounds++;
-      }
-      slotActive[idx] = true;
+      if (soundPools.length === 0) return; // silent character
+      // Pick the next sound in the sequential cycle. After all sounds have played
+      // once, wraps back to index 0 — exactly the "play through then restart from
+      // the top" behavior we want.
+      const srcIdx = sfxCycleIndex;
+      sfxCycleIndex = (sfxCycleIndex + 1) % soundPools.length;
+      const sub = soundPools[srcIdx];
+      const active = slotActiveByPool[srcIdx];
+      const slot = poolCursors[srcIdx];
+      poolCursors[srcIdx] = (slot + 1) % sub.length;
+      const sfx = sub[slot];
+      if (!active[slot]) activeSounds++;
+      active[slot] = true;
       sfx.volume = (settings.sfxVol / 100) / Math.sqrt(Math.max(1, activeSounds));
       sfx.currentTime = 0;
       sfx.play().catch(() => {
-        if (slotActive[idx]) {
-          slotActive[idx] = false;
+        if (active[slot]) {
+          active[slot] = false;
           activeSounds--;
-          if (activeSounds === 0) goIdle();
         }
       });
     }
@@ -1930,7 +1970,7 @@
               { to: '-80px', duration: 300, ease: 'outQuad' },
               { to: '0px', duration: 400, ease: 'outBounce' },
             ],
-            onComplete: () => { if (soundPool.length === 0) goIdle(); },
+            onComplete: () => goIdle(),
           });
 
           if (settings.effects) spawnParticles();
@@ -1993,7 +2033,7 @@
           { to: '-80px', duration: 300, ease: 'outQuad' },
           { to: '0px', duration: 400, ease: 'outBounce' },
         ],
-        onComplete: () => { if (soundPool.length === 0) goIdle(); },
+        onComplete: () => goIdle(),
       });
 
       // 4. Spawn text particles (if effects enabled)
@@ -2006,13 +2046,38 @@
     // --- Idle Text Bubble ---
     const IDLE_BUBBLE_DELAY_MS = 15000;
     const IDLE_BUBBLE_DURATION_MS = 5000;
+    const TYPEWRITER_CHAR_MS = 45; // VN-style reveal speed
     const idleBubbleEl = document.getElementById('idle-bubble');
     const idleBubbleTextEl = document.getElementById('idle-bubble-text');
     let idleTimer = null;
     let bubbleHideTimer = null;
+    let typewriterTimer = null;
+
+    function stopTypewriter() {
+      if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
+      idleBubbleEl.classList.remove('typing');
+    }
+
+    function startTypewriter(text) {
+      stopTypewriter();
+      idleBubbleTextEl.textContent = '';
+      idleBubbleEl.classList.add('typing');
+      let i = 0;
+      const tick = () => {
+        if (i < text.length) {
+          idleBubbleTextEl.textContent += text.charAt(i++);
+          typewriterTimer = setTimeout(tick, TYPEWRITER_CHAR_MS);
+        } else {
+          typewriterTimer = null;
+          idleBubbleEl.classList.remove('typing');
+        }
+      };
+      tick();
+    }
 
     function hideBubble() {
       if (bubbleHideTimer) { clearTimeout(bubbleHideTimer); bubbleHideTimer = null; }
+      stopTypewriter();
       idleBubbleEl.hidden = true;
     }
 
@@ -2020,7 +2085,7 @@
       const { character: ch } = getVariant(settings.skin);
       if (!ch.idleTexts || ch.idleTexts.length === 0) return;
       const text = ch.idleTexts[Math.floor(Math.random() * ch.idleTexts.length)];
-      idleBubbleTextEl.textContent = text;
+      startTypewriter(text);
       idleBubbleEl.hidden = false;
       bubbleHideTimer = setTimeout(() => {
         hideBubble();
