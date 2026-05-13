@@ -12,6 +12,13 @@
         ".validate": "newData.isNumber() && $variantId.length <= 20"
       }
     },
+    "combo": {
+      ".read": true,
+      "allTime": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
+      }
+    },
     "daily": {
       ".read": true,
       "$date": {
@@ -36,6 +43,10 @@
             ".write": true,
             ".validate": "newData.isNumber() && $characterId.length <= 20"
           }
+        },
+        "maxCombo": {
+          ".write": true,
+          ".validate": "newData.isNumber()"
         },
         "visitors": {
           "$visitorId": {

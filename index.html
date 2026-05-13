@@ -182,15 +182,17 @@
     }
 
     /* --- Combo Display --- */
+    /* Anchored to the upper-right so it sits below the idle bubble without
+       covering the character's face. Right-aligned content gives a clean
+       "stack hanging from the corner" feel similar to BA's rhythm modes. */
     #combo-display {
       position: fixed;
-      top: 18%;
-      left: 50%;
-      translate: -50% 0;            /* horizontal centering — kept separate from `transform` so anime.js can use transform for scale animations without fighting layout */
+      top: 22%;
+      right: 7%;
       z-index: 70;
       pointer-events: none;
       user-select: none;
-      text-align: center;
+      text-align: right;
       font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
       opacity: 0;
       transition: opacity 0.35s ease;
@@ -199,11 +201,11 @@
     #combo-display.active { opacity: 1; }
 
     /* `transform` lives on the inner element so anime.js scale-bumps don't
-       reset the parent's centering translate. */
+       reset the parent's position. */
     #combo-content { display: inline-block; transform-origin: center bottom; }
 
     .combo-number {
-      font-size: 4.5rem;
+      font-size: 3.8rem;
       font-weight: 900;
       line-height: 1;
       color: var(--ba-accent);
@@ -214,27 +216,48 @@
     }
 
     .combo-label {
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       font-weight: 800;
       letter-spacing: 0.22em;
       color: var(--ba-yellow);
       text-transform: uppercase;
-      margin-top: 4px;
+      margin-top: 3px;
       text-shadow: 0 2px 8px rgba(0, 30, 60, 0.6);
+    }
+
+    /* Expiry timer bar — drains from full → empty over COMBO_EXPIRE_MS via a
+       CSS transition that JS resets on every click. */
+    .combo-bar {
+      width: 140px;
+      height: 5px;
+      margin: 6px 0 0 auto;       /* right-align under the label */
+      background: rgba(31, 44, 64, 0.22);
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 30, 60, 0.35);
+    }
+
+    .combo-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--ba-accent), var(--ba-yellow));
+      border-radius: 3px;
+      transform-origin: left center;
+      transform: scaleX(1);
     }
 
     /* Milestone visuals — each higher tier escalates colour + glow + size. */
     #combo-display.tier-1 .combo-number { color: var(--ba-accent); }
-    #combo-display.tier-2 .combo-number { color: var(--ba-yellow); font-size: 5rem; }
-    #combo-display.tier-3 .combo-number { color: #ff9e4d; font-size: 5.5rem; }
+    #combo-display.tier-2 .combo-number { color: var(--ba-yellow); font-size: 4.2rem; }
+    #combo-display.tier-3 .combo-number { color: #ff9e4d; font-size: 4.6rem; }
     #combo-display.tier-4 .combo-number {
       color: #ff5fa8;
-      font-size: 6rem;
+      font-size: 5rem;
       text-shadow: 0 4px 18px rgba(0, 30, 60, 0.55), 0 0 32px rgba(255, 95, 168, 0.7), 0 0 64px rgba(255, 95, 168, 0.45);
     }
     #combo-display.tier-5 .combo-number {
       color: #ffd84d;
-      font-size: 6.5rem;
+      font-size: 5.4rem;
       animation: combo-rainbow 1.2s linear infinite;
       text-shadow: 0 4px 18px rgba(0, 30, 60, 0.55), 0 0 36px rgba(255, 216, 77, 0.8), 0 0 80px rgba(255, 95, 168, 0.55);
     }
@@ -271,12 +294,14 @@
 
     /* Mobile shrink */
     @media (max-width: 480px) {
-      .combo-number { font-size: 3.2rem; }
-      .combo-label  { font-size: 0.85rem; letter-spacing: 0.16em; }
-      #combo-display.tier-2 .combo-number { font-size: 3.6rem; }
-      #combo-display.tier-3 .combo-number { font-size: 4rem; }
-      #combo-display.tier-4 .combo-number { font-size: 4.4rem; }
-      #combo-display.tier-5 .combo-number { font-size: 4.8rem; }
+      #combo-display { top: 16%; right: 4%; }
+      .combo-number { font-size: 2.6rem; }
+      .combo-label  { font-size: 0.75rem; letter-spacing: 0.16em; }
+      .combo-bar    { width: 100px; height: 4px; }
+      #combo-display.tier-2 .combo-number { font-size: 3rem; }
+      #combo-display.tier-3 .combo-number { font-size: 3.2rem; }
+      #combo-display.tier-4 .combo-number { font-size: 3.5rem; }
+      #combo-display.tier-5 .combo-number { font-size: 3.8rem; }
     }
 
     /* --- Particle Container --- */
@@ -856,7 +881,7 @@
 
     .stats-tiles {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-bottom: 16px;
     }
@@ -1112,6 +1137,7 @@
     <div id="combo-content">
       <div class="combo-number">0</div>
       <div class="combo-label">COMBO!</div>
+      <div class="combo-bar"><div class="combo-bar-fill"></div></div>
     </div>
   </div>
 
@@ -1200,6 +1226,10 @@
         <div class="stats-tile">
           <div class="stats-tile-value" id="tile-cpv">&mdash;</div>
           <div class="stats-tile-label">Clicks per visitor</div>
+        </div>
+        <div class="stats-tile">
+          <div class="stats-tile-value" id="tile-max-combo">&mdash;</div>
+          <div class="stats-tile-label" id="tile-max-combo-label">Max combo today</div>
         </div>
       </div>
       <div class="stats-grid" id="stats-trend-grid" style="display:none;">
@@ -1617,6 +1647,8 @@
     const tileVisitors = document.getElementById('tile-visitors');
     const tileVisitorsLabel = document.getElementById('tile-visitors-label');
     const tileCpv = document.getElementById('tile-cpv');
+    const tileMaxCombo = document.getElementById('tile-max-combo');
+    const tileMaxComboLabel = document.getElementById('tile-max-combo-label');
     const trendGrid = document.getElementById('stats-trend-grid');
     const countriesEmpty = document.getElementById('countries-empty');
     const skinsEmpty = document.getElementById('skins-empty');
@@ -1722,6 +1754,7 @@
       const characterTotals = {};
       let totalClicks = 0;
       let totalVisitors = 0;
+      let rangeMaxCombo = 0;
 
       dates.forEach(d => {
         const day = dailyData[d] || {};
@@ -1731,6 +1764,9 @@
         visitorsByDate[d] = v;
         totalClicks += c;
         totalVisitors += v;
+        if (day.maxCombo && day.maxCombo > rangeMaxCombo) {
+          rangeMaxCombo = day.maxCombo;
+        }
         if (day.countries) {
           Object.entries(day.countries).forEach(([code, n]) => {
             countryTotals[code] = (countryTotals[code] || 0) + n;
@@ -1747,6 +1783,17 @@
           });
         }
       });
+
+      // For "All time", fall back to the dedicated combo/allTime ref — that's
+      // the canonical high score and may include older peaks not yet captured
+      // in the per-day data.
+      if (range.from === null) {
+        try {
+          const snap = await db.ref('combo/allTime').once('value');
+          const allTimeMax = snap.val() || 0;
+          if (allTimeMax > rangeMaxCombo) rangeMaxCombo = allTimeMax;
+        } catch {}
+      }
 
       // Back-compat: if the new daily/{date}/characters/ data is empty (early days, or
       // historic dates before this rollout), reconstruct character totals from skinTotals
@@ -1768,15 +1815,18 @@
 
       tileClicksLabel.textContent  = (isToday ? 'Clicks today'   : 'Clicks')   + (isSingleDay ? '' : labelSuffix);
       tileVisitorsLabel.textContent = (isToday ? 'Visitors today' : 'Visitors') + (isSingleDay ? '' : labelSuffix);
+      tileMaxComboLabel.textContent = (isToday ? 'Max combo today' : 'Max combo') + (isSingleDay ? '' : labelSuffix);
       tileClicks.textContent = totalClicks.toLocaleString();
       tileVisitors.textContent = totalVisitors.toLocaleString();
       tileCpv.textContent = totalVisitors > 0 ? (totalClicks / totalVisitors).toFixed(1) : '—';
+      tileMaxCombo.textContent = rangeMaxCombo > 0 ? rangeMaxCombo.toLocaleString() + 'x' : '—';
 
       // Live tick for today's tiles
       if (isToday) {
         const t = todayKey();
         const liveTotalRef = db.ref('daily/' + t + '/total');
         const liveVisitorsRef = db.ref('daily/' + t + '/visitors');
+        const liveMaxComboRef = db.ref('daily/' + t + '/maxCombo');
         let lastClicks = totalClicks;
         let lastVisitors = totalVisitors;
         const totalCb = (snap) => {
@@ -1790,11 +1840,17 @@
           tileVisitors.textContent = lastVisitors.toLocaleString();
           tileCpv.textContent = lastVisitors > 0 ? (lastClicks / lastVisitors).toFixed(1) : '—';
         };
+        const maxComboCb = (snap) => {
+          const v = snap.val() || 0;
+          tileMaxCombo.textContent = v > 0 ? v.toLocaleString() + 'x' : '—';
+        };
         liveTotalRef.on('value', totalCb);
         liveVisitorsRef.on('value', visCb);
+        liveMaxComboRef.on('value', maxComboCb);
         liveTodayUnsub = () => {
           liveTotalRef.off('value', totalCb);
           liveVisitorsRef.off('value', visCb);
+          liveMaxComboRef.off('value', maxComboCb);
         };
       }
 
@@ -2408,10 +2464,12 @@
     const comboContentEl = document.getElementById('combo-content');
     const comboNumEl = comboEl.querySelector('.combo-number');
     const comboLabelEl = comboEl.querySelector('.combo-label');
+    const comboBarFillEl = comboEl.querySelector('.combo-bar-fill');
     let comboCount = 0;
     let comboExpireTimer = null;
     let comboLastTier = 0;
     let comboBumpAnim = null;
+    let comboPeak = 0; // highest count this combo run — recorded to Firebase on expiry
 
     function setComboTier(tier) {
       for (let t = 1; t <= 5; t++) comboEl.classList.toggle('tier-' + t, t === tier);
@@ -2419,23 +2477,49 @@
 
     function expireCombo() {
       if (comboCount === 0) return;
+      // Record the run's peak to Firebase BEFORE resetting state so the analytics
+      // page can show "biggest combo for the day / month / year / all time".
+      recordComboPeak(comboPeak);
       comboCount = 0;
+      comboPeak = 0;
       comboLastTier = 0;
       comboEl.classList.remove('active');
       setComboTier(0);
       comboLabelEl.textContent = 'COMBO!';
+      // Stop the bar transition so it doesn't keep animating during fade-out.
+      comboBarFillEl.style.transition = 'none';
+      comboBarFillEl.style.transform = 'scaleX(1)';
       // Wait for fade-out before clearing number, so it doesn't snap to 0 mid-fade.
       setTimeout(() => { if (comboCount === 0) comboNumEl.textContent = '0'; }, 400);
+    }
+
+    function recordComboPeak(peak) {
+      if (peak < 2) return; // ignore trivial one-click "runs"
+      // Compare-and-set: only overwrite if the new peak exceeds the stored one.
+      const updater = (cur) => (cur == null || peak > cur) ? peak : undefined;
+      db.ref('combo/allTime').transaction(updater);
+      db.ref('daily/' + todayKey() + '/maxCombo').transaction(updater);
     }
 
     function bumpCombo() {
       if (comboExpireTimer) clearTimeout(comboExpireTimer);
       comboCount++;
+      if (comboCount > comboPeak) comboPeak = comboCount;
       comboNumEl.textContent = comboCount.toLocaleString();
       comboEl.classList.add('active');
 
       // Reset 10s expiry timer.
       comboExpireTimer = setTimeout(expireCombo, COMBO_EXPIRE_MS);
+
+      // Reset the bar to full instantly, then transition-drain over 10 s.
+      // The reflow read between the two writes forces the browser to apply
+      // the "scaleX(1) with no transition" state before installing the
+      // 10 s transition — otherwise it would animate from the previous drain.
+      comboBarFillEl.style.transition = 'none';
+      comboBarFillEl.style.transform = 'scaleX(1)';
+      void comboBarFillEl.offsetWidth;
+      comboBarFillEl.style.transition = `transform ${COMBO_EXPIRE_MS}ms linear`;
+      comboBarFillEl.style.transform = 'scaleX(0)';
 
       // Always do a small scale-pop on every click for satisfying feedback.
       if (comboBumpAnim) comboBumpAnim.pause();
