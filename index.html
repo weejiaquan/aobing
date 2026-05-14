@@ -1202,6 +1202,10 @@
       <button id="effects-toggle" class="settings-toggle on"></button>
     </div>
     <div class="settings-row">
+      <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
+      <button id="keyboard-toggle" class="settings-toggle on"></button>
+    </div>
+    <div class="settings-row">
       <span class="settings-label" data-i18n="settings.language">Language</span>
       <select id="lang-select" class="settings-select"></select>
     </div>
@@ -1444,7 +1448,7 @@
       const T = {
         en: {
           'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
-          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.reset_defaults':'Reset defaults',
+          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.reset_defaults':'Reset defaults',
           'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
           'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol',
           'character.aoba.name':'Aoba','character.mari.name':'Mari',
@@ -1681,7 +1685,7 @@
 
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
-    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba' };
+    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true };
 
     function loadSettings() {
       try {
@@ -1776,12 +1780,23 @@
       saveSettings(settings);
     });
 
+    // --- Keyboard clicks toggle ---
+    const keyboardToggle = document.getElementById('keyboard-toggle');
+    if (settings.keyboardClicks === false) keyboardToggle.classList.remove('on');
+    keyboardToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settings.keyboardClicks = !settings.keyboardClicks;
+      keyboardToggle.classList.toggle('on', settings.keyboardClicks);
+      saveSettings(settings);
+    });
+
     // --- Reset Defaults ---
     function applySettings(s) {
       bgm.volume = s.musicVol / 100;
       musicSlider.value = s.musicVol;
       sfxSlider.value = s.sfxVol;
       effectsToggle.classList.toggle('on', s.effects);
+      keyboardToggle.classList.toggle('on', s.keyboardClicks);
       applyVariant(s.skin);
       renderSkinList();
     }
