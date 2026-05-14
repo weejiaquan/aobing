@@ -1298,6 +1298,7 @@
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
   <!-- anime.js from CDN -->
@@ -1319,6 +1320,27 @@
     });
     const db = firebase.database();
     const clicksRef = db.ref('clicks');
+    const auth = firebase.auth();
+
+    // --- User identity ------------------------------------------------------------
+    // auth.uid is the source of truth for per-user data. Anonymous on first visit;
+    // upgraded to Google via linkWithPopup later. The promise resolves once auth
+    // state is known so downstream code (click handlers, sensei bar) can read uid
+    // without races.
+    let currentUser = null;
+    const authReady = new Promise((resolve) => {
+      auth.onAuthStateChanged((user) => {
+        currentUser = user;
+        if (!user) {
+          auth.signInAnonymously().catch((e) => {
+            console.error('Anonymous sign-in failed', e);
+            resolve(null);
+          });
+          return;
+        }
+        resolve(user);
+      });
+    });
 
     // --- Date & Country Helpers ---
     function todayKey() {
