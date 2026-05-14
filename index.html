@@ -2577,6 +2577,27 @@
     window._skinCounterReady = true;
     subscribeCurrentSkinCount(settings.skin);
 
+    // --- Per-user click stats ----------------------------------------------------
+    // Each mouse/tap fires a single multi-path update so totalClicks, coinBalance,
+    // and lastClickAt land together. ServerValue.increment + ServerValue.TIMESTAMP
+    // keep the increments atomic and the timestamp authoritative; the security
+    // rules enforce +1-only and the 15ms throttle, so a malicious client can't
+    // inflate values via the console.
+    function writeUserClick() {
+      if (!currentUser) return;
+      const uid = currentUser.uid;
+      const inc = firebase.database.ServerValue.increment(1);
+      const ts  = firebase.database.ServerValue.TIMESTAMP;
+      db.ref().update({
+        [`users/${uid}/stats/totalClicks`]: inc,
+        [`users/${uid}/stats/coinBalance`]: inc,
+        [`users/${uid}/stats/lastClickAt`]: ts,
+      }).catch(() => {
+        // Throttle hits / network blips: silent. We deliberately don't surface
+        // them because the optimistic UI already showed the +1.
+      });
+    }
+
     // System time pill — updates every minute, aligned to the next minute boundary
     const timeEl = document.querySelector('#system-time .pill-value');
     function renderTime() {
@@ -2643,9 +2664,10 @@
       walkTimer = setTimeout(step, 600);
     }
 
-    function endIntro() {
+    function endIntro(opts) {
       if (!introActive) return;
       introActive = false;
+      const source = opts && opts.source === 'keyboard' ? 'keyboard' : 'mouse';
 
       if (walkTimer) clearTimeout(walkTimer);
       if (currentWalkAnim) currentWalkAnim.pause();
@@ -2673,6 +2695,7 @@
 
           // First click — full click effects
           const { character: ch, variant: v } = getVariant(settings.skin);
+          if (source === 'mouse') writeUserClick();
           clicksRef.transaction((c) => (c || 0) + 1);
           dailyTotalRef.transaction((c) => (c || 0) + 1);
           if (visitorCountry) {
@@ -2713,12 +2736,18 @@
     document.getElementById('curtain').addEventListener('click', endIntro);
     startIntroWalk();
 
-    function triggerClick() {
+    function triggerClick(opts) {
+      const source = opts && opts.source === 'keyboard' ? 'keyboard' : 'mouse';
+
       // During intro, end intro (first click counts)
       if (introActive) {
-        endIntro();
+        endIntro({ source });
         return;
       }
+
+      // Per-user stats — mouse/tap only. Keyboard is a satisfaction feature,
+      // not a leaderboard input.
+      if (source === 'mouse') writeUserClick();
 
       const { character: ch, variant: v } = getVariant(settings.skin);
 
@@ -2771,8 +2800,11 @@
       if (settings.effects) spawnParticles();
     }
 
-    character.addEventListener('click', triggerClick);
-    document.addEventListener('keydown', triggerClick);
+    character.addEventListener('click', () => triggerClick({ source: 'mouse' }));
+    document.addEventListener('keydown', () => {
+      if (settings.keyboardClicks === false) return;
+      triggerClick({ source: 'keyboard' });
+    });
 
     // --- Combo System (cosmetic only) ----------------------------------------
     // Counts consecutive clicks; resets after 10s of inactivity. Doesn't touch
