@@ -2683,6 +2683,95 @@
     window._skinCounterReady = true;
     subscribeCurrentSkinCount(settings.skin);
 
+    // --- Sensei bar live state ---------------------------------------------------
+    // Level curve (cosmetic): level = floor(sqrt(clicks/20))
+    // Lv.1 at 20 clicks, Lv.10 at 2k, Lv.50 at 50k, Lv.100 at 200k.
+    function levelOf(clicks)             { return Math.floor(Math.sqrt(clicks / 20)); }
+    function clicksForLevel(n)           { return n * n * 20; }
+    function clicksInLevel(c)            { return c - clicksForLevel(levelOf(c)); }
+    function clicksToNextLevel(c)        { return clicksForLevel(levelOf(c) + 1) - clicksForLevel(levelOf(c)); }
+
+    let senseiAvatarEl = document.getElementById('sensei-avatar');
+    const senseiNameEl   = document.getElementById('sensei-name');
+    const senseiFlagEl   = document.getElementById('sensei-flag');
+    const senseiLevelEl  = document.getElementById('sensei-level');
+    const senseiXpFillEl = document.getElementById('sensei-xp-fill');
+    const senseiXpTextEl = document.getElementById('sensei-xp-text');
+    const senseiCoinsEl  = document.getElementById('sensei-coins');
+
+    let userStats = { totalClicks: 0, coinBalance: 0 };
+    let userProfile = null;
+    let userStatsUnsub = null;
+    let userProfileUnsub = null;
+
+    function flagFromCountry(code) {
+      if (!code || code.length !== 2) return '';
+      return code.toUpperCase().replace(/./g, c =>
+        String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+      );
+    }
+
+    function renderSenseiBar() {
+      const clicks = userStats.totalClicks || 0;
+      const lv = levelOf(clicks);
+      const cur = clicksInLevel(clicks);
+      const need = clicksToNextLevel(clicks);
+      senseiLevelEl.textContent = 'Lv.' + lv;
+      senseiXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
+      senseiXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
+      senseiCoinsEl.textContent = (userStats.coinBalance || 0).toLocaleString();
+
+      if (userProfile) {
+        senseiNameEl.textContent = userProfile.displayName || I18N.t('sensei.trainer');
+        senseiFlagEl.textContent = flagFromCountry(userProfile.country);
+        if (userProfile.photoURL && senseiAvatarEl.tagName !== 'IMG') {
+          const img = document.createElement('img');
+          img.className = 'sensei-avatar';
+          img.id = 'sensei-avatar';
+          img.src = userProfile.photoURL;
+          img.alt = '';
+          senseiAvatarEl.replaceWith(img);
+          senseiAvatarEl = img;
+        } else if (userProfile.photoURL && senseiAvatarEl.tagName === 'IMG') {
+          senseiAvatarEl.src = userProfile.photoURL;
+        }
+      } else {
+        senseiNameEl.textContent = I18N.t('sensei.trainer');
+        senseiFlagEl.textContent = '';
+        // Revert avatar to placeholder div if previously an img
+        if (senseiAvatarEl.tagName === 'IMG') {
+          const div = document.createElement('div');
+          div.className = 'sensei-avatar';
+          div.id = 'sensei-avatar';
+          div.textContent = '?';
+          senseiAvatarEl.replaceWith(div);
+          senseiAvatarEl = div;
+        }
+      }
+    }
+
+    function subscribeUserData(uid) {
+      if (userStatsUnsub)   { userStatsUnsub();   userStatsUnsub = null; }
+      if (userProfileUnsub) { userProfileUnsub(); userProfileUnsub = null; }
+      if (!uid) { userStats = { totalClicks: 0, coinBalance: 0 }; userProfile = null; renderSenseiBar(); return; }
+
+      const statsRef = db.ref('users/' + uid + '/stats');
+      const statsCb  = (snap) => { userStats = snap.val() || { totalClicks: 0, coinBalance: 0 }; renderSenseiBar(); };
+      statsRef.on('value', statsCb);
+      userStatsUnsub = () => statsRef.off('value', statsCb);
+
+      const profRef = db.ref('users/' + uid + '/profile');
+      const profCb  = (snap) => { userProfile = snap.val(); renderSenseiBar(); };
+      profRef.on('value', profCb);
+      userProfileUnsub = () => profRef.off('value', profCb);
+    }
+
+    auth.onAuthStateChanged((user) => {
+      subscribeUserData(user ? user.uid : null);
+    });
+
+    renderSenseiBar();
+
     // --- Per-user click stats ----------------------------------------------------
     // Each mouse/tap fires a single multi-path update so totalClicks, coinBalance,
     // and lastClickAt land together. ServerValue.increment + ServerValue.TIMESTAMP
@@ -3173,9 +3262,11 @@
 
     // --- Re-render dynamic strings on language change ------------------------
     // I18N.apply() handles every [data-i18n] node, but JS-rendered content
-    // (skin list, Chart.js charts, the live combo label) has to be rebuilt.
+    // (skin list, Chart.js charts, the live combo label, sensei bar) has to
+    // be rebuilt.
     window.addEventListener('i18nchange', () => {
       renderSkinList();
+      renderSenseiBar();
       // Combo label: apply() restored the static "COMBO!"; if a MAX COMBO! is
       // currently showing, keep that wording in the new language.
       if (comboEl.classList.contains('tier-' + COMBO_CAP_TIER)) {
