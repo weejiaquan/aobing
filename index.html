@@ -1105,6 +1105,18 @@
       user-select: none;
     }
 
+    .click-plusone {
+      position: fixed;
+      font-weight: 900;
+      font-size: 1.3rem;
+      color: var(--ba-accent-strong);
+      text-shadow: 0 2px 6px rgba(255,255,255,0.85), 0 0 8px rgba(77,171,247,0.45);
+      pointer-events: none;
+      user-select: none;
+      z-index: 55;
+      font-variant-numeric: tabular-nums;
+    }
+
     /* --- Mobile (portrait phones) --- */
     @media (max-width: 480px) {
       #character img {
@@ -2519,6 +2531,22 @@
     const MAX_PARTICLES = 60;
     let activeParticles = 0;
 
+    function spawnPlusOne(x, y) {
+      const el = document.createElement('div');
+      el.className = 'click-plusone';
+      el.textContent = '+1';
+      el.style.left = (x - 8) + 'px';
+      el.style.top  = (y - 14) + 'px';
+      document.body.appendChild(el);
+      animate(el, {
+        translateY: -56,
+        opacity: [{ to: 1, duration: 80 }, { to: 1, duration: 350 }, { to: 0, duration: 250 }],
+        duration: 680,
+        ease: 'outQuad',
+        onComplete: () => el.remove(),
+      });
+    }
+
     function spawnParticles() {
       const container = document.getElementById('particles');
       const isMobileScreen = window.innerWidth < 480;
@@ -2995,7 +3023,19 @@
       if (settings.effects) spawnParticles();
     }
 
-    character.addEventListener('click', () => triggerClick({ source: 'mouse' }));
+    character.addEventListener('click', (e) => {
+      triggerClick({ source: 'mouse' });
+      // Visual feedback specific to mouse/tap — anchors near the character
+      const rect = character.getBoundingClientRect();
+      spawnPlusOne(
+        rect.left + rect.width * (0.4 + Math.random() * 0.2),
+        rect.top  + rect.height * 0.2
+      );
+      // Brief sensei XP pulse so the bar reacts to the increment
+      senseiXpFillEl.classList.remove('pulse');
+      void senseiXpFillEl.offsetWidth;
+      senseiXpFillEl.classList.add('pulse');
+    });
     document.addEventListener('keydown', () => {
       if (settings.keyboardClicks === false) return;
       triggerClick({ source: 'keyboard' });
