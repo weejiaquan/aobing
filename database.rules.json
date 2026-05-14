@@ -101,7 +101,7 @@
         ".read": true,
         ".indexOn": "totalClicks",
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists()",
+          ".write": "(auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists()) || (auth != null && auth.token.email === 'weejiaquan1234@gmail.com' && auth.token.email_verified === true)",
           "name":        { ".validate": "newData.isString() && newData.val().length <= 24" },
           "country":     { ".validate": "newData.isString() && newData.val().length === 2" },
           "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500" },

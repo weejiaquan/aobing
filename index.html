@@ -956,6 +956,30 @@
     .lb-name   { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lb-level  { font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700; }
     .lb-clicks { font-weight: 800; color: var(--ba-accent-strong); font-variant-numeric: tabular-nums; }
+    .lb-row.admin { grid-template-columns: 32px 28px 1.5rem 1fr auto auto 28px; }
+    .lb-admin-del {
+      background: rgba(208,74,74,0.12);
+      border: 1px solid rgba(208,74,74,0.35);
+      color: #d04a4a;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease;
+    }
+    .lb-admin-del:hover { background: rgba(208,74,74,0.25); }
+    .lb-admin-banner {
+      background: rgba(208,74,74,0.10);
+      border: 1px solid rgba(208,74,74,0.35);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #b03a3a;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
 
     .lb-yourrank {
       margin-top: 14px;
@@ -1476,6 +1500,10 @@
       <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
       <button id="keyboard-toggle" class="settings-toggle on"></button>
     </div>
+    <div class="settings-row" id="settings-admin-row" hidden>
+      <span class="settings-label" data-i18n="settings.admin_mode">Admin mode</span>
+      <button id="admin-toggle" class="settings-toggle"></button>
+    </div>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.language">Language</span>
       <select id="lang-select" class="settings-select"></select>
@@ -1754,6 +1782,10 @@
           'leaderboard.your_rank':'Your rank: #{rank} of {total} players',
           'leaderboard.your_rank_outside':'Your rank: #{rank} (not in top 100)',
           'leaderboard.no_rank_yet':'Click to start climbing the board!',
+          'settings.admin_mode':'Admin mode',
+          'admin.banner':'Admin mode is ON. Use the × on each row to remove an entry.',
+          'admin.delete_row':'Remove from leaderboard',
+          'admin.confirm_delete':'Remove "{name}" from the leaderboard?',
           'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol',
           'character.aoba.name':'Aoba','character.mari.name':'Mari',
           'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
@@ -2067,7 +2099,11 @@
 
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
-    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true };
+    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true, adminMode: false };
+    const ADMIN_EMAIL = 'weejiaquan1234@gmail.com';
+    function isAdmin() {
+      return !!(currentUser && currentUser.email === ADMIN_EMAIL && currentUser.emailVerified);
+    }
 
     function loadSettings() {
       try {
@@ -2172,6 +2208,29 @@
       saveSettings(settings);
     });
 
+    // --- Admin mode toggle (visible only to admin) ---
+    const adminRow = document.getElementById('settings-admin-row');
+    const adminToggle = document.getElementById('admin-toggle');
+    if (settings.adminMode) adminToggle.classList.add('on');
+    adminToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settings.adminMode = !settings.adminMode;
+      adminToggle.classList.toggle('on', settings.adminMode);
+      saveSettings(settings);
+      // Re-render leaderboard if it's open so the delete buttons toggle
+      if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
+    });
+    function syncAdminVisibility() {
+      adminRow.hidden = !isAdmin();
+      // If user signs out / loses admin, force-disable the mode
+      if (!isAdmin() && settings.adminMode) {
+        settings.adminMode = false;
+        adminToggle.classList.remove('on');
+        saveSettings(settings);
+      }
+    }
+    auth.onAuthStateChanged(syncAdminVisibility);
+
     // --- Reset Defaults ---
     function applySettings(s) {
       bgm.volume = s.musicVol / 100;
@@ -2179,6 +2238,7 @@
       sfxSlider.value = s.sfxVol;
       effectsToggle.classList.toggle('on', s.effects);
       keyboardToggle.classList.toggle('on', s.keyboardClicks);
+      adminToggle.classList.toggle('on', s.adminMode);
       applyVariant(s.skin);
       renderSkinList();
     }
@@ -3155,10 +3215,28 @@
       senseiBar.click();
     });
 
+    // Admin delete: event delegation on the list since rows are re-rendered
+    leaderboardList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.lb-admin-del');
+      if (!btn) return;
+      e.stopPropagation();
+      if (!isAdmin() || !settings.adminMode) return;
+      const uid = btn.dataset.delUid;
+      const name = btn.dataset.delName || '(no name)';
+      if (!confirm(I18N.t('admin.confirm_delete', { name }))) return;
+      try {
+        await db.ref('leaderboard/topClicks/' + uid).remove();
+      } catch (err) {
+        alert('Delete failed: ' + (err.message || err.code || 'unknown'));
+      }
+    });
+
     function loadLeaderboard() {
       leaderboardList.innerHTML = '';
       leaderboardYourRank.textContent = '';
       leaderboardSignin.hidden = !!(currentUser && !currentUser.isAnonymous);
+
+      const adminActive = isAdmin() && settings.adminMode;
 
       const q = db.ref('leaderboard/topClicks').orderByChild('totalClicks').limitToLast(100);
       const cb = (snap) => {
@@ -3166,19 +3244,27 @@
         snap.forEach(child => { rows.push({ uid: child.key, ...child.val() }); });
         rows.sort((a, b) => (b.totalClicks || 0) - (a.totalClicks || 0));
 
-        leaderboardList.innerHTML = rows.map((r, i) => {
+        const adminBanner = adminActive
+          ? `<div class="lb-admin-banner">${I18N.t('admin.banner')}</div>`
+          : '';
+
+        leaderboardList.innerHTML = adminBanner + rows.map((r, i) => {
           const isMe = currentUser && r.uid === currentUser.uid;
           const flag = flagFromCountry(r.country);
           const avatar = r.photoURL
             ? `<img class="lb-avatar" src="${r.photoURL}" alt="">`
             : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--ba-accent-strong);font-weight:800;">${escapeHtml((r.name || '?').slice(0,1))}</div>`;
-          return `<div class="lb-row${isMe ? ' me' : ''}">
+          const adminCol = adminActive
+            ? `<button class="lb-admin-del" data-del-uid="${escapeHtml(r.uid)}" data-del-name="${escapeHtml(r.name || '')}" title="${I18N.t('admin.delete_row')}">×</button>`
+            : '';
+          return `<div class="lb-row${isMe ? ' me' : ''}${adminActive ? ' admin' : ''}">
             <span class="lb-rank">#${i + 1}</span>
             ${avatar}
             <span class="lb-flag">${flag}</span>
             <span class="lb-name">${escapeHtml(r.name || I18N.t('sensei.trainer'))}</span>
             <span class="lb-level">Lv.${r.level || 0}</span>
             <span class="lb-clicks">${(r.totalClicks || 0).toLocaleString()}</span>
+            ${adminCol}
           </div>`;
         }).join('');
 
