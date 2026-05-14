@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Click to make Aoba squeak!">
+  <meta name="description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta property="og:title" content="Aobing IT!">
-  <meta property="og:description" content="Click to make Aoba squeak!">
+  <meta property="og:description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta property="og:image" content="assets/aoba-idle.webp">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Aobing IT!">
-  <meta name="twitter:description" content="Click to make Aoba squeak!">
+  <meta name="twitter:description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta name="twitter:image" content="assets/aoba-idle.webp">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#1a1a2e">
@@ -51,7 +51,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
     }
 
     /* --- Intro Curtain --- */
@@ -124,7 +124,7 @@
       /* Match the site font (Segoe UI / Helvetica Neue / Arial). Explicit rather than
          `font: inherit` because <button> has a user-agent font that wins over inheritance
          on some browsers. */
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       font-size: 1.4rem;
       font-weight: 700;
       line-height: 1.3;
@@ -196,7 +196,7 @@
       pointer-events: none;
       user-select: none;
       text-align: right;
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       opacity: 0;
       transition: opacity 0.35s ease;
     }
@@ -331,7 +331,7 @@
       border: 1px solid rgba(255, 255, 255, 0.85);
       border-radius: 22px;
       color: #1f2c40;
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       font-weight: 700;
       box-shadow: 0 4px 14px rgba(0, 30, 60, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
       user-select: none;
@@ -508,6 +508,19 @@
       width: 110px;
       accent-color: var(--ba-accent);
       cursor: pointer;
+    }
+
+    .settings-select {
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 8px;
+      color: var(--ba-text);
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+      max-width: 140px;
     }
 
     .settings-toggle {
@@ -1134,14 +1147,14 @@
     <button id="idle-bubble" type="button" hidden aria-live="polite">
       <span id="idle-bubble-text"></span>
     </button>
-    <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba">
+    <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba" data-i18n-attr="alt:alt.character">
   </div>
 
   <!-- Combo display (cosmetic only — doesn't affect real counters) -->
   <div id="combo-display" aria-hidden="true">
     <div id="combo-content">
       <div class="combo-number">0</div>
-      <div class="combo-label">COMBO!</div>
+      <div class="combo-label" data-i18n="combo.label">COMBO!</div>
       <div class="combo-bar"><div class="combo-bar-fill"></div></div>
     </div>
   </div>
@@ -1150,7 +1163,7 @@
   <div id="particles"></div>
 
   <!-- Click counter (BA-style pill: global | current skin) -->
-  <div id="click-counter" class="ba-pill" title="Global clicks | Current skin clicks">
+  <div id="click-counter" class="ba-pill" title="Global clicks | Current skin clicks" data-i18n-attr="title:tooltip.click_counter">
     <span class="pill-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 1 1 4 0v6"/><path d="M13 8a2 2 0 1 1 4 0v4"/><path d="M17 10a2 2 0 1 1 4 0v5a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-3l-3-5a2 2 0 0 1 3-2.5L9 13V6"/></svg>
     </span>
@@ -1175,48 +1188,52 @@
   <!-- Settings -->
   <button id="settings-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <div id="settings-panel">
-    <div class="settings-title">Settings</div>
+    <div class="settings-title" data-i18n="settings.title">Settings</div>
     <div class="settings-row">
-      <span class="settings-label">Music</span>
+      <span class="settings-label" data-i18n="settings.music">Music</span>
       <input type="range" id="music-slider" class="settings-slider" min="0" max="100" value="10">
     </div>
     <div class="settings-row">
-      <span class="settings-label">SFX</span>
+      <span class="settings-label" data-i18n="settings.sfx">SFX</span>
       <input type="range" id="sfx-slider" class="settings-slider" min="0" max="100" value="100">
     </div>
     <div class="settings-row">
-      <span class="settings-label">Effects</span>
+      <span class="settings-label" data-i18n="settings.effects">Effects</span>
       <button id="effects-toggle" class="settings-toggle on"></button>
     </div>
+    <div class="settings-row">
+      <span class="settings-label" data-i18n="settings.language">Language</span>
+      <select id="lang-select" class="settings-select"></select>
+    </div>
     <hr class="settings-divider">
-    <a href="/discord/" class="settings-link"><svg viewBox="0 0 24 24"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Join Discord</a>
+    <a href="/discord/" class="settings-link"><svg viewBox="0 0 24 24"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg><span data-i18n="settings.join_discord">Join Discord</span></a>
     <hr class="settings-divider">
     <div class="settings-version">v1.0.3</div>
-    <button id="reset-btn" class="settings-reset">Reset defaults</button>
+    <button id="reset-btn" class="settings-reset" data-i18n="settings.reset_defaults">Reset defaults</button>
   </div>
 
   <!-- Skins -->
   <button id="skins-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>
   <div id="skins-panel">
-    <div class="settings-title">Skins</div>
+    <div class="settings-title" data-i18n="skins.title">Skins</div>
     <div id="skin-list"></div>
   </div>
 
   <!-- Stats -->
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
-    <div class="stats-dialog" role="dialog" aria-label="Analytics">
+    <div class="stats-dialog" role="dialog" aria-label="Analytics" data-i18n-attr="aria-label:analytics.title">
       <div class="stats-header">
-        <div class="stats-title">Analytics</div>
-        <button class="stats-close" id="stats-close" aria-label="Close">&times;</button>
+        <div class="stats-title" data-i18n="analytics.title">Analytics</div>
+        <button class="stats-close" id="stats-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
       <div class="stats-controls">
         <input type="date" id="stats-date-input" class="stats-date-input">
         <div class="stats-presets">
-          <button class="stats-preset active" data-preset="today">Today</button>
-          <button class="stats-preset" data-preset="7d">7d</button>
-          <button class="stats-preset" data-preset="30d">30d</button>
-          <button class="stats-preset" data-preset="all">All time</button>
+          <button class="stats-preset active" data-preset="today" data-i18n="stats.preset.today">Today</button>
+          <button class="stats-preset" data-preset="7d" data-i18n="stats.preset.7d">7d</button>
+          <button class="stats-preset" data-preset="30d" data-i18n="stats.preset.30d">30d</button>
+          <button class="stats-preset" data-preset="all" data-i18n="stats.preset.all">All time</button>
         </div>
       </div>
       <div class="stats-tiles">
@@ -1230,7 +1247,7 @@
         </div>
         <div class="stats-tile">
           <div class="stats-tile-value" id="tile-cpv">&mdash;</div>
-          <div class="stats-tile-label">Clicks per visitor</div>
+          <div class="stats-tile-label" data-i18n="stats.tile.cpv">Clicks per visitor</div>
         </div>
         <div class="stats-tile">
           <div class="stats-tile-value" id="tile-max-combo">&mdash;</div>
@@ -1239,36 +1256,36 @@
       </div>
       <div class="stats-grid" id="stats-trend-grid" style="display:none;">
         <div class="stats-card">
-          <div class="stats-card-title">Clicks over time</div>
+          <div class="stats-card-title" data-i18n="stats.chart.clicks_over_time">Clicks over time</div>
           <div class="stats-chart-wrap"><canvas id="chart-clicks"></canvas></div>
         </div>
         <div class="stats-card">
-          <div class="stats-card-title">Visitors over time</div>
+          <div class="stats-card-title" data-i18n="stats.chart.visitors_over_time">Visitors over time</div>
           <div class="stats-chart-wrap"><canvas id="chart-visitors"></canvas></div>
         </div>
       </div>
       <div class="stats-grid">
         <div class="stats-card">
-          <div class="stats-card-title">Top countries</div>
+          <div class="stats-card-title" data-i18n="stats.chart.top_countries">Top countries</div>
           <div class="stats-chart-wrap tall">
             <canvas id="chart-countries"></canvas>
-            <div class="stats-empty" id="countries-empty" style="display:none;">No data</div>
+            <div class="stats-empty" id="countries-empty" style="display:none;" data-i18n="stats.no_data">No data</div>
           </div>
         </div>
         <div class="stats-card">
-          <div class="stats-card-title">Characters used</div>
+          <div class="stats-card-title" data-i18n="stats.chart.characters_used">Characters used</div>
           <div class="stats-chart-wrap tall">
             <canvas id="chart-characters"></canvas>
-            <div class="stats-empty" id="characters-empty" style="display:none;">No data</div>
+            <div class="stats-empty" id="characters-empty" style="display:none;" data-i18n="stats.no_data">No data</div>
           </div>
         </div>
       </div>
       <div class="stats-grid stats-grid-full">
         <div class="stats-card">
-          <div class="stats-card-title">Skins per character</div>
+          <div class="stats-card-title" data-i18n="stats.chart.skins_per_character">Skins per character</div>
           <div class="stats-chart-wrap tall">
             <canvas id="chart-skins"></canvas>
-            <div class="stats-empty" id="skins-empty" style="display:none;">No data</div>
+            <div class="stats-empty" id="skins-empty" style="display:none;" data-i18n="stats.no_data">No data</div>
           </div>
         </div>
       </div>
@@ -1276,7 +1293,7 @@
   </div>
 
   <!-- Disclaimer -->
-  <div id="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.</div>
+  <div id="disclaimer" data-i18n="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.</div>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -1391,6 +1408,226 @@
       return (variant && variant.bg) ? variant.bg : character.bg;
     }
 
+    // --- i18n -----------------------------------------------------------------
+    // Lightweight built-in. translations[lang][key] = string. {var} placeholders
+    // are interpolated by t(). data-i18n="key" updates textContent; data-i18n-attr
+    // takes "attr:key" pairs (comma-separated) to update HTML attributes.
+    const I18N = (() => {
+      const SUPPORTED = ['en','ja','zh-Hans','zh-Hant','th','ar'];
+      const NATIVE = {
+        'en':'English','ja':'日本語','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','ar':'العربية'
+      };
+      const T = {
+        en: {
+          'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
+          'settings.language':'Language','settings.join_discord':'Join Discord','settings.reset_defaults':'Reset defaults',
+          'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
+          'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol',
+          'character.aoba.name':'Aoba','character.mari.name':'Mari',
+          'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
+          'skin.mari.name':'Mari','skin.maritrack.name':'Track Mari','skin.mariidol.name':'Idol Mari',
+          'analytics.title':'Analytics',
+          'stats.preset.today':'Today','stats.preset.7d':'7d','stats.preset.30d':'30d','stats.preset.all':'All time',
+          'stats.tile.clicks_today':'Clicks today','stats.tile.clicks':'Clicks',
+          'stats.tile.visitors_today':'Visitors today','stats.tile.visitors':'Visitors',
+          'stats.tile.cpv':'Clicks per visitor',
+          'stats.tile.max_combo_today':'Max combo today','stats.tile.max_combo':'Max combo',
+          'stats.chart.clicks_over_time':'Clicks over time','stats.chart.visitors_over_time':'Visitors over time',
+          'stats.chart.top_countries':'Top countries','stats.chart.characters_used':'Characters used',
+          'stats.chart.skins_per_character':'Skins per character',
+          'stats.no_data':'No data',
+          'stats.range.today':'today','stats.range.last_7_days':'last 7 days',
+          'stats.range.last_30_days':'last 30 days','stats.range.all_time':'all time',
+          'combo.label':'COMBO!','combo.max':'MAX COMBO!',
+          'tooltip.click_counter':'Global clicks | Current skin clicks',
+          'disclaimer':'Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.',
+          'meta.description':'Click to make Aoba squeak!',
+          'alt.character':'Character','aria.close':'Close',
+        },
+        ja: {
+          'settings.title':'設定','settings.music':'音楽','settings.sfx':'効果音','settings.effects':'エフェクト',
+          'settings.language':'言語','settings.join_discord':'Discordに参加','settings.reset_defaults':'デフォルトに戻す',
+          'skins.title':'スキン','skins.variants':'{n}種','skins.variant':'{n}種',
+          'tag.default':'デフォルト','tag.plushie':'ぬいぐるみ','tag.track':'陸上','tag.idol':'アイドル',
+          'character.aoba.name':'アオバ','character.mari.name':'マリー',
+          'skin.aoba.name':'アオバ','skin.aobaplush.name':'アオバ ぬいぐるみ',
+          'skin.mari.name':'マリー','skin.maritrack.name':'陸上マリー','skin.mariidol.name':'アイドル マリー',
+          'analytics.title':'アナリティクス',
+          'stats.preset.today':'今日','stats.preset.7d':'7日','stats.preset.30d':'30日','stats.preset.all':'全期間',
+          'stats.tile.clicks_today':'今日のクリック','stats.tile.clicks':'クリック',
+          'stats.tile.visitors_today':'今日の訪問者','stats.tile.visitors':'訪問者',
+          'stats.tile.cpv':'訪問者あたりのクリック',
+          'stats.tile.max_combo_today':'今日の最大コンボ','stats.tile.max_combo':'最大コンボ',
+          'stats.chart.clicks_over_time':'クリック推移','stats.chart.visitors_over_time':'訪問者推移',
+          'stats.chart.top_countries':'国別ランキング','stats.chart.characters_used':'使用キャラクター',
+          'stats.chart.skins_per_character':'キャラクター別スキン',
+          'stats.no_data':'データなし',
+          'stats.range.today':'今日','stats.range.last_7_days':'直近7日',
+          'stats.range.last_30_days':'直近30日','stats.range.all_time':'全期間',
+          'combo.label':'コンボ!','combo.max':'マックスコンボ!',
+          'tooltip.click_counter':'全体クリック | 現在のスキンクリック',
+          'disclaimer':'Aobing.itはNexon、Nexon Games、Yostarとは無関係です。使用されているすべてのゲームアートワーク、情報、アセットはそれぞれの著作者の所有物および著作権物です。',
+          'meta.description':'クリックでアオバが鳴く!',
+          'alt.character':'キャラクター','aria.close':'閉じる',
+        },
+        'zh-Hans': {
+          'settings.title':'设置','settings.music':'音乐','settings.sfx':'音效','settings.effects':'特效',
+          'settings.language':'语言','settings.join_discord':'加入 Discord','settings.reset_defaults':'恢复默认',
+          'skins.title':'皮肤','skins.variants':'{n} 款','skins.variant':'{n} 款',
+          'tag.default':'默认','tag.plushie':'玩偶','tag.track':'田径','tag.idol':'偶像',
+          'character.aoba.name':'青叶','character.mari.name':'玛丽',
+          'skin.aoba.name':'青叶','skin.aobaplush.name':'青叶玩偶',
+          'skin.mari.name':'玛丽','skin.maritrack.name':'田径玛丽','skin.mariidol.name':'偶像玛丽',
+          'analytics.title':'数据分析',
+          'stats.preset.today':'今日','stats.preset.7d':'7天','stats.preset.30d':'30天','stats.preset.all':'全部',
+          'stats.tile.clicks_today':'今日点击','stats.tile.clicks':'点击',
+          'stats.tile.visitors_today':'今日访客','stats.tile.visitors':'访客',
+          'stats.tile.cpv':'每访客点击数',
+          'stats.tile.max_combo_today':'今日最高连击','stats.tile.max_combo':'最高连击',
+          'stats.chart.clicks_over_time':'点击趋势','stats.chart.visitors_over_time':'访客趋势',
+          'stats.chart.top_countries':'国家排行','stats.chart.characters_used':'使用角色',
+          'stats.chart.skins_per_character':'角色皮肤分布',
+          'stats.no_data':'暂无数据',
+          'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
+          'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部时间',
+          'combo.label':'连击!','combo.max':'极限连击!',
+          'tooltip.click_counter':'全球点击 | 当前皮肤点击',
+          'disclaimer':'Aobing.it 与 Nexon、Nexon Games 及 Yostar 无任何关联。所使用的全部游戏美术、信息和资源版权归各自作者所有。',
+          'meta.description':'点击让青叶发出叫声!',
+          'alt.character':'角色','aria.close':'关闭',
+        },
+        'zh-Hant': {
+          'settings.title':'設定','settings.music':'音樂','settings.sfx':'音效','settings.effects':'特效',
+          'settings.language':'語言','settings.join_discord':'加入 Discord','settings.reset_defaults':'還原預設',
+          'skins.title':'造型','skins.variants':'{n} 款','skins.variant':'{n} 款',
+          'tag.default':'預設','tag.plushie':'玩偶','tag.track':'田徑','tag.idol':'偶像',
+          'character.aoba.name':'青葉','character.mari.name':'瑪麗',
+          'skin.aoba.name':'青葉','skin.aobaplush.name':'青葉玩偶',
+          'skin.mari.name':'瑪麗','skin.maritrack.name':'田徑瑪麗','skin.mariidol.name':'偶像瑪麗',
+          'analytics.title':'數據分析',
+          'stats.preset.today':'今日','stats.preset.7d':'7天','stats.preset.30d':'30天','stats.preset.all':'全部',
+          'stats.tile.clicks_today':'今日點擊','stats.tile.clicks':'點擊',
+          'stats.tile.visitors_today':'今日訪客','stats.tile.visitors':'訪客',
+          'stats.tile.cpv':'每訪客點擊數',
+          'stats.tile.max_combo_today':'今日最高連擊','stats.tile.max_combo':'最高連擊',
+          'stats.chart.clicks_over_time':'點擊趨勢','stats.chart.visitors_over_time':'訪客趨勢',
+          'stats.chart.top_countries':'國家排行','stats.chart.characters_used':'使用角色',
+          'stats.chart.skins_per_character':'角色造型分布',
+          'stats.no_data':'暫無數據',
+          'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
+          'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部時間',
+          'combo.label':'連擊!','combo.max':'極限連擊!',
+          'tooltip.click_counter':'全球點擊 | 當前造型點擊',
+          'disclaimer':'Aobing.it 與 Nexon、Nexon Games 及 Yostar 無任何關聯。所使用的全部遊戲美術、資訊和資源版權歸各自作者所有。',
+          'meta.description':'點擊讓青葉發出叫聲!',
+          'alt.character':'角色','aria.close':'關閉',
+        },
+        th: {
+          'settings.title':'ตั้งค่า','settings.music':'เพลง','settings.sfx':'เสียงเอฟเฟกต์','settings.effects':'เอฟเฟกต์',
+          'settings.language':'ภาษา','settings.join_discord':'เข้าร่วม Discord','settings.reset_defaults':'คืนค่าเริ่มต้น',
+          'skins.title':'สกิน','skins.variants':'{n} แบบ','skins.variant':'{n} แบบ',
+          'tag.default':'ค่าเริ่มต้น','tag.plushie':'ตุ๊กตา','tag.track':'กรีฑา','tag.idol':'ไอดอล',
+          'character.aoba.name':'อาโอบะ','character.mari.name':'มาริ',
+          'skin.aoba.name':'อาโอบะ','skin.aobaplush.name':'ตุ๊กตาอาโอบะ',
+          'skin.mari.name':'มาริ','skin.maritrack.name':'มาริกรีฑา','skin.mariidol.name':'ไอดอลมาริ',
+          'analytics.title':'สถิติ',
+          'stats.preset.today':'วันนี้','stats.preset.7d':'7 วัน','stats.preset.30d':'30 วัน','stats.preset.all':'ทั้งหมด',
+          'stats.tile.clicks_today':'คลิกวันนี้','stats.tile.clicks':'คลิก',
+          'stats.tile.visitors_today':'ผู้เข้าชมวันนี้','stats.tile.visitors':'ผู้เข้าชม',
+          'stats.tile.cpv':'คลิกต่อผู้เข้าชม',
+          'stats.tile.max_combo_today':'คอมโบสูงสุดวันนี้','stats.tile.max_combo':'คอมโบสูงสุด',
+          'stats.chart.clicks_over_time':'คลิกตามช่วงเวลา','stats.chart.visitors_over_time':'ผู้เข้าชมตามช่วงเวลา',
+          'stats.chart.top_countries':'ประเทศยอดนิยม','stats.chart.characters_used':'ตัวละครที่ใช้',
+          'stats.chart.skins_per_character':'สกินต่อตัวละคร',
+          'stats.no_data':'ไม่มีข้อมูล',
+          'stats.range.today':'วันนี้','stats.range.last_7_days':'7 วันที่ผ่านมา',
+          'stats.range.last_30_days':'30 วันที่ผ่านมา','stats.range.all_time':'ตลอดกาล',
+          'combo.label':'คอมโบ!','combo.max':'คอมโบสูงสุด!',
+          'tooltip.click_counter':'คลิกทั้งหมด | คลิกของสกินปัจจุบัน',
+          'disclaimer':'Aobing.it ไม่มีส่วนเกี่ยวข้องกับ Nexon, Nexon Games หรือ Yostar งานศิลป์ ข้อมูล และทรัพย์สินของเกมทั้งหมดเป็นลิขสิทธิ์ของเจ้าของผลงานนั้นๆ',
+          'meta.description':'คลิกเพื่อให้อาโอบะร้อง!',
+          'alt.character':'ตัวละคร','aria.close':'ปิด',
+        },
+        ar: {
+          'settings.title':'الإعدادات','settings.music':'الموسيقى','settings.sfx':'المؤثرات الصوتية','settings.effects':'المؤثرات',
+          'settings.language':'اللغة','settings.join_discord':'انضم إلى Discord','settings.reset_defaults':'استعادة الإعدادات الافتراضية',
+          'skins.title':'الأزياء','skins.variants':'{n} أزياء','skins.variant':'{n} زي',
+          'tag.default':'افتراضي','tag.plushie':'دمية','tag.track':'رياضي','tag.idol':'نجمة',
+          'character.aoba.name':'آوبا','character.mari.name':'ماري',
+          'skin.aoba.name':'آوبا','skin.aobaplush.name':'دمية آوبا',
+          'skin.mari.name':'ماري','skin.maritrack.name':'ماري الرياضية','skin.mariidol.name':'ماري النجمة',
+          'analytics.title':'التحليلات',
+          'stats.preset.today':'اليوم','stats.preset.7d':'٧ أيام','stats.preset.30d':'٣٠ يومًا','stats.preset.all':'كل الأوقات',
+          'stats.tile.clicks_today':'نقرات اليوم','stats.tile.clicks':'النقرات',
+          'stats.tile.visitors_today':'زوار اليوم','stats.tile.visitors':'الزوار',
+          'stats.tile.cpv':'النقرات لكل زائر',
+          'stats.tile.max_combo_today':'أعلى كومبو اليوم','stats.tile.max_combo':'أعلى كومبو',
+          'stats.chart.clicks_over_time':'النقرات عبر الوقت','stats.chart.visitors_over_time':'الزوار عبر الوقت',
+          'stats.chart.top_countries':'أهم الدول','stats.chart.characters_used':'الشخصيات المستخدمة',
+          'stats.chart.skins_per_character':'الأزياء لكل شخصية',
+          'stats.no_data':'لا توجد بيانات',
+          'stats.range.today':'اليوم','stats.range.last_7_days':'آخر ٧ أيام',
+          'stats.range.last_30_days':'آخر ٣٠ يومًا','stats.range.all_time':'كل الأوقات',
+          'combo.label':'كومبو!','combo.max':'أقصى كومبو!',
+          'tooltip.click_counter':'النقرات الإجمالية | نقرات الزي الحالي',
+          'disclaimer':'Aobing.it غير تابعة لشركة Nexon أو Nexon Games أو Yostar. جميع الرسوم والمعلومات والأصول المستخدمة من اللعبة هي ملكية وحقوق نشر لأصحابها الأصليين.',
+          'meta.description':'اضغط لتجعل آوبا يصدر صوتًا!',
+          'alt.character':'شخصية','aria.close':'إغلاق',
+        },
+      };
+      let current = 'en';
+
+      function detect(stored) {
+        if (stored && SUPPORTED.includes(stored)) return stored;
+        const nav = (navigator.language || 'en').toLowerCase();
+        if (nav.startsWith('ja')) return 'ja';
+        if (nav.startsWith('th')) return 'th';
+        if (nav.startsWith('ar')) return 'ar';
+        if (nav.startsWith('zh')) {
+          if (/(^|[-_])(hant|tw|hk|mo)/i.test(nav)) return 'zh-Hant';
+          return 'zh-Hans';
+        }
+        return 'en';
+      }
+
+      function t(key, params) {
+        const dict = T[current] || T.en;
+        let s = dict[key];
+        if (s === undefined) s = (T.en[key] !== undefined) ? T.en[key] : key;
+        if (params) {
+          for (const k in params) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
+        }
+        return s;
+      }
+
+      function apply() {
+        document.documentElement.lang = current;
+        document.documentElement.dir = (current === 'ar') ? 'rtl' : 'ltr';
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          el.textContent = t(el.dataset.i18n);
+        });
+        document.querySelectorAll('[data-i18n-attr]').forEach(el => {
+          el.dataset.i18nAttr.split(',').forEach(pair => {
+            const idx = pair.indexOf(':');
+            if (idx < 0) return;
+            const attr = pair.slice(0, idx).trim();
+            const key = pair.slice(idx + 1).trim();
+            el.setAttribute(attr, t(key));
+          });
+        });
+      }
+
+      function set(lang) {
+        if (!SUPPORTED.includes(lang)) lang = 'en';
+        current = lang;
+        apply();
+        window.dispatchEvent(new CustomEvent('i18nchange', { detail: { lang } }));
+      }
+
+      return { SUPPORTED, NATIVE, t, set, detect, apply, get current() { return current; } };
+    })();
+    // -------------------------------------------------------------------------
+
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
     const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba' };
@@ -1408,6 +1645,19 @@
 
     const settings = loadSettings();
 
+    // --- Language ---
+    // Resolve language from saved settings → navigator → en, then translate the
+    // static HTML before anything reads textContent. Persist back so the chosen
+    // language survives even if it was only detected (no user choice yet).
+    {
+      const initialLang = I18N.detect(settings.lang);
+      I18N.set(initialLang);
+      if (settings.lang !== initialLang) {
+        settings.lang = initialLang;
+        saveSettings(settings);
+      }
+    }
+
     // --- Audio Elements ---
     const bgm = document.getElementById('bgm');
     const musicSlider = document.getElementById('music-slider');
@@ -1415,6 +1665,24 @@
     const effectsToggle = document.getElementById('effects-toggle');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
+    const langSelect = document.getElementById('lang-select');
+
+    // Populate language dropdown with native-script labels
+    I18N.SUPPORTED.forEach(code => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = I18N.NATIVE[code];
+      if (code === settings.lang) opt.selected = true;
+      langSelect.appendChild(opt);
+    });
+    langSelect.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const lang = e.target.value;
+      I18N.set(lang);
+      settings.lang = lang;
+      saveSettings(settings);
+    });
+    langSelect.addEventListener('click', (e) => e.stopPropagation());
 
     // Apply loaded settings to UI
     bgm.volume = settings.musicVol / 100;
@@ -1567,26 +1835,33 @@
       }
     }
 
+    // Translation helpers for the dynamic CHARACTERS data — keys are derived
+    // from id / lowercased tag, with the bundled English values as fallback.
+    function charName(c) { return I18N.t('character.' + c.id + '.name'); }
+    function variantName(v) { return I18N.t('skin.' + v.id + '.name'); }
+    function variantTag(v) { return I18N.t('tag.' + v.tag.toLowerCase()); }
+
     function renderSkinList() {
       skinListEl.innerHTML = CHARACTERS.map(c => {
         const activeVariant = c.variants.find(v => v.id === settings.skin);
         const isOpen = !!activeVariant;
+        const n = c.variants.length;
         const meta = activeVariant
-          ? activeVariant.tag
-          : (c.variants.length === 1 ? '1 variant' : `${c.variants.length} variants`);
+          ? variantTag(activeVariant)
+          : I18N.t(n === 1 ? 'skins.variant' : 'skins.variants', { n });
         const variantsHtml = c.variants.map(v =>
           `<div class="skin-item${v.id === settings.skin ? ' active' : ''}" data-variant="${v.id}">
-            <img class="skin-thumb" src="${v.idle}" alt="${v.name}">
+            <img class="skin-thumb" src="${v.idle}" alt="${variantName(v)}">
             <div class="skin-info">
-              <div class="skin-name">${v.name}</div>
-              <div class="skin-tag">${v.tag}</div>
+              <div class="skin-name">${variantName(v)}</div>
+              <div class="skin-tag">${variantTag(v)}</div>
             </div>
           </div>`
         ).join('');
         return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
           <button class="skin-group-header" type="button">
             <span class="skin-group-caret">${isOpen ? '▼' : '▶'}</span>
-            <span class="skin-group-name">${c.name}</span>
+            <span class="skin-group-name">${charName(c)}</span>
             <span class="skin-group-meta">${meta}</span>
           </button>
           <div class="skin-group-body"${isOpen ? '' : ' hidden'}>${variantsHtml}</div>
@@ -1725,11 +2000,11 @@
     }
 
     function dateRangeFromState() {
-      const t = todayKey();
-      if (currentPreset === 'today') return { from: t, to: t, label: 'today' };
-      if (currentPreset === '7d')    return { from: shiftDate(t, -6),  to: t, label: 'last 7 days' };
-      if (currentPreset === '30d')   return { from: shiftDate(t, -29), to: t, label: 'last 30 days' };
-      if (currentPreset === 'all')   return { from: null, to: null,    label: 'all time' };
+      const today = todayKey();
+      if (currentPreset === 'today') return { from: today, to: today, label: I18N.t('stats.range.today') };
+      if (currentPreset === '7d')    return { from: shiftDate(today, -6),  to: today, label: I18N.t('stats.range.last_7_days') };
+      if (currentPreset === '30d')   return { from: shiftDate(today, -29), to: today, label: I18N.t('stats.range.last_30_days') };
+      if (currentPreset === 'all')   return { from: null, to: null,    label: I18N.t('stats.range.all_time') };
       return { from: currentDate, to: currentDate, label: currentDate };
     }
 
@@ -1818,9 +2093,9 @@
       const isToday = isSingleDay && dates[0] === todayKey();
       const labelSuffix = isSingleDay ? '' : ` (${range.label})`;
 
-      tileClicksLabel.textContent  = (isToday ? 'Clicks today'   : 'Clicks')   + (isSingleDay ? '' : labelSuffix);
-      tileVisitorsLabel.textContent = (isToday ? 'Visitors today' : 'Visitors') + (isSingleDay ? '' : labelSuffix);
-      tileMaxComboLabel.textContent = (isToday ? 'Max combo today' : 'Max combo') + (isSingleDay ? '' : labelSuffix);
+      tileClicksLabel.textContent  = I18N.t(isToday ? 'stats.tile.clicks_today'    : 'stats.tile.clicks')    + (isSingleDay ? '' : labelSuffix);
+      tileVisitorsLabel.textContent = I18N.t(isToday ? 'stats.tile.visitors_today'  : 'stats.tile.visitors')  + (isSingleDay ? '' : labelSuffix);
+      tileMaxComboLabel.textContent = I18N.t(isToday ? 'stats.tile.max_combo_today' : 'stats.tile.max_combo') + (isSingleDay ? '' : labelSuffix);
       tileClicks.textContent = totalClicks.toLocaleString();
       tileVisitors.textContent = totalVisitors.toLocaleString();
       tileCpv.textContent = totalVisitors > 0 ? (totalClicks / totalVisitors).toFixed(1) : '—';
@@ -1871,7 +2146,7 @@
           data: {
             labels,
             datasets: [{
-              label: 'Clicks',
+              label: I18N.t('stats.tile.clicks'),
               data: dates.map(d => clicksByDate[d] || 0),
               borderColor: '#4dabf7',
               backgroundColor: 'rgba(77,171,247,0.18)',
@@ -1889,7 +2164,7 @@
           data: {
             labels,
             datasets: [{
-              label: 'Visitors',
+              label: I18N.t('stats.tile.visitors'),
               data: dates.map(d => visitorsByDate[d] || 0),
               borderColor: '#ffa94d',
               backgroundColor: 'rgba(255,169,77,0.18)',
@@ -1917,7 +2192,7 @@
           data: {
             labels: sortedCountries.map(([code]) => `${countryFlag(code)} ${code}`),
             datasets: [{
-              label: 'Clicks',
+              label: I18N.t('stats.tile.clicks'),
               data: sortedCountries.map(([, n]) => n),
               backgroundColor: 'rgba(77,171,247,0.55)',
               borderColor: '#4dabf7',
@@ -1947,7 +2222,7 @@
           data: {
             labels: sortedCharacters.map(([id]) => {
               const ch = CHARACTERS.find(c => c.id === id);
-              return ch ? ch.name : id;
+              return ch ? charName(ch) : id;
             }),
             datasets: [{
               data: sortedCharacters.map(([, n]) => n),
@@ -1983,7 +2258,7 @@
           const count = skinTotals[v.id] || 0;
           if (count > 0) anySkinData = true;
           characterDatasets.push({
-            label: v.name,
+            label: variantName(v),
             data: CHARACTERS.map(cc => cc.id === c.id ? count : 0),
             backgroundColor: base + (variantShades[vi % variantShades.length] || ''),
             borderColor: 'rgba(255,255,255,0.7)',
@@ -2001,7 +2276,7 @@
         charts.skins = new Chart(chartSkinsCanvas, {
           type: 'bar',
           data: {
-            labels: CHARACTERS.map(c => c.name),
+            labels: CHARACTERS.map(c => charName(c)),
             datasets: characterDatasets,
           },
           options: {
@@ -2490,7 +2765,7 @@
       comboLastTier = 0;
       comboEl.classList.remove('active');
       setComboTier(0);
-      comboLabelEl.textContent = 'COMBO!';
+      comboLabelEl.textContent = I18N.t('combo.label');
       // Stop the bar transition so it doesn't keep animating during fade-out.
       comboBarFillEl.style.transition = 'none';
       comboBarFillEl.style.transform = 'scaleX(1)';
@@ -2559,7 +2834,7 @@
       } else if (effect === 'confetti-lg') {
         spawnConfetti(55);
       } else if (effect === 'finale') {
-        comboLabelEl.textContent = 'MAX COMBO!';
+        comboLabelEl.textContent = I18N.t('combo.max');
         screenFlash();
         spawnConfetti(110);
         // Followup confetti waves for drama.
@@ -2711,6 +2986,21 @@
     });
 
     window._idleBubbleReady = true;
+
+    // --- Re-render dynamic strings on language change ------------------------
+    // I18N.apply() handles every [data-i18n] node, but JS-rendered content
+    // (skin list, Chart.js charts, the live combo label) has to be rebuilt.
+    window.addEventListener('i18nchange', () => {
+      renderSkinList();
+      // Combo label: apply() restored the static "COMBO!"; if a MAX COMBO! is
+      // currently showing, keep that wording in the new language.
+      if (comboEl.classList.contains('tier-' + COMBO_CAP_TIER)) {
+        comboLabelEl.textContent = I18N.t('combo.max');
+      }
+      // Charts only need rebuilding if the modal is open — otherwise the next
+      // open() will rebuild from scratch with current translations anyway.
+      if (statsModal.classList.contains('open')) loadStats();
+    });
 
   </script>
 </body>
