@@ -3077,7 +3077,59 @@
       senseiBar.click();
     });
 
-    function loadLeaderboard() { /* implemented in E3 */ }
+    function loadLeaderboard() {
+      leaderboardList.innerHTML = '';
+      leaderboardYourRank.textContent = '';
+      leaderboardSignin.hidden = !!(currentUser && !currentUser.isAnonymous);
+
+      const q = db.ref('leaderboard/topClicks').orderByChild('totalClicks').limitToLast(100);
+      const cb = (snap) => {
+        const rows = [];
+        snap.forEach(child => { rows.push({ uid: child.key, ...child.val() }); });
+        rows.sort((a, b) => (b.totalClicks || 0) - (a.totalClicks || 0));
+
+        leaderboardList.innerHTML = rows.map((r, i) => {
+          const isMe = currentUser && r.uid === currentUser.uid;
+          const flag = flagFromCountry(r.country);
+          const avatar = r.photoURL
+            ? `<img class="lb-avatar" src="${r.photoURL}" alt="">`
+            : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--ba-accent-strong);font-weight:800;">${escapeHtml((r.name || '?').slice(0,1))}</div>`;
+          return `<div class="lb-row${isMe ? ' me' : ''}">
+            <span class="lb-rank">#${i + 1}</span>
+            ${avatar}
+            <span class="lb-flag">${flag}</span>
+            <span class="lb-name">${escapeHtml(r.name || I18N.t('sensei.trainer'))}</span>
+            <span class="lb-level">Lv.${r.level || 0}</span>
+            <span class="lb-clicks">${(r.totalClicks || 0).toLocaleString()}</span>
+          </div>`;
+        }).join('');
+
+        if (currentUser && !currentUser.isAnonymous) {
+          const myRow = rows.findIndex(r => r.uid === currentUser.uid);
+          if (myRow >= 0) {
+            leaderboardYourRank.textContent = I18N.t('leaderboard.your_rank', { rank: myRow + 1, total: rows.length });
+          } else if ((userStats.totalClicks || 0) > 0) {
+            countMyRank().then(rank => {
+              leaderboardYourRank.textContent = I18N.t('leaderboard.your_rank_outside', { rank });
+            });
+          } else {
+            leaderboardYourRank.textContent = I18N.t('leaderboard.no_rank_yet');
+          }
+        }
+      };
+      q.on('value', cb);
+      leaderboardUnsub = () => q.off('value', cb);
+    }
+
+    async function countMyRank() {
+      const myClicks = userStats.totalClicks || 0;
+      const snap = await db.ref('leaderboard/topClicks').orderByChild('totalClicks').startAfter(myClicks).once('value');
+      return snap.numChildren() + 1;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
 
     // --- Google sign-in / linking -----------------------------------------------
     const profileGoogleBtn = document.getElementById('profile-google-btn');
