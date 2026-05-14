@@ -51,7 +51,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans CJK KR', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
     }
 
     /* --- Intro Curtain --- */
@@ -124,7 +124,7 @@
       /* Match the site font (Segoe UI / Helvetica Neue / Arial). Explicit rather than
          `font: inherit` because <button> has a user-agent font that wins over inheritance
          on some browsers. */
-      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans CJK KR', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       font-size: 1.4rem;
       font-weight: 700;
       line-height: 1.3;
@@ -196,7 +196,7 @@
       pointer-events: none;
       user-select: none;
       text-align: right;
-      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans CJK KR', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       opacity: 0;
       transition: opacity 0.35s ease;
     }
@@ -331,7 +331,7 @@
       border: 1px solid rgba(255, 255, 255, 0.85);
       border-radius: 22px;
       color: #1f2c40;
-      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'PingFang TC', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Noto Sans CJK KR', 'Noto Sans Thai', 'Leelawadee UI', 'Segoe UI Arabic', 'Tahoma', Arial, sans-serif;
       font-weight: 700;
       box-shadow: 0 4px 14px rgba(0, 30, 60, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
       user-select: none;
@@ -1414,9 +1414,9 @@
     // are interpolated by t(). data-i18n="key" updates textContent; data-i18n-attr
     // takes "attr:key" pairs (comma-separated) to update HTML attributes.
     const I18N = (() => {
-      const SUPPORTED = ['en','ja','zh-Hans','zh-Hant','th','ar'];
+      const SUPPORTED = ['en','ja','ko','zh-Hans','zh-Hant','th','ar'];
       const NATIVE = {
-        'en':'English','ja':'日本語','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','ar':'العربية'
+        'en':'English','ja':'日本語','ko':'한국어','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','ar':'العربية'
       };
       const T = {
         en: {
@@ -1470,6 +1470,32 @@
           'disclaimer':'Aobing.itはNexon、Nexon Games、Yostarとは無関係です。使用されているすべてのゲームアートワーク、情報、アセットはそれぞれの著作者の所有物および著作権物です。',
           'meta.description':'クリックでアオバが鳴く!',
           'alt.character':'キャラクター','aria.close':'閉じる',
+        },
+        ko: {
+          'settings.title':'설정','settings.music':'음악','settings.sfx':'효과음','settings.effects':'이펙트',
+          'settings.language':'언어','settings.join_discord':'디스코드 참여','settings.follow_x':'X에서 팔로우','settings.reset_defaults':'기본값 복원',
+          'skins.title':'스킨','skins.variants':'{n}개','skins.variant':'{n}개',
+          'tag.default':'기본','tag.plushie':'인형','tag.track':'체육복','tag.idol':'아이돌',
+          'character.aoba.name':'아오바','character.mari.name':'마리',
+          'skin.aoba.name':'아오바','skin.aobaplush.name':'아오바 인형',
+          'skin.mari.name':'마리','skin.maritrack.name':'체육복 마리','skin.mariidol.name':'아이돌 마리',
+          'analytics.title':'분석',
+          'stats.preset.today':'오늘','stats.preset.7d':'7일','stats.preset.30d':'30일','stats.preset.all':'전체',
+          'stats.tile.clicks_today':'오늘 클릭','stats.tile.clicks':'클릭',
+          'stats.tile.visitors_today':'오늘 방문자','stats.tile.visitors':'방문자',
+          'stats.tile.cpv':'방문자당 클릭',
+          'stats.tile.max_combo_today':'오늘 최고 콤보','stats.tile.max_combo':'최고 콤보',
+          'stats.chart.clicks_over_time':'시간대별 클릭','stats.chart.visitors_over_time':'시간대별 방문자',
+          'stats.chart.top_countries':'상위 국가','stats.chart.characters_used':'사용 캐릭터',
+          'stats.chart.skins_per_character':'캐릭터별 스킨',
+          'stats.no_data':'데이터 없음',
+          'stats.range.today':'오늘','stats.range.last_7_days':'최근 7일',
+          'stats.range.last_30_days':'최근 30일','stats.range.all_time':'전체 기간',
+          'combo.label':'콤보!','combo.max':'최대 콤보!',
+          'tooltip.click_counter':'전체 클릭 | 현재 스킨 클릭',
+          'disclaimer':'Aobing.it은 Nexon, Nexon Games 또는 Yostar와 관련이 없습니다. 사용된 모든 게임 아트워크, 정보 및 자료의 소유권과 저작권은 각 저작자에게 있습니다.',
+          'meta.description':'클릭해서 아오바를 울려보세요!',
+          'alt.character':'캐릭터','aria.close':'닫기',
         },
         'zh-Hans': {
           'settings.title':'设置','settings.music':'音乐','settings.sfx':'音效','settings.effects':'特效',
@@ -1582,6 +1608,7 @@
         if (stored && SUPPORTED.includes(stored)) return stored;
         const nav = (navigator.language || 'en').toLowerCase();
         if (nav.startsWith('ja')) return 'ja';
+        if (nav.startsWith('ko')) return 'ko';
         if (nav.startsWith('th')) return 'th';
         if (nav.startsWith('ar')) return 'ar';
         if (nav.startsWith('zh')) {
