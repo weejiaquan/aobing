@@ -1647,17 +1647,10 @@
     const settings = loadSettings();
 
     // --- Language ---
-    // Resolve language from saved settings → navigator → en, then translate the
-    // static HTML before anything reads textContent. Persist back so the chosen
-    // language survives even if it was only detected (no user choice yet).
-    {
-      const initialLang = I18N.detect(settings.lang);
-      I18N.set(initialLang);
-      if (settings.lang !== initialLang) {
-        settings.lang = initialLang;
-        saveSettings(settings);
-      }
-    }
+    // Resolve language: saved user choice wins; otherwise detect from navigator
+    // (re-detected on every visit until the user picks explicitly). Translate
+    // the static HTML before anything reads textContent.
+    I18N.set(I18N.detect(settings.lang));
 
     // --- Audio Elements ---
     const bgm = document.getElementById('bgm');
@@ -1668,12 +1661,14 @@
     const settingsPanel = document.getElementById('settings-panel');
     const langSelect = document.getElementById('lang-select');
 
-    // Populate language dropdown with native-script labels
+    // Populate language dropdown with native-script labels. Mark the currently
+    // active language as selected — this may be a saved choice OR the detected
+    // default, so we read from I18N.current rather than settings.lang.
     I18N.SUPPORTED.forEach(code => {
       const opt = document.createElement('option');
       opt.value = code;
       opt.textContent = I18N.NATIVE[code];
-      if (code === settings.lang) opt.selected = true;
+      if (code === I18N.current) opt.selected = true;
       langSelect.appendChild(opt);
     });
     langSelect.addEventListener('change', (e) => {
