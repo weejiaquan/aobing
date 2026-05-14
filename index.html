@@ -2870,7 +2870,23 @@
       if (!uid) { userStats = { totalClicks: 0, coinBalance: 0 }; userProfile = null; renderSenseiBar(); return; }
 
       const statsRef = db.ref('users/' + uid + '/stats');
-      const statsCb  = (snap) => { userStats = snap.val() || { totalClicks: 0, coinBalance: 0 }; renderSenseiBar(); };
+      const statsCb  = (snap) => {
+        userStats = snap.val() || { totalClicks: 0, coinBalance: 0 };
+        renderSenseiBar();
+        // Mirror to leaderboard if linked — keeps the board row in sync with
+        // each totalClicks bump. Anonymous users never have a profile node so
+        // the leaderboard rule's `profile.exists()` check would block this.
+        if (currentUser && !currentUser.isAnonymous && userProfile) {
+          const lv = levelOf(userStats.totalClicks || 0);
+          db.ref('leaderboard/topClicks/' + uid).set({
+            name:        userProfile.displayName || I18N.t('sensei.trainer'),
+            country:     userProfile.country || 'XX',
+            photoURL:    userProfile.photoURL || '',
+            totalClicks: userStats.totalClicks || 0,
+            level:       lv,
+          }).catch(() => {});
+        }
+      };
       statsRef.on('value', statsCb);
       userStatsUnsub = () => statsRef.off('value', statsCb);
 
