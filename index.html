@@ -1362,16 +1362,17 @@
       .catch(() => {});
 
     // --- Track unique daily visitors ---
-    let visitorId = localStorage.getItem('aobing_visitor_id');
-    if (!visitorId) {
-      visitorId = crypto.randomUUID();
-      localStorage.setItem('aobing_visitor_id', visitorId);
-    }
-    const visitKey = 'aobing_visited_' + todayKey();
-    if (!sessionStorage.getItem(visitKey)) {
-      sessionStorage.setItem(visitKey, '1');
-      db.ref('daily/' + todayKey() + '/visitors/' + visitorId).set(true);
-    }
+    // Uses the Firebase Auth UID (28 chars, satisfies the `visitorId.length <= 64`
+    // rule). Old `aobing_visitor_id` is removed so localStorage isn't littered.
+    localStorage.removeItem('aobing_visitor_id');
+    authReady.then((user) => {
+      if (!user) return;
+      const visitKey = 'aobing_visited_' + todayKey();
+      if (!sessionStorage.getItem(visitKey)) {
+        sessionStorage.setItem(visitKey, '1');
+        db.ref('daily/' + todayKey() + '/visitors/' + user.uid).set(true);
+      }
+    });
 
     const { animate, createTimeline } = anime;
 
