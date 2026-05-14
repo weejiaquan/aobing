@@ -58,29 +58,56 @@
     },
     "kei": {
       ".read": true,
-      "completions": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
-      },
-      "totalHeadpatSeconds": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
-      },
-      "totalVoicelines": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
-      },
-      "totalInteractions": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
-      },
-      "totalPinches": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
-      },
-      "totalEyeTracks": {
-        ".write": true,
-        ".validate": "newData.isNumber()"
+      "completions":          { ".write": true, ".validate": "newData.isNumber()" },
+      "totalHeadpatSeconds":  { ".write": true, ".validate": "newData.isNumber()" },
+      "totalVoicelines":      { ".write": true, ".validate": "newData.isNumber()" },
+      "totalInteractions":    { ".write": true, ".validate": "newData.isNumber()" },
+      "totalPinches":         { ".write": true, ".validate": "newData.isNumber()" },
+      "totalEyeTracks":       { ".write": true, ".validate": "newData.isNumber()" }
+    },
+    "users": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          "displayName": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+          "country":     { ".validate": "newData.isString() && newData.val().length === 2" },
+          "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "provider":    { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "linkedAt":    { ".validate": "newData.isNumber()" }
+        },
+        "stats": {
+          "totalClicks": {
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1 && now - (data.parent().child('lastClickAt').exists() ? data.parent().child('lastClickAt').val() : 0) >= 15 && newData.parent().child('lastClickAt').val() === now"
+          },
+          "coinBalance": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 1"
+          },
+          "lastClickAt": {
+            ".validate": "newData.val() === now"
+          },
+          "maxCombo":  { ".validate": "newData.isNumber()" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "skins": {
+            "$variantId": {
+              ".validate": "newData.isNumber() && $variantId.length <= 20"
+            }
+          }
+        }
+      }
+    },
+    "leaderboard": {
+      "topClicks": {
+        ".read": true,
+        ".indexOn": "totalClicks",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists()",
+          "name":        { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "country":     { ".validate": "newData.isString() && newData.val().length === 2" },
+          "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "totalClicks": { ".validate": "newData.isNumber()" },
+          "level":       { ".validate": "newData.isNumber()" }
+        }
       }
     },
     ".read": false,
