@@ -512,6 +512,62 @@
       transform: rotate(45deg);
     }
 
+    /* --- Profile Panel (BA white card, anchored above sensei bar) ----------- */
+    #profile-panel {
+      position: fixed;
+      left: 16px;
+      bottom: 100px;
+      width: 280px;
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      padding: 14px 16px 16px;
+      color: var(--ba-text);
+      font-size: 0.85rem;
+      box-shadow: var(--ba-card-shadow);
+      z-index: 60;
+      transform: translateY(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    #profile-panel.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    .profile-input, .profile-select {
+      width: 100%;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 8px;
+      color: var(--ba-text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .profile-button {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      background: var(--ba-accent);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .profile-button:hover { background: var(--ba-accent-strong); }
+    .profile-button.secondary {
+      background: var(--ba-card-bg-soft);
+      color: var(--ba-text-muted);
+      border: 1px solid var(--ba-divider);
+    }
+    .profile-button.secondary:hover { color: var(--ba-accent-strong); }
+    .profile-error { color: #d04a4a; font-size: 0.72rem; margin-top: 4px; min-height: 0.9rem; }
+
     /* --- Settings Panel (BA white card) --- */
     #settings-panel {
       position: fixed;
@@ -1259,6 +1315,30 @@
     <span class="pill-sub-value">0</span>
   </div>
 
+  <!-- Profile panel (opens above sensei bar) -->
+  <div id="profile-panel" role="dialog" aria-label="Profile">
+    <div id="profile-anon">
+      <div class="settings-title"><span data-i18n="profile.title">Profile</span></div>
+      <p style="font-size: 0.78rem; color: var(--ba-text-muted); margin-bottom: 10px;"
+         data-i18n="profile.anon_blurb">Sign in to save your progress across devices and appear on the leaderboard.</p>
+      <button id="profile-google-btn" class="profile-button" data-i18n="auth.sign_in_google">Sign in with Google</button>
+      <div class="profile-error" id="profile-error"></div>
+    </div>
+    <div id="profile-linked" hidden>
+      <div class="settings-title"><span data-i18n="profile.title">Profile</span></div>
+      <label style="font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700;"
+             data-i18n="profile.display_name">Display name</label>
+      <input id="profile-name-input" class="profile-input" maxlength="24" />
+      <div style="height: 8px;"></div>
+      <label style="font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700;"
+             data-i18n="profile.country">Country</label>
+      <select id="profile-country-select" class="profile-select"></select>
+      <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
+      <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
+      <div class="profile-error" id="profile-error-linked"></div>
+    </div>
+  </div>
+
   <!-- Sensei profile bar (bottom-left) -->
   <div id="sensei-bar" role="button" aria-label="Profile">
     <div class="sensei-row1">
@@ -1553,6 +1633,12 @@
           'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.reset_defaults':'Reset defaults',
           'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
           'sensei.trainer':'Trainer',
+          'auth.sign_in_google':'Sign in with Google','auth.sign_out':'Sign out',
+          'auth.already_linked':'This Google account is already linked to another player. Signing you in to that one instead.',
+          'profile.title':'Profile',
+          'profile.anon_blurb':'Sign in to save your progress across devices and appear on the leaderboard.',
+          'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save',
+          'profile.name_length_error':'Display name must be 1-24 characters.',
           'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol',
           'character.aoba.name':'Aoba','character.mari.name':'Mari',
           'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
@@ -2799,6 +2885,31 @@
     });
 
     renderSenseiBar();
+
+    // --- Profile panel toggle ---
+    const senseiBar         = document.getElementById('sensei-bar');
+    const profilePanel      = document.getElementById('profile-panel');
+    const profileAnonView   = document.getElementById('profile-anon');
+    const profileLinkedView = document.getElementById('profile-linked');
+
+    function updateProfileView() {
+      const linked = !!(currentUser && !currentUser.isAnonymous);
+      profileAnonView.hidden   = linked;
+      profileLinkedView.hidden = !linked;
+    }
+
+    senseiBar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateProfileView();
+      profilePanel.classList.toggle('open');
+    });
+    profilePanel.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', (e) => {
+      if (!profilePanel.contains(e.target) && e.target !== senseiBar && !senseiBar.contains(e.target)) {
+        profilePanel.classList.remove('open');
+      }
+    });
+    auth.onAuthStateChanged(() => updateProfileView());
 
     // --- Per-user click stats ----------------------------------------------------
     // Each mouse/tap fires a single multi-path update so totalClicks, coinBalance,
