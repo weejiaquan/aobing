@@ -1500,7 +1500,7 @@
       <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
       <button id="keyboard-toggle" class="settings-toggle on"></button>
     </div>
-    <div class="settings-row" id="settings-admin-row" hidden>
+    <div class="settings-row" id="settings-admin-row" style="display:none">
       <span class="settings-label" data-i18n="settings.admin_mode">Admin mode</span>
       <button id="admin-toggle" class="settings-toggle"></button>
     </div>
@@ -2100,10 +2100,47 @@
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
     const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true, adminMode: false };
-    const ADMIN_EMAIL = 'weejiaquan1234@gmail.com';
-    function isAdmin() {
-      return !!(currentUser && currentUser.email === ADMIN_EMAIL && currentUser.emailVerified);
+
+    // --- Admin gating -----------------------------------------------------------
+    // Source of truth: admins/{uid}: true in RTDB. The site subscribes to the
+    // current user's row and caches the result. The email below is a one-time
+    // bootstrap claim — once that user signs in for the first time, their
+    // admins/{uid} entry is created automatically, and from then on the entire
+    // admin gate is UID-based (so adding/removing admins is a Firebase Console
+    // edit, no code change needed).
+    const ADMIN_BOOTSTRAP_EMAIL = 'weejiaquan1234@gmail.com';
+    let isAdminCached = false;
+    let adminUnsub = null;
+    function isAdmin() { return isAdminCached; }
+    function subscribeAdminStatus(uid) {
+      if (adminUnsub) { adminUnsub(); adminUnsub = null; }
+      isAdminCached = false;
+      if (!uid) { if (typeof syncAdminVisibility === 'function') syncAdminVisibility(); return; }
+      const ref = db.ref('admins/' + uid);
+      const cb = (snap) => {
+        isAdminCached = snap.val() === true;
+        if (typeof syncAdminVisibility === 'function') syncAdminVisibility();
+        // Re-render leaderboard if open so delete buttons appear/disappear
+        if (typeof leaderboardModal !== 'undefined' && leaderboardModal && leaderboardModal.classList.contains('open')) {
+          loadLeaderboard();
+        }
+      };
+      ref.on('value', cb);
+      adminUnsub = () => ref.off('value', cb);
     }
+    async function tryBootstrapAdmin() {
+      if (!currentUser) return;
+      if (currentUser.email !== ADMIN_BOOTSTRAP_EMAIL) return;
+      if (!currentUser.emailVerified) return;
+      try {
+        const snap = await db.ref('admins/' + currentUser.uid).once('value');
+        if (!snap.exists()) await db.ref('admins/' + currentUser.uid).set(true);
+      } catch { /* silent — security rules will reject if conditions not met */ }
+    }
+    auth.onAuthStateChanged((user) => {
+      subscribeAdminStatus(user ? user.uid : null);
+      if (user) tryBootstrapAdmin();
+    });
 
     function loadSettings() {
       try {
@@ -2221,15 +2258,18 @@
       if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
     });
     function syncAdminVisibility() {
-      adminRow.hidden = !isAdmin();
-      // If user signs out / loses admin, force-disable the mode
+      // Use style.display because the [hidden] attribute is overridden by the
+      // .settings-row { display: flex; ... } rule (CSS wins over the UA stylesheet).
+      adminRow.style.display = isAdmin() ? '' : 'none';
       if (!isAdmin() && settings.adminMode) {
         settings.adminMode = false;
         adminToggle.classList.remove('on');
         saveSettings(settings);
       }
     }
-    auth.onAuthStateChanged(syncAdminVisibility);
+    // Subscription listener (subscribeAdminStatus) already calls
+    // syncAdminVisibility when admin status changes. No need for a separate
+    // onAuthStateChanged hook here.
 
     // --- Reset Defaults ---
     function applySettings(s) {
