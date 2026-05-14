@@ -2911,6 +2911,67 @@
     });
     auth.onAuthStateChanged(() => updateProfileView());
 
+    // --- Google sign-in / linking -----------------------------------------------
+    const profileGoogleBtn = document.getElementById('profile-google-btn');
+    const profileError     = document.getElementById('profile-error');
+
+    profileGoogleBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      profileError.textContent = '';
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        if (currentUser && currentUser.isAnonymous) {
+          const cred = await currentUser.linkWithPopup(provider);
+          await initProfileFromCredential(cred);
+        } else {
+          const cred = await auth.signInWithPopup(provider);
+          await initProfileFromCredential(cred);
+        }
+        profilePanel.classList.remove('open');
+      } catch (err) {
+        if (err.code === 'auth/credential-already-in-use') {
+          profileError.textContent = I18N.t('auth.already_linked');
+          try {
+            const cred = await auth.signInWithCredential(err.credential);
+            await initProfileFromCredential(cred);
+            profilePanel.classList.remove('open');
+          } catch (err2) {
+            profileError.textContent = err2.message || 'Sign-in failed.';
+          }
+        } else if (err.code === 'auth/popup-closed-by-user') {
+          // Silent
+        } else {
+          profileError.textContent = err.message || 'Sign-in failed.';
+        }
+      }
+    });
+
+    async function initProfileFromCredential(cred) {
+      const u = auth.currentUser;
+      if (!u) return;
+      const existing = await db.ref('users/' + u.uid + '/profile').once('value');
+      if (existing.exists()) return;
+      const ts = firebase.database.ServerValue.TIMESTAMP;
+      const profile = {
+        displayName: (u.displayName || 'Sensei').slice(0, 24),
+        photoURL:    (u.photoURL || '').slice(0, 500),
+        country:     visitorCountry || 'XX',
+        provider:    'google',
+        linkedAt:    ts,
+      };
+      await db.ref('users/' + u.uid + '/profile').set(profile);
+      // Immediate leaderboard mirror so any clicks accrued while anonymous show
+      // up on the board right away.
+      const clicks = (userStats && userStats.totalClicks) || 0;
+      await db.ref('leaderboard/topClicks/' + u.uid).set({
+        name:        profile.displayName,
+        country:     profile.country,
+        photoURL:    profile.photoURL,
+        totalClicks: clicks,
+        level:       levelOf(clicks),
+      }).catch(() => {});
+    }
+
     // --- Per-user click stats ----------------------------------------------------
     // Each mouse/tap fires a single multi-path update so totalClicks, coinBalance,
     // and lastClickAt land together. ServerValue.increment + ServerValue.TIMESTAMP
