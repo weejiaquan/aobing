@@ -399,6 +399,81 @@
       pointer-events: none;
     }
 
+    /* --- Sensei Bar (BA-style profile pill, bottom-left) --- */
+    #sensei-bar {
+      position: fixed;
+      left: 16px;
+      bottom: 28px;
+      width: 240px;
+      padding: 8px 12px 10px;
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      box-shadow: var(--ba-card-shadow);
+      color: var(--ba-text);
+      font-size: 0.78rem;
+      z-index: 50;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    #sensei-bar:hover { transform: translateY(-1px); box-shadow: 0 18px 48px rgba(0,30,60,0.28); }
+
+    .sensei-row1 { display: flex; align-items: center; gap: 8px; }
+    .sensei-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--ba-accent-soft);
+      border: 1px solid rgba(160,195,230,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; color: var(--ba-accent-strong);
+      font-size: 0.85rem; flex-shrink: 0; object-fit: cover;
+      overflow: hidden;
+    }
+    .sensei-name {
+      flex: 1; min-width: 0;
+      font-weight: 800;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--ba-text);
+    }
+    .sensei-flag { font-size: 0.95rem; }
+    .sensei-level {
+      font-weight: 800; color: var(--ba-accent-strong);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sensei-xp-bar {
+      margin-top: 6px;
+      height: 5px;
+      background: rgba(60,90,130,0.18);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .sensei-xp-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--ba-accent), var(--ba-yellow));
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+    .sensei-xp-fill.pulse { animation: sensei-pulse 0.35s ease-out; }
+    @keyframes sensei-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(77,171,247,0.6); }
+      100% { box-shadow: 0 0 0 14px rgba(77,171,247,0); }
+    }
+
+    .sensei-row2 {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 4px;
+      font-size: 0.72rem; color: var(--ba-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .sensei-coins { color: var(--ba-accent-strong); font-weight: 700; }
+    .sensei-cta { color: var(--ba-accent-strong); font-weight: 700; }
+
+    @media (max-width: 480px) {
+      #sensei-bar { left: 8px; bottom: 18px; width: 200px; padding: 6px 10px 8px; }
+      .sensei-avatar { width: 22px; height: 22px; font-size: 0.7rem; }
+    }
+
     /* --- Panel Buttons (BA white pill-square) --- */
     .panel-btn {
       position: fixed;
@@ -1172,6 +1247,21 @@
     <span class="pill-sub-value">0</span>
   </div>
 
+  <!-- Sensei profile bar (bottom-left) -->
+  <div id="sensei-bar" role="button" aria-label="Profile">
+    <div class="sensei-row1">
+      <div class="sensei-avatar" id="sensei-avatar">?</div>
+      <span class="sensei-name" id="sensei-name" data-i18n="sensei.trainer">Trainer</span>
+      <span class="sensei-flag" id="sensei-flag"></span>
+      <span class="sensei-level" id="sensei-level">Lv.0</span>
+    </div>
+    <div class="sensei-xp-bar"><div class="sensei-xp-fill" id="sensei-xp-fill"></div></div>
+    <div class="sensei-row2">
+      <span><span id="sensei-xp-text">0 / 20</span></span>
+      <span><span class="sensei-coins">💰 <span id="sensei-coins">0</span></span></span>
+    </div>
+  </div>
+
   <!-- System time (BA-style pill bottom-right) -->
   <div id="system-time" class="ba-pill">
     <span class="pill-icon" aria-hidden="true">
@@ -1450,6 +1540,7 @@
           'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
           'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.reset_defaults':'Reset defaults',
           'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
+          'sensei.trainer':'Trainer',
           'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol',
           'character.aoba.name':'Aoba','character.mari.name':'Mari',
           'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
