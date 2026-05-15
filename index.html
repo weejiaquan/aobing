@@ -3349,7 +3349,14 @@
     const MAX_PARTICLES = 60;
     let activeParticles = 0;
 
+    const MAX_PLUSONES = 20;
+    let activePlusOnes = 0;
     function spawnPlusOne(x, y) {
+      // Cap concurrent floaters: at 30+ cps spam the unbounded DOM churn was the
+      // main lag source. Dropping new floaters when the cap is hit is invisible
+      // (there's already a sea of identical "+1"s on screen).
+      if (activePlusOnes >= MAX_PLUSONES) return;
+      activePlusOnes++;
       const el = document.createElement('div');
       el.className = 'click-plusone';
       el.textContent = '+1';
@@ -3361,7 +3368,7 @@
         opacity: [{ to: 1, duration: 80 }, { to: 1, duration: 350 }, { to: 0, duration: 250 }],
         duration: 680,
         ease: 'outQuad',
-        onComplete: () => el.remove(),
+        onComplete: () => { el.remove(); activePlusOnes--; },
       });
     }
 
@@ -4457,8 +4464,23 @@
     let flushHeartbeatTimer = null;
     let isFlushing = false;
 
+    // Immediate localStorage write — use this after flushPending zeros the
+    // batch, on visibilitychange/pagehide, etc. Anywhere correctness needs
+    // localStorage to reflect the latest `pending` synchronously.
     function savePending() {
       try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch {}
+    }
+    // Hot-path version: at 30+ cps, JSON.stringify on every click was the main
+    // CPU hog. Throttle to once per 200ms — worst case is losing the last
+    // <200ms of clicks on a hard tab crash, which is well below the existing
+    // 5s flush horizon for normal data persistence.
+    let pendingDirtyTimer = null;
+    function savePendingDeferred() {
+      if (pendingDirtyTimer) return;
+      pendingDirtyTimer = setTimeout(() => {
+        pendingDirtyTimer = null;
+        savePending();
+      }, 200);
     }
     function loadPending() {
       try {
@@ -4550,14 +4572,26 @@
           pending.userBySource[source] = (pending.userBySource[source] || 0) + clickGain;
         }
       }
-      savePending();
+      savePendingDeferred();
       scheduleFlush();
-      // Keep the optimistic UI in sync immediately: sensei bar AND the public
-      // click pill (which reads lastSeenServer + pending + inFlight).
-      if (typeof renderSenseiBar    === 'function') renderSenseiBar();
-      if (typeof renderClickCounter === 'function') renderClickCounter();
+      // Coalesce the two render calls into a single rAF callback. At 30+ cps
+      // we used to thrash innerHTML 60 times per second; with this, both
+      // renders run at most once per animation frame regardless of click rate.
+      scheduleOptimisticRender();
       // Sliding-window CPS: record every event (mouse + keyboard + auto).
       cpsTimestamps.push(performance.now());
+    }
+
+    // rAF-coalesced optimistic UI refresh. Called from the hot click path.
+    let optimisticRenderRequested = false;
+    function scheduleOptimisticRender() {
+      if (optimisticRenderRequested) return;
+      optimisticRenderRequested = true;
+      requestAnimationFrame(() => {
+        optimisticRenderRequested = false;
+        if (typeof renderSenseiBar    === 'function') renderSenseiBar();
+        if (typeof renderClickCounter === 'function') renderClickCounter();
+      });
     }
 
     async function flushPending() {
