@@ -3258,12 +3258,14 @@
     let userProfile = null;
     let userStatsUnsub = null;
     let userProfileUnsub = null;
-    // Same optimistic-UI pattern as the public counters: clicks accumulated
-    // since the last flush live in pending.user; deltas already sent but not
-    // yet visible to the listener live in inFlightUser. Bar reads:
-    //   clicks = userStats.totalClicks + pending.user + inFlightUser
-    //   coins  = userStats.coinBalance + pending.user + inFlightUser
-    let inFlightUser = 0;
+    // Same optimistic-UI pattern as the public counters. After the shop split,
+    // coin and click flows are independent (different multipliers, different
+    // sources). Bar reads:
+    //   clicks = userStats.totalClicks + pending.userClicks + inFlightUserClicks
+    //   coins  = userStats.coinBalance + pending.userCoins  + inFlightUserCoins
+    // pending.userCoins can be negative (shop debits); inFlightUserCoins too.
+    let inFlightUserCoins  = 0;
+    let inFlightUserClicks = 0;
 
     function flagFromCountry(code) {
       if (!code || code.length !== 2) return '';
@@ -3276,9 +3278,10 @@
       // Optimistic: include both pending (not flushed yet) and inFlight
       // (sent in a batch, not yet visible to the listener) so the bar ticks
       // up the instant you click and stays steady across the flush hand-off.
-      const pendingUser = (typeof pending !== 'undefined' && pending) ? (pending.user || 0) : 0;
-      const clicks = (userStats.totalClicks || 0) + pendingUser + inFlightUser;
-      const coins  = (userStats.coinBalance || 0) + pendingUser + inFlightUser;
+      const pendingCoins  = (typeof pending !== 'undefined' && pending) ? (pending.userCoins  || 0) : 0;
+      const pendingClicks = (typeof pending !== 'undefined' && pending) ? (pending.userClicks || 0) : 0;
+      const clicks = (userStats.totalClicks || 0) + pendingClicks + inFlightUserClicks;
+      const coins  = (userStats.coinBalance || 0) + pendingCoins  + inFlightUserCoins;
       const lv = levelOf(clicks);
       const cur = clicksInLevel(clicks);
       const need = clicksToNextLevel(clicks);
@@ -3324,10 +3327,18 @@
       const statsRef = db.ref('users/' + uid + '/stats');
       const statsCb  = (snap) => {
         const next = snap.val() || { totalClicks: 0, coinBalance: 0 };
-        // If we had an in-flight delta and the server now reflects it,
-        // release inFlightUser so the bar doesn't double-count.
-        if (inFlightUser > 0 && (next.totalClicks || 0) >= (userStats.totalClicks || 0) + inFlightUser) {
-          inFlightUser = 0;
+        // Release positive clicks the same way as before.
+        if (inFlightUserClicks > 0 && (next.totalClicks || 0) >= (userStats.totalClicks || 0) + inFlightUserClicks) {
+          inFlightUserClicks = 0;
+        }
+        // Coins can go either direction (shop debits are negative deltas). Use a
+        // sign-aware progress check so a -100 debit is "released" by a -100 server delta.
+        if (inFlightUserCoins !== 0) {
+          const coinDelta = (next.coinBalance || 0) - (userStats.coinBalance || 0);
+          if (Math.sign(coinDelta) === Math.sign(inFlightUserCoins)
+              && Math.abs(coinDelta) >= Math.abs(inFlightUserCoins)) {
+            inFlightUserCoins = 0;
+          }
         }
         userStats = next;
         renderSenseiBar();
@@ -3692,9 +3703,9 @@
     // visibilitychange/pagehide (so a tab close attempts a final flush). The
     // localStorage backup recovers the in-flight batch if the tab crashes.
     //
-    // Optimistic UI: renderSenseiBar reads (userStats + pending.user) so the
-    // XP fill, level, and coin counter update instantly even though Firebase
-    // sees one write every 5s.
+    // Optimistic UI: renderSenseiBar reads (userStats + pending.userCoins/userClicks)
+    // so the XP fill, level, and coin counter update instantly even though
+    // Firebase sees one write every 5s.
     const FLUSH_DEBOUNCE_MS = 5000;
     const FLUSH_HEARTBEAT_MS = 5000;
     const PENDING_KEY = 'aobing-pending-clicks';
@@ -3703,7 +3714,8 @@
     // reads from renderSenseiBar() at script-load time — see the typeof guard
     // in that function. After this line executes, all reads see the object.
     var pending = {
-      user: 0,           // mouse-only: users/{uid}/stats/{totalClicks,coinBalance}
+      userCoins: 0,      // mouse + auto coin gain (can be negative — shop debits)
+      userClicks: 0,     // mouse + (auto if lbAuto) click gain (always >= 0, goes to totalClicks)
       global: 0,         // any source: clicks
       daily: 0,          // any source: daily/{today}/total
       byCountry: {},     // daily/{today}/countries/{cc}
@@ -3725,9 +3737,14 @@
         const raw = localStorage.getItem(PENDING_KEY);
         if (!raw) return;
         const saved = JSON.parse(raw);
-        // Merge: any unflushed counts from a previous tab session land here and
-        // get flushed on the first scheduled flush.
-        if (typeof saved.user === 'number')   pending.user += saved.user;
+        // One-time migration: pre-shop `user` field maps 1:1 into both new fields,
+        // since the old semantic was "+1 click = +1 totalClick = +1 coin".
+        if (typeof saved.user === 'number' && saved.user > 0) {
+          pending.userCoins  += saved.user;
+          pending.userClicks += saved.user;
+        }
+        if (typeof saved.userCoins  === 'number') pending.userCoins  += saved.userCoins;
+        if (typeof saved.userClicks === 'number') pending.userClicks += saved.userClicks;
         if (typeof saved.global === 'number') pending.global += saved.global;
         if (typeof saved.daily === 'number')  pending.daily += saved.daily;
         for (const k in saved.byCountry || {})    pending.byCountry[k]    = (pending.byCountry[k]    || 0) + saved.byCountry[k];
@@ -3745,16 +3762,19 @@
       flushDebounceTimer = setTimeout(flushPending, FLUSH_DEBOUNCE_MS);
       if (!flushHeartbeatTimer) {
         flushHeartbeatTimer = setInterval(() => {
-          if (pending.user > 0 || pending.global > 0) flushPending();
+          if (pending.userCoins !== 0 || pending.userClicks > 0 || pending.global > 0) flushPending();
         }, FLUSH_HEARTBEAT_MS);
       }
     }
 
-    // Called once per click (mouse or keyboard). Mouse adds to pending.user;
-    // both sources add to all global counters.
+    // Called once per click (mouse or keyboard). Mouse adds to pending.user{Coins,Clicks};
+    // both sources add to all global counters. Pre-shop: 1:1 — Task 8 wires multipliers in.
     function recordClick(source) {
       const { character: ch, variant: v } = getVariant(settings.skin);
-      if (source === 'mouse') pending.user += 1;
+      if (source === 'mouse') {
+        pending.userCoins  += 1;
+        pending.userClicks += 1;
+      }
       pending.global += 1;
       pending.daily += 1;
       if (visitorCountry) {
@@ -3778,12 +3798,14 @@
 
     async function flushPending() {
       if (isFlushing) return;
-      if (pending.user === 0 && pending.global === 0) return;
+      if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0) return;
       isFlushing = true;
       // Snapshot then zero out — any clicks during the in-flight write
       // accumulate into the next batch.
       const batch = {
-        user: pending.user, global: pending.global, daily: pending.daily,
+        userCoins:  pending.userCoins,
+        userClicks: pending.userClicks,
+        global: pending.global, daily: pending.daily,
         byCountry:    { ...pending.byCountry },
         bySkin:       { ...pending.bySkin },
         byCharacter:  { ...pending.byCharacter },
@@ -3791,7 +3813,7 @@
         bySource:     { ...pending.bySource },
         userBySource: { ...pending.userBySource },
       };
-      pending.user = 0; pending.global = 0; pending.daily = 0;
+      pending.userCoins = 0; pending.userClicks = 0; pending.global = 0; pending.daily = 0;
       pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
       pending.bySource = {}; pending.userBySource = {};
       savePending();
@@ -3799,37 +3821,46 @@
       // `inFlight` so the pills/sensei bar stay visually steady across the
       // flush boundary. inFlight clears when the respective listener confirms
       // the server includes our contribution.
-      const wasInFlightGlobal = inFlightGlobal;
-      const wasInFlightSkin   = inFlightSkin;
-      const wasInFlightUser   = inFlightUser;
-      const skinDeltaInBatch  = batch.allTimeSkin[currentSkinVariant] || 0;
-      inFlightGlobal += batch.global;
-      inFlightSkin   += skinDeltaInBatch;
-      inFlightUser   += batch.user;
-      // Update sensei (uses pending.user, now 0) and click pill (reads inFlight).
+      const wasInFlightGlobal     = inFlightGlobal;
+      const wasInFlightSkin       = inFlightSkin;
+      const wasInFlightUserCoins  = inFlightUserCoins;
+      const wasInFlightUserClicks = inFlightUserClicks;
+      const skinDeltaInBatch      = batch.allTimeSkin[currentSkinVariant] || 0;
+      inFlightGlobal     += batch.global;
+      inFlightSkin       += skinDeltaInBatch;
+      inFlightUserCoins  += batch.userCoins;
+      inFlightUserClicks += batch.userClicks;
+      // Update sensei (uses pending.userCoins/userClicks, now 0) and click pill.
       if (typeof renderSenseiBar    === 'function') renderSenseiBar();
       if (typeof renderClickCounter === 'function') renderClickCounter();
 
       const today = todayKey();
       const tasks = [];
 
-      // Per-user multi-path update. Fires if there are mouse clicks (which
-      // bump totalClicks/coinBalance) OR any per-source deltas (keyboard etc).
-      // bySource always updates alongside lastClickAt so the security rule
-      // can enforce the same 1s/15ms throttle on either path.
-      if (currentUser && (batch.user > 0 || Object.keys(batch.userBySource).length > 0)) {
+      // Per-user multi-path update. Fires for any user-stat change:
+      //   - Click activity (userClicks > 0 or userBySource entries) bumps totalClicks
+      //     and bySource, and advances lastClickAt for throttle bookkeeping.
+      //   - Pure coin changes (userCoins != 0, e.g. shop debits) update coinBalance
+      //     ONLY — they must not advance lastClickAt or the next real click would
+      //     trip the 1s throttle on totalClicks/bySource validation.
+      const hasClickActivity = batch.userClicks > 0 || Object.keys(batch.userBySource).length > 0;
+      const hasCoinChange    = batch.userCoins !== 0;
+      if (currentUser && (hasClickActivity || hasCoinChange)) {
         const uid = currentUser.uid;
         const update = {};
-        if (batch.user > 0) {
-          const incU = firebase.database.ServerValue.increment(batch.user);
-          update[`users/${uid}/stats/totalClicks`] = incU;
-          update[`users/${uid}/stats/coinBalance`] = incU;
+        if (batch.userClicks > 0) {
+          update[`users/${uid}/stats/totalClicks`] = firebase.database.ServerValue.increment(batch.userClicks);
+        }
+        if (batch.userCoins !== 0) {
+          update[`users/${uid}/stats/coinBalance`] = firebase.database.ServerValue.increment(batch.userCoins);
         }
         for (const src in batch.userBySource) {
           update[`users/${uid}/stats/bySource/${src}`] =
             firebase.database.ServerValue.increment(batch.userBySource[src]);
         }
-        update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
+        if (hasClickActivity) {
+          update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
+        }
         tasks.push(db.ref().update(update));
       }
       if (batch.global > 0) {
@@ -3866,7 +3897,8 @@
         // Restore the batch so it retries on the next flush. Some sub-writes
         // may have succeeded, so we may double-count under repeated failures —
         // that's preferable to losing the user's clicks entirely.
-        pending.user       += batch.user;
+        pending.userCoins  += batch.userCoins;
+        pending.userClicks += batch.userClicks;
         pending.global     += batch.global;
         pending.daily      += batch.daily;
         for (const k in batch.byCountry)    pending.byCountry[k]    = (pending.byCountry[k]    || 0) + batch.byCountry[k];
@@ -3877,9 +3909,10 @@
         for (const k in batch.userBySource) pending.userBySource[k] = (pending.userBySource[k] || 0) + batch.userBySource[k];
         // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
-        inFlightGlobal = wasInFlightGlobal;
-        inFlightSkin   = wasInFlightSkin;
-        inFlightUser   = wasInFlightUser;
+        inFlightGlobal     = wasInFlightGlobal;
+        inFlightSkin       = wasInFlightSkin;
+        inFlightUserCoins  = wasInFlightUserCoins;
+        inFlightUserClicks = wasInFlightUserClicks;
         savePending();
         if (typeof renderClickCounter === 'function') renderClickCounter();
         if (typeof renderSenseiBar    === 'function') renderSenseiBar();
@@ -3899,7 +3932,7 @@
     // If we recovered a pending batch from localStorage on startup, kick a
     // flush after auth resolves.
     authReady.then(() => {
-      if (pending.user > 0 || pending.global > 0) scheduleFlush();
+      if (pending.userCoins !== 0 || pending.userClicks > 0 || pending.global > 0) scheduleFlush();
     });
 
     // System time pill — updates every minute, aligned to the next minute boundary
