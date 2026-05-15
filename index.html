@@ -2261,6 +2261,12 @@
       },
     ];
 
+    // Per-variant bond system constants — declared up here so renderSkinList()
+    // calls fired at script-init don't hit a TDZ when reading them inside
+    // variantLevelOf(). Helper FUNCTIONS are hoisted; const/let are not.
+    const MAX_VARIANT_LEVEL = 50;
+    const BOND_COIN_BONUS_PER_LEVEL = 0.10;
+
     function getVariant(variantId) {
       for (const c of CHARACTERS) {
         const v = c.variants.find(v => v.id === variantId);
@@ -3227,8 +3233,16 @@
       }).join('');
     }
 
-    renderSkinList();
-    applyVariant(settings.skin);
+    // Defensive wrap: if either of these throws at init (e.g. a TDZ from a
+    // newly-added const referenced too early), log it and continue. Without
+    // this, the throw would abort the rest of this script tag and leave the
+    // page non-interactive.
+    try {
+      renderSkinList();
+      applyVariant(settings.skin);
+    } catch (initErr) {
+      console.error('[init] Skin list / variant init failed:', initErr);
+    }
 
     skinListEl.addEventListener('click', (e) => {
       const bondBtn = e.target.closest('.skin-variant-bond');
@@ -4027,10 +4041,9 @@
     // the visible level back to 0 (lifetime clicks are preserved, just shifted
     // out of view). Each bond grants a permanent +10% coin multiplier WHILE
     // using that variant — never touches the click field, so the leaderboard
-    // ranking is untouched.
-    const MAX_VARIANT_LEVEL = 50;
-    const BOND_COIN_BONUS_PER_LEVEL = 0.10;
-
+    // ranking is untouched. MAX_VARIANT_LEVEL and BOND_COIN_BONUS_PER_LEVEL
+    // are declared earlier in the file (right after CHARACTERS) so script-init
+    // render calls can read them without a TDZ.
     function variantClicks(variantId) {
       const allSkins     = (userStats && userStats.skins) || {};
       const pendingSkins = (typeof pending !== 'undefined' && pending && pending.allTimeSkin) ? pending.allTimeSkin : {};
