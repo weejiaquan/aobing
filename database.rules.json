@@ -144,7 +144,8 @@
           "country":     { ".validate": "newData.isString() && newData.val().length === 2" },
           "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500" },
           "totalClicks": { ".validate": "newData.isNumber()" },
-          "level":       { ".validate": "newData.isNumber()" }
+          "level":       { ".validate": "newData.isNumber()" },
+          "hidden":      { ".validate": "newData.isBoolean()" }
         }
       }
     },

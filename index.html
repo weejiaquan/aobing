@@ -1152,6 +1152,13 @@
       transition: background 0.15s ease;
     }
     .lb-admin-del:hover { background: rgba(208,74,74,0.25); }
+    .lb-row.hidden-row { opacity: 0.45; }
+    .lb-row.hidden-row .lb-admin-del {
+      background: rgba(120,120,120,0.15);
+      border-color: rgba(160,160,160,0.4);
+      color: #888;
+    }
+    .lb-row.hidden-row .lb-admin-del:hover { background: rgba(120,120,120,0.3); }
     .lb-admin-banner {
       background: rgba(208,74,74,0.10);
       border: 1px solid rgba(208,74,74,0.35);
@@ -2043,9 +2050,11 @@
           'shop.owned':'Owned',
           'shop.error.notEnough':'Not enough coins',
           'settings.admin_mode':'Admin mode',
-          'admin.banner':'Admin mode is ON. Use the × on each row to remove an entry.',
-          'admin.delete_row':'Remove from leaderboard',
-          'admin.confirm_delete':'Remove "{name}" from the leaderboard?',
+          'admin.banner':'Admin mode is ON. Use × to hide a row, ↺ to unhide. Hidden rows are dimmed.',
+          'admin.delete_row':'Hide from leaderboard',
+          'admin.confirm_delete':'Hide "{name}" from the leaderboard?',
+          'admin.hide_row':'Hide from leaderboard',
+          'admin.show_row':'Unhide row',
           'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol','tag.swimsuit':'Swimsuit',
           'character.aoba.name':'Aoba','character.mari.name':'Mari','character.miyu.name':'Miyu',
           'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
@@ -4110,7 +4119,9 @@
         // the leaderboard rule's `profile.exists()` check would block this.
         if (currentUser && !currentUser.isAnonymous && userProfile) {
           const lv = levelOf(userStats.totalClicks || 0);
-          db.ref('leaderboard/topClicks/' + uid).set({
+          // .update() (not .set) so the admin-set `hidden` flag survives
+          // the next click sync.
+          db.ref('leaderboard/topClicks/' + uid).update({
             name:        userProfile.displayName || I18N.t('sensei.trainer'),
             country:     userProfile.country || 'XX',
             photoURL:    userProfile.photoURL || '',
@@ -4213,19 +4224,20 @@
       senseiBar.click();
     });
 
-    // Admin delete: event delegation on the list since rows are re-rendered
+    // Admin hide-toggle: event delegation on the list since rows are re-rendered.
+    // The action is non-destructive — sets `hidden: true|false`. Hidden rows are
+    // filtered out of the public list but shown muted to admins for review.
     leaderboardList.addEventListener('click', async (e) => {
       const btn = e.target.closest('.lb-admin-del');
       if (!btn) return;
       e.stopPropagation();
       if (!isAdmin() || !settings.adminMode) return;
       const uid = btn.dataset.delUid;
-      const name = btn.dataset.delName || '(no name)';
-      if (!confirm(I18N.t('admin.confirm_delete', { name }))) return;
+      const nextHidden = btn.dataset.hidden !== 'true';  // toggle
       try {
-        await db.ref('leaderboard/topClicks/' + uid).remove();
+        await db.ref('leaderboard/topClicks/' + uid).update({ hidden: nextHidden });
       } catch (err) {
-        alert('Delete failed: ' + (err.message || err.code || 'unknown'));
+        alert('Hide toggle failed: ' + (err.message || err.code || 'unknown'));
       }
     });
 
@@ -4242,20 +4254,25 @@
         snap.forEach(child => { rows.push({ uid: child.key, ...child.val() }); });
         rows.sort((a, b) => (b.totalClicks || 0) - (a.totalClicks || 0));
 
+        // Non-admins never see hidden rows. Admins see them muted so they
+        // can unhide. Ranking renumbers 1..N for whatever the viewer sees.
+        const visibleRows = adminActive ? rows : rows.filter(r => r.hidden !== true);
+
         const adminBanner = adminActive
           ? `<div class="lb-admin-banner">${I18N.t('admin.banner')}</div>`
           : '';
 
-        leaderboardList.innerHTML = adminBanner + rows.map((r, i) => {
+        leaderboardList.innerHTML = adminBanner + visibleRows.map((r, i) => {
           const isMe = currentUser && r.uid === currentUser.uid;
           const flag = flagFromCountry(r.country);
+          const isHidden = r.hidden === true;
           const avatar = r.photoURL
             ? `<img class="lb-avatar" src="${r.photoURL}" alt="">`
             : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--ba-accent-strong);font-weight:800;">${escapeHtml((r.name || '?').slice(0,1))}</div>`;
           const adminCol = adminActive
-            ? `<button class="lb-admin-del" data-del-uid="${escapeHtml(r.uid)}" data-del-name="${escapeHtml(r.name || '')}" title="${I18N.t('admin.delete_row')}">×</button>`
+            ? `<button class="lb-admin-del" data-del-uid="${escapeHtml(r.uid)}" data-del-name="${escapeHtml(r.name || '')}" data-hidden="${isHidden}" title="${I18N.t(isHidden ? 'admin.show_row' : 'admin.hide_row')}">${isHidden ? '↺' : '×'}</button>`
             : '';
-          return `<div class="lb-row${isMe ? ' me' : ''}${adminActive ? ' admin' : ''}">
+          return `<div class="lb-row${isMe ? ' me' : ''}${adminActive ? ' admin' : ''}${isHidden ? ' hidden-row' : ''}">
             <span class="lb-rank">#${i + 1}</span>
             ${avatar}
             <span class="lb-flag">${flag}</span>
@@ -4267,9 +4284,15 @@
         }).join('');
 
         if (currentUser && !currentUser.isAnonymous) {
-          const myRow = rows.findIndex(r => r.uid === currentUser.uid);
+          // If the viewer's own row is admin-hidden, they don't get a rank
+          // (matches what other players see).
+          const meEntry = rows.find(r => r.uid === currentUser.uid);
+          const meIsHidden = !!(meEntry && meEntry.hidden === true);
+          const myRow = visibleRows.findIndex(r => r.uid === currentUser.uid);
           if (myRow >= 0) {
-            leaderboardYourRank.textContent = I18N.t('leaderboard.your_rank', { rank: myRow + 1, total: rows.length });
+            leaderboardYourRank.textContent = I18N.t('leaderboard.your_rank', { rank: myRow + 1, total: visibleRows.length });
+          } else if (meIsHidden) {
+            leaderboardYourRank.textContent = '';
           } else if ((userStats.totalClicks || 0) > 0) {
             countMyRank().then(rank => {
               leaderboardYourRank.textContent = I18N.t('leaderboard.your_rank_outside', { rank });
