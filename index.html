@@ -904,6 +904,14 @@
       color: var(--ba-text);
     }
 
+    .skin-group-level {
+      font-size: 0.66rem;
+      font-weight: 800;
+      color: var(--ba-accent-strong);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
     .skin-group-meta {
       font-size: 0.66rem;
       color: var(--ba-text-faint);
@@ -1063,6 +1071,56 @@
       0%, 100% { transform: translateX(0); }
       25% { transform: translateX(-4px); }
       75% { transform: translateX(4px); }
+    }
+    .shop-level-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #4c8bf5, #2e6fd6);
+      color: #fff;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin-left: 6px;
+      vertical-align: 1px;
+      box-shadow: 0 1px 2px rgba(46, 111, 214, 0.35);
+    }
+    .shop-level-badge.shop-level-max {
+      background: linear-gradient(135deg, #f5b342, #e08a1f);
+      box-shadow: 0 1px 2px rgba(224, 138, 31, 0.45);
+    }
+    .shop-level-badge.shop-level-owned {
+      background: linear-gradient(135deg, #6cba6c, #3f9d3f);
+      box-shadow: 0 1px 2px rgba(63, 157, 63, 0.45);
+    }
+    .shop-item.purchased {
+      animation: shop-pop 0.55s cubic-bezier(.34, 1.56, .64, 1);
+      background: rgba(120, 200, 120, 0.22);
+      border-color: #6cba6c;
+      box-shadow: 0 0 18px rgba(120, 200, 120, 0.55);
+    }
+    @keyframes shop-pop {
+      0%   { transform: scale(1); }
+      22%  { transform: scale(1.06); }
+      55%  { transform: scale(0.99); }
+      100% { transform: scale(1); }
+    }
+    .shop-buy-pop {
+      position: fixed;
+      pointer-events: none;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #2d8a2d;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 6px rgba(120, 200, 120, 0.6);
+      z-index: 9999;
+      transform: translate(-50%, 0);
+      animation: shop-buy-rise 950ms ease-out forwards;
+      white-space: nowrap;
+    }
+    @keyframes shop-buy-rise {
+      0%   { transform: translate(-50%, 0)    scale(0.85); opacity: 0; }
+      14%  { transform: translate(-50%, -6px) scale(1.15); opacity: 1; }
+      100% { transform: translate(-50%, -52px) scale(1);    opacity: 0; }
     }
 
     /* --- Stats Button --- */
@@ -2855,10 +2913,14 @@
             </div>
           </div>`
         ).join('');
+        const charXp   = characterClicks(c.id);
+        const charLv   = levelOf(charXp);
+        const lvTitle  = `Lv.${charLv} · ${clicksInLevel(charXp).toLocaleString()} / ${clicksToNextLevel(charXp).toLocaleString()} XP`;
         return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
           <button class="skin-group-header" type="button">
             <span class="skin-group-caret">${isOpen ? '▼' : '▶'}</span>
             <span class="skin-group-name">${charName(c)}</span>
+            <span class="skin-group-level" title="${lvTitle}">Lv.${charLv}</span>
             <span class="skin-group-meta">${meta}</span>
           </button>
           <div class="skin-group-body"${isOpen ? '' : ' hidden'}>${variantsHtml}</div>
@@ -3654,6 +3716,21 @@
     function clicksInLevel(c)            { return c - clicksForLevel(levelOf(c)); }
     function clicksToNextLevel(c)        { return clicksForLevel(levelOf(c) + 1) - clicksForLevel(levelOf(c)); }
 
+    // Per-character clicks = sum of that character's variants' per-user counts
+    // (users/$uid/stats/skins/$variantId) plus any in-flight pending writes.
+    // Per-character level uses the same `levelOf` curve as the main sensei bar.
+    function characterClicks(characterId) {
+      const ch = CHARACTERS.find(c => c.id === characterId);
+      if (!ch) return 0;
+      const allSkins     = (userStats && userStats.skins) || {};
+      const pendingSkins = (typeof pending !== 'undefined' && pending && pending.allTimeSkin) ? pending.allTimeSkin : {};
+      let sum = 0;
+      for (const v of ch.variants) {
+        sum += (allSkins[v.id] || 0) + (pendingSkins[v.id] || 0);
+      }
+      return sum;
+    }
+
     let senseiAvatarEl = document.getElementById('sensei-avatar');
     const senseiNameEl   = document.getElementById('sensei-name');
     const senseiFlagEl   = document.getElementById('sensei-flag');
@@ -3670,10 +3747,10 @@
     let userShopUnsub = null;
 
     // --- Shop helpers -----------------------------------------------------------
-    const SHOP_MAX_LEVEL = 20;
-    const SHOP_BUFF_COST = 500;
+    const SHOP_MAX_LEVEL = 30;
+    const SHOP_BUFF_COST = 200;
     const SHOP_BUFF_DURATION_MS = 60_000;
-    const SHOP_LBAUTO_COST = 50_000;
+    const SHOP_LBAUTO_COST = 10_000;
 
     function shopFieldFor(which) {
       if (which === 'coinMul')    return 'coinMulLevel';
@@ -3683,8 +3760,8 @@
     }
 
     function shopCostFor(which, level) {
-      if (which === 'coinMul' || which === 'clickMul') return Math.round(100 * Math.pow(2, level));
-      if (which === 'autoLevel')                       return Math.round(200 * Math.pow(1.6, level));
+      if (which === 'coinMul' || which === 'clickMul') return Math.round(50 * Math.pow(1.5, level));
+      if (which === 'autoLevel')                       return Math.round(75 * Math.pow(1.4, level));
       return Infinity;
     }
 
@@ -3746,13 +3823,16 @@
         const curEffect  = shopEffectFor(it.which, it.level);
         const nextEffect = shopEffectFor(it.which, it.level + 1);
         const effectFmt = (v) => it.which === 'autoLevel' ? `${v.toFixed(1)} c/s` : `×${v}`;
-        const levelText = atMax ? I18N.t('shop.atMax') : `Lv ${it.level} → Lv ${it.level + 1}`;
+        const badge = atMax
+          ? `<span class="shop-level-badge shop-level-max">${escapeHtml(I18N.t('shop.atMax'))}</span>`
+          : `<span class="shop-level-badge">Lv ${it.level}</span>`;
+        const stepText  = atMax ? '' : `→ Lv ${it.level + 1}`;
         const costText  = atMax ? '' : `💰 ${shopFormatNum(cost)}`;
         const subText   = atMax ? effectFmt(curEffect) : `${effectFmt(curEffect)} → ${effectFmt(nextEffect)}`;
         el.innerHTML = `
           <div class="shop-item-row">
-            <span>${escapeHtml(it.name)}</span>
-            <span>${levelText}</span>
+            <span>${escapeHtml(it.name)} ${badge}</span>
+            <span>${stepText}</span>
             <span class="shop-item-cost">${costText}</span>
           </div>
           <div class="shop-item-sub">${subText}</div>
@@ -3766,12 +3846,14 @@
         if (el) {
           const owned = !!s.leaderboardAutoUnlocked;
           const cost  = SHOP_LBAUTO_COST;
-          const levelText = owned ? I18N.t('shop.owned') : '';
+          const badge = owned
+            ? ` <span class="shop-level-badge shop-level-owned">${escapeHtml(I18N.t('shop.owned'))}</span>`
+            : '';
           const costText  = owned ? '' : `💰 ${shopFormatNum(cost)}`;
           el.innerHTML = `
             <div class="shop-item-row">
-              <span>${escapeHtml(I18N.t('shop.item.leaderboardAuto.name'))}</span>
-              <span>${levelText}</span>
+              <span>${escapeHtml(I18N.t('shop.item.leaderboardAuto.name'))}${badge}</span>
+              <span></span>
               <span class="shop-item-cost">${costText}</span>
             </div>
             <div class="shop-item-sub">${escapeHtml(I18N.t('shop.item.leaderboardAuto.desc'))}</div>
@@ -3812,6 +3894,26 @@
       setTimeout(() => itemEl.classList.remove('flash-error'), 500);
     }
 
+    function shopPlayPurchaseFX(itemEl, label) {
+      if (!itemEl) return;
+      itemEl.classList.remove('purchased');
+      // Force reflow so re-adding the class restarts the animation from frame 0.
+      void itemEl.offsetHeight;
+      itemEl.classList.add('purchased');
+      setTimeout(() => itemEl.classList.remove('purchased'), 600);
+
+      if (label) {
+        const rect = itemEl.getBoundingClientRect();
+        const pop = document.createElement('div');
+        pop.className = 'shop-buy-pop';
+        pop.textContent = label;
+        pop.style.left = (rect.right - 40) + 'px';
+        pop.style.top  = (rect.top  + 10) + 'px';
+        document.body.appendChild(pop);
+        setTimeout(() => pop.remove(), 1000);
+      }
+    }
+
     async function buyLeveled(which, itemEl) {
       if (!currentUser) return;
       const field = shopFieldFor(which);
@@ -3827,6 +3929,7 @@
       scheduleFlush();
       renderSenseiBar();
       renderShopPanel();
+      shopPlayPurchaseFX(itemEl, `Lv ${level + 1}!`);
 
       try {
         await db.ref(`users/${currentUser.uid}/shop/${field}`).set(level + 1);
@@ -3853,6 +3956,7 @@
       scheduleFlush();
       renderSenseiBar();
       renderShopPanel();
+      shopPlayPurchaseFX(itemEl, '✓ Unlocked!');
 
       try {
         await db.ref(`users/${currentUser.uid}/shop/leaderboardAutoUnlocked`).set(true);
@@ -3877,6 +3981,7 @@
       scheduleFlush();
       renderSenseiBar();
       renderShopPanel();
+      shopPlayPurchaseFX(itemEl, '+60s');
 
       try {
         const buffRef = db.ref(`users/${currentUser.uid}/shop/buffs/${kind}/expiresAt`);
@@ -4140,6 +4245,7 @@
         }
         userStats = next;
         renderSenseiBar();
+        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
         if (typeof renderShopPanel === 'function') renderShopPanel();
         // Mirror to leaderboard if linked — keeps the board row in sync with
         // each totalClicks bump. Anonymous users never have a profile node so
@@ -4680,9 +4786,24 @@
       optimisticRenderRequested = true;
       requestAnimationFrame(() => {
         optimisticRenderRequested = false;
-        if (typeof renderSenseiBar    === 'function') renderSenseiBar();
-        if (typeof renderClickCounter === 'function') renderClickCounter();
+        if (typeof renderSenseiBar       === 'function') renderSenseiBar();
+        if (typeof renderClickCounter    === 'function') renderClickCounter();
+        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
       });
+    }
+
+    // In-place level-badge refresh — avoids rewriting the skin list innerHTML
+    // (which would lose any user-toggled open/closed group state).
+    function updateCharacterLevels() {
+      if (!skinListEl) return;
+      for (const c of CHARACTERS) {
+        const el = skinListEl.querySelector(`.skin-group[data-character="${c.id}"] .skin-group-level`);
+        if (!el) continue;
+        const xp = characterClicks(c.id);
+        const lv = levelOf(xp);
+        el.textContent = 'Lv.' + lv;
+        el.title = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
+      }
     }
 
     async function flushPending() {
@@ -4746,6 +4867,12 @@
         for (const src in batch.userBySource) {
           update[`users/${uid}/stats/bySource/${src}`] =
             firebase.database.ServerValue.increment(batch.userBySource[src]);
+        }
+        // Per-user per-variant click count. Drives per-character XP, summed
+        // across the character's variants at render time.
+        for (const sk in batch.allTimeSkin) {
+          update[`users/${uid}/stats/skins/${sk}`] =
+            firebase.database.ServerValue.increment(batch.allTimeSkin[sk]);
         }
         if (hasClickActivity) {
           update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
