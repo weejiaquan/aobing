@@ -4118,15 +4118,15 @@
         // each totalClicks bump. Anonymous users never have a profile node so
         // the leaderboard rule's `profile.exists()` check would block this.
         if (currentUser && !currentUser.isAnonymous && userProfile) {
-          const lv = levelOf(userStats.totalClicks || 0);
           // .update() (not .set) so the admin-set `hidden` flag survives
-          // the next click sync.
+          // the next click sync. `level` is intentionally not written —
+          // it's computed from totalClicks at render time so a spoofer
+          // can't lie about it.
           db.ref('leaderboard/topClicks/' + uid).update({
             name:        userProfile.displayName || I18N.t('sensei.trainer'),
             country:     userProfile.country || 'XX',
             photoURL:    userProfile.photoURL || '',
             totalClicks: userStats.totalClicks || 0,
-            level:       lv,
           }).catch(() => {});
         }
       };
@@ -4277,7 +4277,7 @@
             ${avatar}
             <span class="lb-flag">${flag}</span>
             <span class="lb-name">${escapeHtml(r.name || I18N.t('sensei.trainer'))}</span>
-            <span class="lb-level">Lv.${r.level || 0}</span>
+            <span class="lb-level">Lv.${levelOf(r.totalClicks || 0)}</span>
             <span class="lb-clicks">${(r.totalClicks || 0).toLocaleString()}</span>
             ${adminCol}
           </div>`;
@@ -4489,7 +4489,6 @@
         country:     profile.country,
         photoURL:    profile.photoURL,
         totalClicks: clicks,
-        level:       levelOf(clicks),
       }).catch(() => {});
     }
 
