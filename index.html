@@ -455,7 +455,7 @@
     #sensei-bar {
       position: fixed;
       left: 16px;
-      bottom: 80px;
+      bottom: 28px;
       width: 240px;
       padding: 8px 12px 10px;
       background: var(--ba-card-bg);
@@ -534,21 +534,11 @@
     .sensei-coins { color: var(--ba-accent-strong); font-weight: 700; }
     .sensei-cta { color: var(--ba-accent-strong); font-weight: 700; }
 
-    /* --- Skin bar (BA-style pill stacked under the sensei bar) --- */
-    #skin-bar {
-      position: fixed;
-      left: 16px;
-      bottom: 28px;
-      width: 240px;
-      padding: 6px 12px 8px;
-      background: var(--ba-card-bg);
-      border: var(--ba-card-border);
-      border-radius: 14px;
-      box-shadow: var(--ba-card-shadow);
-      color: var(--ba-text);
-      font-size: 0.74rem;
-      z-index: 50;
-      user-select: none;
+    /* --- Skin section inside the sensei card --- */
+    .sensei-divider {
+      height: 1px;
+      margin: 8px 0 6px;
+      background: rgba(60,90,130,0.18);
     }
     .skin-bar-row1 { display: flex; align-items: center; gap: 8px; }
     .skin-bar-thumb {
@@ -591,9 +581,8 @@
     }
 
     @media (max-width: 480px) {
-      #sensei-bar { left: 8px; bottom: 68px; width: 200px; padding: 6px 10px 8px; }
+      #sensei-bar { left: 8px; bottom: 18px; width: 200px; padding: 6px 10px 8px; }
       .sensei-avatar { width: 22px; height: 22px; font-size: 0.7rem; }
-      #skin-bar { left: 8px; bottom: 18px; width: 200px; padding: 5px 10px 6px; font-size: 0.7rem; }
     }
 
     /* --- Panel Buttons (BA white pill-square) --- */
@@ -1878,10 +1867,7 @@
       <span><span id="sensei-xp-text">0 / 20</span></span>
       <span><span class="sensei-coins">💰 <span id="sensei-coins">0</span></span></span>
     </div>
-  </div>
-
-  <!-- Skin bar (current variant name + per-variant level + XP) -->
-  <div id="skin-bar" role="status" aria-label="Current skin">
+    <div class="sensei-divider"></div>
     <div class="skin-bar-row1">
       <img class="skin-bar-thumb" id="skin-bar-thumb" alt="">
       <span class="skin-bar-name" id="skin-bar-name">—</span>
