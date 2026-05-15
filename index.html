@@ -917,14 +917,6 @@
       color: var(--ba-text);
     }
 
-    .skin-group-level {
-      font-size: 0.66rem;
-      font-weight: 800;
-      color: var(--ba-accent-strong);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.02em;
-    }
-
     .skin-group-meta {
       font-size: 0.66rem;
       color: var(--ba-text-faint);
@@ -983,10 +975,25 @@
       color: var(--ba-text);
     }
 
+    .skin-tag-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     .skin-tag {
       font-size: 0.66rem;
       color: var(--ba-text-faint);
       font-weight: 600;
+    }
+
+    .skin-variant-level {
+      font-size: 0.66rem;
+      font-weight: 800;
+      color: var(--ba-accent-strong);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
     }
 
     /* --- Shop Panel (BA white card, anchored top-right) --- */
@@ -2995,23 +3002,25 @@
         const meta = activeVariant
           ? variantTag(activeVariant)
           : I18N.t(n === 1 ? 'skins.variant' : 'skins.variants', { n });
-        const variantsHtml = c.variants.map(v =>
-          `<div class="skin-item${v.id === settings.skin ? ' active' : ''}" data-variant="${v.id}">
+        const variantsHtml = c.variants.map(v => {
+          const xp     = variantClicks(v.id);
+          const lv     = levelOf(xp);
+          const lvTitle = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
+          return `<div class="skin-item${v.id === settings.skin ? ' active' : ''}" data-variant="${v.id}">
             <img class="skin-thumb" src="${v.idle}" alt="${variantName(v)}">
             <div class="skin-info">
               <div class="skin-name">${variantName(v)}</div>
-              <div class="skin-tag">${variantTag(v)}</div>
+              <div class="skin-tag-row">
+                <span class="skin-tag">${variantTag(v)}</span>
+                <span class="skin-variant-level" title="${lvTitle}">Lv.${lv}</span>
+              </div>
             </div>
-          </div>`
-        ).join('');
-        const charXp   = characterClicks(c.id);
-        const charLv   = levelOf(charXp);
-        const lvTitle  = `Lv.${charLv} · ${clicksInLevel(charXp).toLocaleString()} / ${clicksToNextLevel(charXp).toLocaleString()} XP`;
+          </div>`;
+        }).join('');
         return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
           <button class="skin-group-header" type="button">
             <span class="skin-group-caret">${isOpen ? '▼' : '▶'}</span>
             <span class="skin-group-name">${charName(c)}</span>
-            <span class="skin-group-level" title="${lvTitle}">Lv.${charLv}</span>
             <span class="skin-group-meta">${meta}</span>
           </button>
           <div class="skin-group-body"${isOpen ? '' : ' hidden'}>${variantsHtml}</div>
@@ -3807,19 +3816,13 @@
     function clicksInLevel(c)            { return c - clicksForLevel(levelOf(c)); }
     function clicksToNextLevel(c)        { return clicksForLevel(levelOf(c) + 1) - clicksForLevel(levelOf(c)); }
 
-    // Per-character clicks = sum of that character's variants' per-user counts
-    // (users/$uid/stats/skins/$variantId) plus any in-flight pending writes.
-    // Per-character level uses the same `levelOf` curve as the main sensei bar.
-    function characterClicks(characterId) {
-      const ch = CHARACTERS.find(c => c.id === characterId);
-      if (!ch) return 0;
+    // Per-variant clicks for individual skin levels — reads the per-user
+    // per-variant count (users/$uid/stats/skins/$variantId) plus any in-flight
+    // pending writes. Each skin tracks its own XP / level independently.
+    function variantClicks(variantId) {
       const allSkins     = (userStats && userStats.skins) || {};
       const pendingSkins = (typeof pending !== 'undefined' && pending && pending.allTimeSkin) ? pending.allTimeSkin : {};
-      let sum = 0;
-      for (const v of ch.variants) {
-        sum += (allSkins[v.id] || 0) + (pendingSkins[v.id] || 0);
-      }
-      return sum;
+      return (allSkins[variantId] || 0) + (pendingSkins[variantId] || 0);
     }
 
     let senseiAvatarEl = document.getElementById('sensei-avatar');
@@ -3831,7 +3834,7 @@
     const senseiCoinsEl  = document.getElementById('sensei-coins');
     const senseiPrestigeEl = document.getElementById('sensei-prestige');
 
-    // `var` (not let) so hoisted reads from characterClicks/shopMul/renderCountryArea
+    // `var` (not let) so hoisted reads from variantClicks/shopMul/renderCountryArea
     // before this line are `undefined` rather than TDZ throws. Initial-state
     // guards (`userStats && userStats.skins`, etc.) already handle the undefined
     // case, so reads return safe empty values during the brief startup window
@@ -4498,7 +4501,7 @@
         }
         userStats = next;
         renderSenseiBar();
-        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
+        if (typeof updateVariantLevels === 'function') updateVariantLevels();
         if (typeof renderShopPanel === 'function') renderShopPanel();
         // Mirror to leaderboard if linked — keeps the board row in sync with
         // each totalClicks bump. Anonymous users never have a profile node so
@@ -5116,21 +5119,23 @@
         optimisticRenderRequested = false;
         if (typeof renderSenseiBar       === 'function') renderSenseiBar();
         if (typeof renderClickCounter    === 'function') renderClickCounter();
-        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
+        if (typeof updateVariantLevels === 'function') updateVariantLevels();
       });
     }
 
     // In-place level-badge refresh — avoids rewriting the skin list innerHTML
     // (which would lose any user-toggled open/closed group state).
-    function updateCharacterLevels() {
+    function updateVariantLevels() {
       if (!skinListEl) return;
       for (const c of CHARACTERS) {
-        const el = skinListEl.querySelector(`.skin-group[data-character="${c.id}"] .skin-group-level`);
-        if (!el) continue;
-        const xp = characterClicks(c.id);
-        const lv = levelOf(xp);
-        el.textContent = 'Lv.' + lv;
-        el.title = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
+        for (const v of c.variants) {
+          const el = skinListEl.querySelector(`.skin-item[data-variant="${v.id}"] .skin-variant-level`);
+          if (!el) continue;
+          const xp = variantClicks(v.id);
+          const lv = levelOf(xp);
+          el.textContent = 'Lv.' + lv;
+          el.title = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
+        }
       }
     }
 
@@ -5220,7 +5225,7 @@
         inFlightUserClicks = 0;
         saveLocalUserData();
         if (typeof renderSenseiBar       === 'function') renderSenseiBar();
-        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
+        if (typeof updateVariantLevels === 'function') updateVariantLevels();
       }
       if (batch.global > 0) {
         tasks.push(clicksRef.transaction((c) => (c || 0) + batch.global));
