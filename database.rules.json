@@ -3,27 +3,27 @@
     "clicks": {
       ".read": true,
       ".write": true,
-      ".validate": "newData.isNumber()"
+      ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
     },
     "clicks_by_source": {
       ".read": true,
       "$source": {
         ".write": true,
-        ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto')"
+        ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
       }
     },
     "skins": {
       ".read": true,
       "$variantId": {
         ".write": true,
-        ".validate": "newData.isNumber() && $variantId.length <= 20"
+        ".validate": "newData.isNumber() && $variantId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
       }
     },
     "combo": {
       ".read": true,
       "allTime": {
         ".write": true,
-        ".validate": "newData.isNumber()"
+        ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0)"
       }
     },
     "daily": {
@@ -31,29 +31,29 @@
       "$date": {
         "total": {
           ".write": true,
-          ".validate": "newData.isNumber()"
+          ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
         },
         "countries": {
           "$country": {
             ".write": true,
-            ".validate": "newData.isNumber() && $country.length == 2"
+            ".validate": "newData.isNumber() && $country.length == 2 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
           }
         },
         "skins": {
           "$skinId": {
             ".write": true,
-            ".validate": "newData.isNumber() && $skinId.length <= 20"
+            ".validate": "newData.isNumber() && $skinId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
           }
         },
         "characters": {
           "$characterId": {
             ".write": true,
-            ".validate": "newData.isNumber() && $characterId.length <= 20"
+            ".validate": "newData.isNumber() && $characterId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
           }
         },
         "maxCombo": {
           ".write": true,
-          ".validate": "newData.isNumber()"
+          ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0)"
         },
         "visitors": {
           "$visitorId": {
@@ -64,19 +64,19 @@
         "sources": {
           "$source": {
             ".write": true,
-            ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto')"
+            ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
           }
         }
       }
     },
     "kei": {
       ".read": true,
-      "completions":          { ".write": true, ".validate": "newData.isNumber()" },
-      "totalHeadpatSeconds":  { ".write": true, ".validate": "newData.isNumber()" },
-      "totalVoicelines":      { ".write": true, ".validate": "newData.isNumber()" },
-      "totalInteractions":    { ".write": true, ".validate": "newData.isNumber()" },
-      "totalPinches":         { ".write": true, ".validate": "newData.isNumber()" },
-      "totalEyeTracks":       { ".write": true, ".validate": "newData.isNumber()" }
+      "completions":          { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
+      "totalHeadpatSeconds":  { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
+      "totalVoicelines":      { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
+      "totalInteractions":    { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
+      "totalPinches":         { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
+      "totalEyeTracks":       { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" }
     },
     "users": {
       "$uid": {
