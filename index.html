@@ -1042,6 +1042,46 @@
       letter-spacing: 0.02em;
     }
 
+    /* Bond — heart button on a maxed variant, heart count badge after bonding. */
+    .skin-item.bond-ready { background: linear-gradient(135deg, rgba(255,94,126,0.10), rgba(255,180,200,0.04)); }
+    .skin-item.bond-ready .skin-variant-level { color: #ff5e7e; }
+    .skin-variant-bond {
+      position: absolute;
+      top: 4px; right: 6px;
+      background: linear-gradient(135deg, #ff7da0, #e63a66);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 4px 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230,58,102,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      animation: bond-pulse 1.6s ease-in-out infinite;
+    }
+    .skin-variant-bond:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(230,58,102,0.55);
+    }
+    @keyframes bond-pulse {
+      0%, 100% { box-shadow: 0 2px 6px rgba(230,58,102,0.35); }
+      50%      { box-shadow: 0 2px 14px rgba(230,58,102,0.7); }
+    }
+    .skin-variant-bondcount {
+      position: absolute;
+      top: 4px; right: 6px;
+      font-size: 0.66rem;
+      font-weight: 800;
+      color: #ff5e7e;
+      background: rgba(255,94,126,0.12);
+      border: 1px solid rgba(255,94,126,0.35);
+      padding: 1px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .skin-item { position: relative; }
+
     /* --- Shop Panel (BA white card, anchored top-right) --- */
     #shop-panel {
       position: fixed;
@@ -2290,6 +2330,9 @@
           'shop.prestige.coinsLabel':'coins',
           'shop.prestige.permanent':'(permanent)',
           'shop.prestige.confirm':'Reset all shop levels and coin balance to gain ★{n}? Your lifetime clicks and prestige stars are preserved.',
+          'bond.button':'Bond — reset level for +10% coins permanent',
+          'bond.confirm':'Bond with {name}? Resets the visible level back to 0 and adds ♥{n}. Permanent +10% coins when using this skin.',
+          'bond.count':'♥{n} bond level',
           'settings.admin_mode':'Admin mode',
           'admin.banner':'Admin mode is ON. Use × to hide a row, ↺ to unhide. Hidden rows are dimmed.',
           'admin.delete_row':'Hide from leaderboard',
@@ -3060,13 +3103,13 @@
     function renderSkinBar() {
       if (!skinBarNameEl) return;
       const { variant } = getVariant(settings.skin);
-      const xp   = variantClicks(variant.id);
-      const lv   = levelOf(xp);
-      const cur  = clicksInLevel(xp);
-      const need = clicksToNextLevel(xp);
+      const lv    = variantLevelOf(variant.id);
+      const cur   = variantXpInLevel(variant.id);
+      const need  = variantXpToNext(variant.id);
+      const bonds = variantBonds(variant.id);
       if (skinBarThumbEl && skinBarThumbEl.getAttribute('src') !== variant.idle) skinBarThumbEl.src = variant.idle;
       skinBarNameEl.textContent  = variantName(variant);
-      skinBarLevelEl.textContent = 'Lv.' + lv;
+      skinBarLevelEl.textContent = 'Lv.' + lv + (bonds > 0 ? '  ♥' + bonds : '');
       skinBarXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
       skinBarXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
     }
@@ -3146,18 +3189,31 @@
           ? variantTag(activeVariant)
           : I18N.t(n === 1 ? 'skins.variant' : 'skins.variants', { n });
         const variantsHtml = c.variants.map(v => {
-          const xp     = variantClicks(v.id);
-          const lv     = levelOf(xp);
-          const lvTitle = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
-          return `<div class="skin-item${v.id === settings.skin ? ' active' : ''}" data-variant="${v.id}">
+          const lv      = variantLevelOf(v.id);
+          const cur     = variantXpInLevel(v.id);
+          const need    = variantXpToNext(v.id);
+          const bonds   = variantBonds(v.id);
+          const canBond = variantCanBond(v.id);
+          const lvTitle = canBond
+            ? `Lv.${MAX_VARIANT_LEVEL} MAX · ready to bond`
+            : `Lv.${lv} · ${cur.toLocaleString()} / ${need.toLocaleString()} XP`;
+          const bondAttrs = canBond ? ` data-can-bond="true"` : '';
+          const bondBtn   = canBond
+            ? `<button class="skin-variant-bond" type="button" data-bond-variant="${v.id}" title="${I18N.t('bond.button')}" aria-label="${I18N.t('bond.button')}">♥</button>`
+            : '';
+          const bondBadge = (bonds > 0 && !canBond)
+            ? `<span class="skin-variant-bondcount" title="${I18N.t('bond.count', { n: bonds })}">♥${bonds}</span>`
+            : '';
+          return `<div class="skin-item${v.id === settings.skin ? ' active' : ''}${canBond ? ' bond-ready' : ''}" data-variant="${v.id}"${bondAttrs}>
             <img class="skin-thumb" src="${v.idle}" alt="${variantName(v)}">
             <div class="skin-info">
               <div class="skin-name">${variantName(v)}</div>
               <div class="skin-tag-row">
                 <span class="skin-tag">${variantTag(v)}</span>
-                <span class="skin-variant-level" title="${lvTitle}">Lv.${lv}</span>
+                <span class="skin-variant-level" title="${lvTitle}">Lv.${lv}${canBond ? ' MAX' : ''}</span>
               </div>
             </div>
+            ${bondBadge}${bondBtn}
           </div>`;
         }).join('');
         return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
@@ -3175,6 +3231,12 @@
     applyVariant(settings.skin);
 
     skinListEl.addEventListener('click', (e) => {
+      const bondBtn = e.target.closest('.skin-variant-bond');
+      if (bondBtn) {
+        e.stopPropagation();
+        doBond(bondBtn.dataset.bondVariant);
+        return;
+      }
       const header = e.target.closest('.skin-group-header');
       if (header) {
         const group = header.parentElement;
@@ -3959,13 +4021,82 @@
     function clicksInLevel(c)            { return c - clicksForLevel(levelOf(c)); }
     function clicksToNextLevel(c)        { return clicksForLevel(levelOf(c) + 1) - clicksForLevel(levelOf(c)); }
 
-    // Per-variant clicks for individual skin levels — reads the per-user
-    // per-variant count (users/$uid/stats/skins/$variantId) plus any in-flight
-    // pending writes. Each skin tracks its own XP / level independently.
+    // --- Per-variant bonding ----------------------------------------------------
+    // When a variant's level hits MAX_VARIANT_LEVEL the user can "bond" — a
+    // per-character prestige that bumps stats/bonds/$variantId by 1 and resets
+    // the visible level back to 0 (lifetime clicks are preserved, just shifted
+    // out of view). Each bond grants a permanent +10% coin multiplier WHILE
+    // using that variant — never touches the click field, so the leaderboard
+    // ranking is untouched.
+    const MAX_VARIANT_LEVEL = 50;
+    const BOND_COIN_BONUS_PER_LEVEL = 0.10;
+
     function variantClicks(variantId) {
       const allSkins     = (userStats && userStats.skins) || {};
       const pendingSkins = (typeof pending !== 'undefined' && pending && pending.allTimeSkin) ? pending.allTimeSkin : {};
       return (allSkins[variantId] || 0) + (pendingSkins[variantId] || 0);
+    }
+
+    function variantBonds(variantId) {
+      const allBonds = (userStats && userStats.bonds) || {};
+      return allBonds[variantId] || 0;
+    }
+
+    function variantEffectiveClicks(variantId) {
+      // After N bonds, the level meter starts over — effective = lifetime − N × clicks-for-MAX.
+      return Math.max(0, variantClicks(variantId) - variantBonds(variantId) * clicksForLevel(MAX_VARIANT_LEVEL));
+    }
+
+    function variantLevelOf(variantId) {
+      return Math.min(MAX_VARIANT_LEVEL, levelOf(variantEffectiveClicks(variantId)));
+    }
+
+    function variantCanBond(variantId) {
+      return variantEffectiveClicks(variantId) >= clicksForLevel(MAX_VARIANT_LEVEL);
+    }
+
+    function variantXpInLevel(variantId) {
+      const eff = variantEffectiveClicks(variantId);
+      const lv  = variantLevelOf(variantId);
+      return Math.max(0, eff - clicksForLevel(lv));
+    }
+
+    function variantXpToNext(variantId) {
+      const lv = variantLevelOf(variantId);
+      if (lv >= MAX_VARIANT_LEVEL) return clicksForLevel(MAX_VARIANT_LEVEL) - clicksForLevel(MAX_VARIANT_LEVEL - 1);
+      return clicksForLevel(lv + 1) - clicksForLevel(lv);
+    }
+
+    async function doBond(variantId) {
+      if (!variantId) return;
+      if (!variantCanBond(variantId)) return;
+      const v = getVariant(variantId).variant;
+      const next = variantBonds(variantId) + 1;
+      const confirmMsg = I18N.t('bond.confirm', { name: variantName(v), n: next });
+      if (!window.confirm(confirmMsg)) return;
+
+      // Guest mode — write straight to local stats. Bond eligibility math reads
+      // userStats.bonds, which is hydrated from localStorage at startup.
+      if (!currentUser) {
+        if (!userStats.bonds) userStats.bonds = {};
+        userStats.bonds[variantId] = next;
+        if (typeof saveLocalUserData === 'function') saveLocalUserData();
+        renderSkinList();
+        renderSkinBar();
+        return;
+      }
+
+      try {
+        await db.ref(`users/${currentUser.uid}/stats/bonds/${variantId}`).set(next);
+        // The stats listener will reconcile; optimistic UI bump so the heart
+        // count updates without waiting for the round-trip.
+        if (!userStats.bonds) userStats.bonds = {};
+        userStats.bonds[variantId] = next;
+        renderSkinList();
+        renderSkinBar();
+      } catch (err) {
+        alert('Bond failed: ' + (err.message || err.code || 'unknown'));
+      }
     }
 
     let senseiAvatarEl = document.getElementById('sensei-avatar');
@@ -4051,10 +4182,14 @@
       // can't be used to inflate leaderboard standing.
       const stars = (userStats && userStats.prestigeStars) || 0;
       const prestigeMul = 1 + 0.05 * stars;
+      // Per-variant bond bonus — +10% coins per bond level WHILE using that
+      // variant. Same coin-only constraint as prestige.
+      const activeBonds = variantBonds(settings.skin);
+      const bondMul     = 1 + BOND_COIN_BONUS_PER_LEVEL * activeBonds;
       return {
-        coin:     (1 + 0.5 * (s.coinMulLevel  || 0)) * prestigeMul * (active('coins')    ? 2 : 1),
-        click:    (1 + 0.5 * (s.clickMulLevel || 0)) *               (active('clicks')   ? 2 : 1),
-        autoCps:  0.5 * (s.autoLevel || 0)           *               (active('autoRate') ? 2 : 1),
+        coin:     (1 + 0.5 * (s.coinMulLevel  || 0)) * prestigeMul * bondMul * (active('coins')    ? 2 : 1),
+        click:    (1 + 0.5 * (s.clickMulLevel || 0)) *                         (active('clicks')   ? 2 : 1),
+        autoCps:  0.5 * (s.autoLevel || 0)           *                         (active('autoRate') ? 2 : 1),
         lbAuto:   !!s.leaderboardAutoUnlocked,
       };
     }
@@ -5269,19 +5404,31 @@
     }
 
     // In-place level-badge refresh — avoids rewriting the skin list innerHTML
-    // (which would lose any user-toggled open/closed group state).
+    // (which would lose any user-toggled open/closed group state). When a
+    // variant crosses into bond-eligible territory mid-click-streak, fall
+    // through to a full renderSkinList so the heart button appears.
     function updateVariantLevels() {
       if (!skinListEl) return;
+      let needFullRender = false;
       for (const c of CHARACTERS) {
         for (const v of c.variants) {
-          const el = skinListEl.querySelector(`.skin-item[data-variant="${v.id}"] .skin-variant-level`);
+          const tile = skinListEl.querySelector(`.skin-item[data-variant="${v.id}"]`);
+          if (!tile) continue;
+          const canBond     = variantCanBond(v.id);
+          const wasBondReady = tile.classList.contains('bond-ready');
+          if (canBond !== wasBondReady) { needFullRender = true; continue; }
+          const el = tile.querySelector('.skin-variant-level');
           if (!el) continue;
-          const xp = variantClicks(v.id);
-          const lv = levelOf(xp);
-          el.textContent = 'Lv.' + lv;
-          el.title = `Lv.${lv} · ${clicksInLevel(xp).toLocaleString()} / ${clicksToNextLevel(xp).toLocaleString()} XP`;
+          const lv   = variantLevelOf(v.id);
+          const cur  = variantXpInLevel(v.id);
+          const need = variantXpToNext(v.id);
+          el.textContent = 'Lv.' + lv + (canBond ? ' MAX' : '');
+          el.title = canBond
+            ? `Lv.${MAX_VARIANT_LEVEL} MAX · ready to bond`
+            : `Lv.${lv} · ${cur.toLocaleString()} / ${need.toLocaleString()} XP`;
         }
       }
+      if (needFullRender) renderSkinList();
     }
 
     async function flushPending() {

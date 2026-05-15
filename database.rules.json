@@ -109,6 +109,11 @@
               ".validate": "newData.isNumber() && $variantId.length <= 20"
             }
           },
+          "bonds": {
+            "$variantId": {
+              ".validate": "newData.isNumber() && $variantId.length <= 20 && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 1"
+            }
+          },
           "bySource": {
             "$source": {
               ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && now - (data.parent().parent().child('lastClickAt').exists() ? data.parent().parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().parent().child('lastClickAt').val() === now"
