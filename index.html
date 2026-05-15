@@ -2103,12 +2103,8 @@
 
     // --- Admin gating -----------------------------------------------------------
     // Source of truth: admins/{uid}: true in RTDB. The site subscribes to the
-    // current user's row and caches the result. The email below is a one-time
-    // bootstrap claim — once that user signs in for the first time, their
-    // admins/{uid} entry is created automatically, and from then on the entire
-    // admin gate is UID-based (so adding/removing admins is a Firebase Console
-    // edit, no code change needed).
-    const ADMIN_BOOTSTRAP_EMAIL = 'weejiaquan1234@gmail.com';
+    // current user's row and caches the result. Adding/removing admins is a
+    // Firebase Console edit — no code change needed.
     let isAdminCached = false;
     let adminUnsub = null;
     function isAdmin() { return isAdminCached; }
@@ -2120,7 +2116,6 @@
       const cb = (snap) => {
         isAdminCached = snap.val() === true;
         if (typeof syncAdminVisibility === 'function') syncAdminVisibility();
-        // Re-render leaderboard if open so delete buttons appear/disappear
         if (typeof leaderboardModal !== 'undefined' && leaderboardModal && leaderboardModal.classList.contains('open')) {
           loadLeaderboard();
         }
@@ -2128,18 +2123,8 @@
       ref.on('value', cb);
       adminUnsub = () => ref.off('value', cb);
     }
-    async function tryBootstrapAdmin() {
-      if (!currentUser) return;
-      if (currentUser.email !== ADMIN_BOOTSTRAP_EMAIL) return;
-      if (!currentUser.emailVerified) return;
-      try {
-        const snap = await db.ref('admins/' + currentUser.uid).once('value');
-        if (!snap.exists()) await db.ref('admins/' + currentUser.uid).set(true);
-      } catch { /* silent — security rules will reject if conditions not met */ }
-    }
     auth.onAuthStateChanged((user) => {
       subscribeAdminStatus(user ? user.uid : null);
-      if (user) tryBootstrapAdmin();
     });
 
     function loadSettings() {
@@ -3119,14 +3104,20 @@
     }
 
     function renderSenseiBar() {
-      const clicks = userStats.totalClicks || 0;
+      // Optimistic: include pending mouse-clicks not yet flushed to Firebase
+      // so the bar reflects every click instantly. pending.user is reset to 0
+      // once a flush starts, and the userStats listener picks up the new
+      // server value shortly after — both paths converge on the same total.
+      const pendingUser = (typeof pending !== 'undefined' && pending) ? (pending.user || 0) : 0;
+      const clicks = (userStats.totalClicks || 0) + pendingUser;
+      const coins  = (userStats.coinBalance || 0) + pendingUser;
       const lv = levelOf(clicks);
       const cur = clicksInLevel(clicks);
       const need = clicksToNextLevel(clicks);
       senseiLevelEl.textContent = 'Lv.' + lv;
       senseiXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
       senseiXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
-      senseiCoinsEl.textContent = (userStats.coinBalance || 0).toLocaleString();
+      senseiCoinsEl.textContent = coins.toLocaleString();
 
       if (userProfile) {
         senseiNameEl.textContent = userProfile.displayName || I18N.t('sensei.trainer');
@@ -3449,26 +3440,174 @@
       }).catch(() => {});
     }
 
-    // --- Per-user click stats ----------------------------------------------------
-    // Each mouse/tap fires a single multi-path update so totalClicks, coinBalance,
-    // and lastClickAt land together. ServerValue.increment + ServerValue.TIMESTAMP
-    // keep the increments atomic and the timestamp authoritative; the security
-    // rules enforce +1-only and the 15ms throttle, so a malicious client can't
-    // inflate values via the console.
-    function writeUserClick() {
-      if (!currentUser) return;
-      const uid = currentUser.uid;
-      const inc = firebase.database.ServerValue.increment(1);
-      const ts  = firebase.database.ServerValue.TIMESTAMP;
-      db.ref().update({
-        [`users/${uid}/stats/totalClicks`]: inc,
-        [`users/${uid}/stats/coinBalance`]: inc,
-        [`users/${uid}/stats/lastClickAt`]: ts,
-      }).catch(() => {
-        // Throttle hits / network blips: silent. We deliberately don't surface
-        // them because the optimistic UI already showed the +1.
-      });
+    // --- Click batch system -----------------------------------------------------
+    // Every click hits Firebase via this batcher instead of immediately. Counts
+    // accumulate in memory + localStorage, and we flush once every ~5s — both
+    // on a heartbeat (so a long combo run gets periodic saves) and on
+    // visibilitychange/pagehide (so a tab close attempts a final flush). The
+    // localStorage backup recovers the in-flight batch if the tab crashes.
+    //
+    // Optimistic UI: renderSenseiBar reads (userStats + pending.user) so the
+    // XP fill, level, and coin counter update instantly even though Firebase
+    // sees one write every 5s.
+    const FLUSH_DEBOUNCE_MS = 5000;
+    const FLUSH_HEARTBEAT_MS = 5000;
+    const PENDING_KEY = 'aobing-pending-clicks';
+
+    // `var` (not const) so the hoisted binding is `undefined` for any early
+    // reads from renderSenseiBar() at script-load time — see the typeof guard
+    // in that function. After this line executes, all reads see the object.
+    var pending = {
+      user: 0,           // mouse-only: users/{uid}/stats/{totalClicks,coinBalance}
+      global: 0,         // any source: clicks
+      daily: 0,          // any source: daily/{today}/total
+      byCountry: {},     // daily/{today}/countries/{cc}
+      bySkin: {},        // daily/{today}/skins/{variantId}
+      byCharacter: {},   // daily/{today}/characters/{charId}
+      allTimeSkin: {},   // skins/{variantId}
+    };
+    let flushDebounceTimer = null;
+    let flushHeartbeatTimer = null;
+    let isFlushing = false;
+
+    function savePending() {
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch {}
     }
+    function loadPending() {
+      try {
+        const raw = localStorage.getItem(PENDING_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        // Merge: any unflushed counts from a previous tab session land here and
+        // get flushed on the first scheduled flush.
+        if (typeof saved.user === 'number')   pending.user += saved.user;
+        if (typeof saved.global === 'number') pending.global += saved.global;
+        if (typeof saved.daily === 'number')  pending.daily += saved.daily;
+        for (const k in saved.byCountry || {})   pending.byCountry[k]   = (pending.byCountry[k]   || 0) + saved.byCountry[k];
+        for (const k in saved.bySkin || {})      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + saved.bySkin[k];
+        for (const k in saved.byCharacter || {}) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + saved.byCharacter[k];
+        for (const k in saved.allTimeSkin || {}) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + saved.allTimeSkin[k];
+      } catch {}
+    }
+    loadPending();
+
+    function scheduleFlush() {
+      if (flushDebounceTimer) clearTimeout(flushDebounceTimer);
+      flushDebounceTimer = setTimeout(flushPending, FLUSH_DEBOUNCE_MS);
+      if (!flushHeartbeatTimer) {
+        flushHeartbeatTimer = setInterval(() => {
+          if (pending.user > 0 || pending.global > 0) flushPending();
+        }, FLUSH_HEARTBEAT_MS);
+      }
+    }
+
+    // Called once per click (mouse or keyboard). Mouse adds to pending.user;
+    // both sources add to all global counters.
+    function recordClick(source) {
+      const { character: ch, variant: v } = getVariant(settings.skin);
+      if (source === 'mouse') pending.user += 1;
+      pending.global += 1;
+      pending.daily += 1;
+      if (visitorCountry) {
+        pending.byCountry[visitorCountry] = (pending.byCountry[visitorCountry] || 0) + 1;
+      }
+      pending.bySkin[v.id]        = (pending.bySkin[v.id]        || 0) + 1;
+      pending.byCharacter[ch.id]  = (pending.byCharacter[ch.id]  || 0) + 1;
+      pending.allTimeSkin[v.id]   = (pending.allTimeSkin[v.id]   || 0) + 1;
+      savePending();
+      scheduleFlush();
+      // Keep the optimistic sensei readout in sync immediately.
+      if (typeof renderSenseiBar === 'function') renderSenseiBar();
+    }
+
+    async function flushPending() {
+      if (isFlushing) return;
+      if (pending.user === 0 && pending.global === 0) return;
+      isFlushing = true;
+      // Snapshot then zero out — any clicks during the in-flight write
+      // accumulate into the next batch.
+      const batch = {
+        user: pending.user, global: pending.global, daily: pending.daily,
+        byCountry:   { ...pending.byCountry },
+        bySkin:      { ...pending.bySkin },
+        byCharacter: { ...pending.byCharacter },
+        allTimeSkin: { ...pending.allTimeSkin },
+      };
+      pending.user = 0; pending.global = 0; pending.daily = 0;
+      pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
+      savePending();
+      // Update sensei display now that pending.user is 0 — userStats listener
+      // will catch up in a moment with the new server value.
+      if (typeof renderSenseiBar === 'function') renderSenseiBar();
+
+      const today = todayKey();
+      const tasks = [];
+
+      if (batch.user > 0 && currentUser) {
+        const uid = currentUser.uid;
+        const incU = firebase.database.ServerValue.increment(batch.user);
+        const ts   = firebase.database.ServerValue.TIMESTAMP;
+        tasks.push(db.ref().update({
+          [`users/${uid}/stats/totalClicks`]: incU,
+          [`users/${uid}/stats/coinBalance`]: incU,
+          [`users/${uid}/stats/lastClickAt`]: ts,
+        }));
+      }
+      if (batch.global > 0) {
+        tasks.push(clicksRef.transaction((c) => (c || 0) + batch.global));
+      }
+      if (batch.daily > 0) {
+        tasks.push(db.ref('daily/' + today + '/total').transaction((c) => (c || 0) + batch.daily));
+      }
+      for (const cc in batch.byCountry) {
+        const n = batch.byCountry[cc];
+        tasks.push(db.ref('daily/' + today + '/countries/' + cc).transaction((c) => (c || 0) + n));
+      }
+      for (const sk in batch.bySkin) {
+        const n = batch.bySkin[sk];
+        tasks.push(db.ref('daily/' + today + '/skins/' + sk).transaction((c) => (c || 0) + n));
+      }
+      for (const chId in batch.byCharacter) {
+        const n = batch.byCharacter[chId];
+        tasks.push(db.ref('daily/' + today + '/characters/' + chId).transaction((c) => (c || 0) + n));
+      }
+      for (const sk in batch.allTimeSkin) {
+        const n = batch.allTimeSkin[sk];
+        tasks.push(db.ref('skins/' + sk).transaction((c) => (c || 0) + n));
+      }
+
+      try {
+        await Promise.all(tasks);
+      } catch (e) {
+        // Restore the batch so it retries on the next flush. Some sub-writes
+        // may have succeeded, so we may double-count under repeated failures —
+        // that's preferable to losing the user's clicks entirely.
+        pending.user       += batch.user;
+        pending.global     += batch.global;
+        pending.daily      += batch.daily;
+        for (const k in batch.byCountry)   pending.byCountry[k]   = (pending.byCountry[k]   || 0) + batch.byCountry[k];
+        for (const k in batch.bySkin)      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + batch.bySkin[k];
+        for (const k in batch.byCharacter) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + batch.byCharacter[k];
+        for (const k in batch.allTimeSkin) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + batch.allTimeSkin[k];
+        savePending();
+      } finally {
+        isFlushing = false;
+      }
+    }
+
+    // Tab-close / hide best-effort flush. We can't await on these handlers,
+    // but firing the call gives the Firebase SDK a chance to send before the
+    // page is torn down. The localStorage backup is the real safety net.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushPending();
+    });
+    window.addEventListener('pagehide', flushPending);
+
+    // If we recovered a pending batch from localStorage on startup, kick a
+    // flush after auth resolves.
+    authReady.then(() => {
+      if (pending.user > 0 || pending.global > 0) scheduleFlush();
+    });
 
     // System time pill — updates every minute, aligned to the next minute boundary
     const timeEl = document.querySelector('#system-time .pill-value');
@@ -3567,19 +3706,7 @@
 
           // First click — full click effects
           const { character: ch, variant: v } = getVariant(settings.skin);
-          if (source === 'mouse') writeUserClick();
-          clicksRef.transaction((c) => (c || 0) + 1);
-          dailyTotalRef.transaction((c) => (c || 0) + 1);
-          if (visitorCountry) {
-            db.ref('daily/' + todayKey() + '/countries/' + visitorCountry)
-              .transaction((c) => (c || 0) + 1);
-          }
-          db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
-            .transaction((c) => (c || 0) + 1);
-          db.ref('daily/' + todayKey() + '/characters/' + ch.id)
-            .transaction((c) => (c || 0) + 1);
-          db.ref('skins/' + settings.skin)
-            .transaction((c) => (c || 0) + 1);
+          recordClick(source);
 
           playsfx();
           bumpCombo();
@@ -3617,35 +3744,11 @@
         return;
       }
 
-      // Per-user stats — mouse/tap only. Keyboard is a satisfaction feature,
-      // not a leaderboard input.
-      if (source === 'mouse') writeUserClick();
+      // All Firebase writes (per-user mouse stats AND global counters) flow
+      // through the batcher. See pending / flushPending below.
+      recordClick(source);
 
-      const { character: ch, variant: v } = getVariant(settings.skin);
-
-      // Increment global counter atomically
-      clicksRef.transaction((current) => (current || 0) + 1);
-
-      // Increment daily total
-      dailyTotalRef.transaction((current) => (current || 0) + 1);
-
-      // Increment country counter
-      if (visitorCountry) {
-        db.ref('daily/' + todayKey() + '/countries/' + visitorCountry)
-          .transaction((current) => (current || 0) + 1);
-      }
-
-      // Increment skin counter (per-variant, today)
-      db.ref('daily/' + todayKey() + '/skins/' + settings.skin)
-        .transaction((current) => (current || 0) + 1);
-
-      // Increment character counter (today)
-      db.ref('daily/' + todayKey() + '/characters/' + ch.id)
-        .transaction((current) => (current || 0) + 1);
-
-      // Increment all-time per-variant counter (drives the sub-counter pill)
-      db.ref('skins/' + settings.skin)
-        .transaction((current) => (current || 0) + 1);
+      const { variant: v } = getVariant(settings.skin);
 
       // 1. Play SFX — each click spawns its own audio, oldest evicted at cap
       playsfx();
