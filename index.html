@@ -2116,9 +2116,14 @@
       const cb = (snap) => {
         isAdminCached = snap.val() === true;
         if (typeof syncAdminVisibility === 'function') syncAdminVisibility();
-        if (typeof leaderboardModal !== 'undefined' && leaderboardModal && leaderboardModal.classList.contains('open')) {
-          loadLeaderboard();
-        }
+        // leaderboardModal is a `const` declared later — accessing it through
+        // typeof still throws TDZ. Defer the open-modal refresh via a tick so
+        // it only runs after the script has fully initialised.
+        Promise.resolve().then(() => {
+          try {
+            if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
+          } catch { /* not yet initialised on first auth callback */ }
+        });
       };
       ref.on('value', cb);
       adminUnsub = () => ref.off('value', cb);
@@ -3051,24 +3056,59 @@
     const clickCounter = document.querySelector('#click-counter .pill-value');
     const clickCounterSub = document.querySelector('#click-counter .pill-sub-value');
 
-    // Live click count + per-variant subscription. Kept real-time (.on) so the
-    // counter ticks up the moment any user's batch lands — matches the original
-    // UX. The bandwidth win from this PR is upstream: writes are batched to
-    // ~1/5s per active clicker instead of 1 per click, so listener fan-out
-    // delivers far fewer push events even though the subscription pattern is
-    // unchanged.
+    // Live click counters with optimistic UI.
+    //   display = lastSeenServer + pending + inFlight
+    //   - lastSeenServer: most recent value from .on('value') (real-time)
+    //   - pending: clicks accumulated locally, awaiting next batch flush
+    //   - inFlight: deltas already sent in a batch but not yet visible in the
+    //     listener; cleared once the listener confirms server caught up
+    // This means the pill ticks up the moment you click (because pending bumps
+    // immediately), holds steady across the flush handoff, then seamlessly
+    // transitions to the new server total — no flicker, no perceptible lag.
+    let lastSeenGlobalServer  = 0;
+    let inFlightGlobal        = 0;
+    let lastSeenSkinServer    = 0;
+    let inFlightSkin          = 0;
+    let currentSkinVariant    = settings.skin;
+
+    function renderClickCounter() {
+      // pending is a hoisted `var`; if the batcher block hasn't executed yet,
+      // it's undefined. Treat that as zero-pending so the listener-driven
+      // first render still works at startup.
+      const p = (typeof pending !== 'undefined' && pending) ? pending : null;
+      const globalPending = p ? (p.global || 0) : 0;
+      const skinPending   = p ? (p.allTimeSkin[currentSkinVariant] || 0) : 0;
+      clickCounter.textContent    = (lastSeenGlobalServer + globalPending + inFlightGlobal).toLocaleString();
+      clickCounterSub.textContent = (lastSeenSkinServer   + skinPending   + inFlightSkin).toLocaleString();
+    }
+
     clicksRef.on('value', (snapshot) => {
-      const count = snapshot.val() || 0;
-      clickCounter.textContent = count.toLocaleString();
+      const val = snapshot.val() || 0;
+      // If we have an in-flight delta and the server now reflects it (or more),
+      // release it. We check `>= snapshot + inFlight` rather than exact equality
+      // because other users' contributions may have arrived alongside ours.
+      if (inFlightGlobal > 0 && val >= lastSeenGlobalServer + inFlightGlobal) {
+        inFlightGlobal = 0;
+      }
+      lastSeenGlobalServer = val;
+      renderClickCounter();
     });
 
     let currentSkinCountUnsub = null;
     function subscribeCurrentSkinCount(variantId) {
       if (currentSkinCountUnsub) { currentSkinCountUnsub(); currentSkinCountUnsub = null; }
-      clickCounterSub.textContent = '0';
+      currentSkinVariant   = variantId;
+      lastSeenSkinServer   = 0;
+      inFlightSkin         = 0;
+      renderClickCounter();
       const ref = db.ref('skins/' + variantId);
       const cb = (snap) => {
-        clickCounterSub.textContent = (snap.val() || 0).toLocaleString();
+        const val = snap.val() || 0;
+        if (inFlightSkin > 0 && val >= lastSeenSkinServer + inFlightSkin) {
+          inFlightSkin = 0;
+        }
+        lastSeenSkinServer = val;
+        renderClickCounter();
       };
       ref.on('value', cb);
       currentSkinCountUnsub = () => ref.off('value', cb);
@@ -3517,8 +3557,10 @@
       pending.allTimeSkin[v.id]   = (pending.allTimeSkin[v.id]   || 0) + 1;
       savePending();
       scheduleFlush();
-      // Keep the optimistic sensei readout in sync immediately.
-      if (typeof renderSenseiBar === 'function') renderSenseiBar();
+      // Keep the optimistic UI in sync immediately: sensei bar AND the public
+      // click pill (which reads lastSeenServer + pending + inFlight).
+      if (typeof renderSenseiBar    === 'function') renderSenseiBar();
+      if (typeof renderClickCounter === 'function') renderClickCounter();
     }
 
     async function flushPending() {
@@ -3537,9 +3579,17 @@
       pending.user = 0; pending.global = 0; pending.daily = 0;
       pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
       savePending();
-      // Update sensei display now that pending.user is 0 — userStats listener
-      // will catch up in a moment with the new server value.
-      if (typeof renderSenseiBar === 'function') renderSenseiBar();
+      // Hand off the public-counter deltas from `pending` to `inFlight` so the
+      // pill stays visually steady across the flush boundary. inFlight clears
+      // when the listener confirms the server includes our contribution.
+      const wasInFlightGlobal = inFlightGlobal;
+      const wasInFlightSkin   = inFlightSkin;
+      const skinDeltaInBatch  = batch.allTimeSkin[currentSkinVariant] || 0;
+      inFlightGlobal += batch.global;
+      inFlightSkin   += skinDeltaInBatch;
+      // Update sensei (uses pending.user, now 0) and click pill (reads inFlight).
+      if (typeof renderSenseiBar    === 'function') renderSenseiBar();
+      if (typeof renderClickCounter === 'function') renderClickCounter();
 
       const today = todayKey();
       const tasks = [];
@@ -3590,7 +3640,12 @@
         for (const k in batch.bySkin)      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + batch.bySkin[k];
         for (const k in batch.byCharacter) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + batch.byCharacter[k];
         for (const k in batch.allTimeSkin) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + batch.allTimeSkin[k];
+        // Also roll back the inFlight bump from the snapshot — the data is
+        // back in pending now and will be re-sent on the next flush attempt.
+        inFlightGlobal = wasInFlightGlobal;
+        inFlightSkin   = wasInFlightSkin;
         savePending();
+        if (typeof renderClickCounter === 'function') renderClickCounter();
       } finally {
         isFlushing = false;
       }
