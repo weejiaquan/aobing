@@ -1962,6 +1962,18 @@
           { id: 'mariidol',  name: 'Idol Mari',  tag: 'Idol',    idle: 'assets/mariidol-idle.webp',  active: 'assets/mariidol-active.webp',  bg: 'assets/mariidol-bg.png',  bgm: 'assets/mariidol-bgm.mp3' },
         ],
       },
+      {
+        id: 'miyu',
+        name: 'Miyu',
+        sfx: [],          // silent for now
+        bgm: '',          // silent for now
+        bg:  '',          // body falls back to its solid color
+        idleTexts: ['hi'],
+        variants: [
+          { id: 'miyu',     name: 'Miyu',          tag: 'Default',  idle: 'assets/miyu-idle.webp',     active: 'assets/miyu-active.webp',     active2: 'assets/miyu-active2.webp' },
+          { id: 'miyuswim', name: 'Miyu Swimsuit', tag: 'Swimsuit', idle: 'assets/miyuswim-idle.webp', active: 'assets/miyuswim-active.webp', active2: 'assets/miyuswim-active2.webp' },
+        ],
+      },
     ];
 
     function getVariant(variantId) {
