@@ -5,6 +5,13 @@
       ".write": true,
       ".validate": "newData.isNumber()"
     },
+    "clicks_by_source": {
+      ".read": true,
+      "$source": {
+        ".write": true,
+        ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto')"
+      }
+    },
     "skins": {
       ".read": true,
       "$variantId": {
@@ -53,6 +60,12 @@
             ".write": true,
             ".validate": "newData.isBoolean() && $visitorId.length <= 64"
           }
+        },
+        "sources": {
+          "$source": {
+            ".write": true,
+            ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto')"
+          }
         }
       }
     },
@@ -91,6 +104,11 @@
           "skins": {
             "$variantId": {
               ".validate": "newData.isNumber() && $variantId.length <= 20"
+            }
+          },
+          "bySource": {
+            "$source": {
+              ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 150 && now - (data.parent().parent().child('lastClickAt').exists() ? data.parent().parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().parent().child('lastClickAt').val() === now"
             }
           }
         }

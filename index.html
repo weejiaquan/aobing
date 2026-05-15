@@ -1604,7 +1604,14 @@
           </div>
         </div>
       </div>
-      <div class="stats-grid stats-grid-full">
+      <div class="stats-grid">
+        <div class="stats-card">
+          <div class="stats-card-title" data-i18n="stats.chart.click_sources">Click sources</div>
+          <div class="stats-chart-wrap tall">
+            <canvas id="chart-sources"></canvas>
+            <div class="stats-empty" id="sources-empty" style="display:none;" data-i18n="stats.no_data">No data</div>
+          </div>
+        </div>
         <div class="stats-card">
           <div class="stats-card-title" data-i18n="stats.chart.skins_per_character">Skins per character</div>
           <div class="stats-chart-wrap tall">
@@ -1799,6 +1806,10 @@
           'stats.chart.clicks_over_time':'Clicks over time','stats.chart.visitors_over_time':'Visitors over time',
           'stats.chart.top_countries':'Top countries','stats.chart.characters_used':'Characters used',
           'stats.chart.skins_per_character':'Skins per character',
+          'stats.chart.click_sources':'Click sources',
+          'stats.source.mouse':'Mouse / Tap',
+          'stats.source.keyboard':'Keyboard',
+          'stats.source.auto':'Auto-click',
           'stats.no_data':'No data',
           'stats.range.today':'today','stats.range.last_7_days':'last 7 days',
           'stats.range.last_30_days':'last 30 days','stats.range.all_time':'all time',
@@ -1825,6 +1836,10 @@
           'stats.chart.clicks_over_time':'クリック推移','stats.chart.visitors_over_time':'訪問者推移',
           'stats.chart.top_countries':'国別ランキング','stats.chart.characters_used':'使用キャラクター',
           'stats.chart.skins_per_character':'キャラクター別スキン',
+          'stats.chart.click_sources':'クリックソース',
+          'stats.source.mouse':'マウス / タップ',
+          'stats.source.keyboard':'キーボード',
+          'stats.source.auto':'自動クリック',
           'stats.no_data':'データなし',
           'stats.range.today':'今日','stats.range.last_7_days':'直近7日',
           'stats.range.last_30_days':'直近30日','stats.range.all_time':'全期間',
@@ -1864,6 +1879,10 @@
           'stats.chart.clicks_over_time':'시간대별 클릭','stats.chart.visitors_over_time':'시간대별 방문자',
           'stats.chart.top_countries':'상위 국가','stats.chart.characters_used':'사용 캐릭터',
           'stats.chart.skins_per_character':'캐릭터별 스킨',
+          'stats.chart.click_sources':'클릭 소스',
+          'stats.source.mouse':'마우스 / 탭',
+          'stats.source.keyboard':'키보드',
+          'stats.source.auto':'자동 클릭',
           'stats.no_data':'데이터 없음',
           'stats.range.today':'오늘','stats.range.last_7_days':'최근 7일',
           'stats.range.last_30_days':'최근 30일','stats.range.all_time':'전체 기간',
@@ -1903,6 +1922,10 @@
           'stats.chart.clicks_over_time':'点击趋势','stats.chart.visitors_over_time':'访客趋势',
           'stats.chart.top_countries':'国家排行','stats.chart.characters_used':'使用角色',
           'stats.chart.skins_per_character':'角色皮肤分布',
+          'stats.chart.click_sources':'点击来源',
+          'stats.source.mouse':'鼠标 / 触摸',
+          'stats.source.keyboard':'键盘',
+          'stats.source.auto':'自动点击',
           'stats.no_data':'暂无数据',
           'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
           'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部时间',
@@ -1942,6 +1965,10 @@
           'stats.chart.clicks_over_time':'點擊趨勢','stats.chart.visitors_over_time':'訪客趨勢',
           'stats.chart.top_countries':'國家排行','stats.chart.characters_used':'使用角色',
           'stats.chart.skins_per_character':'角色造型分布',
+          'stats.chart.click_sources':'點擊來源',
+          'stats.source.mouse':'滑鼠 / 觸控',
+          'stats.source.keyboard':'鍵盤',
+          'stats.source.auto':'自動點擊',
           'stats.no_data':'暫無數據',
           'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
           'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部時間',
@@ -1981,6 +2008,10 @@
           'stats.chart.clicks_over_time':'คลิกตามช่วงเวลา','stats.chart.visitors_over_time':'ผู้เข้าชมตามช่วงเวลา',
           'stats.chart.top_countries':'ประเทศยอดนิยม','stats.chart.characters_used':'ตัวละครที่ใช้',
           'stats.chart.skins_per_character':'สกินต่อตัวละคร',
+          'stats.chart.click_sources':'แหล่งที่มาของคลิก',
+          'stats.source.mouse':'เมาส์ / แตะ',
+          'stats.source.keyboard':'คีย์บอร์ด',
+          'stats.source.auto':'คลิกอัตโนมัติ',
           'stats.no_data':'ไม่มีข้อมูล',
           'stats.range.today':'วันนี้','stats.range.last_7_days':'7 วันที่ผ่านมา',
           'stats.range.last_30_days':'30 วันที่ผ่านมา','stats.range.all_time':'ตลอดกาล',
@@ -2020,6 +2051,10 @@
           'stats.chart.clicks_over_time':'النقرات عبر الوقت','stats.chart.visitors_over_time':'الزوار عبر الوقت',
           'stats.chart.top_countries':'أهم الدول','stats.chart.characters_used':'الشخصيات المستخدمة',
           'stats.chart.skins_per_character':'الأزياء لكل شخصية',
+          'stats.chart.click_sources':'مصادر النقر',
+          'stats.source.mouse':'الفأرة / اللمس',
+          'stats.source.keyboard':'لوحة المفاتيح',
+          'stats.source.auto':'نقر تلقائي',
           'stats.no_data':'لا توجد بيانات',
           'stats.range.today':'اليوم','stats.range.last_7_days':'آخر ٧ أيام',
           'stats.range.last_30_days':'آخر ٣٠ يومًا','stats.range.all_time':'كل الأوقات',
@@ -2466,6 +2501,8 @@
     const countriesEmpty = document.getElementById('countries-empty');
     const skinsEmpty = document.getElementById('skins-empty');
     const charactersEmpty = document.getElementById('characters-empty');
+    const sourcesEmpty = document.getElementById('sources-empty');
+    const chartSourcesCanvas = document.getElementById('chart-sources');
     const chartCountriesCanvas = document.getElementById('chart-countries');
     const chartSkinsCanvas = document.getElementById('chart-skins');
     const chartCharactersCanvas = document.getElementById('chart-characters');
@@ -2474,7 +2511,7 @@
     let currentDate = todayKey();
     let liveTodayUnsub = null;
     let dailyDatesCache = null;
-    const charts = { clicks: null, visitors: null, countries: null, skins: null, characters: null };
+    const charts = { clicks: null, visitors: null, countries: null, skins: null, characters: null, sources: null };
 
     dateInput.value = currentDate;
     dateInput.max = currentDate;
@@ -2565,6 +2602,7 @@
       const countryTotals = {};
       const skinTotals = {};
       const characterTotals = {};
+      const sourceTotals = {};
       let totalClicks = 0;
       let totalVisitors = 0;
       let rangeMaxCombo = 0;
@@ -2593,6 +2631,11 @@
         if (day.characters) {
           Object.entries(day.characters).forEach(([id, n]) => {
             characterTotals[id] = (characterTotals[id] || 0) + n;
+          });
+        }
+        if (day.sources) {
+          Object.entries(day.sources).forEach(([src, n]) => {
+            sourceTotals[src] = (sourceTotals[src] || 0) + n;
           });
         }
       });
@@ -2760,6 +2803,44 @@
             datasets: [{
               data: sortedCharacters.map(([, n]) => n),
               backgroundColor: sortedCharacters.map((_, i) => characterPalette[i % characterPalette.length]),
+              borderColor: 'rgba(255,255,255,0.9)',
+              borderWidth: 2,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
+              },
+              tooltip: tooltipStyle(),
+            },
+          },
+        });
+      }
+
+      // Click sources — doughnut of mouse vs keyboard (vs future auto-clicker).
+      // Reads daily/{date}/sources for the selected range. Aoba-cyan for mouse,
+      // yellow for keyboard, pink for auto so it stays consistent if expanded.
+      const sourceLabels   = { mouse: 'Mouse', keyboard: 'Keyboard', auto: 'Auto' };
+      const sourceColors   = { mouse: '#4dabf7', keyboard: '#f4cb4d', auto: '#ff5fa8' };
+      const orderedSources = ['mouse', 'keyboard', 'auto'].filter(s => (sourceTotals[s] || 0) > 0);
+      if (orderedSources.length === 0) {
+        sourcesEmpty.style.display = '';
+        chartSourcesCanvas.style.display = 'none';
+      } else {
+        sourcesEmpty.style.display = 'none';
+        chartSourcesCanvas.style.display = '';
+        charts.sources = new Chart(chartSourcesCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: orderedSources.map(s => I18N.t('stats.source.' + s)),
+            datasets: [{
+              data: orderedSources.map(s => sourceTotals[s] || 0),
+              backgroundColor: orderedSources.map(s => sourceColors[s]),
               borderColor: 'rgba(255,255,255,0.9)',
               borderWidth: 2,
             }],
@@ -3517,6 +3598,8 @@
       bySkin: {},        // daily/{today}/skins/{variantId}
       byCharacter: {},   // daily/{today}/characters/{charId}
       allTimeSkin: {},   // skins/{variantId}
+      bySource: {},      // { mouse: N, keyboard: N, auto: N } — clicks_by_source/{src} + daily/{today}/sources/{src}
+      userBySource: {},  // per-user per-source — users/{uid}/stats/bySource/{src}
     };
     let flushDebounceTimer = null;
     let flushHeartbeatTimer = null;
@@ -3535,10 +3618,12 @@
         if (typeof saved.user === 'number')   pending.user += saved.user;
         if (typeof saved.global === 'number') pending.global += saved.global;
         if (typeof saved.daily === 'number')  pending.daily += saved.daily;
-        for (const k in saved.byCountry || {})   pending.byCountry[k]   = (pending.byCountry[k]   || 0) + saved.byCountry[k];
-        for (const k in saved.bySkin || {})      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + saved.bySkin[k];
-        for (const k in saved.byCharacter || {}) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + saved.byCharacter[k];
-        for (const k in saved.allTimeSkin || {}) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + saved.allTimeSkin[k];
+        for (const k in saved.byCountry || {})    pending.byCountry[k]    = (pending.byCountry[k]    || 0) + saved.byCountry[k];
+        for (const k in saved.bySkin || {})       pending.bySkin[k]       = (pending.bySkin[k]       || 0) + saved.bySkin[k];
+        for (const k in saved.byCharacter || {})  pending.byCharacter[k]  = (pending.byCharacter[k]  || 0) + saved.byCharacter[k];
+        for (const k in saved.allTimeSkin || {})  pending.allTimeSkin[k]  = (pending.allTimeSkin[k]  || 0) + saved.allTimeSkin[k];
+        for (const k in saved.bySource || {})     pending.bySource[k]     = (pending.bySource[k]     || 0) + saved.bySource[k];
+        for (const k in saved.userBySource || {}) pending.userBySource[k] = (pending.userBySource[k] || 0) + saved.userBySource[k];
       } catch {}
     }
     loadPending();
@@ -3566,6 +3651,11 @@
       pending.bySkin[v.id]        = (pending.bySkin[v.id]        || 0) + 1;
       pending.byCharacter[ch.id]  = (pending.byCharacter[ch.id]  || 0) + 1;
       pending.allTimeSkin[v.id]   = (pending.allTimeSkin[v.id]   || 0) + 1;
+      // Per-source breakdown (mouse/keyboard/auto). Bumped for every click;
+      // global + per-user paths track separately so the user can see their
+      // own keyboard ratio even though leaderboard is mouse-only.
+      pending.bySource[source]     = (pending.bySource[source]     || 0) + 1;
+      pending.userBySource[source] = (pending.userBySource[source] || 0) + 1;
       savePending();
       scheduleFlush();
       // Keep the optimistic UI in sync immediately: sensei bar AND the public
@@ -3582,13 +3672,16 @@
       // accumulate into the next batch.
       const batch = {
         user: pending.user, global: pending.global, daily: pending.daily,
-        byCountry:   { ...pending.byCountry },
-        bySkin:      { ...pending.bySkin },
-        byCharacter: { ...pending.byCharacter },
-        allTimeSkin: { ...pending.allTimeSkin },
+        byCountry:    { ...pending.byCountry },
+        bySkin:       { ...pending.bySkin },
+        byCharacter:  { ...pending.byCharacter },
+        allTimeSkin:  { ...pending.allTimeSkin },
+        bySource:     { ...pending.bySource },
+        userBySource: { ...pending.userBySource },
       };
       pending.user = 0; pending.global = 0; pending.daily = 0;
       pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
+      pending.bySource = {}; pending.userBySource = {};
       savePending();
       // Hand off the public-counter AND user-stat deltas from `pending` to
       // `inFlight` so the pills/sensei bar stay visually steady across the
@@ -3608,15 +3701,24 @@
       const today = todayKey();
       const tasks = [];
 
-      if (batch.user > 0 && currentUser) {
+      // Per-user multi-path update. Fires if there are mouse clicks (which
+      // bump totalClicks/coinBalance) OR any per-source deltas (keyboard etc).
+      // bySource always updates alongside lastClickAt so the security rule
+      // can enforce the same 1s/15ms throttle on either path.
+      if (currentUser && (batch.user > 0 || Object.keys(batch.userBySource).length > 0)) {
         const uid = currentUser.uid;
-        const incU = firebase.database.ServerValue.increment(batch.user);
-        const ts   = firebase.database.ServerValue.TIMESTAMP;
-        tasks.push(db.ref().update({
-          [`users/${uid}/stats/totalClicks`]: incU,
-          [`users/${uid}/stats/coinBalance`]: incU,
-          [`users/${uid}/stats/lastClickAt`]: ts,
-        }));
+        const update = {};
+        if (batch.user > 0) {
+          const incU = firebase.database.ServerValue.increment(batch.user);
+          update[`users/${uid}/stats/totalClicks`] = incU;
+          update[`users/${uid}/stats/coinBalance`] = incU;
+        }
+        for (const src in batch.userBySource) {
+          update[`users/${uid}/stats/bySource/${src}`] =
+            firebase.database.ServerValue.increment(batch.userBySource[src]);
+        }
+        update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
+        tasks.push(db.ref().update(update));
       }
       if (batch.global > 0) {
         tasks.push(clicksRef.transaction((c) => (c || 0) + batch.global));
@@ -3640,6 +3742,11 @@
         const n = batch.allTimeSkin[sk];
         tasks.push(db.ref('skins/' + sk).transaction((c) => (c || 0) + n));
       }
+      for (const src in batch.bySource) {
+        const n = batch.bySource[src];
+        tasks.push(db.ref('clicks_by_source/' + src).transaction((c) => (c || 0) + n));
+        tasks.push(db.ref('daily/' + today + '/sources/' + src).transaction((c) => (c || 0) + n));
+      }
 
       try {
         await Promise.all(tasks);
@@ -3650,10 +3757,12 @@
         pending.user       += batch.user;
         pending.global     += batch.global;
         pending.daily      += batch.daily;
-        for (const k in batch.byCountry)   pending.byCountry[k]   = (pending.byCountry[k]   || 0) + batch.byCountry[k];
-        for (const k in batch.bySkin)      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + batch.bySkin[k];
-        for (const k in batch.byCharacter) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + batch.byCharacter[k];
-        for (const k in batch.allTimeSkin) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + batch.allTimeSkin[k];
+        for (const k in batch.byCountry)    pending.byCountry[k]    = (pending.byCountry[k]    || 0) + batch.byCountry[k];
+        for (const k in batch.bySkin)       pending.bySkin[k]       = (pending.bySkin[k]       || 0) + batch.bySkin[k];
+        for (const k in batch.byCharacter)  pending.byCharacter[k]  = (pending.byCharacter[k]  || 0) + batch.byCharacter[k];
+        for (const k in batch.allTimeSkin)  pending.allTimeSkin[k]  = (pending.allTimeSkin[k]  || 0) + batch.allTimeSkin[k];
+        for (const k in batch.bySource)     pending.bySource[k]     = (pending.bySource[k]     || 0) + batch.bySource[k];
+        for (const k in batch.userBySource) pending.userBySource[k] = (pending.userBySource[k] || 0) + batch.userBySource[k];
         // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
         inFlightGlobal = wasInFlightGlobal;
