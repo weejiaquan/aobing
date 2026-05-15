@@ -2712,6 +2712,10 @@
       aobaImg.src = variant.idle;
       const preload = new Image();
       preload.src = variant.active;
+      if (variant.active2) {
+        const preload2 = new Image();
+        preload2.src = variant.active2;
+      }
 
       // Body background — variant.bg overrides character.bg. Empty string clears it
       // so the solid #1a1a2e shows.
