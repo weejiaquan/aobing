@@ -230,6 +230,18 @@
        reset the parent's position. */
     #combo-content { display: inline-block; transform-origin: center bottom; }
 
+    .combo-cps {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--ba-text-faint);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 6px rgba(0, 30, 60, 0.45);
+    }
+    .combo-cps > span { color: var(--ba-text); font-weight: 900; }
+
     .combo-number {
       font-size: 3.8rem;
       font-weight: 900;
@@ -1567,6 +1579,7 @@
   <!-- Combo display (cosmetic only — doesn't affect real counters) -->
   <div id="combo-display" aria-hidden="true">
     <div id="combo-content">
+      <div class="combo-cps"><span id="combo-cps-value">0</span> cps</div>
       <div class="combo-number">0</div>
       <div class="combo-label" data-i18n="combo.label">COMBO!</div>
       <div class="combo-bar"><div class="combo-bar-fill"></div></div>
@@ -4475,6 +4488,8 @@
       // click pill (which reads lastSeenServer + pending + inFlight).
       if (typeof renderSenseiBar    === 'function') renderSenseiBar();
       if (typeof renderClickCounter === 'function') renderClickCounter();
+      // Sliding-window CPS: record every event (mouse + keyboard + auto).
+      cpsTimestamps.push(performance.now());
     }
 
     async function flushPending() {
@@ -4819,6 +4834,20 @@
     const comboNumEl = comboEl.querySelector('.combo-number');
     const comboLabelEl = comboEl.querySelector('.combo-label');
     const comboBarFillEl = comboEl.querySelector('.combo-bar-fill');
+    const comboCpsValueEl = document.getElementById('combo-cps-value');
+
+    // Sliding-window CPS — counts every recordClick (mouse + keyboard + auto)
+    // in the last 1000ms. The combo bar already fades the whole #combo-display
+    // out when no clicks happen for 10s, so the CPS readout naturally fades
+    // with it. Refresh every 100ms; cps stays at 0 quietly while idle.
+    const CPS_WINDOW_MS = 1000;
+    const CPS_REFRESH_MS = 100;
+    const cpsTimestamps = [];
+    setInterval(() => {
+      const cutoff = performance.now() - CPS_WINDOW_MS;
+      while (cpsTimestamps.length && cpsTimestamps[0] < cutoff) cpsTimestamps.shift();
+      if (comboCpsValueEl) comboCpsValueEl.textContent = cpsTimestamps.length;
+    }, CPS_REFRESH_MS);
     let comboCount = 0;
     let comboExpireTimer = null;
     let comboLastTier = 0;
