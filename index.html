@@ -4835,7 +4835,7 @@
           playsfx();
           bumpCombo();
 
-          aobaImg.src = v.active;
+          aobaImg.src = resolveActiveSrc(v);
 
           bounceAnimation = animate(character, {
             translateY: [
@@ -4881,7 +4881,7 @@
       bumpCombo();
 
       // 2. Swap to active image
-      aobaImg.src = v.active;
+      aobaImg.src = resolveActiveSrc(v);
 
       // 3. Damped bounce animation
       if (bounceAnimation) {
