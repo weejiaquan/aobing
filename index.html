@@ -540,7 +540,35 @@
       margin: 8px 0 6px;
       background: rgba(60,90,130,0.18);
     }
-    .skin-bar-row1 { display: flex; align-items: center; gap: 8px; }
+    .skin-bar-row1 { display: flex; align-items: center; gap: 6px; }
+
+    .skin-bar-bondcount {
+      font-size: 0.66rem;
+      font-weight: 800;
+      color: #ff5e7e;
+      background: rgba(255,94,126,0.12);
+      border: 1px solid rgba(255,94,126,0.35);
+      padding: 1px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .skin-bar-bond {
+      background: linear-gradient(135deg, #ff7da0, #e63a66);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      line-height: 1;
+      padding: 3px 7px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(230,58,102,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      animation: bond-pulse 1.6s ease-in-out infinite;
+    }
+    .skin-bar-bond:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(230,58,102,0.55);
+    }
     .skin-bar-thumb {
       width: 22px; height: 22px;
       border-radius: 6px;
@@ -1260,6 +1288,73 @@
     }
 
     /* --- Leaderboard Modal --- */
+    /* Generic confirm / alert modal — used in place of window.confirm/alert. */
+    .app-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .app-modal[hidden] { display: none; }
+    .app-modal-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(20,40,70,0.5);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    }
+    .app-modal-dialog {
+      position: relative;
+      max-width: 420px;
+      width: calc(100% - 32px);
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(0,30,60,0.35);
+      padding: 18px 20px 16px;
+      animation: app-modal-pop 0.18s ease-out;
+    }
+    @keyframes app-modal-pop {
+      from { transform: translateY(8px) scale(0.96); opacity: 0; }
+      to   { transform: translateY(0)   scale(1);    opacity: 1; }
+    }
+    .app-modal-title {
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--ba-text);
+      margin-bottom: 8px;
+    }
+    .app-modal-message {
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: var(--ba-text-muted);
+      white-space: pre-wrap;
+      margin-bottom: 16px;
+    }
+    .app-modal-buttons {
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .app-modal-cancel, .app-modal-confirm {
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .app-modal-cancel {
+      background: rgba(60,90,130,0.10);
+      border: 1px solid rgba(60,90,130,0.25);
+      color: var(--ba-text-muted);
+    }
+    .app-modal-cancel:hover { background: rgba(60,90,130,0.18); }
+    .app-modal-confirm {
+      background: var(--ba-accent-strong);
+      border: 1px solid var(--ba-accent-strong);
+      color: #fff;
+    }
+    .app-modal-confirm:hover { transform: translateY(-1px); }
+    .app-modal-cancel[hidden], .app-modal-confirm[hidden] { display: none; }
+
     #leaderboard-modal {
       position: fixed;
       inset: 0;
@@ -1912,6 +2007,8 @@
       <img class="skin-bar-thumb" id="skin-bar-thumb" alt="">
       <span class="skin-bar-name" id="skin-bar-name">—</span>
       <span class="skin-bar-level" id="skin-bar-level">Lv.0</span>
+      <span class="skin-bar-bondcount" id="skin-bar-bondcount" hidden>♥0</span>
+      <button class="skin-bar-bond" id="skin-bar-bond" type="button" hidden aria-label="Bond">♥</button>
     </div>
     <div class="skin-bar-xp"><div class="skin-bar-xp-fill" id="skin-bar-xp-fill"></div></div>
     <div class="skin-bar-xp-text" id="skin-bar-xp-text">0 / 20</div>
@@ -2116,6 +2213,19 @@
   <!-- Disclaimer -->
   <div id="disclaimer" data-i18n="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.</div>
 
+  <!-- Generic confirm / alert modal — replaces window.confirm / window.alert -->
+  <div id="app-modal" class="app-modal" hidden>
+    <div class="app-modal-backdrop"></div>
+    <div class="app-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="app-modal-title">
+      <div class="app-modal-title" id="app-modal-title"></div>
+      <div class="app-modal-message" id="app-modal-message"></div>
+      <div class="app-modal-buttons">
+        <button class="app-modal-cancel" id="app-modal-cancel" type="button">Cancel</button>
+        <button class="app-modal-confirm" id="app-modal-confirm" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -2267,6 +2377,51 @@
     const MAX_VARIANT_LEVEL = 50;
     const BOND_COIN_BONUS_PER_LEVEL = 0.10;
 
+    // --- Custom modal (replaces window.confirm / window.alert) ----------------
+    // showConfirm(title, message, { confirmLabel, cancelLabel }) → Promise<bool>
+    // showAlert(title, message, { confirmLabel }) → Promise<void>
+    // Esc/click-backdrop = cancel; Enter = confirm.
+    function showModal(options) {
+      return new Promise((resolve) => {
+        const modalEl    = document.getElementById('app-modal');
+        const titleEl    = document.getElementById('app-modal-title');
+        const messageEl  = document.getElementById('app-modal-message');
+        const confirmBtn = document.getElementById('app-modal-confirm');
+        const cancelBtn  = document.getElementById('app-modal-cancel');
+        const backdrop   = modalEl.querySelector('.app-modal-backdrop');
+        titleEl.textContent   = options.title   || '';
+        messageEl.textContent = options.message || '';
+        confirmBtn.textContent = options.confirmLabel || 'OK';
+        cancelBtn.textContent  = options.cancelLabel  || 'Cancel';
+        cancelBtn.hidden = !!options.alertOnly;
+        function cleanup() {
+          modalEl.hidden = true;
+          confirmBtn.removeEventListener('click', onConfirm);
+          cancelBtn.removeEventListener('click', onCancel);
+          backdrop.removeEventListener('click', onCancel);
+          document.removeEventListener('keydown', onKey);
+        }
+        function onConfirm() { cleanup(); resolve(true); }
+        function onCancel()  { cleanup(); resolve(false); }
+        function onKey(e) {
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+          else if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+        }
+        confirmBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        backdrop.addEventListener('click', onCancel);
+        document.addEventListener('keydown', onKey);
+        modalEl.hidden = false;
+        confirmBtn.focus();
+      });
+    }
+    function showConfirm(title, message, opts) {
+      return showModal(Object.assign({ title, message, alertOnly: false }, opts || {}));
+    }
+    function showAlert(title, message, opts) {
+      return showModal(Object.assign({ title, message, alertOnly: true }, opts || {}));
+    }
+
     function getVariant(variantId) {
       for (const c of CHARACTERS) {
         const v = c.variants.find(v => v.id === variantId);
@@ -2336,6 +2491,8 @@
           'shop.prestige.coinsLabel':'coins',
           'shop.prestige.permanent':'(permanent)',
           'shop.prestige.confirm':'Reset all shop levels and coin balance to gain ★{n}? Your lifetime clicks and prestige stars are preserved.',
+          'bond.title':'Bond',
+          'bond.cta':'Bond',
           'bond.button':'Bond — reset level for +10% coins permanent',
           'bond.confirm':'Bond with {name}? Resets the visible level back to 0 and adds ♥{n}. Permanent +10% coins when using this skin.',
           'bond.count':'♥{n} bond level',
@@ -3100,24 +3257,35 @@
 
     // Skin bar — current variant + its level + XP progress. Declared here so
     // applyVariant() (which calls renderSkinBar) can read these refs at startup.
-    const skinBarThumbEl  = document.getElementById('skin-bar-thumb');
-    const skinBarNameEl   = document.getElementById('skin-bar-name');
-    const skinBarLevelEl  = document.getElementById('skin-bar-level');
-    const skinBarXpFillEl = document.getElementById('skin-bar-xp-fill');
-    const skinBarXpTextEl = document.getElementById('skin-bar-xp-text');
+    const skinBarThumbEl     = document.getElementById('skin-bar-thumb');
+    const skinBarNameEl      = document.getElementById('skin-bar-name');
+    const skinBarLevelEl     = document.getElementById('skin-bar-level');
+    const skinBarXpFillEl    = document.getElementById('skin-bar-xp-fill');
+    const skinBarXpTextEl    = document.getElementById('skin-bar-xp-text');
+    const skinBarBondEl      = document.getElementById('skin-bar-bond');
+    const skinBarBondCountEl = document.getElementById('skin-bar-bondcount');
 
     function renderSkinBar() {
       if (!skinBarNameEl) return;
       const { variant } = getVariant(settings.skin);
-      const lv    = variantLevelOf(variant.id);
-      const cur   = variantXpInLevel(variant.id);
-      const need  = variantXpToNext(variant.id);
-      const bonds = variantBonds(variant.id);
+      const lv      = variantLevelOf(variant.id);
+      const cur     = variantXpInLevel(variant.id);
+      const need    = variantXpToNext(variant.id);
+      const bonds   = variantBonds(variant.id);
+      const canBond = variantCanBond(variant.id);
       if (skinBarThumbEl && skinBarThumbEl.getAttribute('src') !== variant.idle) skinBarThumbEl.src = variant.idle;
       skinBarNameEl.textContent  = variantName(variant);
-      skinBarLevelEl.textContent = 'Lv.' + lv + (bonds > 0 ? '  ♥' + bonds : '');
+      skinBarLevelEl.textContent = 'Lv.' + lv + (canBond ? ' MAX' : '');
       skinBarXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
       skinBarXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
+      if (skinBarBondEl) {
+        skinBarBondEl.hidden = !canBond;
+        skinBarBondEl.dataset.bondVariant = variant.id;
+      }
+      if (skinBarBondCountEl) {
+        skinBarBondCountEl.hidden = bonds === 0;
+        skinBarBondCountEl.textContent = '♥' + bonds;
+      }
     }
 
     function applyVariant(variantId) {
@@ -4086,7 +4254,8 @@
       const v = getVariant(variantId).variant;
       const next = variantBonds(variantId) + 1;
       const confirmMsg = I18N.t('bond.confirm', { name: variantName(v), n: next });
-      if (!window.confirm(confirmMsg)) return;
+      const ok = await showConfirm(I18N.t('bond.title'), confirmMsg, { confirmLabel: '♥ ' + I18N.t('bond.cta') });
+      if (!ok) return;
 
       // Guest mode — write straight to local stats. Bond eligibility math reads
       // userStats.bonds, which is hydrated from localStorage at startup.
@@ -4108,7 +4277,7 @@
         renderSkinList();
         renderSkinBar();
       } catch (err) {
-        alert('Bond failed: ' + (err.message || err.code || 'unknown'));
+        showAlert(I18N.t('bond.title'), 'Bond failed: ' + (err.message || err.code || 'unknown'));
       }
     }
 
@@ -4491,7 +4660,8 @@
       const uid = currentUser.uid;
       const newStars = (userStats.prestigeStars || 0) + 1;
       const confirmMsg = I18N.t('shop.prestige.confirm', { n: newStars });
-      if (!window.confirm(confirmMsg)) return;
+      const ok = await showConfirm(I18N.t('shop.prestige.title'), confirmMsg, { confirmLabel: '★ ' + I18N.t('shop.prestige.cta') });
+      if (!ok) return;
 
       // Snapshot everything we optimistically wipe so we can roll back if the
       // atomic Firebase update fails. userClicks/totalClicks are deliberately
@@ -4859,6 +5029,12 @@
 
     senseiBar.addEventListener('click', (e) => {
       e.stopPropagation();
+      // Intercept the bond heart so clicking it doesn't open the profile panel.
+      const bondBtn = e.target.closest('.skin-bar-bond');
+      if (bondBtn && !bondBtn.hidden) {
+        doBond(bondBtn.dataset.bondVariant);
+        return;
+      }
       updateProfileView();
       profilePanel.classList.toggle('open');
     });
@@ -4918,7 +5094,7 @@
       try {
         await db.ref('leaderboard/topClicks/' + uid).update({ hidden: nextHidden });
       } catch (err) {
-        alert('Hide toggle failed: ' + (err.message || err.code || 'unknown'));
+        showAlert(I18N.t('admin.banner').slice(0, 20), 'Hide toggle failed: ' + (err.message || err.code || 'unknown'));
       }
     });
 
