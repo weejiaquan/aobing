@@ -3595,7 +3595,10 @@
     }
 
     function shopAffordableCoins() {
-      return (userStats.coinBalance || 0) + (pending.userCoins || 0);
+      // Listeners may fire before the `pending` initializer runs at script bottom.
+      // var hoisting makes `pending` exist but be `undefined`, so guard the read.
+      const pendingCoins = (typeof pending !== 'undefined' && pending) ? (pending.userCoins || 0) : 0;
+      return (userStats.coinBalance || 0) + pendingCoins;
     }
 
     function shopFormatNum(n) {
