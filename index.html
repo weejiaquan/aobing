@@ -568,6 +568,36 @@
     .profile-button.secondary:hover { color: var(--ba-accent-strong); }
     .profile-error { color: #d04a4a; font-size: 0.72rem; margin-top: 4px; min-height: 0.9rem; }
 
+    /* Country area: read-only flag display + optional "change to X" pill.
+       Admin mode swaps the entire area for a dropdown picker. */
+    .country-display {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px;
+      background: var(--ba-card-bg-soft);
+      border: 1px solid var(--ba-divider);
+      border-radius: 8px;
+      margin-top: 4px;
+      font-size: 0.85rem; font-weight: 700;
+      color: var(--ba-text);
+    }
+    .country-display-flag { font-size: 1.05rem; }
+    .country-change-btn {
+      display: block;
+      margin-top: 6px;
+      padding: 6px 10px;
+      background: var(--ba-accent-soft);
+      border: 1px solid rgba(77,171,247,0.4);
+      border-radius: 8px;
+      color: var(--ba-accent-strong);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      width: 100%;
+      text-align: left;
+    }
+    .country-change-btn:hover { background: rgba(77,171,247,0.22); }
+
     /* --- Settings Panel (BA white card) --- */
     #settings-panel {
       position: fixed;
@@ -1445,7 +1475,7 @@
       <div style="height: 8px;"></div>
       <label style="font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700;"
              data-i18n="profile.country">Country</label>
-      <select id="profile-country-select" class="profile-select"></select>
+      <div id="profile-country-area"></div>
       <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
       <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
       <div class="profile-error" id="profile-error-linked"></div>
@@ -1783,6 +1813,7 @@
           'profile.anon_blurb':'Sign in to save your progress across devices and appear on the leaderboard.',
           'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save',
           'profile.name_length_error':'Display name must be 1-24 characters.',
+          'profile.country_change_to':'Change to {flag} {code}',
           'leaderboard.title':'Leaderboard',
           'leaderboard.info_banner':"Only mouse and tap clicks count toward your rank. Keyboard mashing is fun, but it's not on the board.",
           'leaderboard.sign_in_cta':'Sign in to join the leaderboard →',
@@ -1855,6 +1886,7 @@
           'profile.anon_blurb':'ログインすると進行状況がデバイス間で保存され、リーダーボードに表示されます。',
           'profile.display_name':'表示名','profile.country':'国','profile.save':'保存',
           'profile.name_length_error':'表示名は1〜24文字で入力してください。',
+          'profile.country_change_to':'{flag} {code} に変更',
           'leaderboard.title':'リーダーボード',
           'leaderboard.info_banner':'マウス/タップのクリックだけがランクに反映されます。キーボード連打は楽しいですが、ランキング対象外です。',
           'leaderboard.sign_in_cta':'ログインしてリーダーボードに参加 →',
@@ -1898,6 +1930,7 @@
           'profile.anon_blurb':'로그인하면 진행 상황이 기기 간 저장되고 리더보드에 표시됩니다.',
           'profile.display_name':'표시 이름','profile.country':'국가','profile.save':'저장',
           'profile.name_length_error':'표시 이름은 1~24자여야 합니다.',
+          'profile.country_change_to':'{flag} {code} 로 변경',
           'leaderboard.title':'리더보드',
           'leaderboard.info_banner':'마우스/탭 클릭만 순위에 반영됩니다. 키보드 연타는 재미있지만 순위에는 들어가지 않습니다.',
           'leaderboard.sign_in_cta':'로그인해서 리더보드에 참여하기 →',
@@ -1941,6 +1974,7 @@
           'profile.anon_blurb':'登录后可跨设备保存进度并出现在排行榜上。',
           'profile.display_name':'显示名称','profile.country':'国家','profile.save':'保存',
           'profile.name_length_error':'显示名称需为 1–24 个字符。',
+          'profile.country_change_to':'更改为 {flag} {code}',
           'leaderboard.title':'排行榜',
           'leaderboard.info_banner':'只有鼠标/点击计入排名。键盘连按很有趣,但不计入榜单。',
           'leaderboard.sign_in_cta':'登录加入排行榜 →',
@@ -1984,6 +2018,7 @@
           'profile.anon_blurb':'登入後可跨裝置保存進度並顯示在排行榜上。',
           'profile.display_name':'顯示名稱','profile.country':'國家','profile.save':'儲存',
           'profile.name_length_error':'顯示名稱需為 1–24 個字元。',
+          'profile.country_change_to':'變更為 {flag} {code}',
           'leaderboard.title':'排行榜',
           'leaderboard.info_banner':'只有滑鼠/點擊計入排名。鍵盤連按很有趣,但不計入榜單。',
           'leaderboard.sign_in_cta':'登入加入排行榜 →',
@@ -2027,6 +2062,7 @@
           'profile.anon_blurb':'เข้าสู่ระบบเพื่อบันทึกความคืบหน้าข้ามอุปกรณ์และปรากฏบนกระดานผู้นำ',
           'profile.display_name':'ชื่อที่แสดง','profile.country':'ประเทศ','profile.save':'บันทึก',
           'profile.name_length_error':'ชื่อที่แสดงต้องมี 1–24 ตัวอักษร',
+          'profile.country_change_to':'เปลี่ยนเป็น {flag} {code}',
           'leaderboard.title':'กระดานผู้นำ',
           'leaderboard.info_banner':'เฉพาะคลิกเมาส์/แตะเท่านั้นที่นับเข้าอันดับ การกดคีย์บอร์ดสนุกแต่ไม่อยู่บนกระดาน',
           'leaderboard.sign_in_cta':'เข้าสู่ระบบเพื่อร่วมกระดานผู้นำ →',
@@ -2070,6 +2106,7 @@
           'profile.anon_blurb':'سجّل الدخول لحفظ تقدمك عبر الأجهزة والظهور في لوحة المتصدرين.',
           'profile.display_name':'اسم العرض','profile.country':'الدولة','profile.save':'حفظ',
           'profile.name_length_error':'يجب أن يتكون اسم العرض من 1 إلى 24 حرفًا.',
+          'profile.country_change_to':'تغيير إلى {flag} {code}',
           'leaderboard.title':'لوحة المتصدرين',
           'leaderboard.info_banner':'فقط نقرات الفأرة/اللمس تُحتسب في تصنيفك. لعب لوحة المفاتيح ممتع لكنه لا يدخل اللوحة.',
           'leaderboard.sign_in_cta':'سجّل الدخول للانضمام إلى لوحة المتصدرين →',
@@ -2281,6 +2318,8 @@
       saveSettings(settings);
       // Re-render leaderboard if it's open so the delete buttons toggle
       if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
+      // Re-render the country area so the dropdown picker appears/disappears.
+      if (typeof renderCountryArea === 'function') renderCountryArea();
     });
     function syncAdminVisibility() {
       // Use style.display because the [hidden] attribute is overridden by the
@@ -2291,6 +2330,8 @@
         adminToggle.classList.remove('on');
         saveSettings(settings);
       }
+      // Country picker visibility depends on admin status too.
+      if (typeof renderCountryArea === 'function') renderCountryArea();
     }
     // Subscription listener (subscribeAdminStatus) already calls
     // syncAdminVisibility when admin status changes. No need for a separate
@@ -3308,7 +3349,15 @@
       userStatsUnsub = () => statsRef.off('value', statsCb);
 
       const profRef = db.ref('users/' + uid + '/profile');
-      const profCb  = (snap) => { userProfile = snap.val(); renderSenseiBar(); };
+      const profCb  = (snap) => {
+        userProfile = snap.val();
+        renderSenseiBar();
+        // Keep the country area display in sync when the server pushes a new
+        // value (admin-edited, multi-tab edit, or first-link write).
+        if (typeof renderCountryArea === 'function' && !profilePanel.contains(document.activeElement)) {
+          renderCountryArea();
+        }
+      };
       profRef.on('value', profCb);
       userProfileUnsub = () => profRef.off('value', profCb);
     }
@@ -3495,46 +3544,109 @@
     });
 
     // --- Profile editor (linked) ------------------------------------------------
-    const profileNameInput  = document.getElementById('profile-name-input');
-    const profileCountrySel = document.getElementById('profile-country-select');
-    const profileSaveBtn    = document.getElementById('profile-save-btn');
-    const profileSignoutBtn = document.getElementById('profile-signout-btn');
-    const profileErrLinked  = document.getElementById('profile-error-linked');
+    const profileNameInput   = document.getElementById('profile-name-input');
+    const profileCountryArea = document.getElementById('profile-country-area');
+    const profileSaveBtn     = document.getElementById('profile-save-btn');
+    const profileSignoutBtn  = document.getElementById('profile-signout-btn');
+    const profileErrLinked   = document.getElementById('profile-error-linked');
 
-    // All ISO 3166-1 alpha-2 country codes. Names are English-only for v1 —
-    // translating ~250 country names is out of scope; the flag emoji is universal.
+    // All ISO 3166-1 alpha-2 country codes — used by the admin-mode dropdown.
     const COUNTRY_CODES = ['AF','AL','DZ','AS','AD','AO','AI','AQ','AG','AR','AM','AW','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BM','BT','BO','BA','BW','BR','IO','BN','BG','BF','BI','CV','KH','CM','CA','KY','CF','TD','CL','CN','CO','KM','CG','CD','CK','CR','CI','HR','CU','CY','CZ','DK','DJ','DM','DO','EC','EG','SV','GQ','ER','EE','ET','FK','FO','FJ','FI','FR','GF','PF','GA','GM','GE','DE','GH','GI','GR','GL','GD','GP','GU','GT','GG','GN','GW','GY','HT','HN','HK','HU','IS','IN','ID','IR','IQ','IE','IM','IL','IT','JM','JP','JE','JO','KZ','KE','KI','KP','KR','KW','KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MO','MG','MW','MY','MV','ML','MT','MH','MQ','MR','MU','YT','MX','FM','MD','MC','MN','ME','MS','MA','MZ','MM','NA','NR','NP','NL','NC','NZ','NI','NE','NG','NU','NF','MK','MP','NO','OM','PK','PW','PS','PA','PG','PY','PE','PH','PN','PL','PT','PR','QA','RE','RO','RU','RW','BL','SH','KN','LC','MF','PM','VC','WS','SM','ST','SA','SN','RS','SC','SL','SG','SX','SK','SI','SB','SO','ZA','SS','ES','LK','SD','SR','SZ','SE','CH','SY','TW','TJ','TZ','TH','TL','TG','TK','TO','TT','TN','TR','TM','TC','TV','UG','UA','AE','GB','US','UY','UZ','VU','VE','VN','VG','VI','YE','ZM','ZW'];
 
-    (function populateCountries() {
-      const opts = COUNTRY_CODES.map(code => {
-        const flag = code.replace(/./g, c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
-        return `<option value="${code}">${flag} ${code}</option>`;
-      });
-      profileCountrySel.innerHTML = opts.join('');
-    })();
+    function renderCountryArea() {
+      profileCountryArea.innerHTML = '';
+      const stored = (userProfile && userProfile.country) || visitorCountry || 'XX';
+      const showAdminPicker = isAdmin() && settings.adminMode;
+
+      if (showAdminPicker) {
+        // Admin: full dropdown, picks any country. Save button commits it.
+        const sel = document.createElement('select');
+        sel.id = 'profile-country-select';
+        sel.className = 'profile-select';
+        sel.innerHTML = COUNTRY_CODES.map(code => {
+          const flag = code.replace(/./g, c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65));
+          return `<option value="${code}"${code === stored ? ' selected' : ''}>${flag} ${code}</option>`;
+        }).join('');
+        profileCountryArea.appendChild(sel);
+        return;
+      }
+
+      // Non-admin: read-only display. The country was set on first link from
+      // ipapi.co detection and stays put. If detection now shows a different
+      // country (e.g. user traveled), surface a one-click change button.
+      const display = document.createElement('div');
+      display.className = 'country-display';
+      const flag = flagFromCountry(stored);
+      display.innerHTML =
+        `<span class="country-display-flag">${flag || '🏳'}</span>` +
+        `<span>${escapeHtml(stored)}</span>`;
+      profileCountryArea.appendChild(display);
+
+      if (visitorCountry && visitorCountry.length === 2 && visitorCountry !== stored) {
+        const btn = document.createElement('button');
+        btn.className = 'country-change-btn';
+        btn.type = 'button';
+        const newFlag = flagFromCountry(visitorCountry);
+        btn.textContent = I18N.t('profile.country_change_to', { flag: newFlag, code: visitorCountry });
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!currentUser) return;
+          try {
+            await db.ref('users/' + currentUser.uid + '/profile/country').set(visitorCountry);
+            const lbRef = db.ref('leaderboard/topClicks/' + currentUser.uid);
+            if ((await lbRef.once('value')).exists()) {
+              await lbRef.update({ country: visitorCountry });
+            }
+            // userProfile listener will fire and re-render; explicit call so
+            // the swap is instant.
+            if (userProfile) userProfile.country = visitorCountry;
+            renderCountryArea();
+            renderSenseiBar();
+          } catch (err) {
+            profileErrLinked.textContent = err.message || 'Country update failed.';
+          }
+        });
+        profileCountryArea.appendChild(btn);
+      }
+    }
 
     function syncProfileInputs() {
       if (!userProfile) return;
       profileNameInput.value = userProfile.displayName || '';
-      profileCountrySel.value = userProfile.country || (visitorCountry || 'US');
+      renderCountryArea();
     }
     senseiBar.addEventListener('click', syncProfileInputs);
+
+    // Re-render the country area when admin mode flips so the dropdown
+    // appears/disappears live.
+    window.addEventListener('i18nchange', renderCountryArea);
 
     profileSaveBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       profileErrLinked.textContent = '';
       const name = profileNameInput.value.trim();
-      const country = profileCountrySel.value;
       if (name.length < 1 || name.length > 24) {
         profileErrLinked.textContent = I18N.t('profile.name_length_error');
         return;
       }
+      // Country only editable in admin mode (via dropdown); non-admins change
+      // it through the inline "change to X" button instead.
+      const adminSel = document.getElementById('profile-country-select');
+      const adminCountry = (isAdmin() && settings.adminMode && adminSel) ? adminSel.value : null;
+
       const uid = currentUser.uid;
       try {
-        await db.ref('users/' + uid + '/profile').update({ displayName: name, country });
+        const profileUpdate = { displayName: name };
+        if (adminCountry) profileUpdate.country = adminCountry;
+        await db.ref('users/' + uid + '/profile').update(profileUpdate);
+
         const lbRef = db.ref('leaderboard/topClicks/' + uid);
         const exists = (await lbRef.once('value')).exists();
-        if (exists) await lbRef.update({ name, country });
+        if (exists) {
+          const lbUpdate = { name };
+          if (adminCountry) lbUpdate.country = adminCountry;
+          await lbRef.update(lbUpdate);
+        }
         profilePanel.classList.remove('open');
       } catch (err) {
         profileErrLinked.textContent = err.message || 'Save failed.';
