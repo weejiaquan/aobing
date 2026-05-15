@@ -492,6 +492,19 @@
       font-weight: 800; color: var(--ba-accent-strong);
       font-variant-numeric: tabular-nums;
     }
+    .sensei-prestige {
+      display: inline-block;
+      font-weight: 800;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #f5c14b, #b67a16);
+      color: #fff;
+      padding: 1px 8px;
+      border-radius: 999px;
+      box-shadow: 0 1px 2px rgba(182, 122, 22, 0.45);
+      font-variant-numeric: tabular-nums;
+      vertical-align: 1px;
+    }
 
     .sensei-xp-bar {
       margin-top: 6px;
@@ -1092,6 +1105,21 @@
     .shop-level-badge.shop-level-owned {
       background: linear-gradient(135deg, #6cba6c, #3f9d3f);
       box-shadow: 0 1px 2px rgba(63, 157, 63, 0.45);
+    }
+    .shop-level-badge.shop-level-star {
+      background: linear-gradient(135deg, #f5c14b, #b67a16);
+      box-shadow: 0 1px 2px rgba(182, 122, 22, 0.5);
+    }
+    .shop-item-prestige {
+      background: linear-gradient(135deg, rgba(245, 193, 75, 0.16), rgba(255, 255, 255, 0.55));
+      border-color: rgba(182, 122, 22, 0.35);
+    }
+    .shop-item-prestige:hover {
+      background: linear-gradient(135deg, rgba(245, 193, 75, 0.28), rgba(255, 255, 255, 0.9));
+      border-color: rgba(182, 122, 22, 0.6);
+    }
+    .shop-item-prestige-cta {
+      color: #b67a16;
     }
     .shop-item.purchased {
       animation: shop-pop 0.55s cubic-bezier(.34, 1.56, .64, 1);
@@ -1714,6 +1742,7 @@
       <span class="sensei-name" id="sensei-name" data-i18n="sensei.trainer">Trainer</span>
       <span class="sensei-flag" id="sensei-flag"></span>
       <span class="sensei-level" id="sensei-level">Lv.0</span>
+      <span class="sensei-prestige" id="sensei-prestige" hidden>★0</span>
     </div>
     <div class="sensei-xp-bar"><div class="sensei-xp-fill" id="sensei-xp-fill"></div></div>
     <div class="sensei-row2">
@@ -1811,6 +1840,10 @@
       <div class="shop-item" data-item="buffCoins"></div>
       <div class="shop-item" data-item="buffClicks"></div>
       <div class="shop-item" data-item="buffAutoRate"></div>
+    </div>
+    <div class="shop-section">
+      <div class="shop-section-title" data-i18n="shop.prestige.title">Prestige</div>
+      <div class="shop-item shop-item-prestige" data-item="prestige"></div>
     </div>
   </div>
 
@@ -1950,22 +1983,20 @@
     try { firebase.analytics(); } catch (e) { /* analytics blocked or unavailable */ }
 
     // --- User identity ------------------------------------------------------------
-    // auth.uid is the source of truth for per-user data. Anonymous on first visit;
-    // upgraded to Google via linkWithPopup later. The promise resolves once auth
-    // state is known so downstream code (click handlers, sensei bar) can read uid
-    // without races.
+    // No auto-anonymous sign-in: guests run in a localStorage-only mode and only
+    // get a real Firebase Auth account when they explicitly sign in with Google.
+    // Stale anonymous sessions from before this change are signed out on detect;
+    // their RTDB data is cleaned up by scripts/cleanup-anon-accounts.js.
     let currentUser = null;
+    let authResolved = false;
     const authReady = new Promise((resolve) => {
       auth.onAuthStateChanged((user) => {
-        currentUser = user;
-        if (!user) {
-          auth.signInAnonymously().catch((e) => {
-            console.error('Anonymous sign-in failed', e);
-            resolve(null);
-          });
+        if (user && user.isAnonymous) {
+          auth.signOut().catch(() => {});
           return;
         }
-        resolve(user);
+        currentUser = user;
+        if (!authResolved) { authResolved = true; resolve(user); }
       });
     });
 
@@ -1989,15 +2020,24 @@
       .catch(() => {});
 
     // --- Track unique daily visitors ---
-    // Uses the Firebase Auth UID (28 chars, satisfies the `visitorId.length <= 64`
-    // rule). Old `aobing_visitor_id` is removed so localStorage isn't littered.
+    // Signed-in users use their auth UID; guests get a stable localStorage UUID
+    // so the daily-unique count still works without creating Firebase accounts.
+    // The RTDB rule for visitors only checks length <= 64 (no auth required).
+    function getOrCreateLocalVisitorId() {
+      let id = localStorage.getItem('aobing-visitor-id');
+      if (!id) {
+        id = 'guest-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        try { localStorage.setItem('aobing-visitor-id', id); } catch {}
+      }
+      return id;
+    }
     localStorage.removeItem('aobing_visitor_id');
     authReady.then((user) => {
-      if (!user) return;
+      const visitorId = user ? user.uid : getOrCreateLocalVisitorId();
       const visitKey = 'aobing_visited_' + todayKey();
       if (!sessionStorage.getItem(visitKey)) {
         sessionStorage.setItem(visitKey, '1');
-        db.ref('daily/' + todayKey() + '/visitors/' + user.uid).set(true);
+        db.ref('daily/' + todayKey() + '/visitors/' + visitorId).set(true).catch(() => {});
       }
     });
 
@@ -2117,6 +2157,13 @@
           'shop.atMax':'MAX',
           'shop.owned':'Owned',
           'shop.error.notEnough':'Not enough coins',
+          'shop.prestige.title':'Prestige',
+          'shop.prestige.name':'Prestige',
+          'shop.prestige.locked':'Reach Lv {n} on any upgrade to unlock',
+          'shop.prestige.cta':'Reset',
+          'shop.prestige.coinsLabel':'coins',
+          'shop.prestige.permanent':'(permanent)',
+          'shop.prestige.confirm':'Reset all shop levels and coin balance to gain ★{n}? Your lifetime clicks and prestige stars are preserved.',
           'settings.admin_mode':'Admin mode',
           'admin.banner':'Admin mode is ON. Use × to hide a row, ↺ to unhide. Hidden rows are dimmed.',
           'admin.delete_row':'Hide from leaderboard',
@@ -2615,7 +2662,9 @@
       adminUnsub = () => ref.off('value', cb);
     }
     auth.onAuthStateChanged((user) => {
-      subscribeAdminStatus(user ? user.uid : null);
+      // Treat stale anonymous sessions as signed-out; they'll be cleared by
+      // the auth-init listener calling signOut().
+      subscribeAdminStatus(user && !user.isAnonymous ? user.uid : null);
     });
 
     function loadSettings() {
@@ -3738,6 +3787,7 @@
     const senseiXpFillEl = document.getElementById('sensei-xp-fill');
     const senseiXpTextEl = document.getElementById('sensei-xp-text');
     const senseiCoinsEl  = document.getElementById('sensei-coins');
+    const senseiPrestigeEl = document.getElementById('sensei-prestige');
 
     let userStats = { totalClicks: 0, coinBalance: 0 };
     let userProfile = null;
@@ -3745,6 +3795,33 @@
     let userStatsUnsub = null;
     let userProfileUnsub = null;
     let userShopUnsub = null;
+
+    // --- Local guest state ------------------------------------------------------
+    // When no Firebase user is signed in, stats/shop live in localStorage. On
+    // Google sign-in, this state is merged into users/{uid}/* and cleared.
+    const LOCAL_USER_KEY = 'aobing-local-user';
+    function loadLocalUserData() {
+      try {
+        const raw = localStorage.getItem(LOCAL_USER_KEY);
+        if (!raw) return { stats: {}, shop: {} };
+        const parsed = JSON.parse(raw);
+        return {
+          stats: (parsed && parsed.stats) || {},
+          shop:  (parsed && parsed.shop)  || {},
+        };
+      } catch {
+        return { stats: {}, shop: {} };
+      }
+    }
+    function saveLocalUserData() {
+      if (currentUser) return;  // only persist while in guest mode
+      try {
+        localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({ stats: userStats, shop: userShop }));
+      } catch {}
+    }
+    function clearLocalUserData() {
+      try { localStorage.removeItem(LOCAL_USER_KEY); } catch {}
+    }
 
     // --- Shop helpers -----------------------------------------------------------
     const SHOP_MAX_LEVEL = 30;
@@ -3776,12 +3853,24 @@
       const s = userShop || {};
       const b = s.buffs || {};
       const active = (key) => ((b[key] && b[key].expiresAt) || 0) > now;
+      // Permanent +5% coins per prestige star. Applies to coins only — clicks
+      // (which feed totalClicks/leaderboard) are untouched by design, so prestige
+      // can't be used to inflate leaderboard standing.
+      const stars = (userStats && userStats.prestigeStars) || 0;
+      const prestigeMul = 1 + 0.05 * stars;
       return {
-        coin:     (1 + 0.5 * (s.coinMulLevel  || 0)) * (active('coins')    ? 2 : 1),
-        click:    (1 + 0.5 * (s.clickMulLevel || 0)) * (active('clicks')   ? 2 : 1),
-        autoCps:  0.5 * (s.autoLevel || 0)           * (active('autoRate') ? 2 : 1),
+        coin:     (1 + 0.5 * (s.coinMulLevel  || 0)) * prestigeMul * (active('coins')    ? 2 : 1),
+        click:    (1 + 0.5 * (s.clickMulLevel || 0)) *               (active('clicks')   ? 2 : 1),
+        autoCps:  0.5 * (s.autoLevel || 0)           *               (active('autoRate') ? 2 : 1),
         lbAuto:   !!s.leaderboardAutoUnlocked,
       };
+    }
+
+    function shopPrestigeEligible() {
+      const s = userShop || {};
+      return (s.coinMulLevel  || 0) >= SHOP_MAX_LEVEL
+          || (s.clickMulLevel || 0) >= SHOP_MAX_LEVEL
+          || (s.autoLevel     || 0) >= SHOP_MAX_LEVEL;
     }
 
     function shopAffordableCoins() {
@@ -3885,6 +3974,32 @@
         `;
         el.setAttribute('aria-disabled', (have < SHOP_BUFF_COST) ? 'true' : 'false');
       }
+
+      // Prestige
+      {
+        const el = panel.querySelector('.shop-item[data-item="prestige"]');
+        if (el) {
+          const stars    = (userStats && userStats.prestigeStars) || 0;
+          const curPct   = Math.round(stars * 5);
+          const nextPct  = curPct + 5;
+          const eligible = shopPrestigeEligible();
+          const badge    = `<span class="shop-level-badge shop-level-star">★ ${stars}</span>`;
+          const stepText = eligible ? `→ ★ ${stars + 1}` : '';
+          const ctaText  = eligible ? I18N.t('shop.prestige.cta') : '';
+          const subText  = eligible
+            ? `+${curPct}% → +${nextPct}% ${I18N.t('shop.prestige.coinsLabel')} ${I18N.t('shop.prestige.permanent')}`
+            : `${I18N.t('shop.prestige.locked', { n: SHOP_MAX_LEVEL })} · +${curPct}% ${I18N.t('shop.prestige.coinsLabel')}`;
+          el.innerHTML = `
+            <div class="shop-item-row">
+              <span>${escapeHtml(I18N.t('shop.prestige.name'))} ${badge}</span>
+              <span>${escapeHtml(stepText)}</span>
+              <span class="shop-item-cost shop-item-prestige-cta">${escapeHtml(ctaText)}</span>
+            </div>
+            <div class="shop-item-sub">${escapeHtml(subText)}</div>
+          `;
+          el.setAttribute('aria-disabled', eligible ? 'false' : 'true');
+        }
+      }
     }
 
     // --- Shop buy handlers ------------------------------------------------------
@@ -3915,7 +4030,6 @@
     }
 
     async function buyLeveled(which, itemEl) {
-      if (!currentUser) return;
       const field = shopFieldFor(which);
       if (!field) return;
       const level = userShop[field] || 0;
@@ -3931,6 +4045,15 @@
       renderShopPanel();
       shopPlayPurchaseFX(itemEl, `Lv ${level + 1}!`);
 
+      if (!currentUser) {
+        // Guest mode: write straight to local shop state.
+        userShop[field] = level + 1;
+        saveLocalUserData();
+        renderShopPanel();
+        if (typeof rearmAutoLoop === 'function') rearmAutoLoop();
+        return;
+      }
+
       try {
         await db.ref(`users/${currentUser.uid}/shop/${field}`).set(level + 1);
       } catch (err) {
@@ -3945,7 +4068,6 @@
     }
 
     async function buyOneShot(itemEl) {
-      if (!currentUser) return;
       if (userShop.leaderboardAutoUnlocked) return;
       const cost = SHOP_LBAUTO_COST;
       if (shopAffordableCoins() < cost) { shopShowError(itemEl); return; }
@@ -3957,6 +4079,13 @@
       renderSenseiBar();
       renderShopPanel();
       shopPlayPurchaseFX(itemEl, '✓ Unlocked!');
+
+      if (!currentUser) {
+        userShop.leaderboardAutoUnlocked = true;
+        saveLocalUserData();
+        renderShopPanel();
+        return;
+      }
 
       try {
         await db.ref(`users/${currentUser.uid}/shop/leaderboardAutoUnlocked`).set(true);
@@ -3971,7 +4100,6 @@
     }
 
     async function buyBuff(kind, itemEl) {
-      if (!currentUser) return;
       if (!['coins','clicks','autoRate'].includes(kind)) return;
       const cost = SHOP_BUFF_COST;
       if (shopAffordableCoins() < cost) { shopShowError(itemEl); return; }
@@ -3982,6 +4110,21 @@
       renderSenseiBar();
       renderShopPanel();
       shopPlayPurchaseFX(itemEl, '+60s');
+
+      if (!currentUser) {
+        // Guest mode: extend local buff expiration directly.
+        const baseFloor = Date.now();
+        const cur = (userShop.buffs && userShop.buffs[kind] && userShop.buffs[kind].expiresAt) || 0;
+        const base = cur > baseFloor ? cur : baseFloor;
+        if (!userShop.buffs) userShop.buffs = {};
+        if (!userShop.buffs[kind]) userShop.buffs[kind] = {};
+        userShop.buffs[kind].expiresAt = base + SHOP_BUFF_DURATION_MS;
+        saveLocalUserData();
+        renderShopPanel();
+        if (typeof syncBuffTimers === 'function') syncBuffTimers();
+        if (typeof rearmAutoLoop  === 'function') rearmAutoLoop();
+        return;
+      }
 
       try {
         const buffRef = db.ref(`users/${currentUser.uid}/shop/buffs/${kind}/expiresAt`);
@@ -4000,6 +4143,62 @@
       }
     }
 
+    async function doPrestige(itemEl) {
+      if (!currentUser) return;
+      if (!shopPrestigeEligible()) { shopShowError(itemEl); return; }
+
+      const uid = currentUser.uid;
+      const newStars = (userStats.prestigeStars || 0) + 1;
+      const confirmMsg = I18N.t('shop.prestige.confirm', { n: newStars });
+      if (!window.confirm(confirmMsg)) return;
+
+      // Snapshot everything we optimistically wipe so we can roll back if the
+      // atomic Firebase update fails. userClicks/totalClicks are deliberately
+      // untouched — leaderboard standing survives prestige.
+      const heldPendingCoins  = pending.userCoins;
+      const heldInFlightCoins = inFlightUserCoins;
+      const heldCoinBalance   = userStats.coinBalance;
+      const heldPrestigeStars = userStats.prestigeStars;
+      const heldShop          = { ...userShop };
+
+      pending.userCoins  = 0;
+      inFlightUserCoins  = 0;
+      userStats = { ...userStats, coinBalance: 0, prestigeStars: newStars };
+      userShop  = { ...userShop, coinMulLevel: 0, clickMulLevel: 0, autoLevel: 0,
+                                 leaderboardAutoUnlocked: false, buffs: null };
+      savePending();
+      renderSenseiBar();
+      renderShopPanel();
+      if (typeof rearmAutoLoop === 'function') rearmAutoLoop();
+      shopPlayPurchaseFX(itemEl, `★ Prestige ${newStars}!`);
+
+      const updates = {
+        [`users/${uid}/shop/coinMulLevel`]:            0,
+        [`users/${uid}/shop/clickMulLevel`]:           0,
+        [`users/${uid}/shop/autoLevel`]:               0,
+        [`users/${uid}/shop/leaderboardAutoUnlocked`]: false,
+        [`users/${uid}/shop/buffs`]:                   null,
+        [`users/${uid}/stats/coinBalance`]:            0,
+        [`users/${uid}/stats/prestigeStars`]:          newStars,
+      };
+
+      try {
+        await db.ref().update(updates);
+      } catch (err) {
+        // Roll back optimistic UI. Firebase listeners will reconcile against
+        // the real server state on next push regardless.
+        pending.userCoins  = heldPendingCoins;
+        inFlightUserCoins  = heldInFlightCoins;
+        userStats = { ...userStats, coinBalance: heldCoinBalance, prestigeStars: heldPrestigeStars };
+        userShop  = heldShop;
+        savePending();
+        renderSenseiBar();
+        renderShopPanel();
+        if (typeof rearmAutoLoop === 'function') rearmAutoLoop();
+        shopShowError(itemEl);
+      }
+    }
+
     // Click delegation across the whole shop panel.
     document.getElementById('shop-panel').addEventListener('click', (e) => {
       const item = e.target.closest('.shop-item');
@@ -4010,6 +4209,7 @@
       if (which === 'buffCoins')    return buyBuff('coins',    item);
       if (which === 'buffClicks')   return buyBuff('clicks',   item);
       if (which === 'buffAutoRate') return buyBuff('autoRate', item);
+      if (which === 'prestige')     return doPrestige(item);
     });
     // ----------------------------------------------------------------------------
 
@@ -4183,6 +4383,9 @@
       senseiXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
       senseiXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
       senseiCoinsEl.textContent = coins.toLocaleString();
+      const stars = (userStats && userStats.prestigeStars) || 0;
+      senseiPrestigeEl.hidden = stars <= 0;
+      if (stars > 0) senseiPrestigeEl.textContent = '★' + stars;
 
       if (userProfile) {
         senseiNameEl.textContent = userProfile.displayName || I18N.t('sensei.trainer');
@@ -4218,12 +4421,15 @@
       if (userProfileUnsub) { userProfileUnsub(); userProfileUnsub = null; }
       if (userShopUnsub)    { userShopUnsub();    userShopUnsub = null; }
       if (!uid) {
-        userStats = { totalClicks: 0, coinBalance: 0 };
+        // Guest mode: hydrate stats/shop from localStorage.
+        const local = loadLocalUserData();
+        userStats   = Object.assign({ totalClicks: 0, coinBalance: 0 }, local.stats);
         userProfile = null;
-        userShop = {};
+        userShop    = local.shop || {};
         renderSenseiBar();
         if (typeof renderShopPanel === 'function') renderShopPanel();
-        if (typeof rearmAutoLoop === 'function')   rearmAutoLoop();
+        if (typeof syncBuffTimers  === 'function') syncBuffTimers();
+        if (typeof rearmAutoLoop   === 'function') rearmAutoLoop();
         return;
       }
 
@@ -4291,7 +4497,7 @@
     }
 
     auth.onAuthStateChanged((user) => {
-      subscribeUserData(user ? user.uid : null);
+      subscribeUserData(user && !user.isAnonymous ? user.uid : null);
     });
 
     renderSenseiBar();
@@ -4458,25 +4664,11 @@
       profileError.textContent = '';
       const provider = new firebase.auth.GoogleAuthProvider();
       try {
-        if (currentUser && currentUser.isAnonymous) {
-          const cred = await currentUser.linkWithPopup(provider);
-          await initProfileFromCredential(cred);
-        } else {
-          const cred = await auth.signInWithPopup(provider);
-          await initProfileFromCredential(cred);
-        }
+        const cred = await auth.signInWithPopup(provider);
+        await initProfileFromCredential(cred);
         profilePanel.classList.remove('open');
       } catch (err) {
-        if (err.code === 'auth/credential-already-in-use') {
-          profileError.textContent = I18N.t('auth.already_linked');
-          try {
-            const cred = await auth.signInWithCredential(err.credential);
-            await initProfileFromCredential(cred);
-            profilePanel.classList.remove('open');
-          } catch (err2) {
-            profileError.textContent = err2.message || 'Sign-in failed.';
-          }
-        } else if (err.code === 'auth/popup-closed-by-user') {
+        if (err.code === 'auth/popup-closed-by-user') {
           // Silent
         } else {
           profileError.textContent = err.message || 'Sign-in failed.';
@@ -4600,9 +4792,92 @@
       profilePanel.classList.remove('open');
     });
 
+    // --- Local → Firebase migration on first Google sign-in --------------------
+    // Drains localStorage guest stats/shop into users/{uid}/* additively, then
+    // clears local. Chunked at <=9999 per stat to satisfy the +10k/+1s RTDB
+    // throttle rule. Most guests have well under 10k local clicks so this is
+    // a single-write no-op delay; heavy guests see a few seconds of catch-up.
+    async function migrateLocalToFirebase(uid) {
+      const local = loadLocalUserData();
+      const stats = local.stats || {};
+      const shop  = local.shop  || {};
+      let remClicks = stats.totalClicks || 0;
+      let remCoins  = Math.max(0, stats.coinBalance || 0);
+      const remSkins = { ...(stats.skins    || {}) };
+      const remBySrc = { ...(stats.bySource || {}) };
+
+      const hasStatsRemaining = () =>
+        remClicks > 0 || remCoins > 0
+        || Object.values(remSkins).some(v => v > 0)
+        || Object.values(remBySrc).some(v => v > 0);
+
+      let firstChunk = true;
+      while (hasStatsRemaining()) {
+        if (!firstChunk) await new Promise(r => setTimeout(r, 1100));
+        firstChunk = false;
+        const update = {};
+        const cClicks = Math.min(remClicks, 9999);
+        const cCoins  = Math.min(remCoins,  9999);
+        let hasActivity = false;
+        if (cClicks > 0) { update[`users/${uid}/stats/totalClicks`] = firebase.database.ServerValue.increment(cClicks); hasActivity = true; }
+        if (cCoins  > 0) { update[`users/${uid}/stats/coinBalance`] = firebase.database.ServerValue.increment(cCoins); }
+        const skinsConsumed = {};
+        for (const k in remSkins) {
+          const c = Math.min(remSkins[k], 9999);
+          if (c > 0) { update[`users/${uid}/stats/skins/${k}`] = firebase.database.ServerValue.increment(c); skinsConsumed[k] = c; }
+        }
+        const srcConsumed = {};
+        for (const k in remBySrc) {
+          const c = Math.min(remBySrc[k], 9999);
+          if (c > 0) { update[`users/${uid}/stats/bySource/${k}`] = firebase.database.ServerValue.increment(c); srcConsumed[k] = c; hasActivity = true; }
+        }
+        if (hasActivity) update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
+        if (Object.keys(update).length === 0) break;
+        try {
+          await db.ref().update(update);
+        } catch (e) {
+          console.error('Local→Firebase stat migration failed; remaining local stays for retry', e);
+          return false;
+        }
+        remClicks -= cClicks;
+        remCoins  -= cCoins;
+        for (const k in skinsConsumed) remSkins[k] -= skinsConsumed[k];
+        for (const k in srcConsumed)   remBySrc[k] -= srcConsumed[k];
+      }
+
+      // Shop: take max(local, server) per field. Single write, no throttle.
+      if (Object.keys(shop).length > 0) {
+        try {
+          const existing = (await db.ref(`users/${uid}/shop`).once('value')).val() || {};
+          const upd = {};
+          for (const k of ['coinMulLevel','clickMulLevel','autoLevel']) {
+            // Clamp to 20 — the RTDB rule's hard cap on shop levels.
+            const v = Math.min(20, Math.max(shop[k] || 0, existing[k] || 0));
+            if (v > (existing[k] || 0)) upd[k] = v;
+          }
+          if (shop.leaderboardAutoUnlocked && !existing.leaderboardAutoUnlocked) upd.leaderboardAutoUnlocked = true;
+          for (const kind of ['coins','clicks','autoRate']) {
+            const localExp  = (shop.buffs && shop.buffs[kind] && shop.buffs[kind].expiresAt) || 0;
+            const serverExp = (existing.buffs && existing.buffs[kind] && existing.buffs[kind].expiresAt) || 0;
+            const exp = Math.max(localExp, serverExp);
+            if (exp > Date.now() && exp > serverExp) upd[`buffs/${kind}/expiresAt`] = exp;
+          }
+          if (Object.keys(upd).length > 0) await db.ref(`users/${uid}/shop`).update(upd);
+        } catch (e) {
+          console.error('Local→Firebase shop migration failed', e);
+        }
+      }
+
+      clearLocalUserData();
+      return true;
+    }
+
     async function initProfileFromCredential(cred) {
       const u = auth.currentUser;
       if (!u) return;
+      // Drain any guest localStorage state into this user's RTDB node first,
+      // so the leaderboard mirror below picks up the migrated totalClicks.
+      await migrateLocalToFirebase(u.uid);
       const existing = await db.ref('users/' + u.uid + '/profile').once('value');
       if (existing.exists()) return;
       const ts = firebase.database.ServerValue.TIMESTAMP;
@@ -4614,9 +4889,10 @@
         linkedAt:    ts,
       };
       await db.ref('users/' + u.uid + '/profile').set(profile);
-      // Immediate leaderboard mirror so any clicks accrued while anonymous show
-      // up on the board right away.
-      const clicks = (userStats && userStats.totalClicks) || 0;
+      // Initial leaderboard row uses the post-migration server total so any
+      // guest clicks accrued before sign-in show up on the board right away.
+      const serverStats = (await db.ref('users/' + u.uid + '/stats').once('value')).val() || {};
+      const clicks = serverStats.totalClicks || 0;
       await db.ref('leaderboard/topClicks/' + u.uid).set({
         name:        profile.displayName,
         country:     profile.country,
@@ -4878,6 +5154,21 @@
           update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
         }
         tasks.push(db.ref().update(update));
+      } else if (!currentUser && (hasClickActivity || hasCoinChange)) {
+        // Guest mode: apply user-stat deltas to the in-memory mirror and
+        // persist to localStorage. Inflight tracker doesn't apply here
+        // because there's no listener round-trip to wait for.
+        if (batch.userClicks > 0) userStats.totalClicks = (userStats.totalClicks || 0) + batch.userClicks;
+        if (batch.userCoins !== 0) userStats.coinBalance = Math.max(0, (userStats.coinBalance || 0) + batch.userCoins);
+        if (!userStats.skins)    userStats.skins = {};
+        if (!userStats.bySource) userStats.bySource = {};
+        for (const sk in batch.allTimeSkin)  userStats.skins[sk]    = (userStats.skins[sk]    || 0) + batch.allTimeSkin[sk];
+        for (const src in batch.userBySource) userStats.bySource[src] = (userStats.bySource[src] || 0) + batch.userBySource[src];
+        inFlightUserCoins  = 0;  // applied locally, no RTDB roundtrip
+        inFlightUserClicks = 0;
+        saveLocalUserData();
+        if (typeof renderSenseiBar       === 'function') renderSenseiBar();
+        if (typeof updateCharacterLevels === 'function') updateCharacterLevels();
       }
       if (batch.global > 0) {
         tasks.push(clicksRef.transaction((c) => (c || 0) + batch.global));

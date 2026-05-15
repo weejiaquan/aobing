@@ -101,6 +101,9 @@
           },
           "maxCombo":  { ".validate": "newData.isNumber()" },
           "createdAt": { ".validate": "newData.isNumber()" },
+          "prestigeStars": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 1"
+          },
           "skins": {
             "$variantId": {
               ".validate": "newData.isNumber() && $variantId.length <= 20"
@@ -113,9 +116,9 @@
           }
         },
         "shop": {
-          "coinMulLevel":            { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
-          "clickMulLevel":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
-          "autoLevel":               { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
+          "coinMulLevel":            { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30" },
+          "clickMulLevel":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30" },
+          "autoLevel":               { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30" },
           "leaderboardAutoUnlocked": { ".validate": "newData.isBoolean()" },
           "buffs": {
             "$kind": {
