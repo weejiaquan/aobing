@@ -4931,6 +4931,16 @@
       { threshold: 100, tier: 5, effect: 'finale'  },
     ];
     const COMBO_CAP_TIER = 5; // no new effects past 100x; combo still climbs
+
+    // When a variant declares an optional `active2` sprite, it swaps in for
+    // `active` on clicks where the running combo has reached this threshold.
+    // Variants without `active2` are unaffected.
+    const COMBO_TIER_THRESHOLD = 20;
+    function resolveActiveSrc(variant) {
+      if (variant.active2 && comboCount >= COMBO_TIER_THRESHOLD) return variant.active2;
+      return variant.active;
+    }
+
     const comboEl = document.getElementById('combo-display');
     const comboContentEl = document.getElementById('combo-content');
     const comboNumEl = comboEl.querySelector('.combo-number');
