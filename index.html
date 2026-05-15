@@ -3534,6 +3534,108 @@
         el.setAttribute('aria-disabled', (have < SHOP_BUFF_COST) ? 'true' : 'false');
       }
     }
+
+    // --- Shop buy handlers ------------------------------------------------------
+    function shopShowError(itemEl) {
+      if (!itemEl) return;
+      itemEl.classList.add('flash-error');
+      setTimeout(() => itemEl.classList.remove('flash-error'), 500);
+    }
+
+    async function buyLeveled(which, itemEl) {
+      if (!currentUser) return;
+      const field = shopFieldFor(which);
+      if (!field) return;
+      const level = userShop[field] || 0;
+      if (level >= SHOP_MAX_LEVEL) return;
+      const cost = shopCostFor(which, level);
+      if (shopAffordableCoins() < cost) { shopShowError(itemEl); return; }
+
+      pending.userCoins -= cost;
+      if (itemEl) itemEl.setAttribute('aria-disabled', 'true');
+      savePending();
+      scheduleFlush();
+      renderSenseiBar();
+      renderShopPanel();
+
+      try {
+        await db.ref(`users/${currentUser.uid}/shop/${field}`).set(level + 1);
+      } catch (err) {
+        // Refund the optimistic debit. Re-render will re-enable the row.
+        pending.userCoins += cost;
+        savePending();
+        scheduleFlush();
+        renderSenseiBar();
+        renderShopPanel();
+        shopShowError(itemEl);
+      }
+    }
+
+    async function buyOneShot(itemEl) {
+      if (!currentUser) return;
+      if (userShop.leaderboardAutoUnlocked) return;
+      const cost = SHOP_LBAUTO_COST;
+      if (shopAffordableCoins() < cost) { shopShowError(itemEl); return; }
+
+      pending.userCoins -= cost;
+      if (itemEl) itemEl.setAttribute('aria-disabled', 'true');
+      savePending();
+      scheduleFlush();
+      renderSenseiBar();
+      renderShopPanel();
+
+      try {
+        await db.ref(`users/${currentUser.uid}/shop/leaderboardAutoUnlocked`).set(true);
+      } catch (err) {
+        pending.userCoins += cost;
+        savePending();
+        scheduleFlush();
+        renderSenseiBar();
+        renderShopPanel();
+        shopShowError(itemEl);
+      }
+    }
+
+    async function buyBuff(kind, itemEl) {
+      if (!currentUser) return;
+      if (!['coins','clicks','autoRate'].includes(kind)) return;
+      const cost = SHOP_BUFF_COST;
+      if (shopAffordableCoins() < cost) { shopShowError(itemEl); return; }
+
+      pending.userCoins -= cost;
+      savePending();
+      scheduleFlush();
+      renderSenseiBar();
+      renderShopPanel();
+
+      try {
+        const buffRef = db.ref(`users/${currentUser.uid}/shop/buffs/${kind}/expiresAt`);
+        await buffRef.transaction(current => {
+          const baseFloor = Date.now();
+          const base = (typeof current === 'number' && current > baseFloor) ? current : baseFloor;
+          return base + SHOP_BUFF_DURATION_MS;
+        });
+      } catch (err) {
+        pending.userCoins += cost;
+        savePending();
+        scheduleFlush();
+        renderSenseiBar();
+        renderShopPanel();
+        shopShowError(itemEl);
+      }
+    }
+
+    // Click delegation across the whole shop panel.
+    document.getElementById('shop-panel').addEventListener('click', (e) => {
+      const item = e.target.closest('.shop-item');
+      if (!item || item.getAttribute('aria-disabled') === 'true') return;
+      const which = item.dataset.item;
+      if (which === 'coinMul' || which === 'clickMul' || which === 'autoLevel') return buyLeveled(which, item);
+      if (which === 'leaderboardAuto') return buyOneShot(item);
+      if (which === 'buffCoins')    return buyBuff('coins',    item);
+      if (which === 'buffClicks')   return buyBuff('clicks',   item);
+      if (which === 'buffAutoRate') return buyBuff('autoRate', item);
+    });
     // ----------------------------------------------------------------------------
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
