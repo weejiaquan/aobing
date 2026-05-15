@@ -181,6 +181,29 @@
       }
     }
 
+    /* --- Auto-clicker side cursor --- */
+    #auto-cursor {
+      position: absolute;
+      right: -20%;
+      top: 40%;
+      pointer-events: none;
+      z-index: 30;
+      transform: translateX(0);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+    #auto-cursor[data-poking="true"] {
+      animation: auto-cursor-poke 300ms ease-out;
+    }
+    @keyframes auto-cursor-poke {
+      0%   { transform: translateX(0); }
+      33%  { transform: translateX(-40px); }
+      100% { transform: translateX(0); }
+    }
+    @media (max-width: 600px) {
+      #auto-cursor { right: -12%; }
+      #auto-cursor svg { width: 36px; height: 36px; }
+    }
+
     /* --- Combo Display --- */
     /* Anchored just to the right of the character body. The character image
        is height:90vh with auto width — most BA-style portraits sit at roughly
@@ -1533,6 +1556,11 @@
     <button id="idle-bubble" type="button" hidden aria-live="polite">
       <span id="idle-bubble-text"></span>
     </button>
+    <div id="auto-cursor" hidden aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="#fff" stroke="#222" stroke-width="1.5" stroke-linejoin="round">
+        <path d="M5 3 L5 18 L9 14 L11 19 L13.5 18 L11.5 13 L17 13 Z"/>
+      </svg>
+    </div>
     <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba" data-i18n-attr="alt:alt.character">
   </div>
 
@@ -3637,6 +3665,50 @@
       if (which === 'buffAutoRate') return buyBuff('autoRate', item);
     });
     // ----------------------------------------------------------------------------
+
+    // --- Auto-clicker -----------------------------------------------------------
+    let autoTimer = null;
+    const AUTO_PERIOD_MS_FLOOR = 80;   // never tick faster than 12.5/s
+
+    function currentAutoCps() {
+      return shopMul(Date.now()).autoCps;   // 0 if autoLevel === 0 and no autoRate buff
+    }
+
+    function pokeAutoCursor() {
+      const el = document.getElementById('auto-cursor');
+      if (!el) return;
+      el.removeAttribute('data-poking');
+      // Force reflow so the next setAttribute re-runs the animation from frame 0.
+      // eslint-disable-next-line no-unused-expressions
+      void el.offsetHeight;
+      el.setAttribute('data-poking', 'true');
+    }
+
+    function autoTick() {
+      if (introActive) return;
+      recordClick('auto');
+      pokeAutoCursor();
+    }
+
+    function rearmAutoLoop() {
+      if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+      const el = document.getElementById('auto-cursor');
+      if (!el) return;
+      const cps = currentAutoCps();
+      el.hidden = (cps <= 0);
+      if (cps <= 0) return;
+      const periodMs = Math.max(AUTO_PERIOD_MS_FLOOR, 1000 / cps);
+      autoTimer = setInterval(autoTick, periodMs);
+    }
+
+    // Re-check on tab visibility resume — buffs may have expired while hidden.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (typeof syncBuffTimers === 'function') syncBuffTimers();
+        rearmAutoLoop();
+      }
+    });
+    // ----------------------------------------------------------------------------
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
     // sources). Bar reads:
@@ -4488,6 +4560,8 @@
 
           // Arm the idle-text bubble timer now that intro is over
           scheduleIdleBubble();
+          // Same trigger point for the shop auto-clicker — suppressed during intro.
+          rearmAutoLoop();
         }
       });
     }
