@@ -1674,6 +1674,71 @@
         display: none;
       }
     }
+
+    /* --- Update-available modal --- */
+    #update-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(40, 60, 90, 0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: update-fade-in 220ms ease-out;
+    }
+    @keyframes update-fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .update-card {
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      box-shadow: var(--ba-card-shadow);
+      text-align: center;
+      min-width: 260px;
+      max-width: 90vw;
+      color: var(--ba-text);
+      animation: update-pop-in 320ms cubic-bezier(.34, 1.56, .64, 1);
+    }
+    @keyframes update-pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    .update-title {
+      font-weight: 800;
+      font-size: 1.02rem;
+      margin-bottom: 4px;
+    }
+    .update-body {
+      font-size: 0.8rem;
+      color: var(--ba-text-faint);
+      margin-bottom: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .update-countdown {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--ba-accent-strong);
+      margin-bottom: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .update-btn {
+      background: var(--ba-accent-strong);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 8px 22px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter 0.15s ease;
+    }
+    .update-btn:hover { filter: brightness(1.08); }
   </style>
 </head>
 <body>
@@ -1811,7 +1876,7 @@
     <a href="/discord/" class="settings-link"><svg viewBox="0 0 24 24"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg><span data-i18n="settings.join_discord">Join Discord</span></a>
     <a href="https://x.com/LychweeOfficial" class="settings-link" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span data-i18n="settings.follow_x">Follow me on X</span></a>
     <hr class="settings-divider">
-    <div class="settings-version">v1.1.0</div>
+    <div class="settings-version">v1.1.1</div>
     <button id="reset-btn" class="settings-reset" data-i18n="settings.reset_defaults">Reset defaults</button>
   </div>
 
@@ -5823,6 +5888,84 @@
       // open() will rebuild from scratch with current translations anyway.
       if (statsModal.classList.contains('open')) loadStats();
     });
+
+    // --- Update detection -----------------------------------------------------
+    // Polls the deployed index.html for the version string embedded in
+    // `<div class="settings-version">vX.Y.Z</div>` (the same value the user
+    // bumps on each release). When the remote version differs from the one
+    // baked into this loaded page, surface a small modal and reload after a
+    // short countdown so users on an idle tab pick up new builds.
+    (() => {
+      const versionEl = document.querySelector('.settings-version');
+      const LOADED_VERSION = versionEl ? versionEl.textContent.trim() : '';
+      if (!LOADED_VERSION) return;  // nothing to compare against
+
+      const POLL_MS          = 90_000;
+      const REFRESH_DELAY_MS = 5_000;
+      const VERSION_RE       = /class="settings-version">\s*(v[^<\s]+)\s*</;
+      let modalShown = false;
+      let checking   = false;
+
+      async function checkForUpdate() {
+        if (modalShown || checking) return;
+        checking = true;
+        try {
+          // Cache-busting query + no-store so a stale CDN/SW response can't
+          // mask a fresh deploy. Same-origin, so no CORS concern.
+          const res = await fetch('./?_v=' + Date.now(), { cache: 'no-store' });
+          if (!res.ok) return;
+          const text = await res.text();
+          const m = text.match(VERSION_RE);
+          if (!m) return;
+          const remote = m[1].trim();
+          if (remote && remote !== LOADED_VERSION) showUpdateModal(remote);
+        } catch {
+          // Offline or transient network error — retry on the next tick.
+        } finally {
+          checking = false;
+        }
+      }
+
+      function showUpdateModal(remoteVersion) {
+        if (modalShown) return;
+        modalShown = true;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'update-modal';
+        overlay.innerHTML = `
+          <div class="update-card" role="alertdialog" aria-live="polite">
+            <div class="update-title">✨ Update available</div>
+            <div class="update-body">${escapeHtml(LOADED_VERSION)} → ${escapeHtml(remoteVersion)}</div>
+            <div class="update-countdown">Refreshing in <span id="update-countdown-n">${Math.ceil(REFRESH_DELAY_MS / 1000)}</span>s…</div>
+            <button class="update-btn" id="update-refresh-now" type="button">Refresh now</button>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const countdownEl = overlay.querySelector('#update-countdown-n');
+        let remaining = Math.ceil(REFRESH_DELAY_MS / 1000);
+        const tick = () => {
+          remaining -= 1;
+          if (countdownEl) countdownEl.textContent = String(Math.max(0, remaining));
+          if (remaining <= 0) location.reload();
+          else setTimeout(tick, 1000);
+        };
+        setTimeout(tick, 1000);
+
+        overlay.querySelector('#update-refresh-now').addEventListener('click', () => location.reload());
+      }
+
+      // Early sweep at 30s catches users who landed on a CDN-cached HTML
+      // that already trails the just-deployed version. Steady-state polling
+      // takes over after that.
+      setTimeout(checkForUpdate, 30_000);
+      setInterval(checkForUpdate, POLL_MS);
+      // Re-check the moment an idle tab comes back into focus — typical
+      // scenario: developer pushes a build while the user is away.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+    })();
 
   </script>
 </body>
