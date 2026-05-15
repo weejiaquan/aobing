@@ -4602,7 +4602,10 @@
       // renders run at most once per animation frame regardless of click rate.
       scheduleOptimisticRender();
       // Sliding-window CPS: record every event (mouse + keyboard + auto).
-      cpsTimestamps.push(performance.now());
+      const ts = performance.now();
+      cpsTimestamps.push(ts);
+      // Manual-only window for resolveActiveSrc — excludes auto-clicker.
+      if (source !== 'auto') manualCpsTimestamps.push(ts);
     }
 
     // rAF-coalesced optimistic UI refresh. Called from the hot click path.
@@ -4956,17 +4959,17 @@
     const COMBO_CAP_TIER = 5; // no new effects past 100x; combo still climbs
 
     // When a variant declares an optional `active2` sprite, it swaps in for
-    // `active` on clicks where the current click-rate (clicks in the last
-    // CPS_WINDOW_MS) is at or above this threshold. Variants without `active2`
-    // are unaffected. We count by iterating `cpsTimestamps` from the back so
-    // we don't depend on the setInterval prune step having run recently.
+    // `active` on clicks where the manual click-rate (mouse + keyboard, in
+    // the last CPS_WINDOW_MS) is at or above this threshold. Auto-clicker
+    // pushes are intentionally excluded — only the user's raw click speed
+    // triggers the swap. Variants without `active2` are unaffected.
     const CPS_TIER_THRESHOLD = 10;
     function resolveActiveSrc(variant) {
       if (!variant.active2) return variant.active;
       const cutoff = performance.now() - CPS_WINDOW_MS;
       let cps = 0;
-      for (let i = cpsTimestamps.length - 1; i >= 0; i--) {
-        if (cpsTimestamps[i] >= cutoff) cps++;
+      for (let i = manualCpsTimestamps.length - 1; i >= 0; i--) {
+        if (manualCpsTimestamps[i] >= cutoff) cps++;
         else break;
       }
       return cps >= CPS_TIER_THRESHOLD ? variant.active2 : variant.active;
@@ -4986,9 +4989,13 @@
     const CPS_WINDOW_MS = 1000;
     const CPS_REFRESH_MS = 100;
     const cpsTimestamps = [];
+    // Manual-only sliding window — mouse + keyboard, NOT auto-clicks. Used by
+    // resolveActiveSrc so auto-clicker rate can't trigger the active2 sprite.
+    const manualCpsTimestamps = [];
     setInterval(() => {
       const cutoff = performance.now() - CPS_WINDOW_MS;
       while (cpsTimestamps.length && cpsTimestamps[0] < cutoff) cpsTimestamps.shift();
+      while (manualCpsTimestamps.length && manualCpsTimestamps[0] < cutoff) manualCpsTimestamps.shift();
       if (comboCpsValueEl) comboCpsValueEl.textContent = cpsTimestamps.length;
     }, CPS_REFRESH_MS);
     let comboCount = 0;
