@@ -1690,6 +1690,10 @@
       <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
       <button id="keyboard-toggle" class="settings-toggle on"></button>
     </div>
+    <div class="settings-row">
+      <span class="settings-label" data-i18n="settings.raw_cps">Show raw CPS</span>
+      <button id="raw-cps-toggle" class="settings-toggle"></button>
+    </div>
     <div class="settings-row" id="settings-admin-row" style="display:none">
       <span class="settings-label" data-i18n="settings.admin_mode">Admin mode</span>
       <button id="admin-toggle" class="settings-toggle"></button>
@@ -2004,7 +2008,7 @@
       const T = {
         en: {
           'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
-          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.reset_defaults':'Reset defaults',
+          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.raw_cps':'Show raw CPS','settings.reset_defaults':'Reset defaults',
           'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
           'sensei.trainer':'Trainer',
           'auth.sign_in_google':'Sign in with Google','auth.sign_out':'Sign out',
@@ -2071,7 +2075,7 @@
         },
         ja: {
           'settings.title':'設定','settings.music':'音楽','settings.sfx':'効果音','settings.effects':'エフェクト',
-          'settings.language':'言語','settings.join_discord':'Discordに参加','settings.follow_x':'Xでフォロー','settings.keyboard_clicks':'キーボードクリック','settings.reset_defaults':'デフォルトに戻す',
+          'settings.language':'言語','settings.join_discord':'Discordに参加','settings.follow_x':'Xでフォロー','settings.keyboard_clicks':'キーボードクリック','settings.raw_cps':'生CPSを表示','settings.reset_defaults':'デフォルトに戻す',
           'skins.title':'スキン','skins.variants':'{n}種','skins.variant':'{n}種',
           'tag.default':'デフォルト','tag.plushie':'ぬいぐるみ','tag.track':'体操服','tag.idol':'アイドル','tag.swimsuit':'水着',
           'character.aoba.name':'アオバ','character.mari.name':'マリー','character.miyu.name':'ミユ',
@@ -2134,7 +2138,7 @@
         },
         ko: {
           'settings.title':'설정','settings.music':'음악','settings.sfx':'효과음','settings.effects':'이펙트',
-          'settings.language':'언어','settings.join_discord':'디스코드 참여','settings.follow_x':'X에서 팔로우','settings.keyboard_clicks':'키보드 클릭','settings.reset_defaults':'기본값 복원',
+          'settings.language':'언어','settings.join_discord':'디스코드 참여','settings.follow_x':'X에서 팔로우','settings.keyboard_clicks':'키보드 클릭','settings.raw_cps':'원시 CPS 표시','settings.reset_defaults':'기본값 복원',
           'skins.title':'스킨','skins.variants':'{n}개','skins.variant':'{n}개',
           'tag.default':'기본','tag.plushie':'인형','tag.track':'체육복','tag.idol':'아이돌','tag.swimsuit':'수영복',
           'character.aoba.name':'아오바','character.mari.name':'마리','character.miyu.name':'미유',
@@ -2197,7 +2201,7 @@
         },
         'zh-Hans': {
           'settings.title':'设置','settings.music':'音乐','settings.sfx':'音效','settings.effects':'特效',
-          'settings.language':'语言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上关注我','settings.keyboard_clicks':'键盘点击','settings.reset_defaults':'恢复默认',
+          'settings.language':'语言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上关注我','settings.keyboard_clicks':'键盘点击','settings.raw_cps':'显示原始 CPS','settings.reset_defaults':'恢复默认',
           'skins.title':'皮肤','skins.variants':'{n} 款','skins.variant':'{n} 款',
           'tag.default':'默认','tag.plushie':'玩偶','tag.track':'体操服','tag.idol':'偶像','tag.swimsuit':'泳装',
           'character.aoba.name':'青叶','character.mari.name':'玛丽','character.miyu.name':'美游',
@@ -2260,7 +2264,7 @@
         },
         'zh-Hant': {
           'settings.title':'設定','settings.music':'音樂','settings.sfx':'音效','settings.effects':'特效',
-          'settings.language':'語言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上追蹤我','settings.keyboard_clicks':'鍵盤點擊','settings.reset_defaults':'還原預設',
+          'settings.language':'語言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上追蹤我','settings.keyboard_clicks':'鍵盤點擊','settings.raw_cps':'顯示原始 CPS','settings.reset_defaults':'還原預設',
           'skins.title':'造型','skins.variants':'{n} 款','skins.variant':'{n} 款',
           'tag.default':'預設','tag.plushie':'玩偶','tag.track':'體操服','tag.idol':'偶像','tag.swimsuit':'泳裝',
           'character.aoba.name':'青葉','character.mari.name':'瑪麗','character.miyu.name':'美遊',
@@ -2323,7 +2327,7 @@
         },
         th: {
           'settings.title':'ตั้งค่า','settings.music':'เพลง','settings.sfx':'เสียงเอฟเฟกต์','settings.effects':'เอฟเฟกต์',
-          'settings.language':'ภาษา','settings.join_discord':'เข้าร่วม Discord','settings.follow_x':'ติดตามบน X','settings.keyboard_clicks':'การกดคีย์บอร์ด','settings.reset_defaults':'คืนค่าเริ่มต้น',
+          'settings.language':'ภาษา','settings.join_discord':'เข้าร่วม Discord','settings.follow_x':'ติดตามบน X','settings.keyboard_clicks':'การกดคีย์บอร์ด','settings.raw_cps':'แสดง CPS ดิบ','settings.reset_defaults':'คืนค่าเริ่มต้น',
           'skins.title':'สกิน','skins.variants':'{n} แบบ','skins.variant':'{n} แบบ',
           'tag.default':'ค่าเริ่มต้น','tag.plushie':'ตุ๊กตา','tag.track':'ชุดพละ','tag.idol':'ไอดอล','tag.swimsuit':'ชุดว่ายน้ำ',
           'character.aoba.name':'อาโอบะ','character.mari.name':'มาริ','character.miyu.name':'มิยุ',
@@ -2386,7 +2390,7 @@
         },
         ar: {
           'settings.title':'الإعدادات','settings.music':'الموسيقى','settings.sfx':'المؤثرات الصوتية','settings.effects':'المؤثرات',
-          'settings.language':'اللغة','settings.join_discord':'انضم إلى Discord','settings.follow_x':'تابعني على X','settings.keyboard_clicks':'نقرات لوحة المفاتيح','settings.reset_defaults':'استعادة الإعدادات الافتراضية',
+          'settings.language':'اللغة','settings.join_discord':'انضم إلى Discord','settings.follow_x':'تابعني على X','settings.keyboard_clicks':'نقرات لوحة المفاتيح','settings.raw_cps':'إظهار CPS الخام','settings.reset_defaults':'استعادة الإعدادات الافتراضية',
           'skins.title':'الأزياء','skins.variants':'{n} أزياء','skins.variant':'{n} زي',
           'tag.default':'افتراضي','tag.plushie':'دمية','tag.track':'رياضي','tag.idol':'نجمة','tag.swimsuit':'ملابس السباحة',
           'character.aoba.name':'آوبا','character.mari.name':'ماري','character.miyu.name':'ميو',
@@ -2504,7 +2508,7 @@
 
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
-    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true, adminMode: false };
+    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true, adminMode: false, rawCps: false };
 
     // --- Admin gating -----------------------------------------------------------
     // Source of truth: admins/{uid}: true in RTDB. The site subscribes to the
@@ -2640,6 +2644,17 @@
       saveSettings(settings);
     });
 
+    // --- Raw-CPS toggle ---
+    // OFF (default) = display includes auto-clicker. ON = mouse + keyboard only.
+    const rawCpsToggle = document.getElementById('raw-cps-toggle');
+    if (settings.rawCps) rawCpsToggle.classList.add('on');
+    rawCpsToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settings.rawCps = !settings.rawCps;
+      rawCpsToggle.classList.toggle('on', settings.rawCps);
+      saveSettings(settings);
+    });
+
     // --- Admin mode toggle (visible only to admin) ---
     const adminRow = document.getElementById('settings-admin-row');
     const adminToggle = document.getElementById('admin-toggle');
@@ -2678,6 +2693,7 @@
       effectsToggle.classList.toggle('on', s.effects);
       keyboardToggle.classList.toggle('on', s.keyboardClicks);
       adminToggle.classList.toggle('on', s.adminMode);
+      rawCpsToggle.classList.toggle('on', s.rawCps);
       applyVariant(s.skin);
       renderSkinList();
     }
@@ -4996,7 +5012,9 @@
       const cutoff = performance.now() - CPS_WINDOW_MS;
       while (cpsTimestamps.length && cpsTimestamps[0] < cutoff) cpsTimestamps.shift();
       while (manualCpsTimestamps.length && manualCpsTimestamps[0] < cutoff) manualCpsTimestamps.shift();
-      if (comboCpsValueEl) comboCpsValueEl.textContent = cpsTimestamps.length;
+      if (comboCpsValueEl) {
+        comboCpsValueEl.textContent = settings.rawCps ? manualCpsTimestamps.length : cpsTimestamps.length;
+      }
     }, CPS_REFRESH_MS);
     let comboCount = 0;
     let comboExpireTimer = null;
