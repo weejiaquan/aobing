@@ -1978,11 +1978,11 @@
         name: 'Miyu',
         sfx: [],          // silent for now
         bgm: '',          // silent for now
-        bg:  '',          // body falls back to its solid color
+        bg:  '',          // each variant supplies its own bg
         idleTexts: ['hi'],
         variants: [
-          { id: 'miyu',     name: 'Miyu',          tag: 'Default',  idle: 'assets/miyu-idle.webp',     active: 'assets/miyu-active.webp',     active2: 'assets/miyu-active2.webp' },
-          { id: 'miyuswim', name: 'Miyu Swimsuit', tag: 'Swimsuit', idle: 'assets/miyuswim-idle.webp', active: 'assets/miyuswim-active.webp', active2: 'assets/miyuswim-active2.webp' },
+          { id: 'miyu',     name: 'Miyu',          tag: 'Default',  idle: 'assets/miyu-idle.webp',     active: 'assets/miyu-active.webp',     active2: 'assets/miyu-active2.webp',     bg: 'assets/miyu-bg.png' },
+          { id: 'miyuswim', name: 'Miyu Swimsuit', tag: 'Swimsuit', idle: 'assets/miyuswim-idle.webp', active: 'assets/miyuswim-active.webp', active2: 'assets/miyuswim-active2.webp', bg: 'assets/miyuswim-bg.png' },
         ],
       },
     ];
