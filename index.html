@@ -3439,6 +3439,101 @@
         lbAuto:   !!s.leaderboardAutoUnlocked,
       };
     }
+
+    function shopAffordableCoins() {
+      return (userStats.coinBalance || 0) + (pending.userCoins || 0);
+    }
+
+    function shopFormatNum(n) {
+      return Math.floor(n).toLocaleString();
+    }
+
+    function shopFormatTimeLeft(ms) {
+      const sec = Math.max(0, Math.ceil(ms / 1000));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function renderShopPanel() {
+      const panel = document.getElementById('shop-panel');
+      if (!panel) return;
+      const now = Date.now();
+      const s = userShop || {};
+      const have = shopAffordableCoins();
+
+      // Permanent + Auto leveled items
+      const leveled = [
+        { which: 'coinMul',   name: I18N.t('shop.item.coinMul.name'),   level: s.coinMulLevel  || 0 },
+        { which: 'clickMul',  name: I18N.t('shop.item.clickMul.name'),  level: s.clickMulLevel || 0 },
+        { which: 'autoLevel', name: I18N.t('shop.item.autoLevel.name'), level: s.autoLevel     || 0 },
+      ];
+      for (const it of leveled) {
+        const el = panel.querySelector(`.shop-item[data-item="${it.which}"]`);
+        if (!el) continue;
+        const atMax = it.level >= SHOP_MAX_LEVEL;
+        const cost = atMax ? 0 : shopCostFor(it.which, it.level);
+        const curEffect  = shopEffectFor(it.which, it.level);
+        const nextEffect = shopEffectFor(it.which, it.level + 1);
+        const effectFmt = (v) => it.which === 'autoLevel' ? `${v.toFixed(1)} c/s` : `×${v}`;
+        const levelText = atMax ? I18N.t('shop.atMax') : `Lv ${it.level} → Lv ${it.level + 1}`;
+        const costText  = atMax ? '' : `💰 ${shopFormatNum(cost)}`;
+        const subText   = atMax ? effectFmt(curEffect) : `${effectFmt(curEffect)} → ${effectFmt(nextEffect)}`;
+        el.innerHTML = `
+          <div class="shop-item-row">
+            <span>${escapeHtml(it.name)}</span>
+            <span>${levelText}</span>
+            <span class="shop-item-cost">${costText}</span>
+          </div>
+          <div class="shop-item-sub">${subText}</div>
+        `;
+        el.setAttribute('aria-disabled', (atMax || have < cost) ? 'true' : 'false');
+      }
+
+      // Leaderboard Auto (one-shot)
+      {
+        const el = panel.querySelector('.shop-item[data-item="leaderboardAuto"]');
+        if (el) {
+          const owned = !!s.leaderboardAutoUnlocked;
+          const cost  = SHOP_LBAUTO_COST;
+          const levelText = owned ? I18N.t('shop.owned') : '';
+          const costText  = owned ? '' : `💰 ${shopFormatNum(cost)}`;
+          el.innerHTML = `
+            <div class="shop-item-row">
+              <span>${escapeHtml(I18N.t('shop.item.leaderboardAuto.name'))}</span>
+              <span>${levelText}</span>
+              <span class="shop-item-cost">${costText}</span>
+            </div>
+            <div class="shop-item-sub">${escapeHtml(I18N.t('shop.item.leaderboardAuto.desc'))}</div>
+          `;
+          el.setAttribute('aria-disabled', (owned || have < cost) ? 'true' : 'false');
+        }
+      }
+
+      // Buffs
+      const buffs = [
+        { key: 'coins',    which: 'buffCoins',    name: 'shop.item.buffCoins.name' },
+        { key: 'clicks',   which: 'buffClicks',   name: 'shop.item.buffClicks.name' },
+        { key: 'autoRate', which: 'buffAutoRate', name: 'shop.item.buffAutoRate.name' },
+      ];
+      for (const b of buffs) {
+        const el = panel.querySelector(`.shop-item[data-item="${b.which}"]`);
+        if (!el) continue;
+        const exp = (s.buffs && s.buffs[b.key] && s.buffs[b.key].expiresAt) || 0;
+        const active = exp > now;
+        const levelText = active ? `${shopFormatTimeLeft(exp - now)} left` : '';
+        const costText  = `💰 ${shopFormatNum(SHOP_BUFF_COST)}`;
+        el.innerHTML = `
+          <div class="shop-item-row">
+            <span>${escapeHtml(I18N.t(b.name))}</span>
+            <span>${levelText}</span>
+            <span class="shop-item-cost">${costText}</span>
+          </div>
+          <div class="shop-item-sub">${active ? '+60s' : '×2 for 60s'}</div>
+        `;
+        el.setAttribute('aria-disabled', (have < SHOP_BUFF_COST) ? 'true' : 'false');
+      }
+    }
     // ----------------------------------------------------------------------------
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
@@ -3533,6 +3628,7 @@
         }
         userStats = next;
         renderSenseiBar();
+        if (typeof renderShopPanel === 'function') renderShopPanel();
         // Mirror to leaderboard if linked — keeps the board row in sync with
         // each totalClicks bump. Anonymous users never have a profile node so
         // the leaderboard rule's `profile.exists()` check would block this.
@@ -3579,6 +3675,7 @@
     });
 
     renderSenseiBar();
+    renderShopPanel();
 
     // --- Profile panel toggle ---
     const senseiBar         = document.getElementById('sensei-bar');
