@@ -3256,8 +3256,10 @@
 
     let userStats = { totalClicks: 0, coinBalance: 0 };
     let userProfile = null;
+    let userShop = {};                 // { coinMulLevel, clickMulLevel, autoLevel, leaderboardAutoUnlocked, buffs }
     let userStatsUnsub = null;
     let userProfileUnsub = null;
+    let userShopUnsub = null;
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
     // sources). Bar reads:
@@ -3322,7 +3324,16 @@
     function subscribeUserData(uid) {
       if (userStatsUnsub)   { userStatsUnsub();   userStatsUnsub = null; }
       if (userProfileUnsub) { userProfileUnsub(); userProfileUnsub = null; }
-      if (!uid) { userStats = { totalClicks: 0, coinBalance: 0 }; userProfile = null; renderSenseiBar(); return; }
+      if (userShopUnsub)    { userShopUnsub();    userShopUnsub = null; }
+      if (!uid) {
+        userStats = { totalClicks: 0, coinBalance: 0 };
+        userProfile = null;
+        userShop = {};
+        renderSenseiBar();
+        if (typeof renderShopPanel === 'function') renderShopPanel();
+        if (typeof rearmAutoLoop === 'function')   rearmAutoLoop();
+        return;
+      }
 
       const statsRef = db.ref('users/' + uid + '/stats');
       const statsCb  = (snap) => {
@@ -3371,6 +3382,16 @@
       };
       profRef.on('value', profCb);
       userProfileUnsub = () => profRef.off('value', profCb);
+
+      const shopRef = db.ref('users/' + uid + '/shop');
+      const shopCb  = (snap) => {
+        userShop = snap.val() || {};
+        if (typeof renderShopPanel === 'function') renderShopPanel();
+        if (typeof syncBuffTimers === 'function')  syncBuffTimers();
+        if (typeof rearmAutoLoop === 'function')   rearmAutoLoop();
+      };
+      shopRef.on('value', shopCb);
+      userShopUnsub = () => shopRef.off('value', shopCb);
     }
 
     auth.onAuthStateChanged((user) => {
