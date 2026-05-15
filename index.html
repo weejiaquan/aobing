@@ -455,7 +455,7 @@
     #sensei-bar {
       position: fixed;
       left: 16px;
-      bottom: 28px;
+      bottom: 80px;
       width: 240px;
       padding: 8px 12px 10px;
       background: var(--ba-card-bg);
@@ -534,9 +534,66 @@
     .sensei-coins { color: var(--ba-accent-strong); font-weight: 700; }
     .sensei-cta { color: var(--ba-accent-strong); font-weight: 700; }
 
+    /* --- Skin bar (BA-style pill stacked under the sensei bar) --- */
+    #skin-bar {
+      position: fixed;
+      left: 16px;
+      bottom: 28px;
+      width: 240px;
+      padding: 6px 12px 8px;
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 14px;
+      box-shadow: var(--ba-card-shadow);
+      color: var(--ba-text);
+      font-size: 0.74rem;
+      z-index: 50;
+      user-select: none;
+    }
+    .skin-bar-row1 { display: flex; align-items: center; gap: 8px; }
+    .skin-bar-thumb {
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: var(--ba-accent-soft);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .skin-bar-name {
+      flex: 1; min-width: 0;
+      font-weight: 800;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--ba-text);
+    }
+    .skin-bar-level {
+      font-weight: 800;
+      color: var(--ba-accent-strong);
+      font-variant-numeric: tabular-nums;
+    }
+    .skin-bar-xp {
+      margin-top: 5px;
+      height: 4px;
+      background: rgba(60,90,130,0.18);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .skin-bar-xp-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--ba-accent), var(--ba-yellow));
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .skin-bar-xp-text {
+      margin-top: 2px;
+      font-size: 0.66rem;
+      color: var(--ba-text-muted);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
     @media (max-width: 480px) {
-      #sensei-bar { left: 8px; bottom: 18px; width: 200px; padding: 6px 10px 8px; }
+      #sensei-bar { left: 8px; bottom: 68px; width: 200px; padding: 6px 10px 8px; }
       .sensei-avatar { width: 22px; height: 22px; font-size: 0.7rem; }
+      #skin-bar { left: 8px; bottom: 18px; width: 200px; padding: 5px 10px 6px; font-size: 0.7rem; }
     }
 
     /* --- Panel Buttons (BA white pill-square) --- */
@@ -1823,6 +1880,17 @@
     </div>
   </div>
 
+  <!-- Skin bar (current variant name + per-variant level + XP) -->
+  <div id="skin-bar" role="status" aria-label="Current skin">
+    <div class="skin-bar-row1">
+      <img class="skin-bar-thumb" id="skin-bar-thumb" alt="">
+      <span class="skin-bar-name" id="skin-bar-name">—</span>
+      <span class="skin-bar-level" id="skin-bar-level">Lv.0</span>
+    </div>
+    <div class="skin-bar-xp"><div class="skin-bar-xp-fill" id="skin-bar-xp-fill"></div></div>
+    <div class="skin-bar-xp-text" id="skin-bar-xp-text">0 / 20</div>
+  </div>
+
   <!-- System time (BA-style pill bottom-right) -->
   <div id="system-time" class="ba-pill">
     <span class="pill-icon" aria-hidden="true">
@@ -2995,6 +3063,28 @@
     const skinsPanel = document.getElementById('skins-panel');
     const skinListEl = document.getElementById('skin-list');
 
+    // Skin bar — current variant + its level + XP progress. Declared here so
+    // applyVariant() (which calls renderSkinBar) can read these refs at startup.
+    const skinBarThumbEl  = document.getElementById('skin-bar-thumb');
+    const skinBarNameEl   = document.getElementById('skin-bar-name');
+    const skinBarLevelEl  = document.getElementById('skin-bar-level');
+    const skinBarXpFillEl = document.getElementById('skin-bar-xp-fill');
+    const skinBarXpTextEl = document.getElementById('skin-bar-xp-text');
+
+    function renderSkinBar() {
+      if (!skinBarNameEl) return;
+      const { variant } = getVariant(settings.skin);
+      const xp   = variantClicks(variant.id);
+      const lv   = levelOf(xp);
+      const cur  = clicksInLevel(xp);
+      const need = clicksToNextLevel(xp);
+      if (skinBarThumbEl && skinBarThumbEl.getAttribute('src') !== variant.idle) skinBarThumbEl.src = variant.idle;
+      skinBarNameEl.textContent  = variantName(variant);
+      skinBarLevelEl.textContent = 'Lv.' + lv;
+      skinBarXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
+      skinBarXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
+    }
+
     function applyVariant(variantId) {
       const { character, variant } = getVariant(variantId);
 
@@ -3051,6 +3141,8 @@
       if (window._skinCounterReady) {
         subscribeCurrentSkinCount(variantId);
       }
+
+      renderSkinBar();
     }
 
     // Translation helpers for the dynamic CHARACTERS data — keys are derived
@@ -4567,6 +4659,7 @@
         userStats = next;
         renderSenseiBar();
         if (typeof updateVariantLevels === 'function') updateVariantLevels();
+        if (typeof renderSkinBar       === 'function') renderSkinBar();
         if (typeof renderShopPanel === 'function') renderShopPanel();
         // Mirror to leaderboard if linked — keeps the board row in sync with
         // each totalClicks bump. Anonymous users never have a profile node so
@@ -5185,6 +5278,7 @@
         if (typeof renderSenseiBar       === 'function') renderSenseiBar();
         if (typeof renderClickCounter    === 'function') renderClickCounter();
         if (typeof updateVariantLevels === 'function') updateVariantLevels();
+        if (typeof renderSkinBar       === 'function') renderSkinBar();
       });
     }
 
@@ -5291,6 +5385,7 @@
         saveLocalUserData();
         if (typeof renderSenseiBar       === 'function') renderSenseiBar();
         if (typeof updateVariantLevels === 'function') updateVariantLevels();
+        if (typeof renderSkinBar       === 'function') renderSkinBar();
       }
       if (batch.global > 0) {
         tasks.push(clicksRef.transaction((c) => (c || 0) + batch.global));
