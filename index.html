@@ -3136,6 +3136,12 @@
     let userProfile = null;
     let userStatsUnsub = null;
     let userProfileUnsub = null;
+    // Same optimistic-UI pattern as the public counters: clicks accumulated
+    // since the last flush live in pending.user; deltas already sent but not
+    // yet visible to the listener live in inFlightUser. Bar reads:
+    //   clicks = userStats.totalClicks + pending.user + inFlightUser
+    //   coins  = userStats.coinBalance + pending.user + inFlightUser
+    let inFlightUser = 0;
 
     function flagFromCountry(code) {
       if (!code || code.length !== 2) return '';
@@ -3145,13 +3151,12 @@
     }
 
     function renderSenseiBar() {
-      // Optimistic: include pending mouse-clicks not yet flushed to Firebase
-      // so the bar reflects every click instantly. pending.user is reset to 0
-      // once a flush starts, and the userStats listener picks up the new
-      // server value shortly after — both paths converge on the same total.
+      // Optimistic: include both pending (not flushed yet) and inFlight
+      // (sent in a batch, not yet visible to the listener) so the bar ticks
+      // up the instant you click and stays steady across the flush hand-off.
       const pendingUser = (typeof pending !== 'undefined' && pending) ? (pending.user || 0) : 0;
-      const clicks = (userStats.totalClicks || 0) + pendingUser;
-      const coins  = (userStats.coinBalance || 0) + pendingUser;
+      const clicks = (userStats.totalClicks || 0) + pendingUser + inFlightUser;
+      const coins  = (userStats.coinBalance || 0) + pendingUser + inFlightUser;
       const lv = levelOf(clicks);
       const cur = clicksInLevel(clicks);
       const need = clicksToNextLevel(clicks);
@@ -3196,7 +3201,13 @@
 
       const statsRef = db.ref('users/' + uid + '/stats');
       const statsCb  = (snap) => {
-        userStats = snap.val() || { totalClicks: 0, coinBalance: 0 };
+        const next = snap.val() || { totalClicks: 0, coinBalance: 0 };
+        // If we had an in-flight delta and the server now reflects it,
+        // release inFlightUser so the bar doesn't double-count.
+        if (inFlightUser > 0 && (next.totalClicks || 0) >= (userStats.totalClicks || 0) + inFlightUser) {
+          inFlightUser = 0;
+        }
+        userStats = next;
         renderSenseiBar();
         // Mirror to leaderboard if linked — keeps the board row in sync with
         // each totalClicks bump. Anonymous users never have a profile node so
@@ -3579,14 +3590,17 @@
       pending.user = 0; pending.global = 0; pending.daily = 0;
       pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
       savePending();
-      // Hand off the public-counter deltas from `pending` to `inFlight` so the
-      // pill stays visually steady across the flush boundary. inFlight clears
-      // when the listener confirms the server includes our contribution.
+      // Hand off the public-counter AND user-stat deltas from `pending` to
+      // `inFlight` so the pills/sensei bar stay visually steady across the
+      // flush boundary. inFlight clears when the respective listener confirms
+      // the server includes our contribution.
       const wasInFlightGlobal = inFlightGlobal;
       const wasInFlightSkin   = inFlightSkin;
+      const wasInFlightUser   = inFlightUser;
       const skinDeltaInBatch  = batch.allTimeSkin[currentSkinVariant] || 0;
       inFlightGlobal += batch.global;
       inFlightSkin   += skinDeltaInBatch;
+      inFlightUser   += batch.user;
       // Update sensei (uses pending.user, now 0) and click pill (reads inFlight).
       if (typeof renderSenseiBar    === 'function') renderSenseiBar();
       if (typeof renderClickCounter === 'function') renderClickCounter();
@@ -3640,12 +3654,14 @@
         for (const k in batch.bySkin)      pending.bySkin[k]      = (pending.bySkin[k]      || 0) + batch.bySkin[k];
         for (const k in batch.byCharacter) pending.byCharacter[k] = (pending.byCharacter[k] || 0) + batch.byCharacter[k];
         for (const k in batch.allTimeSkin) pending.allTimeSkin[k] = (pending.allTimeSkin[k] || 0) + batch.allTimeSkin[k];
-        // Also roll back the inFlight bump from the snapshot — the data is
+        // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
         inFlightGlobal = wasInFlightGlobal;
         inFlightSkin   = wasInFlightSkin;
+        inFlightUser   = wasInFlightUser;
         savePending();
         if (typeof renderClickCounter === 'function') renderClickCounter();
+        if (typeof renderSenseiBar    === 'function') renderSenseiBar();
       } finally {
         isFlushing = false;
       }
