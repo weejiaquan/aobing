@@ -1863,6 +1863,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
 
   <!-- anime.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
@@ -1879,11 +1880,16 @@
       projectId: "aobing-dfe10",
       storageBucket: "aobing-dfe10.firebasestorage.app",
       messagingSenderId: "322502890597",
-      appId: "1:322502890597:web:e8679668c108b80355e28c"
+      appId: "1:322502890597:web:e8679668c108b80355e28c",
+      measurementId: "G-8MPRMKEKVD"
     });
     const db = firebase.database();
     const clicksRef = db.ref('clicks');
     const auth = firebase.auth();
+    // Firebase Analytics — auto-collects page_view, session_start, country, referrer,
+    // device, browser. Viewable in console.firebase.google.com under Analytics.
+    // Wrapped in try/catch because some browsers / privacy extensions block gtag.
+    try { firebase.analytics(); } catch (e) { /* analytics blocked or unavailable */ }
 
     // --- User identity ------------------------------------------------------------
     // auth.uid is the source of truth for per-user data. Anonymous on first visit;
