@@ -3709,6 +3709,52 @@
       }
     });
     // ----------------------------------------------------------------------------
+
+    // --- Buff expiry timers + countdown rendering -------------------------------
+    const buffExpiryTimers = { coins: null, clicks: null, autoRate: null };
+    let buffCountdownInterval = null;
+
+    function anyBuffActive() {
+      const now = Date.now();
+      const b = (userShop && userShop.buffs) || {};
+      for (const k of ['coins','clicks','autoRate']) {
+        if (((b[k] && b[k].expiresAt) || 0) > now) return true;
+      }
+      return false;
+    }
+
+    function syncBuffTimers() {
+      const now = Date.now();
+      const b = (userShop && userShop.buffs) || {};
+      for (const kind of ['coins','clicks','autoRate']) {
+        if (buffExpiryTimers[kind]) { clearTimeout(buffExpiryTimers[kind]); buffExpiryTimers[kind] = null; }
+        const exp = (b[kind] && b[kind].expiresAt) || 0;
+        if (exp > now) {
+          buffExpiryTimers[kind] = setTimeout(() => {
+            // autoCps may change when 'autoRate' expires; coin/click muls are
+            // read fresh on each click so they don't need a re-arm. Re-render
+            // the panel for fresh labels regardless.
+            rearmAutoLoop();
+            renderShopPanel();
+            if (!anyBuffActive() && buffCountdownInterval) {
+              clearInterval(buffCountdownInterval);
+              buffCountdownInterval = null;
+            }
+          }, exp - now + 50);
+        }
+      }
+      if (anyBuffActive() && !buffCountdownInterval) {
+        buffCountdownInterval = setInterval(() => {
+          if (document.getElementById('shop-panel').classList.contains('open')) {
+            renderShopPanel();
+          }
+        }, 1000);
+      } else if (!anyBuffActive() && buffCountdownInterval) {
+        clearInterval(buffCountdownInterval);
+        buffCountdownInterval = null;
+      }
+    }
+    // ----------------------------------------------------------------------------
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
     // sources). Bar reads:
