@@ -181,11 +181,11 @@
       }
     }
 
-    /* --- Auto-clicker side cursor --- */
+    /* --- Auto-clicker side cursor (fixed to viewport, independent of character) --- */
     #auto-cursor {
-      position: absolute;
-      right: -20%;
-      top: 40%;
+      position: fixed;
+      right: calc(50% - 30vh);     /* ~where the right shoulder of the centered sprite sits */
+      top: 55%;
       pointer-events: none;
       z-index: 30;
       transform: translateX(0);
@@ -200,8 +200,25 @@
       100% { transform: translateX(0); }
     }
     @media (max-width: 600px) {
-      #auto-cursor { right: -12%; }
+      #auto-cursor { right: 6%; top: 60%; }
       #auto-cursor svg { width: 36px; height: 36px; }
+    }
+
+    /* --- Auto-clicker gold +coins floater (per-second tally) --- */
+    .auto-coin-plus {
+      position: fixed;
+      font-weight: 900;
+      font-size: 1.6rem;
+      color: #ffd84d;
+      text-shadow:
+        0 0 6px rgba(255, 200, 40, 0.85),
+        0 2px 8px rgba(120, 80, 0, 0.6),
+        0 0 14px rgba(255, 215, 80, 0.55);
+      pointer-events: none;
+      user-select: none;
+      z-index: 56;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     /* --- Combo Display --- */
@@ -1568,12 +1585,14 @@
     <button id="idle-bubble" type="button" hidden aria-live="polite">
       <span id="idle-bubble-text"></span>
     </button>
-    <div id="auto-cursor" hidden aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="48" height="48" fill="#fff" stroke="#222" stroke-width="1.5" stroke-linejoin="round">
-        <path d="M5 3 L5 18 L9 14 L11 19 L13.5 18 L11.5 13 L17 13 Z"/>
-      </svg>
-    </div>
     <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba" data-i18n-attr="alt:alt.character">
+  </div>
+
+  <!-- Auto-clicker cursor (independent — doesn't move with the character float) -->
+  <div id="auto-cursor" hidden aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="48" height="48" fill="#fff" stroke="#222" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M5 3 L5 18 L9 14 L11 19 L13.5 18 L11.5 13 L17 13 Z"/>
+    </svg>
   </div>
 
   <!-- Combo display (cosmetic only — doesn't affect real counters) -->
@@ -3810,7 +3829,10 @@
 
     // --- Auto-clicker -----------------------------------------------------------
     let autoTimer = null;
-    const AUTO_PERIOD_MS_FLOOR = 80;   // never tick faster than 12.5/s
+    let autoCoinFloaterInterval = null;
+    let autoCoinAccumulator = 0;
+    const AUTO_PERIOD_MS_FLOOR = 80;     // never tick faster than 12.5/s
+    const AUTO_COIN_FLOATER_MS = 1000;   // spawn the gold +X once per second
 
     function currentAutoCps() {
       return shopMul(Date.now()).autoCps;   // 0 if autoLevel === 0 and no autoRate buff
@@ -3826,10 +3848,52 @@
       el.setAttribute('data-poking', 'true');
     }
 
+    function spawnAutoCoinFloater(amount) {
+      const cursor = document.getElementById('auto-cursor');
+      if (!cursor) return;
+      const rect = cursor.getBoundingClientRect();
+      const el = document.createElement('div');
+      el.className = 'auto-coin-plus';
+      el.textContent = '+' + amount.toLocaleString();
+      // Anchor above the cursor; small horizontal jitter so back-to-back spawns
+      // don't perfectly overlap if the floater interval ever overlaps animation.
+      el.style.left = (rect.left + rect.width / 2 - 20 + (Math.random() * 12 - 6)) + 'px';
+      el.style.top  = (rect.top - 8) + 'px';
+      document.body.appendChild(el);
+      animate(el, {
+        translateY: -72,
+        opacity: [{ to: 1, duration: 80 }, { to: 1, duration: 700 }, { to: 0, duration: 420 }],
+        duration: 1200,
+        ease: 'outQuad',
+        onComplete: () => el.remove(),
+      });
+    }
+
     function autoTick() {
       if (introActive) return;
+      // Capture the coin gain BEFORE recordClick mutates pending — same formula
+      // recordClick uses, so the +X matches what actually got credited.
+      autoCoinAccumulator += Math.floor(shopMul(Date.now()).coin);
       recordClick('auto');
       pokeAutoCursor();
+    }
+
+    function startAutoCoinFloater() {
+      if (autoCoinFloaterInterval) return;
+      autoCoinFloaterInterval = setInterval(() => {
+        if (autoCoinAccumulator > 0) {
+          spawnAutoCoinFloater(autoCoinAccumulator);
+          autoCoinAccumulator = 0;
+        }
+      }, AUTO_COIN_FLOATER_MS);
+    }
+
+    function stopAutoCoinFloater() {
+      if (autoCoinFloaterInterval) {
+        clearInterval(autoCoinFloaterInterval);
+        autoCoinFloaterInterval = null;
+      }
+      autoCoinAccumulator = 0;
     }
 
     function rearmAutoLoop() {
@@ -3838,9 +3902,13 @@
       if (!el) return;
       const cps = currentAutoCps();
       el.hidden = (cps <= 0);
-      if (cps <= 0) return;
+      if (cps <= 0) {
+        stopAutoCoinFloater();
+        return;
+      }
       const periodMs = Math.max(AUTO_PERIOD_MS_FLOOR, 1000 / cps);
       autoTimer = setInterval(autoTick, periodMs);
+      startAutoCoinFloater();
     }
 
     // Re-check on tab visibility resume — buffs may have expired while hidden.
