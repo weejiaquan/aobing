@@ -4956,12 +4956,20 @@
     const COMBO_CAP_TIER = 5; // no new effects past 100x; combo still climbs
 
     // When a variant declares an optional `active2` sprite, it swaps in for
-    // `active` on clicks where the running combo has reached this threshold.
-    // Variants without `active2` are unaffected.
-    const COMBO_TIER_THRESHOLD = 50;
+    // `active` on clicks where the current click-rate (clicks in the last
+    // CPS_WINDOW_MS) is at or above this threshold. Variants without `active2`
+    // are unaffected. We count by iterating `cpsTimestamps` from the back so
+    // we don't depend on the setInterval prune step having run recently.
+    const CPS_TIER_THRESHOLD = 10;
     function resolveActiveSrc(variant) {
-      if (variant.active2 && comboCount >= COMBO_TIER_THRESHOLD) return variant.active2;
-      return variant.active;
+      if (!variant.active2) return variant.active;
+      const cutoff = performance.now() - CPS_WINDOW_MS;
+      let cps = 0;
+      for (let i = cpsTimestamps.length - 1; i >= 0; i--) {
+        if (cpsTimestamps[i] >= cutoff) cps++;
+        else break;
+      }
+      return cps >= CPS_TIER_THRESHOLD ? variant.active2 : variant.active;
     }
 
     const comboEl = document.getElementById('combo-display');
