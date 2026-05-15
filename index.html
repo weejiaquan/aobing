@@ -3051,19 +3051,20 @@
     const clickCounter = document.querySelector('#click-counter .pill-value');
     const clickCounterSub = document.querySelector('#click-counter .pill-sub-value');
 
-    // Listen for global click count updates in real-time
+    // Live click count + per-variant subscription. Kept real-time (.on) so the
+    // counter ticks up the moment any user's batch lands — matches the original
+    // UX. The bandwidth win from this PR is upstream: writes are batched to
+    // ~1/5s per active clicker instead of 1 per click, so listener fan-out
+    // delivers far fewer push events even though the subscription pattern is
+    // unchanged.
     clicksRef.on('value', (snapshot) => {
       const count = snapshot.val() || 0;
       clickCounter.textContent = count.toLocaleString();
     });
 
-    // All-time per-variant counter, live-subscribed to the active variant only.
-    // Swapped on variant change via applyVariant().
     let currentSkinCountUnsub = null;
     function subscribeCurrentSkinCount(variantId) {
       if (currentSkinCountUnsub) { currentSkinCountUnsub(); currentSkinCountUnsub = null; }
-      // Show a placeholder until the first value arrives, so the pill doesn't
-      // flash the previous variant's count.
       clickCounterSub.textContent = '0';
       const ref = db.ref('skins/' + variantId);
       const cb = (snap) => {
@@ -3815,6 +3816,9 @@
     let comboLastTier = 0;
     let comboBumpAnim = null;
     let comboPeak = 0; // highest count this combo run — recorded to Firebase on expiry
+    let comboPeakWritten = 0; // last value pushed to Firebase during the in-flight run
+    let comboPeakFlushTimer = null;
+    const COMBO_PEAK_FLUSH_DEBOUNCE_MS = 5000;
 
     function setComboTier(tier) {
       for (let t = 1; t <= 5; t++) comboEl.classList.toggle('tier-' + t, t === tier);
@@ -3824,9 +3828,11 @@
       if (comboCount === 0) return;
       // Record the run's peak to Firebase BEFORE resetting state so the analytics
       // page can show "biggest combo for the day / month / year / all time".
+      if (comboPeakFlushTimer) { clearTimeout(comboPeakFlushTimer); comboPeakFlushTimer = null; }
       recordComboPeak(comboPeak);
       comboCount = 0;
       comboPeak = 0;
+      comboPeakWritten = 0;
       comboLastTier = 0;
       comboEl.classList.remove('active');
       setComboTier(0);
@@ -3836,6 +3842,20 @@
       comboBarFillEl.style.transform = 'scaleX(1)';
       // Wait for fade-out before clearing number, so it doesn't snap to 0 mid-fade.
       setTimeout(() => { if (comboCount === 0) comboNumEl.textContent = '0'; }, 400);
+    }
+
+    // Persist the running combo peak periodically so a hard tab crash mid-run
+    // doesn't lose a world-record attempt. Debounced to 5s so a long combo
+    // emits at most one peak write every 5s plus the final write on expiry.
+    function scheduleComboPeakWrite() {
+      if (comboPeakFlushTimer) return;
+      comboPeakFlushTimer = setTimeout(() => {
+        comboPeakFlushTimer = null;
+        if (comboPeak > comboPeakWritten) {
+          comboPeakWritten = comboPeak;
+          recordComboPeak(comboPeak);
+        }
+      }, COMBO_PEAK_FLUSH_DEBOUNCE_MS);
     }
 
     function recordComboPeak(peak) {
@@ -3849,7 +3869,13 @@
     function bumpCombo() {
       if (comboExpireTimer) clearTimeout(comboExpireTimer);
       comboCount++;
-      if (comboCount > comboPeak) comboPeak = comboCount;
+      if (comboCount > comboPeak) {
+        comboPeak = comboCount;
+        // Schedule a periodic peak write only if the peak actually grew past
+        // what we last persisted — avoids redundant writes if combo is
+        // oscillating (which it won't, but cheap to guard).
+        if (comboPeak > comboPeakWritten && comboPeak >= 2) scheduleComboPeakWrite();
+      }
       comboNumEl.textContent = comboCount.toLocaleString();
       comboEl.classList.add('active');
 
