@@ -91,10 +91,10 @@
         },
         "stats": {
           "totalClicks": {
-            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 150 && now - (data.parent().child('lastClickAt').exists() ? data.parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().child('lastClickAt').val() === now"
+            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && now - (data.parent().child('lastClickAt').exists() ? data.parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().child('lastClickAt').val() === now"
           },
           "coinBalance": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 150"
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 10000"
           },
           "lastClickAt": {
             ".validate": "newData.val() === now"
@@ -108,7 +108,19 @@
           },
           "bySource": {
             "$source": {
-              ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 150 && now - (data.parent().parent().child('lastClickAt').exists() ? data.parent().parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().parent().child('lastClickAt').val() === now"
+              ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && now - (data.parent().parent().child('lastClickAt').exists() ? data.parent().parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().parent().child('lastClickAt').val() === now"
+            }
+          }
+        },
+        "shop": {
+          "coinMulLevel":            { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
+          "clickMulLevel":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
+          "autoLevel":               { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
+          "leaderboardAutoUnlocked": { ".validate": "newData.isBoolean()" },
+          "buffs": {
+            "$kind": {
+              ".validate": "$kind === 'coins' || $kind === 'clicks' || $kind === 'autoRate'",
+              "expiresAt": { ".validate": "newData.isNumber() && newData.val() <= now + 3600000" }
             }
           }
         }
