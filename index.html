@@ -3260,6 +3260,45 @@
     let userStatsUnsub = null;
     let userProfileUnsub = null;
     let userShopUnsub = null;
+
+    // --- Shop helpers -----------------------------------------------------------
+    const SHOP_MAX_LEVEL = 20;
+    const SHOP_BUFF_COST = 500;
+    const SHOP_BUFF_DURATION_MS = 60_000;
+    const SHOP_LBAUTO_COST = 50_000;
+
+    function shopFieldFor(which) {
+      if (which === 'coinMul')    return 'coinMulLevel';
+      if (which === 'clickMul')   return 'clickMulLevel';
+      if (which === 'autoLevel')  return 'autoLevel';
+      return null;
+    }
+
+    function shopCostFor(which, level) {
+      if (which === 'coinMul' || which === 'clickMul') return Math.round(100 * Math.pow(2, level));
+      if (which === 'autoLevel')                       return Math.round(200 * Math.pow(1.6, level));
+      return Infinity;
+    }
+
+    function shopEffectFor(which, level) {
+      if (which === 'coinMul' || which === 'clickMul') return 1 + 0.5 * level;
+      if (which === 'autoLevel')                       return 0.5 * level;
+      return 0;
+    }
+
+    // Returns the active multiplier set at `now`, reading the last-seen userShop.
+    function shopMul(now) {
+      const s = userShop || {};
+      const b = s.buffs || {};
+      const active = (key) => ((b[key] && b[key].expiresAt) || 0) > now;
+      return {
+        coin:     (1 + 0.5 * (s.coinMulLevel  || 0)) * (active('coins')    ? 2 : 1),
+        click:    (1 + 0.5 * (s.clickMulLevel || 0)) * (active('clicks')   ? 2 : 1),
+        autoCps:  0.5 * (s.autoLevel || 0)           * (active('autoRate') ? 2 : 1),
+        lbAuto:   !!s.leaderboardAutoUnlocked,
+      };
+    }
+    // ----------------------------------------------------------------------------
     // Same optimistic-UI pattern as the public counters. After the shop split,
     // coin and click flows are independent (different multipliers, different
     // sources). Bar reads:
