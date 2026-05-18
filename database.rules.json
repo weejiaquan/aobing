@@ -47,6 +47,9 @@
         "maxCombo": {
           ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 1000000000"
         },
+        "visitorCount": {
+          ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 1 && newData.val() <= 1000000000"
+        },
         "visitors": {
           "$visitorId": {
             ".write": "newData.exists() && newData.isBoolean() && newData.val() === true && $visitorId.length >= 8 && $visitorId.length <= 64"
