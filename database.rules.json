@@ -2,81 +2,71 @@
   "rules": {
     "clicks": {
       ".read": true,
-      ".write": true,
-      ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+      ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
     },
     "clicks_by_source": {
       ".read": true,
       "$source": {
-        ".write": true,
-        ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+        ".write": "newData.exists() && newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
       }
     },
     "skins": {
       ".read": true,
       "$variantId": {
-        ".write": true,
-        ".validate": "newData.isNumber() && $variantId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+        ".write": "newData.exists() && newData.isNumber() && $variantId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
       }
     },
     "combo": {
       ".read": true,
       "allTime": {
-        ".write": true,
-        ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0)"
+        ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 1000000000"
       }
     },
     "daily": {
       ".read": true,
       "$date": {
+        ".validate": "$date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
         "total": {
-          ".write": true,
-          ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+          ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
         },
         "countries": {
           "$country": {
-            ".write": true,
-            ".validate": "newData.isNumber() && $country.length == 2 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+            ".write": "newData.exists() && newData.isNumber() && $country.length === 2 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
           }
         },
         "skins": {
           "$skinId": {
-            ".write": true,
-            ".validate": "newData.isNumber() && $skinId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+            ".write": "newData.exists() && newData.isNumber() && $skinId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
           }
         },
         "characters": {
           "$characterId": {
-            ".write": true,
-            ".validate": "newData.isNumber() && $characterId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+            ".write": "newData.exists() && newData.isNumber() && $characterId.length <= 20 && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
           }
         },
         "maxCombo": {
-          ".write": true,
-          ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0)"
+          ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 1000000000"
         },
         "visitors": {
           "$visitorId": {
-            ".write": true,
-            ".validate": "newData.isBoolean() && $visitorId.length <= 64"
+            ".write": "newData.exists() && newData.isBoolean() && newData.val() === true && $visitorId.length >= 8 && $visitorId.length <= 64"
           }
         },
         "sources": {
           "$source": {
-            ".write": true,
-            ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000"
+            ".write": "newData.exists() && newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
           }
         }
       }
     },
     "kei": {
       ".read": true,
-      "completions":          { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
-      "totalHeadpatSeconds":  { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
-      "totalVoicelines":      { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
-      "totalInteractions":    { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
-      "totalPinches":         { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" },
-      "totalEyeTracks":       { ".write": true, ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 100000" }
+      "completions":          { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" },
+      "totalHeadpatSeconds":  { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" },
+      "totalVoicelines":      { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" },
+      "totalInteractions":    { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" },
+      "totalPinches":         { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" },
+      "totalEyeTracks":       { ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000" }
     },
     "users": {
       "$uid": {
@@ -147,7 +137,7 @@
         ".read": true,
         ".indexOn": "totalClicks",
         "$uid": {
-          ".write": "(auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists() && auth.token.firebase.identities['google.com'] != null) || (auth != null && root.child('admins').child(auth.uid).val() === true)",
+          ".write": "newData.exists() && ((auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists() && auth.token.firebase.identities['google.com'] != null) || (auth != null && root.child('admins').child(auth.uid).val() === true))",
           "name":        { ".validate": "newData.isString() && newData.val().length <= 24 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('displayName').val())" },
           "country":     { ".validate": "newData.isString() && newData.val().length === 2 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('country').val())" },
           "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500 && (root.child('admins').child(auth.uid).val() === true || newData.val() === (root.child('users').child($uid).child('profile').child('photoURL').exists() ? root.child('users').child($uid).child('profile').child('photoURL').val() : ''))" },
