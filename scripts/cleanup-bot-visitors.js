@@ -108,7 +108,22 @@ function lastNDays(n) {
     if (APPLY) {
       await db.ref(`daily/${date}/visitorCount`).set(legit);
       if (!KEEP_MAP) {
-        await db.ref(`daily/${date}/visitors`).set(null);
+        // Firebase rejects a single write over ~16 MB, so 676K booleans in
+        // one set(null) fails with WRITE_TOO_BIG. Batch the deletes via
+        // update({key: null, ...}) with at most BATCH keys per request.
+        const keys = Object.keys(map);
+        const BATCH = 5000;
+        for (let i = 0; i < keys.length; i += BATCH) {
+          const updates = {};
+          for (let j = i; j < Math.min(i + BATCH, keys.length); j++) {
+            updates[keys[j]] = null;
+          }
+          await db.ref(`daily/${date}/visitors`).update(updates);
+          if (keys.length > BATCH) {
+            process.stdout.write(`  ...deleted ${Math.min(i + BATCH, keys.length)}/${keys.length}\r`);
+          }
+        }
+        if (keys.length > BATCH) process.stdout.write('\n');
       }
     }
     totalLegit += legit;
