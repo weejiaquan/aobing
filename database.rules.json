@@ -104,7 +104,7 @@
           },
           "bonds": {
             "$variantId": {
-              ".validate": "newData.isNumber() && $variantId.length <= 20 && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 1 && newData.val() <= 10"
+              ".validate": "newData.isNumber() && $variantId.length <= 20 && newData.val() >= 0 && newData.val() <= (data.exists() ? data.val() : 0) + 1 && newData.val() <= 100"
             }
           },
           "bySource": {

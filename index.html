@@ -316,10 +316,38 @@
       animation: combo-rainbow 1.2s linear infinite;
       text-shadow: 0 4px 18px rgba(0, 30, 60, 0.55), 0 0 36px rgba(255, 216, 77, 0.8), 0 0 80px rgba(255, 95, 168, 0.55);
     }
+    /* High milestones (250 / 500 / 1000) escalate further: faster rainbow, a
+       localized jitter on the number itself, and progressively wider glow. The
+       shake lives on .combo-number so it can't disturb the surrounding layout. */
+    #combo-display.tier-6 .combo-number {
+      color: #69db7c;
+      font-size: 5.9rem;
+      animation: combo-rainbow 0.9s linear infinite, combo-shake 0.5s ease-in-out infinite;
+      text-shadow: 0 4px 18px rgba(0, 30, 60, 0.55), 0 0 40px rgba(105, 219, 124, 0.85), 0 0 92px rgba(77, 171, 247, 0.6);
+    }
+    #combo-display.tier-7 .combo-number {
+      color: #da77f2;
+      font-size: 6.4rem;
+      animation: combo-rainbow 0.7s linear infinite, combo-shake 0.42s ease-in-out infinite;
+      text-shadow: 0 4px 18px rgba(0, 30, 60, 0.55), 0 0 48px rgba(218, 119, 242, 0.9), 0 0 112px rgba(255, 95, 168, 0.65);
+    }
+    #combo-display.tier-8 .combo-number {
+      color: #ffffff;
+      font-size: 7rem;
+      animation: combo-rainbow 0.45s linear infinite, combo-shake 0.34s ease-in-out infinite;
+      text-shadow: 0 0 22px #fff, 0 0 48px rgba(255, 216, 77, 0.95), 0 0 120px rgba(255, 95, 168, 0.8), 0 0 168px rgba(77, 171, 247, 0.7);
+    }
 
     @keyframes combo-rainbow {
       0%   { filter: hue-rotate(0deg); }
       100% { filter: hue-rotate(360deg); }
+    }
+
+    @keyframes combo-shake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      25%      { transform: translate(-3px, 1px) rotate(-1.4deg); }
+      50%      { transform: translate(2px, -2px) rotate(0deg); }
+      75%      { transform: translate(3px, 1px) rotate(1.4deg); }
     }
 
     /* Cyan pulse ring used by the 5x tier */
@@ -359,6 +387,9 @@
       #combo-display.tier-3 .combo-number { font-size: 3.2rem; }
       #combo-display.tier-4 .combo-number { font-size: 3.5rem; }
       #combo-display.tier-5 .combo-number { font-size: 3.8rem; }
+      #combo-display.tier-6 .combo-number { font-size: 4.1rem; }
+      #combo-display.tier-7 .combo-number { font-size: 4.4rem; }
+      #combo-display.tier-8 .combo-number { font-size: 4.7rem; }
     }
 
     /* --- Particle Container --- */
@@ -2394,7 +2425,7 @@
     // calls fired at script-init don't hit a TDZ when reading them inside
     // variantLevelOf(). Helper FUNCTIONS are hoisted; const/let are not.
     const MAX_VARIANT_LEVEL = 50;
-    const MAX_BOND_LEVEL = 10;            // hard cap; heart button disappears past this
+    const MAX_BOND_LEVEL = 100;           // hard cap; heart button disappears past this
     const BOND_COIN_BONUS_PER_LEVEL = 0.10;
 
     // --- Custom modal (replaces window.confirm / window.alert) ----------------
@@ -2463,9 +2494,9 @@
     // are interpolated by t(). data-i18n="key" updates textContent; data-i18n-attr
     // takes "attr:key" pairs (comma-separated) to update HTML attributes.
     const I18N = (() => {
-      const SUPPORTED = ['en','ja','ko','zh-Hans','zh-Hant','th','ar'];
+      const SUPPORTED = ['en','ja','ko','zh-Hans','zh-Hant','th','vi','ar'];
       const NATIVE = {
-        'en':'English','ja':'日本語','ko':'한국어','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','ar':'العربية'
+        'en':'English','ja':'日本語','ko':'한국어','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','vi':'Tiếng Việt','ar':'العربية'
       };
       const T = {
         en: {
@@ -2543,7 +2574,7 @@
           'stats.no_data':'No data',
           'stats.range.today':'today','stats.range.last_7_days':'last 7 days',
           'stats.range.last_30_days':'last 30 days','stats.range.all_time':'all time',
-          'combo.label':'COMBO!','combo.max':'MAX COMBO!',
+          'combo.label':'COMBO!','combo.max':'MAX COMBO!','combo.fire':'ON FIRE!','combo.insane':'INSANE!!','combo.godlike':'GODLIKE!!!',
           'tooltip.click_counter':'Global clicks | Current skin clicks',
           'disclaimer':'Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.',
           'meta.description':'Click to make Aoba squeak!',
@@ -2574,7 +2605,7 @@
           'stats.no_data':'データなし',
           'stats.range.today':'今日','stats.range.last_7_days':'直近7日',
           'stats.range.last_30_days':'直近30日','stats.range.all_time':'全期間',
-          'combo.label':'コンボ!','combo.max':'マックスコンボ!',
+          'combo.label':'コンボ!','combo.max':'マックスコンボ!','combo.fire':'ヒートアップ!','combo.insane':'クレイジー!!','combo.godlike':'ゴッドライク!!!',
           'tooltip.click_counter':'全体クリック | 現在のスキンクリック',
           'disclaimer':'Aobing.itはNexon、Nexon Games、Yostarとは無関係です。使用されているすべてのゲームアートワーク、情報、アセットはそれぞれの著作者の所有物および著作権物です。',
           'meta.description':'クリックでアオバが鳴く!',
@@ -2644,7 +2675,7 @@
           'stats.no_data':'데이터 없음',
           'stats.range.today':'오늘','stats.range.last_7_days':'최근 7일',
           'stats.range.last_30_days':'최근 30일','stats.range.all_time':'전체 기간',
-          'combo.label':'콤보!','combo.max':'최대 콤보!',
+          'combo.label':'콤보!','combo.max':'최대 콤보!','combo.fire':'불타오른다!','combo.insane':'미쳤다!!','combo.godlike':'갓라이크!!!',
           'tooltip.click_counter':'전체 클릭 | 현재 스킨 클릭',
           'disclaimer':'Aobing.it은 Nexon, Nexon Games 또는 Yostar와 관련이 없습니다. 사용된 모든 게임 아트워크, 정보 및 자료의 소유권과 저작권은 각 저작자에게 있습니다.',
           'meta.description':'클릭해서 아오바를 울려보세요!',
@@ -2714,7 +2745,7 @@
           'stats.no_data':'暂无数据',
           'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
           'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部时间',
-          'combo.label':'连击!','combo.max':'极限连击!',
+          'combo.label':'连击!','combo.max':'极限连击!','combo.fire':'火力全开!','combo.insane':'疯狂!!','combo.godlike':'神之连击!!!',
           'tooltip.click_counter':'全球点击 | 当前皮肤点击',
           'disclaimer':'Aobing.it 与 Nexon、Nexon Games 及 Yostar 无任何关联。所使用的全部游戏美术、信息和资源版权归各自作者所有。',
           'meta.description':'点击让青叶发出叫声!',
@@ -2784,7 +2815,7 @@
           'stats.no_data':'暫無數據',
           'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
           'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部時間',
-          'combo.label':'連擊!','combo.max':'極限連擊!',
+          'combo.label':'連擊!','combo.max':'極限連擊!','combo.fire':'火力全開!','combo.insane':'瘋狂!!','combo.godlike':'神之連擊!!!',
           'tooltip.click_counter':'全球點擊 | 當前造型點擊',
           'disclaimer':'Aobing.it 與 Nexon、Nexon Games 及 Yostar 無任何關聯。所使用的全部遊戲美術、資訊和資源版權歸各自作者所有。',
           'meta.description':'點擊讓青葉發出叫聲!',
@@ -2854,7 +2885,7 @@
           'stats.no_data':'ไม่มีข้อมูล',
           'stats.range.today':'วันนี้','stats.range.last_7_days':'7 วันที่ผ่านมา',
           'stats.range.last_30_days':'30 วันที่ผ่านมา','stats.range.all_time':'ตลอดกาล',
-          'combo.label':'คอมโบ!','combo.max':'คอมโบสูงสุด!',
+          'combo.label':'คอมโบ!','combo.max':'คอมโบสูงสุด!','combo.fire':'ไฟลุก!','combo.insane':'บ้าระห่ำ!!','combo.godlike':'ดุจเทพ!!!',
           'tooltip.click_counter':'คลิกทั้งหมด | คลิกของสกินปัจจุบัน',
           'disclaimer':'Aobing.it ไม่มีส่วนเกี่ยวข้องกับ Nexon, Nexon Games หรือ Yostar งานศิลป์ ข้อมูล และทรัพย์สินของเกมทั้งหมดเป็นลิขสิทธิ์ของเจ้าของผลงานนั้นๆ',
           'meta.description':'คลิกเพื่อให้อาโอบะร้อง!',
@@ -2924,7 +2955,7 @@
           'stats.no_data':'لا توجد بيانات',
           'stats.range.today':'اليوم','stats.range.last_7_days':'آخر ٧ أيام',
           'stats.range.last_30_days':'آخر ٣٠ يومًا','stats.range.all_time':'كل الأوقات',
-          'combo.label':'كومبو!','combo.max':'أقصى كومبو!',
+          'combo.label':'كومبو!','combo.max':'أقصى كومبو!','combo.fire':'مشتعل!','combo.insane':'جنون!!','combo.godlike':'كالآلهة!!!',
           'tooltip.click_counter':'النقرات الإجمالية | نقرات الزي الحالي',
           'disclaimer':'Aobing.it غير تابعة لشركة Nexon أو Nexon Games أو Yostar. جميع الرسوم والمعلومات والأصول المستخدمة من اللعبة هي ملكية وحقوق نشر لأصحابها الأصليين.',
           'meta.description':'اضغط لتجعل آوبا يصدر صوتًا!',
@@ -2969,6 +3000,87 @@
           'shop.prestige.permanent':'(دائم)',
           'shop.prestige.confirm':'إعادة تعيين جميع مستويات المتجر ورصيد العملات لكسب ★{n}؟ نقراتك التراكمية ونجوم الهيبة محفوظة.',
         },
+        vi: {
+          'settings.title':'Cài đặt','settings.music':'Nhạc','settings.sfx':'Âm thanh','settings.effects':'Hiệu ứng',
+          'settings.language':'Ngôn ngữ','settings.join_discord':'Tham gia Discord','settings.follow_x':'Theo dõi tôi trên X','settings.keyboard_clicks':'Nhấn bằng bàn phím','settings.raw_cps':'Hiện CPS thô','settings.auto_clicker':'Tự động nhấn','settings.reset_defaults':'Đặt lại mặc định',
+          'skins.title':'Trang phục','skins.variants':'{n} biến thể','skins.variant':'{n} biến thể',
+          'sensei.trainer':'Huấn luyện viên',
+          'auth.sign_in_google':'Đăng nhập bằng Google','auth.sign_out':'Đăng xuất',
+          'auth.already_linked':'Tài khoản Google này đã được liên kết với người chơi khác. Đang đăng nhập bạn vào tài khoản đó.',
+          'profile.title':'Hồ sơ',
+          'profile.anon_blurb':'Đăng nhập để lưu tiến trình trên mọi thiết bị và xuất hiện trên bảng xếp hạng.',
+          'profile.display_name':'Tên hiển thị','profile.country':'Quốc gia','profile.save':'Lưu',
+          'profile.name_length_error':'Tên hiển thị phải có từ 1-24 ký tự.',
+          'profile.country_change_to':'Đổi thành {flag} {code}',
+          'leaderboard.title':'Bảng xếp hạng',
+          'leaderboard.info_banner':'Chỉ lượt nhấn chuột và chạm mới được tính vào thứ hạng. Nhấn bàn phím thì vui, nhưng không được tính lên bảng.',
+          'leaderboard.sign_in_cta':'Đăng nhập để tham gia bảng xếp hạng →',
+          'leaderboard.your_rank':'Thứ hạng của bạn: #{rank} trên {total} người chơi',
+          'leaderboard.your_rank_outside':'Thứ hạng của bạn: #{rank} (ngoài top 100)',
+          'leaderboard.no_rank_yet':'Nhấn để bắt đầu leo hạng!',
+          'shop.title':'Cửa hàng',
+          'shop.permanent':'Vĩnh viễn',
+          'shop.auto':'Tự động',
+          'shop.buffs':'Tăng cường (60 giây)',
+          'shop.item.coinMul.name':'Hệ số xu',
+          'shop.item.coinMul.desc':'+50% xu mỗi lượt nhấn',
+          'shop.item.clickMul.name':'Hệ số nhấn',
+          'shop.item.clickMul.desc':'+50% lượt nhấn mỗi lần nhấn',
+          'shop.item.autoLevel.name':'Tự động nhấn',
+          'shop.item.autoLevel.desc':'+0,5 lượt tự động nhấn mỗi giây',
+          'shop.item.leaderboardAuto.name':'Tự động lên bảng',
+          'shop.item.leaderboardAuto.desc':'Lượt tự động nhấn được tính vào thứ hạng',
+          'shop.item.buffCoins.name':'×2 xu',
+          'shop.item.buffClicks.name':'×2 lượt nhấn',
+          'shop.item.buffAutoRate.name':'×2 tốc độ tự động',
+          'shop.atMax':'TỐI ĐA',
+          'shop.owned':'Đã sở hữu',
+          'shop.error.notEnough':'Không đủ xu',
+          'shop.prestige.title':'Thăng hoa',
+          'shop.prestige.name':'Thăng hoa',
+          'shop.prestige.locked':'Đạt Cấp {n} ở bất kỳ nâng cấp nào để mở khóa',
+          'shop.prestige.cta':'Đặt lại',
+          'shop.prestige.coinsLabel':'xu',
+          'shop.prestige.permanent':'(vĩnh viễn)',
+          'shop.prestige.confirm':'Đặt lại toàn bộ cấp cửa hàng và số dư xu để nhận ★{n}? Tổng lượt nhấn và sao thăng hoa của bạn được giữ nguyên.',
+          'bond.title':'Gắn kết',
+          'bond.cta':'Gắn kết',
+          'bond.button':'Gắn kết — đặt lại cấp để nhận +10% xu vĩnh viễn',
+          'bond.confirm':'Gắn kết với {name}? Đặt lại cấp hiển thị về 0 và thêm ♥{n}. +10% xu vĩnh viễn khi dùng trang phục này.',
+          'bond.count':'♥{n} cấp gắn kết',
+          'settings.admin_mode':'Chế độ quản trị',
+          'admin.banner':'Chế độ quản trị đang BẬT. Dùng × để ẩn một hàng, ↺ để hiện lại. Hàng bị ẩn sẽ mờ đi.',
+          'admin.delete_row':'Ẩn khỏi bảng xếp hạng',
+          'admin.confirm_delete':'Ẩn "{name}" khỏi bảng xếp hạng?',
+          'admin.hide_row':'Ẩn khỏi bảng xếp hạng',
+          'admin.show_row':'Hiện lại hàng',
+          'tag.default':'Mặc định','tag.plushie':'Thú bông','tag.track':'Đồ thể thao','tag.idol':'Thần tượng','tag.swimsuit':'Đồ bơi',
+          'character.aoba.name':'Aoba','character.mari.name':'Mari','character.miyu.name':'Miyu',
+          'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Thú Bông',
+          'skin.mari.name':'Mari','skin.maritrack.name':'Mari Thể Thao','skin.mariidol.name':'Mari Thần Tượng',
+          'skin.miyu.name':'Miyu','skin.miyuswim.name':'Miyu Đồ Bơi',
+          'analytics.title':'Phân tích',
+          'stats.preset.today':'Hôm nay','stats.preset.7d':'7 ngày','stats.preset.30d':'30 ngày','stats.preset.all':'Toàn thời gian',
+          'stats.tile.clicks_today':'Lượt nhấn hôm nay','stats.tile.clicks':'Lượt nhấn',
+          'stats.tile.visitors_today':'Khách hôm nay','stats.tile.visitors':'Khách',
+          'stats.tile.cpv':'Lượt nhấn mỗi khách',
+          'stats.tile.max_combo_today':'Combo cao nhất hôm nay','stats.tile.max_combo':'Combo cao nhất',
+          'stats.chart.clicks_over_time':'Lượt nhấn theo thời gian','stats.chart.visitors_over_time':'Khách theo thời gian',
+          'stats.chart.top_countries':'Quốc gia hàng đầu','stats.chart.characters_used':'Nhân vật đã dùng',
+          'stats.chart.skins_per_character':'Trang phục theo nhân vật',
+          'stats.chart.click_sources':'Nguồn nhấn',
+          'stats.source.mouse':'Chuột / Chạm',
+          'stats.source.keyboard':'Bàn phím',
+          'stats.source.auto':'Tự động nhấn',
+          'stats.no_data':'Không có dữ liệu',
+          'stats.range.today':'hôm nay','stats.range.last_7_days':'7 ngày qua',
+          'stats.range.last_30_days':'30 ngày qua','stats.range.all_time':'toàn thời gian',
+          'combo.label':'COMBO!','combo.max':'COMBO TỐI ĐA!','combo.fire':'BỐC CHÁY!','combo.insane':'ĐIÊN RỒ!!','combo.godlike':'NHƯ THẦN!!!',
+          'tooltip.click_counter':'Tổng lượt nhấn | Lượt nhấn trang phục hiện tại',
+          'disclaimer':'Aobing.it không liên kết với Nexon, Nexon Games hay Yostar. Mọi hình ảnh, thông tin và tài nguyên trò chơi được sử dụng đều thuộc quyền sở hữu và bản quyền của các tác giả tương ứng.',
+          'meta.description':'Nhấn để Aoba kêu chít chít!',
+          'alt.character':'Nhân vật','aria.close':'Đóng',
+        },
       };
       let current = 'en';
 
@@ -2978,6 +3090,7 @@
         if (nav.startsWith('ja')) return 'ja';
         if (nav.startsWith('ko')) return 'ko';
         if (nav.startsWith('th')) return 'th';
+        if (nav.startsWith('vi')) return 'vi';
         if (nav.startsWith('ar')) return 'ar';
         if (nav.startsWith('zh')) {
           if (/(^|[-_])(hant|tw|hk|mo)/i.test(nav)) return 'zh-Hant';
@@ -6050,13 +6163,19 @@
     // the global / per-skin counters. Five milestones with escalating effects.
     const COMBO_EXPIRE_MS = 10000;
     const COMBO_TIERS = [
-      { threshold: 5,   tier: 1, effect: 'pulse'   },
-      { threshold: 10,  tier: 2, effect: 'pulse'   },
-      { threshold: 25,  tier: 3, effect: 'confetti-sm' },
-      { threshold: 50,  tier: 4, effect: 'confetti-lg' },
-      { threshold: 100, tier: 5, effect: 'finale'  },
+      { threshold: 5,    tier: 1, effect: 'pulse'   },
+      { threshold: 10,   tier: 2, effect: 'pulse'   },
+      { threshold: 25,   tier: 3, effect: 'confetti-sm' },
+      { threshold: 50,   tier: 4, effect: 'confetti-lg' },
+      { threshold: 100,  tier: 5, effect: 'finale'  },
+      { threshold: 250,  tier: 6, effect: 'fireworks'     },
+      { threshold: 500,  tier: 7, effect: 'fireworks-big' },
+      { threshold: 1000, tier: 8, effect: 'supernova'     },
     ];
-    const COMBO_CAP_TIER = 5; // no new effects past 100x; combo still climbs
+    const COMBO_CAP_TIER = 8; // top milestone at 1000x; combo still climbs past it
+    // Past the top milestone the number keeps rising — re-fire an "encore" burst
+    // every N clicks so a sustained high combo never goes visually silent.
+    const COMBO_ENCORE_EVERY = 50;
 
     // When a variant declares an optional `active2` sprite, it swaps in for
     // `active` on clicks where the manual click-rate (mouse + keyboard, in
@@ -6110,7 +6229,7 @@
     const COMBO_PEAK_FLUSH_DEBOUNCE_MS = 5000;
 
     function setComboTier(tier) {
-      for (let t = 1; t <= 5; t++) comboEl.classList.toggle('tier-' + t, t === tier);
+      for (let t = 1; t <= COMBO_CAP_TIER; t++) comboEl.classList.toggle('tier-' + t, t === tier);
     }
 
     function expireCombo() {
@@ -6181,11 +6300,13 @@
       comboBarFillEl.style.transition = `transform ${COMBO_EXPIRE_MS}ms linear`;
       comboBarFillEl.style.transform = 'scaleX(0)';
 
-      // Always do a small scale-pop on every click for satisfying feedback.
+      // Always do a scale-pop on every click for satisfying feedback. The pop
+      // grows with the current tier so high combos punch harder per click.
       if (comboBumpAnim) comboBumpAnim.pause();
       comboContentEl.style.transform = '';
+      const popScale = 1.15 + Math.min(comboLastTier, COMBO_CAP_TIER) * 0.02;
       comboBumpAnim = animate(comboContentEl, {
-        scale: [{ to: 1.15, duration: 90, ease: 'outQuad' }, { to: 1, duration: 220, ease: 'outBack' }],
+        scale: [{ to: popScale, duration: 90, ease: 'outQuad' }, { to: 1, duration: 220, ease: 'outBack' }],
       });
 
       // Walk through tiers and fire the highest newly-reached effect.
@@ -6204,6 +6325,14 @@
           fireComboEffect(firedEffect, newTier);
         }
       }
+
+      // Encore: once past the finale tier (100x), keep the screen alive with a
+      // small firework burst every COMBO_ENCORE_EVERY clicks. `firedEffect` is
+      // non-null only when a milestone fired this click, so this skips the exact
+      // milestone thresholds, which already play their own bigger effect.
+      if (comboLastTier >= 5 && firedEffect === null && comboCount % COMBO_ENCORE_EVERY === 0) {
+        spawnFireworks(2, 20);
+      }
     }
 
     function fireComboEffect(effect, tier) {
@@ -6220,6 +6349,27 @@
         // Followup confetti waves for drama.
         setTimeout(() => spawnConfetti(80), 250);
         setTimeout(() => spawnConfetti(60), 600);
+      } else if (effect === 'fireworks') {       // 250x
+        comboLabelEl.textContent = I18N.t('combo.fire');
+        screenFlash();
+        spawnFireworks(3, 26);
+        setTimeout(() => spawnFireworks(2, 22), 220);
+      } else if (effect === 'fireworks-big') {   // 500x
+        comboLabelEl.textContent = I18N.t('combo.insane');
+        screenFlash();
+        spawnConfetti(90);
+        spawnFireworks(5, 30);
+        setTimeout(() => spawnFireworks(4, 26), 200);
+        setTimeout(() => spawnFireworks(3, 24), 480);
+      } else if (effect === 'supernova') {       // 1000x
+        comboLabelEl.textContent = I18N.t('combo.godlike');
+        screenFlash();
+        setTimeout(screenFlash, 300);
+        spawnConfetti(140);
+        spawnFireworks(7, 34);
+        setTimeout(() => spawnFireworks(6, 32), 200);
+        setTimeout(() => spawnFireworks(6, 30), 460);
+        setTimeout(() => spawnFireworks(5, 28), 760);
       }
     }
 
@@ -6238,12 +6388,25 @@
 
     const CONFETTI_COLORS = ['#4dabf7', '#f4cb4d', '#ff5fa8', '#69db7c', '#da77f2', '#ffa94d', '#ffffff'];
     function spawnConfetti(count) {
-      const container = document.getElementById('particles');
       // Burst origin = combo display centre, so confetti looks like it shoots
       // out of the number itself.
       const r = comboEl.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
+      burstAt(document.getElementById('particles'), r.left + r.width / 2, r.top + r.height / 2, count);
+    }
+
+    // Fire `bursts` separate confetti explosions at random points across the
+    // upper screen — high-tier combos fill the whole view instead of shooting
+    // everything from the combo number. Staggered so they read as fireworks.
+    function spawnFireworks(bursts, perBurst) {
+      const container = document.getElementById('particles');
+      for (let b = 0; b < bursts; b++) {
+        const ox = window.innerWidth  * (0.12 + Math.random() * 0.76);
+        const oy = window.innerHeight * (0.10 + Math.random() * 0.5);
+        setTimeout(() => burstAt(container, ox, oy, perBurst), b * 80);
+      }
+    }
+
+    function burstAt(container, cx, cy, count) {
       for (let i = 0; i < count; i++) {
         const p = document.createElement('div');
         p.className = 'confetti';
