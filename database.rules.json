@@ -201,7 +201,7 @@
             "name":          { ".validate": "newData.isString() && newData.val().length <= 64" },
             "photoURL":      { ".validate": "newData.isString() && newData.val().length <= 500" },
             "totalClicks":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0) + 10000" },
-            "sessionClicks": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0) + 10000" },
+            "sessionClicks": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
             "updatedAt":     { ".validate": "newData.isNumber()" },
             "$other":        { ".validate": false }
           }
