@@ -738,6 +738,103 @@
     .profile-button.secondary:hover { color: var(--ba-accent-strong); }
     .profile-error { color: #d04a4a; font-size: 0.72rem; margin-top: 4px; min-height: 0.9rem; }
 
+    /* --- Link Discord toast --------------------------------------------------- */
+    #link-toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: var(--ba-accent-strong);
+      color: #fff;
+      font-size: 0.84rem;
+      font-weight: 700;
+      padding: 9px 20px;
+      border-radius: 999px;
+      box-shadow: 0 4px 18px rgba(0,30,60,0.28);
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
+    #link-toast.visible { opacity: 1; }
+
+    /* --- Merge picker overlay ------------------------------------------------- */
+    .merge-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 250;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20,40,70,0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      animation: app-modal-pop 0.18s ease-out;
+    }
+    .merge-modal {
+      position: relative;
+      background: var(--ba-card-bg);
+      border: var(--ba-card-border);
+      border-radius: 16px;
+      box-shadow: var(--ba-card-shadow);
+      padding: 20px 22px 18px;
+      max-width: 560px;
+      width: calc(100% - 32px);
+      color: var(--ba-text);
+    }
+    .merge-modal h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      margin: 0 0 14px;
+      color: var(--ba-text);
+    }
+    .merge-cards {
+      display: flex;
+      gap: 12px;
+    }
+    .merge-card {
+      flex: 1;
+      background: var(--ba-card-bg-soft);
+      border: var(--ba-card-border);
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .merge-card h4 {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--ba-accent-strong);
+      margin: 0 0 6px;
+    }
+    .merge-card p {
+      font-size: 0.78rem;
+      color: var(--ba-text-muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+    .merge-pick {
+      margin-top: 10px;
+      padding: 7px 10px;
+      background: var(--ba-accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      width: 100%;
+    }
+    .merge-pick:hover { background: var(--ba-accent-strong); }
+    .merge-pick:disabled { opacity: 0.5; cursor: not-allowed; }
+    @media (max-width: 480px) {
+      .merge-cards { flex-direction: column; }
+    }
+
     /* Country area: read-only flag display + optional "change to X" pill.
        Admin mode swaps the entire area for a dropdown picker. */
     .country-display {
@@ -2015,6 +2112,7 @@
       <div id="profile-country-area"></div>
       <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
       <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
+      <button id="profile-discord-btn" class="profile-button secondary" onclick="linkDiscord()">🎮 Link Discord</button>
       <div class="profile-error" id="profile-error-linked"></div>
     </div>
   </div>
@@ -2257,6 +2355,9 @@
     </div>
   </div>
 
+  <!-- Link-Discord toast -->
+  <div id="link-toast" role="status" aria-live="polite"></div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -2311,6 +2412,9 @@
     // device, browser. Viewable in console.firebase.google.com under Analytics.
     // Wrapped in try/catch because some browsers / privacy extensions block gtag.
     try { firebase.analytics(); } catch (e) { /* analytics blocked or unavailable */ }
+
+    // --- kei-bot base URL --------------------------------------------------------
+    const KEI_BASE = 'https://kei.aobing.it';
 
     // --- User identity ------------------------------------------------------------
     // No auto-anonymous sign-in: guests run in a localStorage-only mode and only
@@ -5349,6 +5453,98 @@
         }
       }
     });
+
+    // --- Discord account linking -------------------------------------------------
+    // showLinkToast: minimal ephemeral status message for link/merge outcomes.
+    const _linkToastEl = document.getElementById('link-toast');
+    let _linkToastTimer = null;
+    function showLinkToast(msg) {
+      _linkToastEl.textContent = msg;
+      _linkToastEl.classList.add('visible');
+      if (_linkToastTimer) clearTimeout(_linkToastTimer);
+      _linkToastTimer = setTimeout(() => _linkToastEl.classList.remove('visible'), 3000);
+    }
+
+    async function linkDiscord() {
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous) return;
+      let idToken;
+      try { idToken = await user.getIdToken(); } catch { return; }
+      let authorizeUrl;
+      try {
+        const resp = await fetch(KEI_BASE + '/api/link/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        });
+        if (!resp.ok) throw new Error('start failed');
+        ({ authorizeUrl } = await resp.json());
+      } catch (e) { console.error('link start failed', e); return; }
+      window.open(authorizeUrl, 'discord-link', 'width=500,height=820');
+    }
+
+    window.addEventListener('message', async (e) => {
+      if (e.origin !== KEI_BASE) return;
+      const d = e.data;
+      if (!d || d.type !== 'discord-link') return;
+      if (d.needsMerge) { showMergePicker(d.discordId); }
+      else { showLinkToast('Discord linked!'); }
+    });
+
+    async function showMergePicker(discordId) {
+      const user = auth.currentUser;
+      if (!user) return;
+      let data;
+      try {
+        const idToken = await user.getIdToken();
+        const r = await fetch(KEI_BASE + '/api/link/compare?discord_id=' + encodeURIComponent(discordId), {
+          headers: { 'Authorization': 'Bearer ' + idToken }
+        });
+        if (!r.ok) throw new Error('compare failed');
+        data = await r.json();
+      } catch (e) { console.error('compare failed', e); return; }
+      renderMergeModal(discordId, data.google, data.discord);
+    }
+
+    function mergeCardHtml(side, s) {
+      return '<div class="merge-card" data-keep="' + side + '">'
+        + '<h4>' + (side === 'google' ? 'This account' : 'Discord account') + '</h4>'
+        + '<p>Level ' + s.level + '</p>'
+        + '<p>' + s.totalClicks.toLocaleString() + ' clicks</p>'
+        + '<p>' + s.prestigeStars + ' ★ prestige</p>'
+        + '<p>' + s.coinBalance.toLocaleString() + ' coins</p>'
+        + '<p>' + s.charactersOwned + ' characters</p>'
+        + '<button class="merge-pick" data-keep="' + side + '">Keep this</button></div>';
+    }
+
+    function renderMergeModal(discordId, google, discord) {
+      const overlay = document.createElement('div');
+      overlay.className = 'merge-overlay';
+      overlay.innerHTML = '<div class="merge-modal"><h3>Two save files found — keep which?</h3>'
+        + '<div class="merge-cards">' + mergeCardHtml('google', google) + mergeCardHtml('discord', discord) + '</div></div>';
+      document.body.appendChild(overlay);
+      overlay.querySelectorAll('.merge-pick').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          overlay.querySelectorAll('.merge-pick').forEach(b => b.disabled = true);
+          await resolveMerge(discordId, btn.getAttribute('data-keep'));
+          overlay.remove();
+        });
+      });
+    }
+
+    async function resolveMerge(discordId, keep) {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const idToken = await user.getIdToken();
+        const r = await fetch(KEI_BASE + '/api/link/resolve', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discordId, keep, idToken })
+        });
+        if (!r.ok) throw new Error('resolve failed');
+        showLinkToast('Merged! Reloading…');
+        setTimeout(() => location.reload(), 800);
+      } catch (e) { console.error('resolve failed', e); showLinkToast('Merge failed, try again'); }
+    }
 
     // --- Profile editor (linked) ------------------------------------------------
     const profileNameInput   = document.getElementById('profile-name-input');
