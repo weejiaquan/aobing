@@ -3665,19 +3665,22 @@
           renderPhotoPicker();
         }
       } catch (e) { console.error('persist discord identity failed', e); }
-      if (_presenceInited || !window.Presence) return;
+      // Presence panel needs a trusted Discord id (the merge key + the RTDB rule's
+      // identity check). Without it, skip the panel entirely rather than publish a
+      // blank-id node that would collide with other id-less nodes — graceful
+      // degradation for an older kei-bot that doesn't return discordId yet.
+      if (_presenceInited || !window.Presence || A.discordId == null) return;
       _presenceInited = true;
       window.Presence.init({
         db, activity: A, activityImg, escapeHtml,
-        getSelfState: () => {
-          const pc = (typeof pending !== 'undefined' && pending) ? (pending.userClicks || 0) : 0;
-          return {
-            name:          (userProfile && userProfile.displayName) || A.discordName || 'Sensei',
-            photoURL:      lbPhoto(userProfile),
-            totalClicks:   (userStats.totalClicks || 0) + pc + inFlightUserClicks,
-            sessionClicks: sessionClicks,
-          };
-        },
+        // Server-confirmed totalClicks (matches the leaderboard and stays within the
+        // RTDB cap); sessionClicks is the local since-boot counter.
+        getSelfState: () => ({
+          name:          (userProfile && userProfile.displayName) || A.discordName || 'Sensei',
+          photoURL:      lbPhoto(userProfile),
+          totalClicks:   userStats.totalClicks || 0,
+          sessionClicks: sessionClicks,
+        }),
       });
     }
 

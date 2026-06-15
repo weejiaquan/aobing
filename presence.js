@@ -224,8 +224,11 @@ if (typeof document !== 'undefined') {
     // isn't worth a write — it keeps RTDB chatter down on an idle participant).
     var sig = payload.name + '|' + payload.photoURL + '|' + payload.totalClicks + '|' + payload.sessionClicks;
     if (sig === _state.lastSig) return;
+    // Optimistically dedup (so concurrent ticks don't double-write the same payload),
+    // but clear the signature on failure so the next tick retries — otherwise a single
+    // failed write would suppress the node forever while the user is idle.
     _state.lastSig = sig;
-    _state.selfRef.update(payload).catch(function () {});
+    _state.selfRef.update(payload).catch(function () { if (_state) _state.lastSig = null; });
   }
 
   function _recompute() {
@@ -247,7 +250,9 @@ if (typeof document !== 'undefined') {
   function init(deps) {
     if (!deps || !deps.db || !deps.activity) return;
     var A = deps.activity;
-    if (!A.instanceId || A.uid == null) return; // not a real Activity instance
+    // Need a real instance AND a trusted Discord id: it's the merge key and the RTDB
+    // rule rejects a participant node whose discordId !== the token's discord_id claim.
+    if (!A.instanceId || A.uid == null || A.discordId == null) return;
     if (_state) _destroy(); // idempotent re-init
 
     var base = 'activities/' + A.instanceId + '/participants';
