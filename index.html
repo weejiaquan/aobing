@@ -2051,6 +2051,58 @@
   </style>
 </head>
 <body>
+  <!-- ================================================================
+       DISCORD ACTIVITY SCAFFOLD — iframe-gated, no-op on normal web
+       Runs ONLY on *.discordsays.com. Entirely additive; does not
+       touch Firebase boot, existing scripts, or any app logic.
+       ================================================================ -->
+  <div id="activity-status" style="display:none;position:fixed;inset:0;z-index:99999;background:#1a1a1e;color:#eee;font:14px/1.5 monospace;padding:16px;white-space:pre-wrap;overflow:auto"></div>
+  <script type="module">
+    const IN_ACTIVITY = location.hostname.endsWith('.discordsays.com');
+    if (IN_ACTIVITY) {
+      const box = document.getElementById('activity-status');
+      box.style.display = 'block';
+      const log = (m) => { box.textContent += m + '\n'; console.log('[activity]', m); };
+      const fail = (m, e) => { box.textContent += 'ERROR: ' + m + (e ? ' :: ' + (e && e.message || e) : '') + '\n'; console.error('[activity]', m, e); };
+      (async () => {
+        try {
+          log('importing Discord SDK…');
+          const { DiscordSDK, patchUrlMappings } = await import('/vendor/discord-embedded-app-sdk.js');
+          log('SDK imported. setting URL mappings…');
+          // Mappings must match the Dev Portal URL Mappings exactly. Start minimal: kei-bot.
+          patchUrlMappings([
+            { prefix: '/kei', target: 'kei.aobing.it' },
+          ]);
+          log('patchUrlMappings set. init DiscordSDK(' + '1514146586748256306' + ')…');
+          const sdk = new DiscordSDK('1514146586748256306');
+          await sdk.ready();
+          log('SDK ready. requesting authorize…');
+          const { code } = await sdk.commands.authorize({
+            client_id: '1514146586748256306',
+            response_type: 'code',
+            state: '',
+            prompt: 'none',
+            scope: ['identify'],
+          });
+          log('authorized, got code (len ' + (code ? code.length : 0) + '). exchanging at kei-bot…');
+          const resp = await fetch('https://kei.aobing.it/api/activity/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+          });
+          log('token endpoint HTTP ' + resp.status);
+          const data = await resp.json();
+          log('uid=' + data.uid + ' customToken=' + (data.token ? 'yes(' + data.token.length + ')' : 'no')
+              + ' appCheckToken=' + (data.appCheckToken ? 'yes(' + data.appCheckToken.length + ')' : 'no'));
+          log('SCAFFOLD OK — embed + SDK + token flow all work.');
+        } catch (e) {
+          fail('scaffold failed', e);
+        }
+      })();
+    }
+  </script>
+  <!-- END DISCORD ACTIVITY SCAFFOLD -->
+
   <!-- Intro Elements -->
   <div id="curtain"></div>
 
