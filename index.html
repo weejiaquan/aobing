@@ -2463,7 +2463,9 @@
           if (!IN_ACTIVITY) mods.push(loadScript(FB + 'firebase-analytics-compat.js'));
           return Promise.all(mods);
         })
-        .then(function () { return loadScript('app.js'); })
+        // In the Activity, cache-bust app.js each launch so code changes appear immediately
+        // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
+        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .catch(function (e) { console.error('lib load failed', e); });
     };
     // Coordinator: on web, load immediately; in Activity, the module below calls this after Discord flow
