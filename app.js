@@ -95,6 +95,29 @@
     if (window.__ACTIVITY__) {
       firebase.auth().signInWithCustomToken(window.__ACTIVITY__.customToken)
         .catch((e) => console.error('[activity] signInWithCustomToken failed', e));
+
+      // In the Activity, any link that navigates away from the SPA (external sites like
+      // x.com, or same-origin pages like /discord/) freezes the iframe. Intercept those
+      // clicks and hand the URL to Discord's openExternalLink so it opens in the browser.
+      document.addEventListener('click', (e) => {
+        const a = e.target.closest && e.target.closest('a[href]');
+        if (!a) return;
+        const href = a.getAttribute('href');
+        if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
+        let url;
+        try { url = new URL(href, location.href); } catch (_) { return; }
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+        const leavesApp = url.origin !== location.origin || url.pathname !== location.pathname;
+        if (!leavesApp) return;  // same-page anchor / in-SPA — let it be
+        e.preventDefault();
+        // Same-origin page nav (e.g. /discord/) → open the real aobing.it page (it redirects);
+        // external → open as-is.
+        const target = (url.origin === location.origin)
+          ? ('https://aobing.it' + url.pathname + url.search + url.hash)
+          : url.href;
+        try { window.__ACTIVITY__.openExternalLink(target); }
+        catch (err) { console.error('[activity] openExternalLink failed', err); }
+      }, true);
     }
 
     // --- Date & Country Helpers ---

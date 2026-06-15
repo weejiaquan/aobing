@@ -2096,6 +2096,9 @@
             appCheckTtlMillis: data.appCheckTtlMillis,
             uid: data.uid,
             keiBase: 'https://kei.aobing.it',
+            // External links must go through the SDK in the Activity — a normal navigation
+            // to an external site is blocked by the iframe and freezes the app.
+            openExternalLink: (url) => sdk.commands.openExternalLink({ url }),
           };
           log('token ok (uid=' + data.uid + '). loading game…');
           window.__loadLibsAndApp();   // now load libs (proxied) + app.js
