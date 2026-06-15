@@ -1266,88 +1266,105 @@
       opacity: 1;
       pointer-events: auto;
     }
-    /* --- Typing game: full-screen takeover overlay floating over the character --- */
+    /* === Typing game ======================================================= */
+    /* PLAY overlay: pure floating text over the character — no box, no dim. */
     #typing-panel {
       position: fixed;
       inset: 0;
       z-index: 200;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      gap: 14px;
+      padding: 0 6vw;
+      background: transparent;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.2s ease;
     }
     #typing-panel.open { opacity: 1; pointer-events: auto; }
-    .typing-dialog {
-      position: relative;
-      width: min(680px, 92vw);
-      max-height: 88vh;
-      overflow-y: auto;
-      background: var(--ba-card-bg);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: var(--ba-card-border);
-      border-radius: 18px;
-      padding: 26px 28px 22px;
-      color: var(--ba-text);
-      font-size: 0.85rem;
-      box-shadow: var(--ba-card-shadow);
-      transform: translateY(10px) scale(0.98);
-      transition: transform 0.25s ease;
+    /* Floating word stream — large, centered, white-outlined so it reads over
+       any part of the scene. No background; this is "just text on the character".
+       Presentation-only: future game styles (approaching words, lanes, etc.) can
+       swap how words are laid out without touching the engine. */
+    .typing-stream {
+      max-width: 760px;
+      text-align: center;
+      line-height: 1.8;
+      font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      word-break: break-word;
+      cursor: text;
+      user-select: none;
+      color: #2b2b33;
+      text-shadow:
+        -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff,
+        -1.5px  1.5px 0 #fff, 1.5px  1.5px 0 #fff,
+         0 0 5px #fff, 0 2px 6px rgba(0, 0, 0, 0.25);
     }
-    #typing-panel.open .typing-dialog { transform: translateY(0) scale(1); }
-    .typing-close {
-      position: absolute;
-      top: 12px;
-      right: 14px;
-      width: 30px;
-      height: 30px;
-      border: none;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--ba-text-faint);
-      font-size: 1.5rem;
-      line-height: 1;
-      cursor: pointer;
+    .typing-stream.typing-dim { opacity: 0.4; }
+    .typing-stream .tw { color: rgba(70, 70, 80, 0.55); margin-right: 6px; }
+    .typing-stream .tw-cur { color: #2b2b33; }
+    .typing-stream .tc-ok { color: #2b2b33; }
+    .typing-stream .tc-bad { color: #e03131; }
+    .typing-stream .tc-extra { color: #e8590c; }
+    .typing-stream .tc-caret { border-left: 3px solid #4dabf7; margin-left: -3px; }
+    .typing-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: -9999px; }
+    .typing-livebar { display: flex; align-items: center; gap: 14px; min-height: 20px; }
+    .typing-live {
+      font-size: 0.95rem; font-weight: 700; color: #34343c;
+      text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 4px #fff;
     }
-    .typing-close:hover { color: var(--ba-text); background: rgba(0, 0, 0, 0.06); }
-    .typing-modes { display: flex; gap: 6px; margin-bottom: 10px; }
+    .typing-stop {
+      padding: 4px 12px; border-radius: 8px; border: none; cursor: pointer; font: inherit; font-weight: 700;
+      background: rgba(255, 255, 255, 0.85); color: #34343c; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+    .typing-result {
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center;
+      font-size: 1.05rem; font-weight: 700; color: #2b2b33; text-align: center;
+      text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 5px #fff;
+    }
+    .typing-result-row b { font-size: 1.5rem; }
+    .typing-result-tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    /* Floating icon controls (settings + close) — top-right of the scene. */
+    .typing-corner { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; }
+    .typing-icon-btn {
+      width: 34px; height: 34px; border: none; border-radius: 10px; cursor: pointer;
+      background: rgba(255, 255, 255, 0.82); color: #34343c; font-size: 1.15rem; line-height: 1;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .typing-icon-btn:hover { background: #fff; transform: translateY(-1px); }
+
+    /* SETTINGS modal: separate, proper modal (modes, modifiers, leaderboards). */
+    #typing-settings {
+      position: fixed; inset: 0; z-index: 210;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    }
+    #typing-settings.open { opacity: 1; pointer-events: auto; }
+    .typing-settings-dialog {
+      width: min(420px, 92vw); max-height: 86vh; overflow-y: auto;
+      background: var(--ba-card-bg); border: var(--ba-card-border); border-radius: 16px;
+      padding: 14px 18px 18px; color: var(--ba-text); font-size: 0.85rem; box-shadow: var(--ba-card-shadow);
+      transform: translateY(8px) scale(0.99); transition: transform 0.2s ease;
+    }
+    #typing-settings.open .typing-settings-dialog { transform: translateY(0) scale(1); }
+    .typing-modes { display: flex; gap: 6px; margin: 4px 0 14px; }
     .typing-modes button {
-      flex: 1; padding: 6px 0; border-radius: 8px; border: 1px solid var(--ba-divider);
-      background: rgba(255,255,255,0.5); color: inherit; font: inherit; cursor: pointer;
+      flex: 1; padding: 7px 0; border-radius: 8px; border: 1px solid var(--ba-divider);
+      background: rgba(255, 255, 255, 0.5); color: inherit; font: inherit; cursor: pointer;
     }
     .typing-modes button.sel { background: #4dabf7; color: #fff; border-color: transparent; }
-    .typing-stream {
-      position: relative;
-      min-height: 110px; line-height: 2.0; font-size: 1.4rem; letter-spacing: 0.5px;
-      padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.04);
-      word-break: break-word; cursor: text; user-select: none;
-    }
-    .typing-stream.typing-dim { opacity: 0.45; }
-    .typing-stream .tw { color: var(--ba-text-faint); margin-right: 3px; }
-    .typing-stream .tw-cur { color: var(--ba-text); }
-    .typing-stream .tc-ok { color: var(--ba-text); }
-    .typing-stream .tc-bad { color: #e03131; text-decoration: underline; }
-    .typing-stream .tc-extra { color: #e8590c; opacity: 0.85; }
-    .typing-stream .tc-caret { border-left: 2px solid #4dabf7; margin-left: -2px; }
-    .typing-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: -9999px; }
-    .typing-livebar { display: flex; align-items: center; justify-content: space-between; margin: 8px 2px; min-height: 20px; }
-    .typing-live { font-size: 0.8rem; color: var(--ba-text-faint); }
-    .typing-stop { padding: 3px 10px; border-radius: 7px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.6); cursor: pointer; font: inherit; color: inherit; }
-    .typing-result { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px; margin-bottom: 10px; border-radius: 10px; background: rgba(255,255,255,0.55); }
-    .typing-result-row b { font-size: 1.15rem; }
-    .typing-result-tag { margin-left: auto; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
-    .typing-mods-list { margin-bottom: 10px; }
+    .typing-mods-list { margin-bottom: 12px; }
     .typing-mod { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 4px; }
-    .typing-buy { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.7); cursor: pointer; font: inherit; color: inherit; white-space: nowrap; }
+    .typing-buy { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255, 255, 255, 0.7); cursor: pointer; font: inherit; color: inherit; white-space: nowrap; }
     .typing-buy-err { border-color: #e03131; color: #e03131; }
     .typing-owned { color: #2f9e44; font-weight: 700; }
     .typing-board-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
-    .typing-board-tabs button { flex: 1; padding: 5px 0; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.5); cursor: pointer; font: inherit; color: inherit; }
+    .typing-board-tabs button { flex: 1; padding: 5px 0; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255, 255, 255, 0.5); cursor: pointer; font: inherit; color: inherit; }
     .typing-board-tabs button.sel { background: #4dabf7; color: #fff; border-color: transparent; }
     .typing-board-list { font-size: 0.8rem; color: var(--ba-text-faint); }
     .typing-row { display: flex; gap: 8px; padding: 4px 2px; align-items: center; }
@@ -1494,6 +1511,10 @@
 
     /* --- Leaderboard Button --- */
     #leaderboard-btn { top: 16px; right: 70px; }
+
+    /* --- Typing Button (bottom-left corner, floating above the player profile) --- */
+    #typing-btn { left: 16px; bottom: 96px; }
+    @media (max-width: 480px) { #typing-btn { left: 8px; bottom: 84px; } }
     @media (max-width: 480px) {
       #leaderboard-btn { top: 12px; right: 56px; }
       #shop-btn        { top: 12px; right: 100px; }
@@ -2418,15 +2439,11 @@
       <path d="M6 10h0M10 10h0M14 10h0M18 10h0M8 14h8"/>
     </svg>
   </button>
+  <!-- Typing PLAY overlay: pure floating text over the character, no modal box -->
   <div id="typing-panel">
-   <div class="typing-dialog">
-    <button id="typing-close" class="typing-close" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
-    <div class="settings-title" data-i18n="typing.title">Typing</div>
-    <div id="typing-modes" class="typing-modes">
-      <button type="button" data-mode="s15">15</button>
-      <button type="button" data-mode="s30">30</button>
-      <button type="button" data-mode="s60">60</button>
-      <button type="button" data-mode="endless">∞</button>
+    <div class="typing-corner">
+      <button id="typing-more" class="typing-icon-btn" type="button" aria-label="Typing settings" data-i18n-attr="aria-label:typing.modifiers">&#9881;</button>
+      <button id="typing-close" class="typing-icon-btn" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
     </div>
     <div id="typing-stream" class="typing-stream"></div>
     <input id="typing-input" class="typing-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Typing input" />
@@ -2435,16 +2452,31 @@
       <button id="typing-stop" class="typing-stop" type="button" hidden data-i18n="typing.stop">Stop</button>
     </div>
     <div id="typing-result" class="typing-result" hidden></div>
-    <div class="shop-section-title" data-i18n="typing.modifiers">Modifiers</div>
-    <div id="typing-mods" class="typing-mods-list"></div>
-    <div id="typing-toggles" class="typing-mods-list"></div>
-    <div class="shop-section-title" data-i18n="typing.boards">Leaderboards</div>
-    <div class="typing-board-tabs">
-      <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
-      <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
+  </div>
+
+  <!-- Typing SETTINGS modal: modes, modifiers, leaderboards -->
+  <div id="typing-settings" aria-hidden="true">
+    <div class="typing-settings-dialog" role="dialog" aria-label="Typing settings">
+      <div class="stats-header">
+        <div class="stats-title"><span data-i18n="typing.title">Typing</span></div>
+        <button class="stats-close" id="typing-settings-close" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
+      </div>
+      <div id="typing-modes" class="typing-modes">
+        <button type="button" data-mode="s15">15</button>
+        <button type="button" data-mode="s30">30</button>
+        <button type="button" data-mode="s60">60</button>
+        <button type="button" data-mode="endless">∞</button>
+      </div>
+      <div class="shop-section-title" data-i18n="typing.modifiers">Modifiers</div>
+      <div id="typing-mods" class="typing-mods-list"></div>
+      <div id="typing-toggles" class="typing-mods-list"></div>
+      <div class="shop-section-title" data-i18n="typing.boards">Leaderboards</div>
+      <div class="typing-board-tabs">
+        <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
+        <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
+      </div>
+      <div id="typing-board-list" class="typing-board-list"></div>
     </div>
-    <div id="typing-board-list" class="typing-board-list"></div>
-   </div>
   </div>
 
   <!-- Stats -->

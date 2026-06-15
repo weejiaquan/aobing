@@ -156,15 +156,33 @@ function applyKey(state, key, mods) {
     return s;
   }
 
+  // Clear the whole current word (Ctrl+Backspace / Ctrl+A then Backspace).
+  if (key === 'ClearWord') {
+    if (mods.noBackspace || s.buffer.length === 0) {
+      s.lastAction = { type: 'noop' };
+      return s;
+    }
+    s.buffer = '';
+    s.lastAction = { type: 'backspace' };
+    return s;
+  }
+
   // Word boundary
   if (key === ' ') {
     if (s.buffer.length === 0) {
       s.lastAction = { type: 'noop' };
       return s;
     }
-    const res = completeWord(s);
-    res.state.lastAction = { type: 'word', correct: res.correct };
-    return res.state;
+    // Do NOT skip an unfinished/incorrect word — the player must correct it
+    // (backspace) before advancing. No-backspace mode is the exception:
+    // mistakes lock in there, so space always advances.
+    if (s.buffer === target || mods.noBackspace) {
+      const res = completeWord(s);
+      res.state.lastAction = { type: 'word', correct: res.correct };
+      return res.state;
+    }
+    s.lastAction = { type: 'noop' };
+    return s;
   }
 
   // Ignore non-printable keys (Shift, Enter, arrows, …)
@@ -278,17 +296,22 @@ if (typeof document !== 'undefined') {
     const boardWordsBtn = document.getElementById('typing-board-words');
     const boardWpmBtn = document.getElementById('typing-board-wpm');
     const boardListEl = document.getElementById('typing-board-list');
-    const dialogEl = panel.querySelector('.typing-dialog');
     const closeBtn = document.getElementById('typing-close');
+    const moreBtn = document.getElementById('typing-more');
+    const settingsEl = document.getElementById('typing-settings');
+    const settingsDialog = settingsEl && settingsEl.querySelector('.typing-settings-dialog');
+    const settingsCloseBtn = document.getElementById('typing-settings-close');
 
     let run = null;
     let running = false;
     let panelOpen = false;
+    let settingsOpen = false;
     let startMs = 0;
     let endsAt = 0;
     let timerId = null;
     let seedCounter = 0;
     let lastElapsed = 0;
+    let selectAllPending = false; // true after Ctrl+A, until the next key
 
     function freshSeed() {
       seedCounter += 1;
@@ -421,16 +444,10 @@ if (typeof document !== 'undefined') {
       }
     }
 
-    function onKey(e) {
-      const k = e.key;
-      if (k === 'Tab') return;                 // let focus move out
-      if (k === 'Escape') { closePanel(); return; }
-      const isChar = k.length === 1;
-      if (!isChar && k !== 'Backspace') return; // ignore Shift/arrows/etc.
-      e.preventDefault();
+    function step(key) {
       if (!running) startRun();
       if (startMs === 0) beginTiming();
-      run = ENGINE.applyKey(run, k, run.mods);
+      run = ENGINE.applyKey(run, key, run.mods);
       const act = run.lastAction;
       if (act && act.type === 'word') {
         deps.creditTyping(PER_WORD_COINS, 1);
@@ -441,6 +458,26 @@ if (typeof document !== 'undefined') {
       }
       renderStream();
       updateLive();
+    }
+
+    function onKey(e) {
+      if (settingsOpen) return;                // settings modal is up — ignore typing
+      const k = e.key;
+      if (k === 'Tab') return;                 // let focus move out
+      if (k === 'Escape') return;              // handled by the document Esc listener
+      // Ctrl/Cmd shortcuts: clear the whole current word.
+      if (e.ctrlKey || e.metaKey) {
+        if (k === 'Backspace') { e.preventDefault(); selectAllPending = false; step('ClearWord'); return; }
+        if (k === 'a' || k === 'A') { e.preventDefault(); selectAllPending = true; return; } // arm Ctrl+A
+        return;                                // ignore other ctrl combos (don't type the letter)
+      }
+      const isChar = k.length === 1;
+      if (!isChar && k !== 'Backspace') return; // ignore Shift/arrows/etc.
+      e.preventDefault();
+      // Ctrl+A then Backspace = select-all delete -> clear the buffer.
+      if (k === 'Backspace' && selectAllPending) { selectAllPending = false; step('ClearWord'); return; }
+      selectAllPending = false;
+      step(k);
     }
 
     function renderModes() {
@@ -550,28 +587,61 @@ if (typeof document !== 'undefined') {
       }
     }
 
+    // --- Play overlay (pure floating text over the character) ----------------
     function openPanel() {
       panel.classList.add('open');
       panelOpen = true;
-      renderModes();
-      renderMods();
-      renderToggles();
       if (!run || !running) startRun();
       setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
     }
     function closePanel() {
+      if (settingsOpen) closeSettings();
       panel.classList.remove('open');
       panelOpen = false;
       deps.setTypingActive(false);
       if (running) finishRun();
     }
 
+    // --- Settings modal (modes, modifiers, leaderboards) ---------------------
+    function openSettings() {
+      if (!settingsEl) return;
+      if (running) finishRun();             // pause play while configuring
+      renderModes();
+      renderMods();
+      renderToggles();
+      loadBoard('words');
+      settingsEl.classList.add('open');
+      settingsEl.setAttribute('aria-hidden', 'false');
+      settingsOpen = true;
+    }
+    function closeSettings() {
+      if (!settingsEl) return;
+      settingsEl.classList.remove('open');
+      settingsEl.setAttribute('aria-hidden', 'true');
+      settingsOpen = false;
+      if (panelOpen) {                      // resume with any new mode/modifiers
+        startRun();
+        setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
+      }
+    }
+
     btn.addEventListener('click', (e) => { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
-    // The panel is now a full-screen backdrop; clicks on the dialog stay open,
-    // clicks on the backdrop (or the × button) close it.
-    if (dialogEl) dialogEl.addEventListener('click', (e) => e.stopPropagation());
+    // Clicking the floating play area just refocuses the input (resume typing).
+    panel.addEventListener('click', () => { if (!settingsOpen) inputEl.focus({ preventScroll: true }); });
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
-    document.addEventListener('click', () => { if (panelOpen) closePanel(); });
+    if (moreBtn) moreBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+
+    // Settings modal: backdrop closes it; clicks on the dialog stay open.
+    if (settingsEl) settingsEl.addEventListener('click', () => closeSettings());
+    if (settingsDialog) settingsDialog.addEventListener('click', (e) => e.stopPropagation());
+    if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', (e) => { e.stopPropagation(); closeSettings(); });
+
+    // Esc closes the settings modal first, otherwise the play overlay.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (settingsOpen) closeSettings();
+      else if (panelOpen) closePanel();
+    });
 
     inputEl.addEventListener('keydown', onKey);
     inputEl.addEventListener('focus', () => deps.setTypingActive(true));
@@ -584,9 +654,7 @@ if (typeof document !== 'undefined') {
       if (!b) return;
       settings.typingMode = b.getAttribute('data-mode');
       deps.saveSettings();
-      renderModes();
-      startRun();
-      inputEl.focus({ preventScroll: true });
+      renderModes();                        // applied on the next run (settings close)
     });
     boardWordsBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('words'); });
     boardWpmBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('wpm'); });
@@ -594,7 +662,7 @@ if (typeof document !== 'undefined') {
     // Re-render localized labels when the language changes.
     window.addEventListener('i18nchange', () => {
       renderModes();
-      if (panelOpen) { renderMods(); renderToggles(); }
+      if (settingsOpen) { renderMods(); renderToggles(); }
     });
   }
 

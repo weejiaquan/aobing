@@ -261,3 +261,68 @@ test('createRunState: initial run state shape', () => {
   assert.equal(s.mode, 's15');
   assert.equal(s.finished, false);
 });
+
+// =========================================================================
+// No-skip-on-error: space must NOT advance an unfinished/incorrect word in
+// modes where the player can still backspace. No-backspace is the exception.
+// =========================================================================
+test('applyKey space (default): incorrect word does NOT advance — must correct it', () => {
+  let s = createRunState(['test', 'next'], 's30', NO_MODS);
+  s = typeKeys(s, ['t', 'e', 'x'], NO_MODS); // 'tex' is wrong
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.wordIndex, 0, 'stays on the same word');
+  assert.equal(s.buffer, 'tex', 'buffer preserved so it can be backspaced');
+  assert.deepEqual(s.lastAction, { type: 'noop' });
+});
+
+test('applyKey space (default): incomplete-but-correct word does NOT advance', () => {
+  let s = createRunState(['test'], 's30', NO_MODS);
+  s = typeKeys(s, ['t', 'e', 's'], NO_MODS); // 'tes' — correct so far but unfinished
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.wordIndex, 0);
+  assert.deepEqual(s.lastAction, { type: 'noop' });
+});
+
+test('applyKey space (default): a fully-correct word advances', () => {
+  let s = createRunState(['test', 'next'], 's30', NO_MODS);
+  s = typeKeys(s, ['t', 'e', 's', 't'], NO_MODS);
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.wordIndex, 1);
+  assert.deepEqual(s.lastAction, { type: 'word', correct: true });
+});
+
+test('applyKey space (noBackspace): incorrect word DOES advance (mistakes lock in)', () => {
+  const mods = { ...NO_MODS, noBackspace: true };
+  let s = createRunState(['test', 'next'], 's30', mods);
+  s = typeKeys(s, ['t', 'e', 'x'], mods);
+  s = applyKey(s, ' ', mods);
+  assert.equal(s.wordIndex, 1, 'advances despite the error');
+  assert.deepEqual(s.lastAction, { type: 'word', correct: false });
+});
+
+// =========================================================================
+// ClearWord (Ctrl+Backspace / Ctrl+A then Backspace) — wipe the current buffer.
+// =========================================================================
+test('applyKey ClearWord: clears the whole current buffer', () => {
+  let s = createRunState(['hello'], 's30', NO_MODS);
+  s = typeKeys(s, ['h', 'e', 'l'], NO_MODS);
+  s = applyKey(s, 'ClearWord', NO_MODS);
+  assert.equal(s.buffer, '');
+  assert.deepEqual(s.lastAction, { type: 'backspace' });
+});
+
+test('applyKey ClearWord: no-op under no-backspace', () => {
+  const mods = { ...NO_MODS, noBackspace: true };
+  let s = createRunState(['hello'], 's30', mods);
+  s = typeKeys(s, ['h', 'e', 'l'], mods);
+  s = applyKey(s, 'ClearWord', mods);
+  assert.equal(s.buffer, 'hel');
+  assert.deepEqual(s.lastAction, { type: 'noop' });
+});
+
+test('applyKey ClearWord: no-op on an empty buffer', () => {
+  let s = createRunState(['hello'], 's30', NO_MODS);
+  s = applyKey(s, 'ClearWord', NO_MODS);
+  assert.equal(s.buffer, '');
+  assert.deepEqual(s.lastAction, { type: 'noop' });
+});
