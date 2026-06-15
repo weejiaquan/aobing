@@ -2059,7 +2059,9 @@
   <div id="activity-log" style="display:none;position:fixed;bottom:0;left:0;max-width:48ch;max-height:40vh;overflow:auto;z-index:99999;background:rgba(20,20,24,.85);color:#9f9;font:11px/1.4 monospace;padding:6px;white-space:pre-wrap"></div>
   <script type="module">
     if (location.hostname.endsWith('.discordsays.com')) {
-      const box = document.getElementById('activity-log'); box.style.display = 'block';
+      // The on-screen log stays hidden on success; it only reveals itself if boot errors,
+      // so you can still diagnose in the wild. (All steps are also in the console.)
+      const box = document.getElementById('activity-log');
       const log = (m) => { box.textContent += m + '\n'; console.log('[activity]', m); };
       (async () => {
         try {
@@ -2099,6 +2101,7 @@
           window.__loadLibsAndApp();   // now load libs (proxied) + app.js
           log('boot handed to app.js');
         } catch (e) {
+          box.style.display = 'block';   // reveal the log only when something went wrong
           log('ERROR: ' + (e && e.message || e));
           console.error('[activity] boot failed', e);
         }
