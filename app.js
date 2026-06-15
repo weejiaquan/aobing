@@ -22,10 +22,31 @@
     // The site key is safe to commit (it's public; only the secret stays in Google).
     const APPCHECK_RECAPTCHA_ENTERPRISE_SITE_KEY = "6LcQx-8sAAAAAJxnROGapKw6HYzz_-5aihfuU6_u";
     try {
-      firebase.appCheck().activate(
-        new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_RECAPTCHA_ENTERPRISE_SITE_KEY),
-        true /* isTokenAutoRefreshEnabled */
-      );
+      if (window.__ACTIVITY__) {
+        const A = window.__ACTIVITY__;
+        let acToken = A.appCheckToken;
+        let acExpiry = Date.now() + (A.appCheckTtlMillis || 3600000) - 60000; // refresh 1 min early
+        const provider = new firebase.appCheck.CustomProvider({
+          getToken: async () => {
+            if (Date.now() >= acExpiry) {
+              // refresh via kei-bot using the current Firebase ID token
+              const idToken = await firebase.auth().currentUser.getIdToken();
+              const r = await fetch(A.keiBase + '/api/activity/appcheck-token', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }),
+              });
+              const d = await r.json();
+              acToken = d.appCheckToken; acExpiry = Date.now() + (d.appCheckTtlMillis || 3600000) - 60000;
+            }
+            return { token: acToken, expireTimeMillis: acExpiry };
+          },
+        });
+        firebase.appCheck().activate(provider, true);
+      } else {
+        firebase.appCheck().activate(
+          new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_RECAPTCHA_ENTERPRISE_SITE_KEY),
+          true /* isTokenAutoRefreshEnabled */
+        );
+      }
     } catch (e) { console.warn('App Check activation failed:', e); }
 
     const db = firebase.database();
@@ -56,6 +77,13 @@
         if (!authResolved) { authResolved = true; resolve(user); }
       });
     });
+
+    // Activity: sign in with the custom token minted by kei-bot.
+    // onAuthStateChanged above will then fire with the signed-in user and the app proceeds normally.
+    if (window.__ACTIVITY__) {
+      firebase.auth().signInWithCustomToken(window.__ACTIVITY__.customToken)
+        .catch((e) => console.error('[activity] signInWithCustomToken failed', e));
+    }
 
     // --- Date & Country Helpers ---
     function todayKey() {
