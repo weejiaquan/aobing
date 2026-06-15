@@ -2066,7 +2066,7 @@
           const { DiscordSDK, patchUrlMappings } = await import('/vendor/discord-embedded-app-sdk.js');
           patchUrlMappings([
             { prefix: '/kei',               target: 'kei.aobing.it' },
-            { prefix: '/firebase-db',        target: 'aobing-dfe10-default-rtdb.firebaseio.com' },
+            { prefix: '/firebase-db/{subdomain}', target: '{subdomain}.firebaseio.com' }, // RTDB uses a dynamic regional ws host (s-…firebaseio.com) — wildcard covers it + the db host
             { prefix: '/firebase-appcheck',  target: 'firebaseappcheck.googleapis.com' },
             { prefix: '/firebase-auth',      target: 'identitytoolkit.googleapis.com' },
             { prefix: '/firebase-token',     target: 'securetoken.googleapis.com' },

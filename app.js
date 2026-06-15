@@ -115,6 +115,8 @@
     // simply falls back to no country, which is fine.)
     let visitorCountry = null;
     (function fetchCountry() {
+      // The Discord Activity's connect-src CSP blocks these geo hosts; skip (country stays null).
+      if (window.__ACTIVITY__) return;
       const sources = [
         { url: 'https://api.country.is/',                  pick: d => d.country },
         { url: 'https://ipwho.is/',                        pick: d => d.country_code },
