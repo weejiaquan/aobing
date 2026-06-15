@@ -69,12 +69,29 @@
       );
     }
 
-    // Fetch visitor country (best-effort, silent fail)
+    // Fetch visitor country (best-effort, silent fail). CORS-friendly endpoints with
+    // fallback — ipapi.co dropped its CORS header, so we try several and take the first
+    // that returns a 2-letter code. (In the Discord Activity these aren't proxied, so it
+    // simply falls back to no country, which is fine.)
     let visitorCountry = null;
-    fetch('https://ipapi.co/json/')
-      .then(r => r.json())
-      .then(d => { visitorCountry = d.country_code || null; })
-      .catch(() => {});
+    (function fetchCountry() {
+      const sources = [
+        { url: 'https://api.country.is/',                  pick: d => d.country },
+        { url: 'https://ipwho.is/',                        pick: d => d.country_code },
+        { url: 'https://get.geojs.io/v1/ip/country.json',  pick: d => d.country },
+      ];
+      (function tryNext(i) {
+        if (i >= sources.length) return;
+        fetch(sources[i].url)
+          .then(r => (r.ok ? r.json() : Promise.reject()))
+          .then(d => {
+            const c = sources[i].pick(d);
+            if (c && c.length === 2) visitorCountry = c.toUpperCase();
+            else return Promise.reject();
+          })
+          .catch(() => tryNext(i + 1));
+      })(0);
+    })();
 
     // --- Track unique daily visitors ---
     // localStorage gates this once-per-day-per-device. Previously we wrote a
