@@ -2099,6 +2099,7 @@
       <p style="font-size: 0.78rem; color: var(--ba-text-muted); margin-bottom: 10px;"
          data-i18n="profile.anon_blurb">Sign in to save your progress across devices and appear on the leaderboard.</p>
       <button id="profile-google-btn" class="profile-button" data-i18n="auth.sign_in_google">Sign in with Google</button>
+      <button id="profile-discord-login-btn" class="profile-button" style="background:#5865F2;color:#fff;margin-top:6px;" onclick="discordLogin()">Sign in with Discord</button>
       <div class="profile-error" id="profile-error"></div>
     </div>
     <div id="profile-linked" hidden>
@@ -5482,12 +5483,48 @@
       window.open(authorizeUrl, 'discord-link', 'width=500,height=820');
     }
 
+    async function discordLogin() {
+      let authorizeUrl;
+      try {
+        const resp = await fetch(KEI_BASE + '/api/web/discord/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        if (!resp.ok) throw new Error('start failed');
+        ({ authorizeUrl } = await resp.json());
+      } catch (e) { console.error('discord login start failed', e); return; }
+      window.open(authorizeUrl, 'discord-login', 'width=500,height=820');
+    }
+
+    async function ensureDiscordProfile(uid, displayName, photoURL) {
+      try {
+        const ref = db.ref('users/' + uid + '/profile');
+        const snap = await ref.once('value');
+        if (snap.exists()) return;
+        await ref.set({
+          displayName: (displayName || 'Sensei').slice(0, 24),
+          photoURL:    photoURL || '',
+          country:     (typeof visitorCountry !== 'undefined' && visitorCountry) ? visitorCountry : 'XX',
+          provider:    'discord',
+          linkedAt:    firebase.database.ServerValue.TIMESTAMP,
+        });
+      } catch (e) { console.error('ensureDiscordProfile failed', e); }
+    }
+
     window.addEventListener('message', async (e) => {
       if (e.origin !== KEI_BASE) return;
       const d = e.data;
-      if (!d || d.type !== 'discord-link') return;
-      if (d.needsMerge) { showMergePicker(d.discordId); }
-      else { showLinkToast('Discord linked!'); }
+      if (!d || typeof d.type !== 'string') return;
+      if (d.type === 'discord-auth') {
+        try {
+          await auth.signInWithCustomToken(d.customToken);
+          await ensureDiscordProfile(d.uid, d.displayName, d.photoURL);
+        } catch (err) { console.error('discord sign-in failed', err); showLinkToast('Discord sign-in failed'); }
+        return;
+      }
+      if (d.type === 'discord-link') {
+        if (d.needsMerge) { showMergePicker(d.discordId); } else { showLinkToast('Discord linked!'); }
+        return;
+      }
     });
 
     async function showMergePicker(discordId) {
