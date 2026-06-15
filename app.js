@@ -388,8 +388,24 @@
           'disclaimer':'Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.',
           'meta.description':'Click to make Aoba squeak!',
           'alt.character':'Character','aria.close':'Close',
+          'typing.title':'Typing',
+          'typing.stop':'Stop',
+          'typing.modifiers':'Modifiers',
+          'typing.boards':'Leaderboards',
+          'typing.board_words':'Words','typing.board_wpm':'WPM',
+          'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
+          'typing.ranked':'Ranked','typing.casual':'Casual',
+          'typing.mod.freedom':'Freedom mode','typing.mod.nobackspace':'No backspace',
+          'typing.mod.stoponerror':'Stop on error','typing.mod.qol':'QoL pack (live WPM)',
+          'typing.toggle.on_word':'Bounce on word','typing.toggle.per_key':'Bounce on each key',
+          'typing.loading':'Loading…','typing.board_empty':'No entries yet','typing.board_error':'Could not load board',
         },
         ja: {
+          'typing.title':'タイピング','typing.stop':'停止','typing.modifiers':'モディファイア','typing.boards':'ランキング',
+          'typing.board_words':'単語数','typing.board_wpm':'WPM','typing.words':'単語','typing.wpm':'WPM','typing.accuracy':'正確率',
+          'typing.ranked':'ランク','typing.casual':'カジュアル','typing.mod.freedom':'フリーダムモード','typing.mod.nobackspace':'バックスペース無効',
+          'typing.mod.stoponerror':'エラーで停止','typing.mod.qol':'QoLパック（リアルタイムWPM）','typing.toggle.on_word':'単語ごとにバウンス','typing.toggle.per_key':'キーごとにバウンス',
+          'typing.loading':'読み込み中…','typing.board_empty':'まだ記録がありません','typing.board_error':'ボードを読み込めませんでした',
           'settings.title':'設定','settings.music':'音楽','settings.sfx':'効果音','settings.effects':'エフェクト',
           'settings.language':'言語','settings.join_discord':'Discordに参加','settings.follow_x':'Xでフォロー','settings.keyboard_clicks':'キーボードクリック','settings.raw_cps':'生CPSを表示','settings.auto_clicker':'オートクリッカー','settings.reset_defaults':'デフォルトに戻す',
           'skins.title':'スキン','skins.variants':'{n}種','skins.variant':'{n}種',
@@ -460,6 +476,11 @@
           'shop.prestige.confirm':'すべてのショップレベルとコイン残高をリセットして★{n}を獲得しますか?累計クリックとプレステージスターは保持されます。',
         },
         ko: {
+          'typing.title':'타이핑','typing.stop':'중지','typing.modifiers':'모디파이어','typing.boards':'리더보드',
+          'typing.board_words':'단어 수','typing.board_wpm':'WPM','typing.words':'단어','typing.wpm':'WPM','typing.accuracy':'정확도',
+          'typing.ranked':'랭크','typing.casual':'캐주얼','typing.mod.freedom':'프리덤 모드','typing.mod.nobackspace':'백스페이스 비활성화',
+          'typing.mod.stoponerror':'오류 시 정지','typing.mod.qol':'QoL 팩 (실시간 WPM)','typing.toggle.on_word':'단어마다 바운스','typing.toggle.per_key':'키마다 바운스',
+          'typing.loading':'불러오는 중…','typing.board_empty':'아직 기록이 없습니다','typing.board_error':'보드를 불러올 수 없습니다',
           'settings.title':'설정','settings.music':'음악','settings.sfx':'효과음','settings.effects':'이펙트',
           'settings.language':'언어','settings.join_discord':'디스코드 참여','settings.follow_x':'X에서 팔로우','settings.keyboard_clicks':'키보드 클릭','settings.raw_cps':'원시 CPS 표시','settings.auto_clicker':'자동 클리커','settings.reset_defaults':'기본값 복원',
           'skins.title':'스킨','skins.variants':'{n}개','skins.variant':'{n}개',
@@ -530,6 +551,11 @@
           'shop.prestige.confirm':'모든 상점 레벨과 코인 잔액을 리셋하고 ★{n}을(를) 획득하시겠습니까? 누적 클릭과 프레스티지 스타는 유지됩니다.',
         },
         'zh-Hans': {
+          'typing.title':'打字','typing.stop':'停止','typing.modifiers':'修饰器','typing.boards':'排行榜',
+          'typing.board_words':'单词数','typing.board_wpm':'WPM','typing.words':'单词','typing.wpm':'WPM','typing.accuracy':'准确率',
+          'typing.ranked':'排位','typing.casual':'休闲','typing.mod.freedom':'自由模式','typing.mod.nobackspace':'禁用退格',
+          'typing.mod.stoponerror':'出错暂停','typing.mod.qol':'QoL 包（实时 WPM）','typing.toggle.on_word':'完成单词时弹跳','typing.toggle.per_key':'每次按键弹跳',
+          'typing.loading':'加载中…','typing.board_empty':'暂无记录','typing.board_error':'无法加载排行榜',
           'settings.title':'设置','settings.music':'音乐','settings.sfx':'音效','settings.effects':'特效',
           'settings.language':'语言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上关注我','settings.keyboard_clicks':'键盘点击','settings.raw_cps':'显示原始 CPS','settings.auto_clicker':'自动点击器','settings.reset_defaults':'恢复默认',
           'skins.title':'皮肤','skins.variants':'{n} 款','skins.variant':'{n} 款',
@@ -600,6 +626,11 @@
           'shop.prestige.confirm':'重置所有商店等级和金币余额以获得 ★{n}？您的累计点击和转生星不会丢失。',
         },
         'zh-Hant': {
+          'typing.title':'打字','typing.stop':'停止','typing.modifiers':'修飾器','typing.boards':'排行榜',
+          'typing.board_words':'單字數','typing.board_wpm':'WPM','typing.words':'單字','typing.wpm':'WPM','typing.accuracy':'準確率',
+          'typing.ranked':'排位','typing.casual':'休閒','typing.mod.freedom':'自由模式','typing.mod.nobackspace':'停用退格',
+          'typing.mod.stoponerror':'出錯暫停','typing.mod.qol':'QoL 包（即時 WPM）','typing.toggle.on_word':'完成單字時彈跳','typing.toggle.per_key':'每次按鍵彈跳',
+          'typing.loading':'載入中…','typing.board_empty':'尚無紀錄','typing.board_error':'無法載入排行榜',
           'settings.title':'設定','settings.music':'音樂','settings.sfx':'音效','settings.effects':'特效',
           'settings.language':'語言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上追蹤我','settings.keyboard_clicks':'鍵盤點擊','settings.raw_cps':'顯示原始 CPS','settings.auto_clicker':'自動點擊器','settings.reset_defaults':'還原預設',
           'skins.title':'造型','skins.variants':'{n} 款','skins.variant':'{n} 款',
@@ -670,6 +701,11 @@
           'shop.prestige.confirm':'重置所有商店等級和金幣餘額以獲得 ★{n}？您的累計點擊和轉生星不會遺失。',
         },
         th: {
+          'typing.title':'พิมพ์ดีด','typing.stop':'หยุด','typing.modifiers':'ตัวปรับแต่ง','typing.boards':'กระดานผู้นำ',
+          'typing.board_words':'จำนวนคำ','typing.board_wpm':'WPM','typing.words':'คำ','typing.wpm':'WPM','typing.accuracy':'ความแม่นยำ',
+          'typing.ranked':'จัดอันดับ','typing.casual':'ทั่วไป','typing.mod.freedom':'โหมดอิสระ','typing.mod.nobackspace':'ปิดปุ่มลบ',
+          'typing.mod.stoponerror':'หยุดเมื่อผิด','typing.mod.qol':'แพ็ก QoL (WPM แบบสด)','typing.toggle.on_word':'เด้งเมื่อจบคำ','typing.toggle.per_key':'เด้งทุกการกดปุ่ม',
+          'typing.loading':'กำลังโหลด…','typing.board_empty':'ยังไม่มีข้อมูล','typing.board_error':'โหลดกระดานไม่สำเร็จ',
           'settings.title':'ตั้งค่า','settings.music':'เพลง','settings.sfx':'เสียงเอฟเฟกต์','settings.effects':'เอฟเฟกต์',
           'settings.language':'ภาษา','settings.join_discord':'เข้าร่วม Discord','settings.follow_x':'ติดตามบน X','settings.keyboard_clicks':'การกดคีย์บอร์ด','settings.raw_cps':'แสดง CPS ดิบ','settings.auto_clicker':'คลิกอัตโนมัติ','settings.reset_defaults':'คืนค่าเริ่มต้น',
           'skins.title':'สกิน','skins.variants':'{n} แบบ','skins.variant':'{n} แบบ',
@@ -740,6 +776,11 @@
           'shop.prestige.confirm':'รีเซ็ตทุกระดับร้านค้าและยอดเหรียญเพื่อรับ ★{n}? คลิกสะสมและดาวเพรสทีจของคุณจะถูกเก็บไว้',
         },
         ar: {
+          'typing.title':'الكتابة','typing.stop':'إيقاف','typing.modifiers':'المُعدِّلات','typing.boards':'لوحة المتصدرين',
+          'typing.board_words':'الكلمات','typing.board_wpm':'WPM','typing.words':'كلمات','typing.wpm':'WPM','typing.accuracy':'الدقة',
+          'typing.ranked':'مُصنَّف','typing.casual':'عادي','typing.mod.freedom':'وضع الحرية','typing.mod.nobackspace':'بدون مسافة للخلف',
+          'typing.mod.stoponerror':'التوقف عند الخطأ','typing.mod.qol':'حزمة QoL (WPM مباشر)','typing.toggle.on_word':'ارتداد عند اكتمال الكلمة','typing.toggle.per_key':'ارتداد عند كل مفتاح',
+          'typing.loading':'جارٍ التحميل…','typing.board_empty':'لا توجد إدخالات بعد','typing.board_error':'تعذّر تحميل اللوحة',
           'settings.title':'الإعدادات','settings.music':'الموسيقى','settings.sfx':'المؤثرات الصوتية','settings.effects':'المؤثرات',
           'settings.language':'اللغة','settings.join_discord':'انضم إلى Discord','settings.follow_x':'تابعني على X','settings.keyboard_clicks':'نقرات لوحة المفاتيح','settings.raw_cps':'إظهار CPS الخام','settings.auto_clicker':'النقر التلقائي','settings.reset_defaults':'استعادة الإعدادات الافتراضية',
           'skins.title':'الأزياء','skins.variants':'{n} أزياء','skins.variant':'{n} زي',
@@ -810,6 +851,11 @@
           'shop.prestige.confirm':'إعادة تعيين جميع مستويات المتجر ورصيد العملات لكسب ★{n}؟ نقراتك التراكمية ونجوم الهيبة محفوظة.',
         },
         vi: {
+          'typing.title':'Gõ phím','typing.stop':'Dừng','typing.modifiers':'Bộ điều chỉnh','typing.boards':'Bảng xếp hạng',
+          'typing.board_words':'Số từ','typing.board_wpm':'WPM','typing.words':'từ','typing.wpm':'WPM','typing.accuracy':'độ chính xác',
+          'typing.ranked':'Xếp hạng','typing.casual':'Thường','typing.mod.freedom':'Chế độ tự do','typing.mod.nobackspace':'Không xóa lùi',
+          'typing.mod.stoponerror':'Dừng khi sai','typing.mod.qol':'Gói QoL (WPM trực tiếp)','typing.toggle.on_word':'Nảy khi xong từ','typing.toggle.per_key':'Nảy mỗi phím',
+          'typing.loading':'Đang tải…','typing.board_empty':'Chưa có mục nào','typing.board_error':'Không tải được bảng',
           'settings.title':'Cài đặt','settings.music':'Nhạc','settings.sfx':'Âm thanh','settings.effects':'Hiệu ứng',
           'settings.language':'Ngôn ngữ','settings.join_discord':'Tham gia Discord','settings.follow_x':'Theo dõi tôi trên X','settings.keyboard_clicks':'Nhấn bằng bàn phím','settings.raw_cps':'Hiện CPS thô','settings.auto_clicker':'Tự động nhấn','settings.reset_defaults':'Đặt lại mặc định',
           'skins.title':'Trang phục','skins.variants':'{n} biến thể','skins.variant':'{n} biến thể',
@@ -948,7 +994,16 @@
 
     // --- Settings Persistence ---
     const SETTINGS_KEY = 'aobing-settings';
-    const DEFAULT_SETTINGS = { musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true, adminMode: false, rawCps: false, autoClicker: true };
+    const DEFAULT_SETTINGS = {
+      musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true,
+      adminMode: false, rawCps: false, autoClicker: true,
+      // Typing game (typing.js)
+      typingClickOnWord: true,    // word-complete fires reactCharacter()
+      typingClickPerKey: false,   // each keystroke fires reactCharacter()
+      typingMode: 's30',          // s15 | s30 | s60 | endless
+      typingPack: 'english-common',
+      typingFreedomOn: false, typingNoBackspaceOn: false, typingStopOnErrorOn: false,
+    };
 
     // --- Admin gating -----------------------------------------------------------
     // Source of truth: admins/{uid}: true in RTDB. The site subscribes to the
@@ -2555,6 +2610,38 @@
       }
     }
 
+    // One-shot boolean unlocks for the typing game (assist + QoL modifiers).
+    // Generic sibling of buyOneShot; the typing panel (typing.js) owns the UI.
+    const TYPING_MOD_COSTS = {
+      typingFreedom: 2000, typingNoBackspace: 1500, typingStopOnError: 1500, typingQol: 3000,
+    };
+    async function buyTypingMod(key) {
+      const cost = TYPING_MOD_COSTS[key];
+      if (!cost) return false;
+      if (userShop && userShop[key]) return true;          // already owned
+      if (shopAffordableCoins() < cost) return false;
+      pending.userCoins -= cost;
+      savePending();
+      scheduleFlush();
+      renderSenseiBar();
+      if (!currentUser) {
+        userShop[key] = true;
+        saveLocalUserData();
+        return true;
+      }
+      try {
+        await db.ref(`users/${currentUser.uid}/shop/${key}`).set(true);
+        userShop[key] = true; // optimistic; shop listener will confirm
+        return true;
+      } catch (err) {
+        pending.userCoins += cost; // rollback debit
+        savePending();
+        scheduleFlush();
+        renderSenseiBar();
+        return false;
+      }
+    }
+
     async function buyBuff(kind, itemEl) {
       if (!['coins','clicks','autoRate'].includes(kind)) return;
       const cost = SHOP_BUFF_COST;
@@ -2925,6 +3012,29 @@
             photoURL:    userProfile.photoURL || '',
             totalClicks: userStats.totalClicks || 0,
           }).catch(() => {});
+          // Typing boards — same profile-gated mirror. Words board tracks all
+          // typed words; WPM board tracks the user's single best ranked run.
+          const typingWords = userStats.typingWords || 0;
+          if (typingWords > 0) {
+            db.ref('leaderboard/typingWords/' + uid).update({
+              name:        userProfile.displayName || I18N.t('sensei.trainer'),
+              country:     userProfile.country || 'XX',
+              photoURL:    userProfile.photoURL || '',
+              typingWords: typingWords,
+            }).catch(() => {});
+          }
+          const bestWpmMap = userStats.typingBestWpm || {};
+          let bestWpm = 0, bestMode = '';
+          for (const md in bestWpmMap) { if (bestWpmMap[md] > bestWpm) { bestWpm = bestWpmMap[md]; bestMode = md; } }
+          if (bestWpm > 0) {
+            db.ref('leaderboard/typingWpm/' + uid).update({
+              name:     userProfile.displayName || I18N.t('sensei.trainer'),
+              country:  userProfile.country || 'XX',
+              photoURL: userProfile.photoURL || '',
+              wpm:      bestWpm,
+              mode:     bestMode,
+            }).catch(() => {});
+          }
         }
       };
       statsRef.on('value', statsCb);
@@ -3620,6 +3730,8 @@
       allTimeSkin: {},   // skins/{variantId}
       bySource: {},      // { mouse: N, keyboard: N, auto: N } — clicks_by_source/{src} + daily/{today}/sources/{src}
       userBySource: {},  // per-user per-source — users/{uid}/stats/bySource/{src}
+      typingWords: 0,    // additive — users/{uid}/stats/typingWords (typing-game completed words)
+      typingBestWpm: {}, // best-of per mode { s15,s30,s60 } — users/{uid}/stats/typingBestWpm/{mode}
     };
     let flushDebounceTimer = null;
     let flushHeartbeatTimer = null;
@@ -3635,7 +3747,9 @@
         || Object.keys(pending.byCharacter).length   > 0
         || Object.keys(pending.allTimeSkin).length   > 0
         || Object.keys(pending.bySource).length      > 0
-        || Object.keys(pending.userBySource).length  > 0;
+        || Object.keys(pending.userBySource).length  > 0
+        || pending.typingWords > 0
+        || Object.keys(pending.typingBestWpm).length > 0;
     }
 
     // Immediate localStorage write — use this after flushPending zeros the
@@ -3677,6 +3791,8 @@
         for (const k in saved.allTimeSkin || {})  pending.allTimeSkin[k]  = (pending.allTimeSkin[k]  || 0) + saved.allTimeSkin[k];
         for (const k in saved.bySource || {})     pending.bySource[k]     = (pending.bySource[k]     || 0) + saved.bySource[k];
         for (const k in saved.userBySource || {}) pending.userBySource[k] = (pending.userBySource[k] || 0) + saved.userBySource[k];
+        if (typeof saved.typingWords === 'number') pending.typingWords += saved.typingWords;
+        for (const k in saved.typingBestWpm || {}) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, saved.typingBestWpm[k]);
       } catch {}
     }
     loadPending();
@@ -3805,7 +3921,8 @@
 
     async function flushPending() {
       if (isFlushing) return;
-      if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0) return;
+      if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0
+          && pending.typingWords === 0 && Object.keys(pending.typingBestWpm).length === 0) return;
       isFlushing = true;
       // Chunked snapshot: move at most CHUNK_CAP per capped path into `batch`,
       // leaving any remainder in `pending` to drain on follow-up flushes. The
@@ -3825,6 +3942,13 @@
         }
         return out;
       };
+      // Best-of values aren't increments — take the whole map and clear it. The
+      // server-side write is a max() transaction, so it's idempotent on retry.
+      const takeBest = (src) => {
+        const out = {};
+        for (const k in src) { out[k] = src[k]; delete src[k]; }
+        return out;
+      };
       const batch = {
         userCoins:  pending.userCoins > 0 ? Math.min(pending.userCoins, CHUNK_CAP) : pending.userCoins,
         userClicks: Math.min(pending.userClicks, CHUNK_CAP),
@@ -3836,11 +3960,14 @@
         allTimeSkin:  takeChunk(pending.allTimeSkin),
         bySource:     takeChunk(pending.bySource),
         userBySource: takeChunk(pending.userBySource),
+        typingWords:  Math.min(pending.typingWords, CHUNK_CAP),
+        typingBestWpm: takeBest(pending.typingBestWpm),
       };
       pending.userCoins  -= batch.userCoins;
       pending.userClicks -= batch.userClicks;
       pending.global     -= batch.global;
       pending.daily      -= batch.daily;
+      pending.typingWords -= batch.typingWords;
       savePending();
       // Hand off the public-counter AND user-stat deltas from `pending` to
       // `inFlight` so the pills/sensei bar stay visually steady across the
@@ -3870,7 +3997,9 @@
       //     trip the 1s throttle on totalClicks/bySource validation.
       const hasClickActivity = batch.userClicks > 0 || Object.keys(batch.userBySource).length > 0;
       const hasCoinChange    = batch.userCoins !== 0;
-      if (currentUser && (hasClickActivity || hasCoinChange)) {
+      const hasTypingWords   = batch.typingWords > 0;
+      const hasTypingWpm     = Object.keys(batch.typingBestWpm).length > 0;
+      if (currentUser && (hasClickActivity || hasCoinChange || hasTypingWords)) {
         const uid = currentUser.uid;
         const update = {};
         if (batch.userClicks > 0) {
@@ -3878,6 +4007,9 @@
         }
         if (batch.userCoins !== 0) {
           update[`users/${uid}/stats/coinBalance`] = firebase.database.ServerValue.increment(batch.userCoins);
+        }
+        if (batch.typingWords > 0) {
+          update[`users/${uid}/stats/typingWords`] = firebase.database.ServerValue.increment(batch.typingWords);
         }
         for (const src in batch.userBySource) {
           update[`users/${uid}/stats/bySource/${src}`] =
@@ -3893,7 +4025,7 @@
           update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
         }
         tasks.push(db.ref().update(update));
-      } else if (!currentUser && (hasClickActivity || hasCoinChange)) {
+      } else if (!currentUser && (hasClickActivity || hasCoinChange || hasTypingWords || hasTypingWpm)) {
         // Guest mode: apply user-stat deltas to the in-memory mirror and
         // persist to localStorage. Inflight tracker doesn't apply here
         // because there's no listener round-trip to wait for.
@@ -3903,6 +4035,13 @@
         if (!userStats.bySource) userStats.bySource = {};
         for (const sk in batch.allTimeSkin)  userStats.skins[sk]    = (userStats.skins[sk]    || 0) + batch.allTimeSkin[sk];
         for (const src in batch.userBySource) userStats.bySource[src] = (userStats.bySource[src] || 0) + batch.userBySource[src];
+        if (batch.typingWords > 0) userStats.typingWords = (userStats.typingWords || 0) + batch.typingWords;
+        if (hasTypingWpm) {
+          if (!userStats.typingBestWpm) userStats.typingBestWpm = {};
+          for (const mode in batch.typingBestWpm) {
+            userStats.typingBestWpm[mode] = Math.max(userStats.typingBestWpm[mode] || 0, batch.typingBestWpm[mode]);
+          }
+        }
         inFlightUserCoins  = 0;  // applied locally, no RTDB roundtrip
         inFlightUserClicks = 0;
         saveLocalUserData();
@@ -3937,6 +4076,15 @@
         tasks.push(db.ref('clicks_by_source/' + src).transaction((c) => (c || 0) + n));
         tasks.push(db.ref('daily/' + today + '/sources/' + src).transaction((c) => (c || 0) + n));
       }
+      // Best WPM per mode — max() transaction (best-of, not additive). Guests are
+      // handled in the in-memory block above; this is the authed server write.
+      if (currentUser) {
+        for (const mode in batch.typingBestWpm) {
+          const w = batch.typingBestWpm[mode];
+          tasks.push(db.ref(`users/${currentUser.uid}/stats/typingBestWpm/${mode}`)
+            .transaction((c) => (c == null || w > c) ? w : c));
+        }
+      }
 
       try {
         await Promise.all(tasks);
@@ -3961,6 +4109,8 @@
         for (const k in batch.allTimeSkin)  pending.allTimeSkin[k]  = (pending.allTimeSkin[k]  || 0) + batch.allTimeSkin[k];
         for (const k in batch.bySource)     pending.bySource[k]     = (pending.bySource[k]     || 0) + batch.bySource[k];
         for (const k in batch.userBySource) pending.userBySource[k] = (pending.userBySource[k] || 0) + batch.userBySource[k];
+        pending.typingWords += batch.typingWords;
+        for (const k in batch.typingBestWpm) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, batch.typingBestWpm[k]);
         // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
         inFlightGlobal     = wasInFlightGlobal;
@@ -4117,19 +4267,11 @@
     document.getElementById('curtain').addEventListener('click', endIntro);
     startIntroWalk();
 
-    function triggerClick(opts) {
-      const source = opts && opts.source === 'keyboard' ? 'keyboard' : 'mouse';
-
-      // During intro, end intro (first click counts)
-      if (introActive) {
-        endIntro({ source });
-        return;
-      }
-
-      // All Firebase writes (per-user mouse stats AND global counters) flow
-      // through the batcher. See pending / flushPending below.
-      recordClick(source);
-
+    // Purely-cosmetic character reaction: SFX, combo bump, sprite swap, bounce,
+    // particles. Carries NO economy (no recordClick / coins / totalClicks).
+    // Shared by the clicker (via triggerClick) and the typing game, which calls
+    // it through the injected `reactCharacter` dep for its per-word/per-key toggle.
+    function reactCharacter() {
       const { variant: v } = getVariant(settings.skin);
 
       // 1. Play SFX — each click spawns its own audio, oldest evicted at cap
@@ -4157,6 +4299,48 @@
       if (settings.effects) spawnParticles();
     }
 
+    function triggerClick(opts) {
+      const source = opts && opts.source === 'keyboard' ? 'keyboard' : 'mouse';
+
+      // During intro, end intro (first click counts)
+      if (introActive) {
+        endIntro({ source });
+        return;
+      }
+
+      // All Firebase writes (per-user mouse stats AND global counters) flow
+      // through the batcher. See pending / flushPending below.
+      recordClick(source);
+      reactCharacter();
+    }
+
+    // --- Typing game host seam ------------------------------------------------
+    // While the typing panel input is focused, isTypingActive suppresses the
+    // global keydown clicker handler so per-key typing never double-fires clicks.
+    let isTypingActive = false;
+    function setTypingActive(v) { isTypingActive = !!v; }
+
+    // Routes typing earnings into the existing pending batch so shopMul.coin,
+    // buffs, optimistic UI, and the 5s flush all apply — WITHOUT touching
+    // userClicks/totalClicks (the clicker leaderboard stays typing-free).
+    //   coins:        base per-word coins (multiplied by shopMul.coin here)
+    //   words:        completed-word count -> stats/typingWords + words board
+    //   opts.mode +   run-end ranked WPM submit, best-of per mode
+    //   opts.bestWpm
+    function creditTyping(coins, words, opts) {
+      const m = shopMul(Date.now());
+      const coinGain = Math.floor((coins || 0) * m.coin);
+      if (coinGain) pending.userCoins += coinGain;
+      if (words > 0) pending.typingWords += words;
+      if (opts && opts.mode && opts.bestWpm > 0) {
+        const cur = pending.typingBestWpm[opts.mode] || 0;
+        if (opts.bestWpm > cur) pending.typingBestWpm[opts.mode] = opts.bestWpm;
+      }
+      savePendingDeferred();
+      scheduleFlush();
+      if (typeof scheduleOptimisticRender === 'function') scheduleOptimisticRender();
+    }
+
     character.addEventListener('click', (e) => {
       triggerClick({ source: 'mouse' });
       // Visual feedback specific to mouse/tap — anchors near the character
@@ -4171,6 +4355,7 @@
       senseiXpFillEl.classList.add('pulse');
     });
     document.addEventListener('keydown', () => {
+      if (isTypingActive) return; // typing panel owns the keyboard while focused
       if (settings.keyboardClicks === false) return;
       triggerClick({ source: 'keyboard' });
     });
@@ -4641,4 +4826,31 @@
         if (document.visibilityState === 'visible') checkForUpdate();
       });
     })();
+
+    // --- Typing game wiring ----------------------------------------------------
+    // typing.js is a separate classic script loaded AFTER app.js. We publish the
+    // host dependencies it needs on window; typing.js self-initialises from them
+    // (it never reaches into app.js's lexical scope directly — the seam stays
+    // explicit). Whichever script finishes second triggers init, so the
+    // handshake is order-independent.
+    window.__typingDeps = {
+      db: db,
+      getCurrentUser:    function () { return currentUser; },
+      getUserShop:       function () { return userShop || {}; },
+      getUserStats:      function () { return userStats || {}; },
+      getSpendableCoins: function () { return shopAffordableCoins(); },
+      typingCosts:       TYPING_MOD_COSTS,
+      settings:          settings,
+      saveSettings:      function () { saveSettings(settings); },
+      creditTyping:      creditTyping,
+      reactCharacter:    reactCharacter,
+      setTypingActive:   setTypingActive,
+      buyTypingMod:      buyTypingMod,
+      t:                 function (k, p) { return I18N.t(k, p); },
+      escapeHtml:        escapeHtml,
+      flagFromCountry:   flagFromCountry,
+    };
+    if (window.TypingGame && typeof window.TypingGame.init === 'function') {
+      window.TypingGame.init(window.__typingDeps);
+    }
 
