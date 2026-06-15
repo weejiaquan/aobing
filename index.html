@@ -1266,6 +1266,94 @@
       opacity: 1;
       pointer-events: auto;
     }
+    /* --- Typing game: full-screen takeover overlay floating over the character --- */
+    #typing-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    #typing-panel.open { opacity: 1; pointer-events: auto; }
+    .typing-dialog {
+      position: relative;
+      width: min(680px, 92vw);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--ba-card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: var(--ba-card-border);
+      border-radius: 18px;
+      padding: 26px 28px 22px;
+      color: var(--ba-text);
+      font-size: 0.85rem;
+      box-shadow: var(--ba-card-shadow);
+      transform: translateY(10px) scale(0.98);
+      transition: transform 0.25s ease;
+    }
+    #typing-panel.open .typing-dialog { transform: translateY(0) scale(1); }
+    .typing-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ba-text-faint);
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .typing-close:hover { color: var(--ba-text); background: rgba(0, 0, 0, 0.06); }
+    .typing-modes { display: flex; gap: 6px; margin-bottom: 10px; }
+    .typing-modes button {
+      flex: 1; padding: 6px 0; border-radius: 8px; border: 1px solid var(--ba-divider);
+      background: rgba(255,255,255,0.5); color: inherit; font: inherit; cursor: pointer;
+    }
+    .typing-modes button.sel { background: #4dabf7; color: #fff; border-color: transparent; }
+    .typing-stream {
+      position: relative;
+      min-height: 110px; line-height: 2.0; font-size: 1.4rem; letter-spacing: 0.5px;
+      padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.04);
+      word-break: break-word; cursor: text; user-select: none;
+    }
+    .typing-stream.typing-dim { opacity: 0.45; }
+    .typing-stream .tw { color: var(--ba-text-faint); margin-right: 3px; }
+    .typing-stream .tw-cur { color: var(--ba-text); }
+    .typing-stream .tc-ok { color: var(--ba-text); }
+    .typing-stream .tc-bad { color: #e03131; text-decoration: underline; }
+    .typing-stream .tc-extra { color: #e8590c; opacity: 0.85; }
+    .typing-stream .tc-caret { border-left: 2px solid #4dabf7; margin-left: -2px; }
+    .typing-input { position: absolute; opacity: 0; width: 1px; height: 1px; left: -9999px; }
+    .typing-livebar { display: flex; align-items: center; justify-content: space-between; margin: 8px 2px; min-height: 20px; }
+    .typing-live { font-size: 0.8rem; color: var(--ba-text-faint); }
+    .typing-stop { padding: 3px 10px; border-radius: 7px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.6); cursor: pointer; font: inherit; color: inherit; }
+    .typing-result { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px; margin-bottom: 10px; border-radius: 10px; background: rgba(255,255,255,0.55); }
+    .typing-result-row b { font-size: 1.15rem; }
+    .typing-result-tag { margin-left: auto; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+    .typing-mods-list { margin-bottom: 10px; }
+    .typing-mod { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 4px; }
+    .typing-buy { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.7); cursor: pointer; font: inherit; color: inherit; white-space: nowrap; }
+    .typing-buy-err { border-color: #e03131; color: #e03131; }
+    .typing-owned { color: #2f9e44; font-weight: 700; }
+    .typing-board-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    .typing-board-tabs button { flex: 1; padding: 5px 0; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.5); cursor: pointer; font: inherit; color: inherit; }
+    .typing-board-tabs button.sel { background: #4dabf7; color: #fff; border-color: transparent; }
+    .typing-board-list { font-size: 0.8rem; color: var(--ba-text-faint); }
+    .typing-row { display: flex; gap: 8px; padding: 4px 2px; align-items: center; }
+    .typing-rank { width: 22px; color: var(--ba-text-faint); text-align: right; }
+    .typing-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ba-text); }
+    .typing-val { white-space: nowrap; }
     .shop-section { margin-bottom: 12px; }
     .shop-section:last-child { margin-bottom: 0; }
     .shop-section-title {
@@ -2323,6 +2411,42 @@
     </div>
   </div>
 
+  <!-- Typing game -->
+  <button id="typing-btn" class="panel-btn" aria-label="Typing">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2"/>
+      <path d="M6 10h0M10 10h0M14 10h0M18 10h0M8 14h8"/>
+    </svg>
+  </button>
+  <div id="typing-panel">
+   <div class="typing-dialog">
+    <button id="typing-close" class="typing-close" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
+    <div class="settings-title" data-i18n="typing.title">Typing</div>
+    <div id="typing-modes" class="typing-modes">
+      <button type="button" data-mode="s15">15</button>
+      <button type="button" data-mode="s30">30</button>
+      <button type="button" data-mode="s60">60</button>
+      <button type="button" data-mode="endless">∞</button>
+    </div>
+    <div id="typing-stream" class="typing-stream"></div>
+    <input id="typing-input" class="typing-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Typing input" />
+    <div class="typing-livebar">
+      <div id="typing-live" class="typing-live"></div>
+      <button id="typing-stop" class="typing-stop" type="button" hidden data-i18n="typing.stop">Stop</button>
+    </div>
+    <div id="typing-result" class="typing-result" hidden></div>
+    <div class="shop-section-title" data-i18n="typing.modifiers">Modifiers</div>
+    <div id="typing-mods" class="typing-mods-list"></div>
+    <div id="typing-toggles" class="typing-mods-list"></div>
+    <div class="shop-section-title" data-i18n="typing.boards">Leaderboards</div>
+    <div class="typing-board-tabs">
+      <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
+      <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
+    </div>
+    <div id="typing-board-list" class="typing-board-list"></div>
+   </div>
+  </div>
+
   <!-- Stats -->
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
@@ -2471,6 +2595,8 @@
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
+        .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .catch(function (e) { console.error('lib load failed', e); });
     };
     // Coordinator: on web, load immediately; in Activity, the module below calls this after Discord flow

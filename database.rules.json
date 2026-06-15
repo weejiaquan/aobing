@@ -111,6 +111,14 @@
             "$source": {
               ".validate": "newData.isNumber() && ($source === 'mouse' || $source === 'keyboard' || $source === 'auto') && newData.val() >= (data.exists() ? data.val() : 0) + 1 && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && now - (data.parent().parent().child('lastClickAt').exists() ? data.parent().parent().child('lastClickAt').val() : 0) >= 1000 && newData.parent().parent().child('lastClickAt').val() === now"
             }
+          },
+          "typingWords": {
+            ".validate": "newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 10000 && newData.val() <= 1000000000000"
+          },
+          "typingBestWpm": {
+            "$mode": {
+              ".validate": "($mode === 's15' || $mode === 's30' || $mode === 's60') && newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+            }
           }
         },
         "shop": {
@@ -118,6 +126,10 @@
           "clickMulLevel":           { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30" },
           "autoLevel":               { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30" },
           "leaderboardAutoUnlocked": { ".validate": "newData.isBoolean()" },
+          "typingFreedom":           { ".validate": "newData.isBoolean()" },
+          "typingNoBackspace":       { ".validate": "newData.isBoolean()" },
+          "typingStopOnError":       { ".validate": "newData.isBoolean()" },
+          "typingQol":               { ".validate": "newData.isBoolean()" },
           "buffs": {
             "$kind": {
               ".validate": "$kind === 'coins' || $kind === 'clicks' || $kind === 'autoRate'",
@@ -147,6 +159,32 @@
           "totalClicks": { ".validate": "newData.isNumber() && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0))" },
           "level":       { ".validate": "newData.isNumber()" },
           "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+        }
+      },
+      "typingWords": {
+        ".read": true,
+        ".indexOn": "typingWords",
+        "$uid": {
+          ".write": "newData.exists() && ((auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists()) || (auth != null && root.child('admins').child(auth.uid).val() === true))",
+          "name":        { ".validate": "newData.isString() && newData.val().length <= 24 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('displayName').val())" },
+          "country":     { ".validate": "newData.isString() && newData.val().length === 2 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('country').val())" },
+          "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500 && (root.child('admins').child(auth.uid).val() === true || newData.val() === (root.child('users').child($uid).child('profile').child('photoURL').exists() ? root.child('users').child($uid).child('profile').child('photoURL').val() : ''))" },
+          "typingWords": { ".validate": "newData.isNumber() && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (root.child('users').child($uid).child('stats').child('typingWords').exists() ? root.child('users').child($uid).child('stats').child('typingWords').val() : 0))" },
+          "level":       { ".validate": "newData.isNumber()" },
+          "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+        }
+      },
+      "typingWpm": {
+        ".read": true,
+        ".indexOn": "wpm",
+        "$uid": {
+          ".write": "newData.exists() && ((auth != null && auth.uid === $uid && root.child('users').child($uid).child('profile').exists()) || (auth != null && root.child('admins').child(auth.uid).val() === true))",
+          "name":     { ".validate": "newData.isString() && newData.val().length <= 24 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('displayName').val())" },
+          "country":  { ".validate": "newData.isString() && newData.val().length === 2 && (root.child('admins').child(auth.uid).val() === true || newData.val() === root.child('users').child($uid).child('profile').child('country').val())" },
+          "photoURL": { ".validate": "newData.isString() && newData.val().length <= 500 && (root.child('admins').child(auth.uid).val() === true || newData.val() === (root.child('users').child($uid).child('profile').child('photoURL').exists() ? root.child('users').child($uid).child('profile').child('photoURL').val() : ''))" },
+          "wpm":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+          "mode":     { ".validate": "newData.isString() && (newData.val() === 's15' || newData.val() === 's30' || newData.val() === 's60')" },
+          "hidden":   { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
         }
       }
     },
