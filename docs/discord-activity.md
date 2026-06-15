@@ -64,7 +64,7 @@ Some services use **dynamic hosts**. RTDB connects to a regional websocket host 
 
 ---
 
-## 3. Two things `patchUrlMappings` does NOT handle (and the workarounds)
+## 3. Three things that DON'T "just work" in the iframe (and the workarounds)
 
 `patchUrlMappings` reliably rewrites `fetch`/`WebSocket`/`XHR`, but **not** dynamically-set element `src` attributes. We handle those manually:
 
@@ -75,6 +75,13 @@ External lib scripts (Firebase/anime/Chart from gstatic/jsdelivr) are loaded dyn
 External images are CSP-blocked. We route them through kei-bot's **`GET /api/img?url=<encoded>`** (an allowlisted image proxy: `*.googleusercontent.com`, `cdn.discordapp.com`, `media.discordapp.net`). In `app.js`, the helper `activityImg(url)` rewrites avatar URLs to `/.proxy/kei/api/img?url=…` when in the Activity (Discord CDN images are left alone — already allowed).
 
 **If you render a new external image in the Activity, wrap its URL with `activityImg(...)`.** If it's from a new host, add that host to the kei-bot `_img_host_allowed()` allowlist.
+
+### c) External links / navigation → `openExternalLink` (NOT a normal `<a>`)
+A normal `<a href="https://x.com/…">` (or `window.open`, or a same-origin page nav like `/discord/`) tries to **navigate the iframe away** → Discord blocks it → **the app freezes**. In the Activity you must open links via the Discord SDK: `sdk.commands.openExternalLink({ url })`.
+
+We expose it as `window.__ACTIVITY__.openExternalLink(url)` (set in the boot module), and `app.js` installs a **capture-phase click interceptor** (only when `__ACTIVITY__` is set) that catches any `<a>` whose target leaves the current page and routes it through `openExternalLink` instead. Same-origin page navs (e.g. `/discord/`) are opened as `https://aobing.it/<path>` so they leave the iframe cleanly.
+
+**If you add anything that navigates away** (a new external link, a `window.open`, a `location.href = …`), make sure it goes through `openExternalLink` in the Activity — don't navigate the iframe.
 
 ---
 
@@ -122,6 +129,18 @@ GitHub Pages forces `Cache-Control: max-age=600` (~10 min) and Discord's proxy c
 - **`app.js`, `activity-mappings.json`, and the SDK are cache-busted** (`?t=<launch>`) in the Activity → always fresh on launch.
 - **`index.html` is the only file with the ~10-min lag** (Discord loads `/` directly; its headers can't be overridden on GitHub Pages). It's a thin, stable shell — keep it that way. Mappings live in `activity-mappings.json` precisely so you don't need to touch `index.html` to change them.
 - After an `index.html` change: wait ~10 min and **fully close/reopen** the Activity (a client reload can't evict Discord's server-side proxy cache).
+- **Desktop vs mobile cache separately.** It's normal to see fresh data on mobile but a stale build on desktop (or vice-versa). On desktop, fully **Quit Discord** (system-tray → Quit, not just close the window) and reopen; or use the devtools trick below.
+
+---
+
+## 7.5 Debugging in the Activity (devtools gotchas)
+
+You can only test the Activity by launching it in Discord. Open devtools in the activity window (`Ctrl+Shift+I`). Two things will trip you up:
+
+1. **The console runs in the wrong frame by default.** The context dropdown (top-left of the Console tab) defaults to **`top`** = the Discord client, where `firebase`/your globals don't exist (`firebase is not defined`). **Switch it to the `…discordsays.com` frame** to run commands against the actual app. (Errors from all frames still show; only typed commands use the selected frame.)
+2. **Use Network → "Disable cache"** (with devtools open) to bypass the client cache while iterating on desktop — the most reliable way to always pull fresh.
+3. **CSP-blocked script URLs are redacted** to `<URL>` in the console. To see the real one, use **Network → filter JS → the red `blocked:csp` request**, not a `securitypolicyviolation` listener (which also runs in the wrong frame and fires before you attach it).
+4. **The on-screen corner log** (`#activity-log`) is hidden on success and only reveals itself if the boot throws — so a visible green box means the boot errored; read it.
 
 ---
 
@@ -146,11 +165,20 @@ Before assuming a new feature works in Discord, ask:
 1. **Does it load a new external `<script>`?** → add the host to `PROXY_MAP` (loader in `index.html`) **and** to `activity-mappings.json` + Dev Portal.
 2. **Does it `fetch`/WebSocket/XHR a new external host?** → add it to `activity-mappings.json` + Dev Portal. (No code change beyond the JSON.) Watch for **dynamic subdomains** → use `{subdomain}` wildcard.
 3. **Does it show a new external `<img>`?** → wrap the URL with `activityImg(...)`; add the host to kei-bot `_img_host_allowed()` if it's new.
-4. **Does it make an RTDB/Auth call?** → already covered by App Check custom provider + the firebase mappings; nothing extra.
-5. **Did you add a new `<head>` `<link>`/`<script>`?** → it'll be CSP-blocked in the iframe. Load it dynamically via the loader instead (and proxify/map it).
-6. **Does it rely on `window`/`document` timing at parse?** → remember `app.js` loads *after* the Discord auth flow in the Activity, not at page parse.
-7. **Web regression check** → load `aobing.it` (not the Activity) and confirm sign-in + leaderboard + clicking still work. The web path must be byte-identical.
-8. **Test live** → the Activity can only be tested by launching it in Discord. Use the on-screen corner log + the activity devtools console; CSP errors name the exact host/script that needs a mapping.
+4. **Does it open an external link or navigate away** (new `<a href>`, `window.open`, `location.href = …`)? → route it through `window.__ACTIVITY__.openExternalLink(url)` in the Activity, or it freezes the iframe.
+5. **Does it make an RTDB/Auth call?** → already covered by App Check custom provider + the firebase mappings; nothing extra.
+6. **Did you add a new `<head>` `<link>`/`<script>`?** → it'll be CSP-blocked in the iframe. Load it dynamically via the loader instead (and proxify/map it).
+7. **Does it rely on `window`/`document` timing at parse?** → remember `app.js` loads *after* the Discord auth flow in the Activity, not at page parse.
+8. **Web regression check** → load `aobing.it` (not the Activity) and confirm sign-in + leaderboard + clicking still work. The web path must be byte-identical.
+9. **Test live** → the Activity can only be tested by launching it in Discord. Switch the console off `top` to the `discordsays.com` frame (§7.5); CSP errors name the exact host/script that needs a mapping.
+
+---
+
+## Status (as of 2026-06-15)
+
+The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The web app is unchanged.
+
+**Known cosmetic issue:** a `Refused to load the script '<URL>'` (`script-src`) message appears a handful of times in the activity console. It does **not** break anything (auth + RTDB both work). The URL is redacted by Chrome; it was never pinned down. If you want to chase it, use Network → JS → the red `blocked:csp` request to get the real URL, then map or suppress whatever loads it.
 
 ---
 
