@@ -1,3 +1,7 @@
+    // BUILD MARKER (temporary) — app.js is cache-busted in the Activity, so this tells you
+    // app.js freshness independently of the (cached) index.html's window.__BUILD__.
+    console.log('%c[aobing] app.js BUILD b1', 'color:#2b8a3e;font-weight:bold');
+    window.__BUILD_APP__ = 'b1';
     // Firebase App Check: prove writes come from this real site (not curl / console scripts).
     // On localhost we emit a debug token — paste it into Firebase Console →
     // App Check → Apps → ⋯ → Manage debug tokens to allow local dev.
