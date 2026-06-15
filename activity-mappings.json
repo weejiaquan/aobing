@@ -1,0 +1,11 @@
+[
+  { "prefix": "/kei",                   "target": "kei.aobing.it" },
+  { "prefix": "/firebase-db/{subdomain}", "target": "{subdomain}.firebaseio.com" },
+  { "prefix": "/firebase-appcheck",     "target": "firebaseappcheck.googleapis.com" },
+  { "prefix": "/firebase-auth",         "target": "identitytoolkit.googleapis.com" },
+  { "prefix": "/firebase-token",        "target": "securetoken.googleapis.com" },
+  { "prefix": "/gstatic",               "target": "www.gstatic.com" },
+  { "prefix": "/jsdelivr",              "target": "cdn.jsdelivr.net" },
+  { "prefix": "/gfonts",                "target": "fonts.googleapis.com" },
+  { "prefix": "/gfonts-static",         "target": "fonts.gstatic.com" }
+]

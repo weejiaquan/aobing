@@ -2063,19 +2063,18 @@
       const log = (m) => { box.textContent += m + '\n'; console.log('[activity]', m); };
       (async () => {
         try {
-          const { DiscordSDK, patchUrlMappings } = await import('/vendor/discord-embedded-app-sdk.js');
-          patchUrlMappings([
-            { prefix: '/kei',               target: 'kei.aobing.it' },
-            { prefix: '/firebase-db/{subdomain}', target: '{subdomain}.firebaseio.com' }, // RTDB uses a dynamic regional ws host (s-…firebaseio.com) — wildcard covers it + the db host
-            { prefix: '/firebase-appcheck',  target: 'firebaseappcheck.googleapis.com' },
-            { prefix: '/firebase-auth',      target: 'identitytoolkit.googleapis.com' },
-            { prefix: '/firebase-token',     target: 'securetoken.googleapis.com' },
-            { prefix: '/gstatic',            target: 'www.gstatic.com' },
-            { prefix: '/jsdelivr',           target: 'cdn.jsdelivr.net' },
-            { prefix: '/gfonts',             target: 'fonts.googleapis.com' },
-            { prefix: '/gfonts-static',      target: 'fonts.gstatic.com' },
-          ]);
-          log('SDK loaded, mappings set. init…');
+          // Cache-bust everything this thin shell loads, so updates land without waiting on
+          // a cache. (index.html itself is the only file with GitHub Pages' ~10min cache.)
+          const ts = Date.now();
+          const { DiscordSDK, patchUrlMappings } = await import('/vendor/discord-embedded-app-sdk.js?t=' + ts);
+          // URL mappings live in a cache-busted file so we can add/change them without ever
+          // editing index.html. Same-origin fetch (allowed by connect-src 'self' before the
+          // mappings are even applied). Minimal inline fallback only if that fetch fails.
+          let mappings = [{ prefix: '/kei', target: 'kei.aobing.it' }];
+          try { mappings = await (await fetch('/activity-mappings.json?t=' + ts)).json(); }
+          catch (e) { log('mappings.json fetch failed; using minimal fallback'); }
+          patchUrlMappings(mappings);
+          log('SDK + ' + mappings.length + ' mappings loaded. init…');
           const sdk = new DiscordSDK('1514146586748256306');
           await sdk.ready();
           log('ready. authorizing…');
