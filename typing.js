@@ -226,10 +226,12 @@ function applyKey(state, key, mods) {
 // =========================================================================
 // Scoring
 // =========================================================================
+// No human sustains >400 wpm; clamp so sub-second runs can't post absurd scores.
+const MAX_WPM = 400;
 function wpm(correctChars, elapsedMs) {
   if (!(correctChars > 0) || !(elapsedMs > 0)) return 0;
   const val = (correctChars / 5) / (elapsedMs / 60000);
-  return Math.round(val * 100) / 100;
+  return Math.min(MAX_WPM, Math.round(val * 100) / 100);
 }
 
 // A run counts toward the WPM (ranked) board only if no assist modifier was

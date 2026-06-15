@@ -47,6 +47,13 @@ test('wpm: negative/zero correctChars guards to 0', () => {
   assert.equal(wpm(-5, 1000), 0);
 });
 
+test('wpm: clamps absurd values from sub-second runs to a human ceiling', () => {
+  // 25 correct chars in 10ms = ~30000 wpm — clamp to 400.
+  assert.equal(wpm(25, 10), 400);
+  // A realistic score stays untouched.
+  assert.equal(wpm(50, 30000), 20);
+});
+
 // =========================================================================
 // rankedEligible(mods) — any assist modifier disqualifies; QoL does not.
 // =========================================================================
