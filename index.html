@@ -2113,7 +2113,8 @@
       <div id="profile-country-area"></div>
       <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
       <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
-      <button id="profile-discord-btn" class="profile-button secondary" onclick="linkDiscord()">🎮 Link Discord</button>
+      <button id="profile-discord-btn" class="profile-button secondary" onclick="linkDiscord()" style="display:none;">🎮 Link Discord</button>
+      <button id="profile-discord-unlink-btn" class="profile-button secondary" onclick="unlinkDiscord()" style="display:none;">🔗 Unlink Discord</button>
       <div class="profile-error" id="profile-error-linked"></div>
     </div>
   </div>
@@ -5300,7 +5301,7 @@
         profilePanel.classList.remove('open');
       }
     });
-    auth.onAuthStateChanged(() => updateProfileView());
+    auth.onAuthStateChanged(() => { updateProfileView(); refreshLinkUi(); });
 
     // --- Leaderboard modal ---
     const leaderboardBtn      = document.getElementById('leaderboard-btn');
@@ -5483,6 +5484,41 @@
       window.open(authorizeUrl, 'discord-link', 'width=500,height=820');
     }
 
+    async function refreshLinkUi() {
+      const linkBtn   = document.getElementById('profile-discord-btn');
+      const unlinkBtn = document.getElementById('profile-discord-unlink-btn');
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous) {
+        if (linkBtn)   linkBtn.style.display   = 'none';
+        if (unlinkBtn) unlinkBtn.style.display = 'none';
+        return;
+      }
+      const isGoogle = (user.providerData || []).some(p => p && p.providerId === 'google.com');
+      let linked = false;
+      try {
+        const idToken = await user.getIdToken();
+        const r = await fetch(KEI_BASE + '/api/link/status', { headers: { 'Authorization': 'Bearer ' + idToken } });
+        if (r.ok) ({ linked } = await r.json());
+      } catch (e) { console.error('link status failed', e); }
+      if (linkBtn)   linkBtn.style.display   = (!linked && isGoogle) ? '' : 'none';
+      if (unlinkBtn) unlinkBtn.style.display = linked ? '' : 'none';
+    }
+
+    async function unlinkDiscord() {
+      const user = auth.currentUser;
+      if (!user) return;
+      if (!confirm('Unlink your Discord account? Your progress stays on this (Google) account.')) return;
+      try {
+        const idToken = await user.getIdToken();
+        const r = await fetch(KEI_BASE + '/api/link/unlink', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken })
+        });
+        if (!r.ok) throw new Error('unlink failed');
+        showLinkToast('Discord unlinked');
+        await refreshLinkUi();
+      } catch (e) { console.error('unlink failed', e); showLinkToast('Unlink failed, try again'); }
+    }
+
     async function discordLogin() {
       let authorizeUrl;
       try {
@@ -5522,7 +5558,7 @@
         return;
       }
       if (d.type === 'discord-link') {
-        if (d.needsMerge) { showMergePicker(d.discordId); } else { showLinkToast('Discord linked!'); }
+        if (d.needsMerge) { showMergePicker(d.discordId); } else { showLinkToast('Discord linked!'); await refreshLinkUi(); }
         return;
       }
     });
