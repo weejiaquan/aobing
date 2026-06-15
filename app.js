@@ -55,10 +55,22 @@
     // Firebase Analytics — auto-collects page_view, session_start, country, referrer,
     // device, browser. Viewable in console.firebase.google.com under Analytics.
     // Wrapped in try/catch because some browsers / privacy extensions block gtag.
-    try { firebase.analytics(); } catch (e) { /* analytics blocked or unavailable */ }
+    // Analytics can't run in the Discord Activity (gtag + installations are CSP-blocked),
+    // and isn't needed there — skip it to avoid console error spam.
+    try { if (!window.__ACTIVITY__) firebase.analytics(); } catch (e) { /* analytics blocked or unavailable */ }
 
     // --- kei-bot base URL --------------------------------------------------------
     const KEI_BASE = 'https://kei.aobing.it';
+
+    // In the Discord Activity, external avatar images (e.g. Google photos) are blocked by
+    // the iframe's img-src CSP. Route them through kei-bot's image proxy via the same-origin
+    // /.proxy/kei path (a direct kei.aobing.it img URL would also be CSP-blocked). Discord
+    // CDN images are already allowed, so leave those alone. No-op on the normal web.
+    function activityImg(url) {
+      if (!window.__ACTIVITY__ || !url || !/^https:\/\//.test(url)) return url;
+      if (/discordapp\.(com|net)\//.test(url)) return url;
+      return '/.proxy/kei/api/img?url=' + encodeURIComponent(url);
+    }
 
     // --- User identity ------------------------------------------------------------
     // No auto-anonymous sign-in: guests run in a localStorage-only mode and only
@@ -2814,12 +2826,12 @@
           const img = document.createElement('img');
           img.className = 'sensei-avatar';
           img.id = 'sensei-avatar';
-          img.src = userProfile.photoURL;
+          img.src = activityImg(userProfile.photoURL);
           img.alt = '';
           senseiAvatarEl.replaceWith(img);
           senseiAvatarEl = img;
         } else if (userProfile.photoURL && senseiAvatarEl.tagName === 'IMG') {
-          senseiAvatarEl.src = userProfile.photoURL;
+          senseiAvatarEl.src = activityImg(userProfile.photoURL);
         }
       } else {
         senseiNameEl.textContent = I18N.t('sensei.trainer');
@@ -3047,7 +3059,7 @@
           const flag = flagFromCountry(r.country);
           const isHidden = r.hidden === true;
           const avatar = r.photoURL
-            ? `<img class="lb-avatar" src="${r.photoURL}" alt="">`
+            ? `<img class="lb-avatar" src="${activityImg(r.photoURL)}" alt="">`
             : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--ba-accent-strong);font-weight:800;">${escapeHtml((r.name || '?').slice(0,1))}</div>`;
           const adminCol = adminActive
             ? `<button class="lb-admin-del" data-del-uid="${escapeHtml(r.uid)}" data-del-name="${escapeHtml(r.name || '')}" data-hidden="${isHidden}" title="${I18N.t(isHidden ? 'admin.show_row' : 'admin.hide_row')}">${isHidden ? '↺' : '×'}</button>`

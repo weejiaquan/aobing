@@ -2451,14 +2451,18 @@
       var FB = 'https://www.gstatic.com/firebasejs/10.12.0/';
       // firebase-app must load before the other firebase modules
       loadScript(FB + 'firebase-app-compat.js')
-        .then(function () { return Promise.all([
-          loadScript(FB + 'firebase-auth-compat.js'),
-          loadScript(FB + 'firebase-database-compat.js'),
-          loadScript(FB + 'firebase-app-check-compat.js'),
-          loadScript(FB + 'firebase-analytics-compat.js'),
-          loadScript('https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js'),
-          loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'),
-        ]); })
+        .then(function () {
+          var mods = [
+            loadScript(FB + 'firebase-auth-compat.js'),
+            loadScript(FB + 'firebase-database-compat.js'),
+            loadScript(FB + 'firebase-app-check-compat.js'),
+            loadScript('https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js'),
+            loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'),
+          ];
+          // Analytics is skipped in the Activity (gtag/installations are CSP-blocked there).
+          if (!IN_ACTIVITY) mods.push(loadScript(FB + 'firebase-analytics-compat.js'));
+          return Promise.all(mods);
+        })
         .then(function () { return loadScript('app.js'); })
         .catch(function (e) { console.error('lib load failed', e); });
     };
