@@ -3420,9 +3420,16 @@
       profilePanel.classList.remove('open');
     });
 
+    // Max amount any single RTDB counter write may advance a value. The
+    // database rules reject writes that bump a counter by more than +10000
+    // (and require >=1s between totalClicks/bySource writes), so both the
+    // first-sign-in migration and the live click flush chunk large backlogs
+    // into <=RTDB_CHUNK pieces spaced >1s apart. One below the cap for margin.
+    const RTDB_CHUNK = 9999;
+
     // --- Local → Firebase migration on first Google sign-in --------------------
     // Drains localStorage guest stats/shop into users/{uid}/* additively, then
-    // clears local. Chunked at <=9999 per stat to satisfy the +10k/+1s RTDB
+    // clears local. Chunked at <=RTDB_CHUNK per stat to satisfy the +10k/+1s RTDB
     // throttle rule. Most guests have well under 10k local clicks so this is
     // a single-write no-op delay; heavy guests see a few seconds of catch-up.
     async function migrateLocalToFirebase(uid) {
@@ -3444,19 +3451,19 @@
         if (!firstChunk) await new Promise(r => setTimeout(r, 1100));
         firstChunk = false;
         const update = {};
-        const cClicks = Math.min(remClicks, 9999);
-        const cCoins  = Math.min(remCoins,  9999);
+        const cClicks = Math.min(remClicks, RTDB_CHUNK);
+        const cCoins  = Math.min(remCoins,  RTDB_CHUNK);
         let hasActivity = false;
         if (cClicks > 0) { update[`users/${uid}/stats/totalClicks`] = firebase.database.ServerValue.increment(cClicks); hasActivity = true; }
         if (cCoins  > 0) { update[`users/${uid}/stats/coinBalance`] = firebase.database.ServerValue.increment(cCoins); }
         const skinsConsumed = {};
         for (const k in remSkins) {
-          const c = Math.min(remSkins[k], 9999);
+          const c = Math.min(remSkins[k], RTDB_CHUNK);
           if (c > 0) { update[`users/${uid}/stats/skins/${k}`] = firebase.database.ServerValue.increment(c); skinsConsumed[k] = c; }
         }
         const srcConsumed = {};
         for (const k in remBySrc) {
-          const c = Math.min(remBySrc[k], 9999);
+          const c = Math.min(remBySrc[k], RTDB_CHUNK);
           if (c > 0) { update[`users/${uid}/stats/bySource/${k}`] = firebase.database.ServerValue.increment(c); srcConsumed[k] = c; hasActivity = true; }
         }
         if (hasActivity) update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
@@ -3594,6 +3601,19 @@
     let flushDebounceTimer = null;
     let flushHeartbeatTimer = null;
     let isFlushing = false;
+    let drainTimer = null;
+    // True when a chunked flush left backlog in `pending` that still needs to
+    // be sent (a burst larger than a single RTDB_CHUNK write).
+    function hasPendingBacklog() {
+      return pending.userCoins !== 0 || pending.userClicks > 0
+        || pending.global > 0 || pending.daily > 0
+        || Object.keys(pending.byCountry).length    > 0
+        || Object.keys(pending.bySkin).length        > 0
+        || Object.keys(pending.byCharacter).length   > 0
+        || Object.keys(pending.allTimeSkin).length   > 0
+        || Object.keys(pending.bySource).length      > 0
+        || Object.keys(pending.userBySource).length  > 0;
+    }
 
     // Immediate localStorage write — use this after flushPending zeros the
     // batch, on visibilitychange/pagehide, etc. Anywhere correctness needs
@@ -3764,22 +3784,40 @@
       if (isFlushing) return;
       if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0) return;
       isFlushing = true;
-      // Snapshot then zero out — any clicks during the in-flight write
-      // accumulate into the next batch.
-      const batch = {
-        userCoins:  pending.userCoins,
-        userClicks: pending.userClicks,
-        global: pending.global, daily: pending.daily,
-        byCountry:    { ...pending.byCountry },
-        bySkin:       { ...pending.bySkin },
-        byCharacter:  { ...pending.byCharacter },
-        allTimeSkin:  { ...pending.allTimeSkin },
-        bySource:     { ...pending.bySource },
-        userBySource: { ...pending.userBySource },
+      // Chunked snapshot: move at most CHUNK_CAP per capped path into `batch`,
+      // leaving any remainder in `pending` to drain on follow-up flushes. The
+      // RTDB rules reject any single write that bumps a counter by more than
+      // +10000, so an unbounded burst would otherwise be rejected wholesale and
+      // re-sent forever (the bug behind "clicked like crazy, refreshed, progress
+      // gone"). Guests have no server rules, so they drain the whole backlog at
+      // once (cap = Infinity). coinBalance debits (negative) also carry whole —
+      // only the +10000 *increase* is capped, so a spend never trips it. Any
+      // clicks recorded during the in-flight write accumulate into the next batch.
+      const CHUNK_CAP = currentUser ? RTDB_CHUNK : Infinity;
+      const takeChunk = (src) => {
+        const out = {};
+        for (const k in src) {
+          const c = Math.min(src[k], CHUNK_CAP);
+          if (c > 0) { out[k] = c; src[k] -= c; if (src[k] <= 0) delete src[k]; }
+        }
+        return out;
       };
-      pending.userCoins = 0; pending.userClicks = 0; pending.global = 0; pending.daily = 0;
-      pending.byCountry = {}; pending.bySkin = {}; pending.byCharacter = {}; pending.allTimeSkin = {};
-      pending.bySource = {}; pending.userBySource = {};
+      const batch = {
+        userCoins:  pending.userCoins > 0 ? Math.min(pending.userCoins, CHUNK_CAP) : pending.userCoins,
+        userClicks: Math.min(pending.userClicks, CHUNK_CAP),
+        global:     Math.min(pending.global, CHUNK_CAP),
+        daily:      Math.min(pending.daily,  CHUNK_CAP),
+        byCountry:    takeChunk(pending.byCountry),
+        bySkin:       takeChunk(pending.bySkin),
+        byCharacter:  takeChunk(pending.byCharacter),
+        allTimeSkin:  takeChunk(pending.allTimeSkin),
+        bySource:     takeChunk(pending.bySource),
+        userBySource: takeChunk(pending.userBySource),
+      };
+      pending.userCoins  -= batch.userCoins;
+      pending.userClicks -= batch.userClicks;
+      pending.global     -= batch.global;
+      pending.daily      -= batch.daily;
       savePending();
       // Hand off the public-counter AND user-stat deltas from `pending` to
       // `inFlight` so the pills/sensei bar stay visually steady across the
@@ -3879,6 +3917,13 @@
 
       try {
         await Promise.all(tasks);
+        // A burst exceeded the per-write cap and was chunked — drain the rest
+        // promptly. 1100ms spacing keeps consecutive totalClicks/bySource
+        // writes past the rules' 1s throttle (same cadence as the migration).
+        if (hasPendingBacklog()) {
+          if (drainTimer) clearTimeout(drainTimer);
+          drainTimer = setTimeout(() => { drainTimer = null; flushPending(); }, 1100);
+        }
       } catch (e) {
         // Restore the batch so it retries on the next flush. Some sub-writes
         // may have succeeded, so we may double-count under repeated failures —
