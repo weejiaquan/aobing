@@ -2420,11 +2420,31 @@
   <!-- Lib + app loader — callable from web (immediate) or activity (after Discord flow) -->
   <script>
     window.__loadLibsAndApp = function () {
+      // In the Discord Activity, patchUrlMappings rewrites fetch/XHR/WebSocket but NOT a
+      // dynamically-set <script>.src, so CSP blocks external lib scripts. Rewrite those
+      // URLs to Discord's /.proxy/<prefix> path ourselves (prefixes match the Dev Portal
+      // URL Mappings). No-op on the normal web.
+      var IN_ACTIVITY = location.hostname.endsWith('.discordsays.com');
+      var PROXY_MAP = {
+        'www.gstatic.com':     '/gstatic',
+        'cdn.jsdelivr.net':    '/jsdelivr',
+        'fonts.googleapis.com':'/gfonts',
+        'fonts.gstatic.com':   '/gfonts-static',
+      };
+      function proxify(url) {
+        if (!IN_ACTIVITY) return url;
+        try {
+          var u = new URL(url, location.href);
+          var prefix = PROXY_MAP[u.hostname];
+          if (prefix) return '/.proxy' + prefix + u.pathname + u.search;
+        } catch (e) {}
+        return url;
+      }
       function loadScript(src) {
         return new Promise(function (res, rej) {
           var s = document.createElement('script');
-          s.src = src; s.async = false;
-          s.onload = res; s.onerror = function () { rej(new Error('lib load failed: ' + src)); };
+          s.src = proxify(src); s.async = false;
+          s.onload = res; s.onerror = function () { rej(new Error('lib load failed: ' + s.src)); };
           document.head.appendChild(s);
         });
       }
