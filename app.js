@@ -72,6 +72,22 @@
       return '/.proxy/kei/api/img?url=' + encodeURIComponent(url);
     }
 
+    // Clicks accrued since THIS session/boot started (for the Activity presence panel).
+    // Tracks the same leaderboard-eligible clicks as totalClicks (incremented in recordClick).
+    let sessionClicks = 0;
+    // Discord-linked flag for the profile photo picker (set by refreshLinkUi on web).
+    let discordLinked = false;
+
+    // The photo a user has chosen to show on the leaderboard: google (default) / discord /
+    // none(hidden). Delegates to the pure presence engine; falls back to the Google photo
+    // if presence.js hasn't loaded yet (the default behaviour anyway).
+    function lbPhoto(profile) {
+      if (window.PresenceEngine && window.PresenceEngine.resolveLeaderboardPhoto) {
+        return window.PresenceEngine.resolveLeaderboardPhoto(profile);
+      }
+      return (profile && profile.photoURL) || '';
+    }
+
     // --- User identity ------------------------------------------------------------
     // No auto-anonymous sign-in: guests run in a localStorage-only mode and only
     // get a real Firebase Auth account when they explicitly sign in with Google.
@@ -317,7 +333,7 @@
           'auth.already_linked':'This Google account is already linked to another player. Signing you in to that one instead.',
           'profile.title':'Profile',
           'profile.anon_blurb':'Sign in to save your progress across devices and appear on the leaderboard.',
-          'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save',
+          'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save','profile.leaderboard_photo':'Leaderboard picture',
           'profile.name_length_error':'Display name must be 1-24 characters.',
           'profile.country_change_to':'Change to {flag} {code}',
           'leaderboard.title':'Leaderboard',
@@ -440,7 +456,7 @@
           'auth.already_linked':'このGoogleアカウントは別のプレイヤーにすでに連携されています。そちらでログインします。',
           'profile.title':'プロフィール',
           'profile.anon_blurb':'ログインすると進行状況がデバイス間で保存され、リーダーボードに表示されます。',
-          'profile.display_name':'表示名','profile.country':'国','profile.save':'保存',
+          'profile.display_name':'表示名','profile.country':'国','profile.save':'保存','profile.leaderboard_photo':'ランキングの画像',
           'profile.name_length_error':'表示名は1〜24文字で入力してください。',
           'profile.country_change_to':'{flag} {code} に変更',
           'leaderboard.title':'リーダーボード',
@@ -515,7 +531,7 @@
           'auth.already_linked':'이 Google 계정은 다른 플레이어에 이미 연결되어 있습니다. 해당 계정으로 로그인합니다.',
           'profile.title':'프로필',
           'profile.anon_blurb':'로그인하면 진행 상황이 기기 간 저장되고 리더보드에 표시됩니다.',
-          'profile.display_name':'표시 이름','profile.country':'국가','profile.save':'저장',
+          'profile.display_name':'표시 이름','profile.country':'국가','profile.save':'저장','profile.leaderboard_photo':'리더보드 사진',
           'profile.name_length_error':'표시 이름은 1~24자여야 합니다.',
           'profile.country_change_to':'{flag} {code} 로 변경',
           'leaderboard.title':'리더보드',
@@ -590,7 +606,7 @@
           'auth.already_linked':'此 Google 账号已与其他玩家关联。将使用该账号登录。',
           'profile.title':'个人资料',
           'profile.anon_blurb':'登录后可跨设备保存进度并出现在排行榜上。',
-          'profile.display_name':'显示名称','profile.country':'国家','profile.save':'保存',
+          'profile.display_name':'显示名称','profile.country':'国家','profile.save':'保存','profile.leaderboard_photo':'排行榜头像',
           'profile.name_length_error':'显示名称需为 1–24 个字符。',
           'profile.country_change_to':'更改为 {flag} {code}',
           'leaderboard.title':'排行榜',
@@ -665,7 +681,7 @@
           'auth.already_linked':'此 Google 帳戶已與其他玩家連結。將使用該帳戶登入。',
           'profile.title':'個人資料',
           'profile.anon_blurb':'登入後可跨裝置保存進度並顯示在排行榜上。',
-          'profile.display_name':'顯示名稱','profile.country':'國家','profile.save':'儲存',
+          'profile.display_name':'顯示名稱','profile.country':'國家','profile.save':'儲存','profile.leaderboard_photo':'排行榜頭像',
           'profile.name_length_error':'顯示名稱需為 1–24 個字元。',
           'profile.country_change_to':'變更為 {flag} {code}',
           'leaderboard.title':'排行榜',
@@ -740,7 +756,7 @@
           'auth.already_linked':'บัญชี Google นี้เชื่อมโยงกับผู้เล่นคนอื่นแล้ว ระบบจะเข้าสู่ระบบด้วยบัญชีนั้น',
           'profile.title':'โปรไฟล์',
           'profile.anon_blurb':'เข้าสู่ระบบเพื่อบันทึกความคืบหน้าข้ามอุปกรณ์และปรากฏบนกระดานผู้นำ',
-          'profile.display_name':'ชื่อที่แสดง','profile.country':'ประเทศ','profile.save':'บันทึก',
+          'profile.display_name':'ชื่อที่แสดง','profile.country':'ประเทศ','profile.save':'บันทึก','profile.leaderboard_photo':'รูปในลีดเดอร์บอร์ด',
           'profile.name_length_error':'ชื่อที่แสดงต้องมี 1–24 ตัวอักษร',
           'profile.country_change_to':'เปลี่ยนเป็น {flag} {code}',
           'leaderboard.title':'กระดานผู้นำ',
@@ -815,7 +831,7 @@
           'auth.already_linked':'حساب Google هذا مرتبط بالفعل بلاعب آخر. سيتم تسجيل الدخول إلى ذلك الحساب.',
           'profile.title':'الملف الشخصي',
           'profile.anon_blurb':'سجّل الدخول لحفظ تقدمك عبر الأجهزة والظهور في لوحة المتصدرين.',
-          'profile.display_name':'اسم العرض','profile.country':'الدولة','profile.save':'حفظ',
+          'profile.display_name':'اسم العرض','profile.country':'الدولة','profile.save':'حفظ','profile.leaderboard_photo':'صورة المتصدرين',
           'profile.name_length_error':'يجب أن يتكون اسم العرض من 1 إلى 24 حرفًا.',
           'profile.country_change_to':'تغيير إلى {flag} {code}',
           'leaderboard.title':'لوحة المتصدرين',
@@ -864,7 +880,7 @@
           'auth.already_linked':'Tài khoản Google này đã được liên kết với người chơi khác. Đang đăng nhập bạn vào tài khoản đó.',
           'profile.title':'Hồ sơ',
           'profile.anon_blurb':'Đăng nhập để lưu tiến trình trên mọi thiết bị và xuất hiện trên bảng xếp hạng.',
-          'profile.display_name':'Tên hiển thị','profile.country':'Quốc gia','profile.save':'Lưu',
+          'profile.display_name':'Tên hiển thị','profile.country':'Quốc gia','profile.save':'Lưu','profile.leaderboard_photo':'Ảnh bảng xếp hạng',
           'profile.name_length_error':'Tên hiển thị phải có từ 1-24 ký tự.',
           'profile.country_change_to':'Đổi thành {flag} {code}',
           'leaderboard.title':'Bảng xếp hạng',
@@ -3009,7 +3025,7 @@
           db.ref('leaderboard/topClicks/' + uid).update({
             name:        userProfile.displayName || I18N.t('sensei.trainer'),
             country:     userProfile.country || 'XX',
-            photoURL:    userProfile.photoURL || '',
+            photoURL:    lbPhoto(userProfile),
             totalClicks: userStats.totalClicks || 0,
           }).catch(() => {});
           // Typing boards — same profile-gated mirror. Words board tracks all
@@ -3019,7 +3035,7 @@
             db.ref('leaderboard/typingWords/' + uid).update({
               name:        userProfile.displayName || I18N.t('sensei.trainer'),
               country:     userProfile.country || 'XX',
-              photoURL:    userProfile.photoURL || '',
+              photoURL:    lbPhoto(userProfile),
               typingWords: typingWords,
             }).catch(() => {});
           }
@@ -3030,7 +3046,7 @@
             db.ref('leaderboard/typingWpm/' + uid).update({
               name:     userProfile.displayName || I18N.t('sensei.trainer'),
               country:  userProfile.country || 'XX',
-              photoURL: userProfile.photoURL || '',
+              photoURL: lbPhoto(userProfile),
               wpm:      bestWpm,
               mode:     bestMode,
             }).catch(() => {});
@@ -3049,6 +3065,10 @@
         if (typeof renderCountryArea === 'function' && !profilePanel.contains(document.activeElement)) {
           renderCountryArea();
         }
+        if (typeof renderPhotoPicker === 'function') renderPhotoPicker();
+        // Activity only: persist Discord identity + start the presence panel once
+        // the profile is available (both are no-ops on the normal web / when re-run).
+        if (typeof maybeInitActivityPresence === 'function') maybeInitActivityPresence();
       };
       profRef.on('value', profCb);
       userProfileUnsub = () => profRef.off('value', profCb);
@@ -3315,6 +3335,10 @@
       } catch (e) { console.error('link status failed', e); }
       if (linkBtn)   linkBtn.style.display   = (!linked && isGoogle) ? '' : 'none';
       if (unlinkBtn) unlinkBtn.style.display = linked ? '' : 'none';
+      // Feed the picker: a linked user can choose their Discord photo (shown as a
+      // placeholder until the Activity captures it).
+      discordLinked = linked;
+      if (typeof renderPhotoPicker === 'function') renderPhotoPicker();
     }
 
     async function unlinkDiscord() {
@@ -3508,6 +3532,7 @@
       if (!userProfile) return;
       profileNameInput.value = userProfile.displayName || '';
       renderCountryArea();
+      if (typeof renderPhotoPicker === 'function') renderPhotoPicker();
     }
     senseiBar.addEventListener('click', syncProfileInputs);
 
@@ -3552,6 +3577,109 @@
       await auth.signOut();
       profilePanel.classList.remove('open');
     });
+
+    // --- Discord Activity presence + dual-identity leaderboard photo --------------
+    // Which photo sources the user can choose between. provider==='google' means a
+    // Google photo exists (profile.photoURL); a Discord photo exists once it's been
+    // captured from the Activity (or the user is known-linked, shown as a placeholder).
+    function identityState() {
+      const p = userProfile || {};
+      const A = window.__ACTIVITY__;
+      return {
+        hasGoogle: p.provider === 'google',
+        hasDiscord: !!(p.discordPhotoURL || p.discordName || discordLinked || (A && (A.discordPhotoURL || A.discordName))),
+      };
+    }
+
+    // Render the leaderboard-picture picker (google / discord / hidden). Only shown
+    // when there's a real choice. The leaderboard NAME stays the custom display name.
+    function renderPhotoPicker() {
+      const section = document.getElementById('profile-photo-section');
+      const wrap    = document.getElementById('profile-photo-options');
+      if (!section || !wrap) return;
+      if (!userProfile) { section.hidden = true; return; }
+      const idg  = identityState();
+      const opts = (window.PresenceEngine && window.PresenceEngine.photoOptionsFor)
+        ? window.PresenceEngine.photoOptionsFor(idg) : ['none'];
+      // A lone "Hidden" option isn't a meaningful choice — hide the whole section.
+      if (opts.length < 2) { section.hidden = true; return; }
+      section.hidden = false;
+      const A = window.__ACTIVITY__;
+      const cur    = (userProfile.leaderboardPhoto) || 'google';
+      const active = opts.indexOf(cur) >= 0 ? cur : opts[0];
+      const meta = {
+        google:  { label: 'Google',  sub: userProfile.displayName || '', photo: userProfile.photoURL || '' },
+        discord: { label: 'Discord', sub: userProfile.discordName || (A && A.discordName) || '',
+                   photo: userProfile.discordPhotoURL || (A && A.discordPhotoURL) || '' },
+        none:    { label: 'Hidden',  sub: '', photo: '' },
+      };
+      wrap.innerHTML = opts.map((o) => {
+        const m  = meta[o] || meta.none;
+        const av = m.photo
+          ? `<img class="ppo-av" src="${activityImg(m.photo)}" alt="">`
+          : `<div class="ppo-av ppo-av-ph">${o === 'none' ? '∅' : escapeHtml((m.sub || '?').slice(0, 1))}</div>`;
+        return `<button type="button" class="profile-photo-opt${o === active ? ' selected' : ''}" data-photo="${o}">` +
+          av + `<span class="ppo-label">${m.label}</span>` +
+          (m.sub ? `<span class="ppo-sub">${escapeHtml(m.sub)}</span>` : '') +
+          `</button>`;
+      }).join('');
+    }
+
+    document.getElementById('profile-photo-options').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.profile-photo-opt');
+      if (!btn) return;
+      e.stopPropagation();
+      const pref = btn.getAttribute('data-photo');
+      if (!currentUser || !userProfile) return;
+      try {
+        await db.ref('users/' + currentUser.uid + '/profile/leaderboardPhoto').set(pref);
+        userProfile.leaderboardPhoto = pref;
+        renderPhotoPicker();
+        // Push the resolved photo to every existing leaderboard row immediately so the
+        // change shows without waiting for the next click flush.
+        const photo = lbPhoto(userProfile);
+        const uid = currentUser.uid;
+        ['topClicks', 'typingWords', 'typingWpm'].forEach(async (board) => {
+          const ref = db.ref('leaderboard/' + board + '/' + uid);
+          if ((await ref.once('value')).exists()) ref.update({ photoURL: photo }).catch(() => {});
+        });
+      } catch (err) { console.error('set leaderboardPhoto failed', err); }
+    });
+
+    // One-time presence init for the Activity: persist the Discord identity into the
+    // profile (so the web picker has it), then start the presence panel once the
+    // profile is loaded and presence.js is available.
+    let _presenceInited = false;
+    async function maybeInitActivityPresence() {
+      const A = window.__ACTIVITY__;
+      if (!A || !currentUser || !userProfile) return;
+      try {
+        const upd = {};
+        const dName  = A.discordName ? String(A.discordName).slice(0, 64) : '';
+        const dPhoto = A.discordPhotoURL ? String(A.discordPhotoURL).slice(0, 500) : '';
+        if (dName  && userProfile.discordName     !== dName)  upd.discordName     = dName;
+        if (dPhoto && userProfile.discordPhotoURL !== dPhoto) upd.discordPhotoURL = dPhoto;
+        if (Object.keys(upd).length) {
+          await db.ref('users/' + currentUser.uid + '/profile').update(upd);
+          Object.assign(userProfile, upd);
+          renderPhotoPicker();
+        }
+      } catch (e) { console.error('persist discord identity failed', e); }
+      if (_presenceInited || !window.Presence) return;
+      _presenceInited = true;
+      window.Presence.init({
+        db, activity: A, activityImg, escapeHtml,
+        getSelfState: () => {
+          const pc = (typeof pending !== 'undefined' && pending) ? (pending.userClicks || 0) : 0;
+          return {
+            name:          (userProfile && userProfile.displayName) || A.discordName || 'Sensei',
+            photoURL:      lbPhoto(userProfile),
+            totalClicks:   (userStats.totalClicks || 0) + pc + inFlightUserClicks,
+            sessionClicks: sessionClicks,
+          };
+        },
+      });
+    }
 
     // Max amount any single RTDB counter write may advance a value. The
     // database rules reject writes that bump a counter by more than +10000
@@ -3697,7 +3825,7 @@
       await db.ref('leaderboard/topClicks/' + u.uid).set({
         name:        profile.displayName,
         country:     profile.country,
-        photoURL:    profile.photoURL,
+        photoURL:    lbPhoto(profile),
         totalClicks: clicks,
       }).catch(() => {});
     }
@@ -3814,6 +3942,7 @@
     function recordClick(source) {
       const { character: ch, variant: v } = getVariant(settings.skin);
       const m = shopMul(Date.now());
+      const _scBefore = pending.userClicks;  // for the session-click delta below
 
       if (source === 'mouse') {
         const coinGain  = Math.floor(m.coin);
@@ -3864,6 +3993,9 @@
           pending.userBySource[source] = (pending.userBySource[source] || 0) + clickGain;
         }
       }
+      // Session counter for the Activity presence panel — same leaderboard-eligible
+      // clicks that feed totalClicks (mouse + unlocked leaderboard-auto).
+      sessionClicks += pending.userClicks - _scBefore;
       savePendingDeferred();
       scheduleFlush();
       // Coalesce the two render calls into a single rAF callback. At 30+ cps

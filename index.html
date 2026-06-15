@@ -2205,6 +2205,20 @@
             appCheckTtlMillis: data.appCheckTtlMillis,
             uid: data.uid,
             keiBase: 'https://kei.aobing.it',
+            // Discord identity (from kei-bot's /token exchange): id is the merge key
+            // between the SDK participants roster and the RTDB game nodes; name/avatar
+            // persist into the user's profile so the web leaderboard photo-picker works.
+            // Optional — the presence panel degrades gracefully if any are absent.
+            instanceId: sdk.instanceId,
+            discordId: data.discordId,
+            discordName: data.discordName,
+            discordPhotoURL: data.discordPhotoURL,
+            // Roster accessors for the in-game presence panel (presence.js via app.js).
+            getParticipants: () => sdk.commands.getInstanceConnectedParticipants(),
+            subscribeParticipants: (cb) => {
+              sdk.subscribe('ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE', cb);
+              return () => { try { sdk.unsubscribe('ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE', cb); } catch (e) {} };
+            },
             // External links must go through the SDK in the Activity — a normal navigation
             // to an external site is blocked by the iframe and freezes the app.
             openExternalLink: (url) => sdk.commands.openExternalLink({ url }),
@@ -2282,6 +2296,15 @@
       <label style="font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700;"
              data-i18n="profile.country">Country</label>
       <div id="profile-country-area"></div>
+      <!-- Dual-identity leaderboard picture picker. Shown only when the user has a
+           Discord and/or Google identity to choose between (populated by app.js). The
+           leaderboard NAME stays the custom display name above; only the photo changes. -->
+      <div id="profile-photo-section" hidden>
+        <div style="height: 8px;"></div>
+        <label style="font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700;"
+               data-i18n="profile.leaderboard_photo">Leaderboard picture</label>
+        <div id="profile-photo-options" class="profile-photo-options"></div>
+      </div>
       <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
       <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
       <button id="profile-discord-btn" class="profile-button secondary" onclick="linkDiscord()" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Link Discord</button>
@@ -2289,6 +2312,74 @@
       <div class="profile-error" id="profile-error-linked"></div>
     </div>
   </div>
+
+  <!-- Discord Activity presence panel (top-left). Hidden until presence.js renders
+       rows, so it never appears on the normal web. -->
+  <style>
+    #presence-panel {
+      display: none;
+      position: fixed; top: 12px; left: 12px; z-index: 60;
+      width: 218px; max-height: 46vh; overflow-y: auto;
+      background: var(--ba-card-bg, rgba(255,255,255,0.82));
+      border: 1px solid rgba(77,171,247,0.35);
+      border-radius: 14px;
+      box-shadow: 0 6px 20px rgba(31,44,64,0.16);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      padding: 8px 9px;
+      font-size: 0.78rem; color: var(--ba-text, #1f2c40);
+    }
+    .presence-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .presence-title { font-weight: 800; font-size: 0.72rem; letter-spacing: 0.02em; color: var(--ba-text-muted, #5a6b80); text-transform: uppercase; }
+    .presence-count {
+      margin-left: auto; min-width: 18px; text-align: center;
+      font-weight: 800; font-size: 0.7rem; color: var(--ba-accent-strong, #1c7ed6);
+      background: rgba(77,171,247,0.16); border-radius: 999px; padding: 1px 7px;
+    }
+    .presence-row { display: flex; align-items: center; gap: 6px; padding: 4px 4px; border-radius: 9px; }
+    .presence-row + .presence-row { margin-top: 2px; }
+    .presence-self { background: rgba(77,171,247,0.12); }
+    .presence-ident { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+    .presence-av { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+    .presence-av-sm { width: 15px; height: 15px; border-radius: 50%; object-fit: cover; flex: none; }
+    .presence-av-ph {
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(77,171,247,0.2); color: var(--ba-accent-strong, #1c7ed6);
+      font-weight: 800; text-transform: uppercase;
+    }
+    .presence-av-sm.presence-av-ph { font-size: 0.55rem; }
+    .presence-names { min-width: 0; flex: 1; }
+    .presence-row1 { display: flex; align-items: center; gap: 5px; min-width: 0; }
+    .presence-dname { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .presence-you {
+      flex: none; font-size: 0.6rem; font-weight: 800; color: #fff;
+      background: var(--ba-accent, #4dabf7); border-radius: 999px; padding: 0 5px; line-height: 1.5;
+    }
+    .presence-row2 { display: flex; align-items: center; gap: 4px; margin-top: 1px; opacity: 0.78; }
+    .presence-game-name { font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .presence-clicks { display: flex; flex-direction: column; align-items: flex-end; flex: none; line-height: 1.15; }
+    .presence-total { font-weight: 800; font-variant-numeric: tabular-nums; }
+    .presence-session { font-size: 0.66rem; font-weight: 700; color: var(--ba-accent-strong, #1c7ed6); font-variant-numeric: tabular-nums; }
+    /* Profile leaderboard-picture picker */
+    .profile-photo-options { display: flex; gap: 8px; margin-top: 6px; }
+    .profile-photo-opt {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 7px 4px; border-radius: 11px; cursor: pointer;
+      border: 1.5px solid rgba(31,44,64,0.14); background: rgba(255,255,255,0.5);
+      font: inherit; color: var(--ba-text, #1f2c40);
+    }
+    .profile-photo-opt.selected { border-color: var(--ba-accent, #4dabf7); background: rgba(77,171,247,0.14); }
+    .profile-photo-opt .ppo-av { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+    .profile-photo-opt .ppo-av-ph {
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(31,44,64,0.1); color: var(--ba-text-muted, #5a6b80); font-weight: 800; font-size: 1rem;
+    }
+    .profile-photo-opt .ppo-label { font-size: 0.66rem; font-weight: 700; }
+    .profile-photo-opt .ppo-sub {
+      font-size: 0.6rem; color: var(--ba-text-muted, #5a6b80);
+      max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+  </style>
+  <div id="presence-panel" role="status" aria-label="Players in this Activity"><div id="presence-list"></div></div>
 
   <!-- Sensei profile bar (bottom-left) -->
   <div id="sensei-bar" role="button" aria-label="Profile">
@@ -2629,6 +2720,9 @@
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
+        // window.Presence.init(...) once the user's profile is ready. Inert on the web.
+        .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .catch(function (e) { console.error('lib load failed', e); });
     };
     // Coordinator: on web, load immediately; in Activity, the module below calls this after Discord flow
