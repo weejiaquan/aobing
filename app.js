@@ -109,7 +109,13 @@
     // Activity: sign in with the custom token minted by kei-bot.
     // onAuthStateChanged above will then fire with the signed-in user and the app proceeds normally.
     if (window.__ACTIVITY__) {
-      firebase.auth().signInWithCustomToken(window.__ACTIVITY__.customToken)
+      const _A = window.__ACTIVITY__;
+      firebase.auth().signInWithCustomToken(_A.customToken)
+        // Ensure a game profile exists for this Discord user (the web Discord-login path
+        // does the same via the postMessage handler). Without it userProfile stays null,
+        // which gates off BOTH the presence panel and the leaderboard photo picker.
+        // ensureDiscordProfile is a no-op when a profile already exists (e.g. linked Google).
+        .then(() => ensureDiscordProfile(_A.uid, _A.discordName, _A.discordPhotoURL))
         .catch((e) => console.error('[activity] signInWithCustomToken failed', e));
 
       // In the Activity, any link that navigates away from the SPA (external sites like
