@@ -4617,6 +4617,24 @@
       }
     }
 
+    // --- Typing combo bridge --------------------------------------------------
+    // The typing engine owns its own multiplier; this only paints #combo-display.
+    // It deliberately skips recordComboPeak / the expiry timer (click-only).
+    function renderTypingCombo(n) {
+      if (!(n > 0)) { resetTypingCombo(); return; }
+      comboNumEl.textContent = n.toLocaleString();
+      comboEl.classList.add('active');
+      let tier = 0;
+      for (const tr of COMBO_TIERS) if (n >= tr.threshold) tier = Math.min(tr.tier, COMBO_CAP_TIER);
+      setComboTier(tier);
+    }
+    function resetTypingCombo() {
+      comboEl.classList.remove('active');
+      setComboTier(0);
+      comboNumEl.textContent = '0';
+      comboLabelEl.textContent = I18N.t('combo.label');
+    }
+
     function fireComboEffect(effect, tier) {
       if (effect === 'pulse') {
         spawnComboRing();
