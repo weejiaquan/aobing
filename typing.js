@@ -90,7 +90,8 @@ function nextWords(pack, count, seedIndex) {
 // =========================================================================
 // Run state + input reducer
 // =========================================================================
-function createRunState(words, mode, mods) {
+function createRunState(words, mode, mods, scoring) {
+  scoring = scoring || {};
   return {
     words: words.slice(),
     wordIndex: 0,
@@ -102,6 +103,14 @@ function createRunState(words, mode, mods) {
     mods: mods || {},
     finished: false,
     lastAction: null,  // ephemeral: result of the most recent applyKey
+    // --- combo economy scoring ---
+    subMode: scoring.subMode || 'casual',          // 'casual' | 'ranked'
+    comboPowerLevel: scoring.comboPowerLevel || 1,  // coins added to wordBuffer per correct keystroke
+    casualComboCap: scoring.casualComboCap || 0,    // 0 = uncapped (ranked); >0 caps the casual multiplier
+    commitOnSpace: !!scoring.commitOnSpace,         // ranked: space commits even an incorrect word
+    comboCount: 0,     // the ×multiplier; +1 per correct keystroke; reset rules in applyKey
+    wordBuffer: 0,     // accrues comboPowerLevel per correct keystroke; reset each word
+    runScore: 0,       // sum of word payouts this run (typingScore board unit)
   };
 }
 

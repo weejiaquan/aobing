@@ -73,6 +73,30 @@ test('rankedEligible: QoL flag alone stays eligible', () => {
 });
 
 // =========================================================================
+// createRunState scoring fields
+// =========================================================================
+test('createRunState: scoring defaults when no scoring arg', () => {
+  const s = createRunState(['cat'], 's30', NO_MODS);
+  assert.equal(s.subMode, 'casual');
+  assert.equal(s.comboPowerLevel, 1);
+  assert.equal(s.casualComboCap, 0);
+  assert.equal(s.commitOnSpace, false);
+  assert.equal(s.comboCount, 0);
+  assert.equal(s.wordBuffer, 0);
+  assert.equal(s.runScore, 0);
+});
+
+test('createRunState: scoring arg is applied', () => {
+  const s = createRunState(['cat'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 5, casualComboCap: 20, commitOnSpace: true,
+  });
+  assert.equal(s.subMode, 'ranked');
+  assert.equal(s.comboPowerLevel, 5);
+  assert.equal(s.casualComboCap, 20);
+  assert.equal(s.commitOnSpace, true);
+});
+
+// =========================================================================
 // Word pack registry + nextWords determinism / fallback
 // =========================================================================
 test('WORD_PACKS has a default english-common pack with words', () => {
