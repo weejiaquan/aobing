@@ -241,6 +241,39 @@
       transition: opacity 0.35s ease;
     }
 
+    /* --- Left Mode Menu --- mirror of #combo-display, on the LEFT, always shown */
+    #mode-menu {
+      position: fixed;
+      top: 22%;
+      left: calc(50% - 28vh);
+      transform: translateX(-100%);
+      z-index: 70;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    #mode-menu .mode-row { display: flex; gap: 6px; }
+    #mode-menu .mode-btn {
+      padding: 6px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      font: 600 14px/1 'Segoe UI', system-ui, sans-serif;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+    #mode-menu .mode-btn.sel {
+      background: rgba(255,255,255,0.9);
+      color: #111;
+      border-color: #fff;
+    }
+    @media (max-width: 1080px) {
+      #mode-menu { top: 16%; left: 4%; transform: none; }
+    }
+
     #combo-display.active { opacity: 1; }
 
     /* `transform` lives on the inner element so anime.js scale-bumps don't
