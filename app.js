@@ -4360,7 +4360,9 @@
 
       // 1. Play SFX — each click spawns its own audio, oldest evicted at cap
       playsfx();
-      bumpCombo();
+      // While typing, the typing engine owns #combo-display via renderTypingCombo;
+      // suppress the click-combo paint so the two don't fight over the element.
+      if (!isTypingActive) bumpCombo();
 
       // 2. Swap to active image
       aobaImg.src = resolveActiveSrc(v);
