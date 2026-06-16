@@ -427,18 +427,29 @@ test('submit: ranked uncapped uses full combo', () => {
   assert.equal(s.lastAction.payout, 100); // 10 * 10
 });
 
-test('submit: ranked committing a wrong word resets comboCount to 0', () => {
+test('submit: ranked committing a fully-typed wrong word resets comboCount to 0', () => {
   let s = createRunState(['cat', 'dog'], 's30', NO_MODS, {
     subMode: 'ranked', comboPowerLevel: 1, commitOnSpace: true,
   });
   s = typeWord(s, 'cat', NO_MODS);
   s = applyKey(s, ' ', NO_MODS);          // correct word -> combo 3 retained
   assert.equal(s.comboCount, 3);
-  s = applyKey(s, 'x', NO_MODS);          // wrong first char of 'dog' (no accrual)
-  s = applyKey(s, ' ', NO_MODS);          // commit incorrect -> reset
+  s = typeWord(s, 'dxg', NO_MODS);        // full-length 'dog' but wrong middle char
+  s = applyKey(s, ' ', NO_MODS);          // commit incorrect full word -> reset
   assert.equal(s.lastAction.type, 'word');
   assert.equal(s.lastAction.correct, false);
   assert.equal(s.comboCount, 0);
+});
+
+test('submit: ranked does NOT skip an unfinished word on space (no half-word skip)', () => {
+  let s = createRunState(['dog'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 1, commitOnSpace: true,
+  });
+  s = applyKey(s, 'd', NO_MODS);          // 1 of 3 chars typed
+  s = applyKey(s, ' ', NO_MODS);          // unfinished -> noop, no skip
+  assert.equal(s.lastAction.type, 'noop');
+  assert.equal(s.completedWords, 0);
+  assert.equal(s.wordIndex, 0);
 });
 
 test('submit: casual does NOT reset combo on a fixable word (legacy noop on space)', () => {

@@ -184,9 +184,11 @@ function applyKey(state, key, mods) {
     }
     const matches = (s.buffer === target);
     // Default casual keeps the fix-first rule (noop on incorrect). No-backspace
-    // locks mistakes in, and ranked commitOnSpace advances even when wrong so the
-    // bad word can break the streak.
-    const willCommit = matches || mods.noBackspace || s.commitOnSpace;
+    // locks mistakes in. Ranked commitOnSpace lets a *fully-typed* word commit even
+    // when wrong (so the bad word breaks the streak) — but an unfinished word is a
+    // no-op, so space can't skip a half-typed word.
+    const fullyTyped = (s.buffer.length >= target.length);
+    const willCommit = matches || mods.noBackspace || (s.commitOnSpace && fullyTyped);
     if (!willCommit) {
       s.lastAction = { type: 'noop' };
       return s;
