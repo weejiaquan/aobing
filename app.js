@@ -2391,9 +2391,9 @@
 
     // --- Shop helpers -----------------------------------------------------------
     const SHOP_MAX_LEVEL = 30;
-    const SHOP_BUFF_COST = 200;
+    const SHOP_BUFF_COST = 160;          // ~20% cheaper (was 200)
     const SHOP_BUFF_DURATION_MS = 60_000;
-    const SHOP_LBAUTO_COST = 10_000;
+    const SHOP_LBAUTO_COST = 8_000;      // ~20% cheaper (was 10k)
 
     function shopFieldFor(which) {
       if (which === 'coinMul')    return 'coinMulLevel';
@@ -2403,8 +2403,9 @@
     }
 
     function shopCostFor(which, level) {
-      if (which === 'coinMul' || which === 'clickMul') return Math.round(50 * Math.pow(1.5, level));
-      if (which === 'autoLevel')                       return Math.round(75 * Math.pow(1.4, level));
+      // Base prices reduced ~20% (50->40, 75->60).
+      if (which === 'coinMul' || which === 'clickMul') return Math.round(40 * Math.pow(1.5, level));
+      if (which === 'autoLevel')                       return Math.round(60 * Math.pow(1.4, level));
       return Infinity;
     }
 
@@ -2419,11 +2420,11 @@
       const s = userShop || {};
       const b = s.buffs || {};
       const active = (key) => ((b[key] && b[key].expiresAt) || 0) > now;
-      // Permanent +5% coins per prestige star. Applies to coins only — clicks
+      // Permanent +20% coins per prestige star. Applies to coins only — clicks
       // (which feed totalClicks/leaderboard) are untouched by design, so prestige
       // can't be used to inflate leaderboard standing.
       const stars = (userStats && userStats.prestigeStars) || 0;
-      const prestigeMul = 1 + 0.05 * stars;
+      const prestigeMul = 1 + 0.20 * stars;
       // Per-variant bond bonus — +10% coins per bond level WHILE using that
       // variant. Same coin-only constraint as prestige.
       const activeBonds = variantBonds(settings.skin);
@@ -3125,6 +3126,7 @@
             photoURL:    lbPhoto(userProfile),
             totalClicks: userStats.totalClicks || 0,
             typingWords: userStats.typingWords || 0,   // for the combined level (rank stays totalClicks)
+            prestigeStars: userStats.prestigeStars || 0,
           }).catch(() => {});
           // Typing boards — same profile-gated mirror. Words board tracks all
           // typed words; WPM board tracks the user's single best ranked run.
@@ -3354,7 +3356,7 @@
             ${avatar}
             <span class="lb-flag">${flag}</span>
             <span class="lb-name">${escapeHtml(r.name || I18N.t('sensei.trainer'))}</span>
-            <span class="lb-level">Lv.${levelOf(progressXp(r.totalClicks, r.typingWords))}</span>
+            <span class="lb-level">Lv.${levelOf(progressXp(r.totalClicks, r.typingWords))}${(r.prestigeStars || 0) > 0 ? ` <span class="lb-stars">★${r.prestigeStars}</span>` : ''}</span>
             <span class="lb-clicks">${(r.totalClicks || 0).toLocaleString()}</span>
             ${adminCol}
           </div>`;
