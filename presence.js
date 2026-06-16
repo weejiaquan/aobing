@@ -94,16 +94,16 @@ function mergeParticipants(roster, nodes, selfDiscordId) {
   return rows;
 }
 
-var ENGINE = {
+var PRESENCE_ENGINE = {
   resolveLeaderboardPhoto: resolveLeaderboardPhoto,
   photoOptionsFor: photoOptionsFor,
   mergeParticipants: mergeParticipants,
 };
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = ENGINE;
+  module.exports = PRESENCE_ENGINE;
 }
 if (typeof window !== 'undefined') {
-  window.PresenceEngine = ENGINE;
+  window.PresenceEngine = PRESENCE_ENGINE;
 }
 
 // =========================================================================
@@ -233,7 +233,7 @@ if (typeof document !== 'undefined') {
 
   function _recompute() {
     if (!_state) return;
-    var rows = ENGINE.mergeParticipants(_state.roster, _state.nodes, _state.selfDiscordId);
+    var rows = PRESENCE_ENGINE.mergeParticipants(_state.roster, _state.nodes, _state.selfDiscordId);
     _render(_state.deps, _state.listEl, rows);
   }
 
