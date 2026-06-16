@@ -2254,6 +2254,11 @@
     // Lv.1 at 20 clicks, Lv.10 at 2k, Lv.50 at 50k, Lv.100 at 200k.
     function levelOf(clicks)             { return Math.floor(Math.sqrt(clicks / 20)); }
     function clicksForLevel(n)           { return n * n * 20; }
+    // Level/XP progression counts clicks AND typing (each typed word ~5 keystrokes
+    // of progress). The leaderboard still RANKS by totalClicks only — this only
+    // feeds the level shown in the sensei bar and on leaderboard rows.
+    const TYPING_WORD_XP = 5;
+    function progressXp(totalClicks, typingWords) { return (totalClicks || 0) + (typingWords || 0) * TYPING_WORD_XP; }
     function clicksInLevel(c)            { return c - clicksForLevel(levelOf(c)); }
     function clicksToNextLevel(c)        { return clicksForLevel(levelOf(c) + 1) - clicksForLevel(levelOf(c)); }
 
@@ -3026,9 +3031,11 @@
       const pendingClicks = (typeof pending !== 'undefined' && pending) ? (pending.userClicks || 0) : 0;
       const clicks = (userStats.totalClicks || 0) + pendingClicks + inFlightUserClicks;
       const coins  = (userStats.coinBalance || 0) + pendingCoins  + inFlightUserCoins;
-      const lv = levelOf(clicks);
-      const cur = clicksInLevel(clicks);
-      const need = clicksToNextLevel(clicks);
+      const typingWords = (userStats.typingWords || 0) + ((typeof pending !== 'undefined' && pending) ? (pending.typingWords || 0) : 0);
+      const xp = progressXp(clicks, typingWords);   // clicks + typing
+      const lv = levelOf(xp);
+      const cur = clicksInLevel(xp);
+      const need = clicksToNextLevel(xp);
       senseiLevelEl.textContent = 'Lv.' + lv;
       senseiXpFillEl.style.width = (need > 0 ? Math.min(100, cur / need * 100) : 0) + '%';
       senseiXpTextEl.textContent = cur.toLocaleString() + ' / ' + need.toLocaleString();
@@ -3117,6 +3124,7 @@
             country:     userProfile.country || 'XX',
             photoURL:    lbPhoto(userProfile),
             totalClicks: userStats.totalClicks || 0,
+            typingWords: userStats.typingWords || 0,   // for the combined level (rank stays totalClicks)
           }).catch(() => {});
           // Typing boards — same profile-gated mirror. Words board tracks all
           // typed words; WPM board tracks the user's single best ranked run.
@@ -3346,7 +3354,7 @@
             ${avatar}
             <span class="lb-flag">${flag}</span>
             <span class="lb-name">${escapeHtml(r.name || I18N.t('sensei.trainer'))}</span>
-            <span class="lb-level">Lv.${levelOf(r.totalClicks || 0)}</span>
+            <span class="lb-level">Lv.${levelOf(progressXp(r.totalClicks, r.typingWords))}</span>
             <span class="lb-clicks">${(r.totalClicks || 0).toLocaleString()}</span>
             ${adminCol}
           </div>`;
