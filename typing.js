@@ -327,15 +327,10 @@ if (typeof document !== 'undefined') {
     const boardWpmBtn = document.getElementById('typing-board-wpm');
     const boardListEl = document.getElementById('typing-board-list');
     const closeBtn = document.getElementById('typing-close');
-    const moreBtn = document.getElementById('typing-more');
-    const settingsEl = document.getElementById('typing-settings');
-    const settingsDialog = settingsEl && settingsEl.querySelector('.typing-settings-dialog');
-    const settingsCloseBtn = document.getElementById('typing-settings-close');
 
     let run = null;
     let running = false;
     let panelOpen = false;
-    let settingsOpen = false;
     let startMs = 0;
     let endsAt = 0;
     let timerId = null;
@@ -510,7 +505,6 @@ if (typeof document !== 'undefined') {
     }
 
     function onKey(e) {
-      if (settingsOpen) return;                // settings modal is up — ignore typing
       const k = e.key;
       if (k === 'Tab') return;                 // let focus move out
       if (k === 'Escape') return;              // handled by the document Esc listener
@@ -702,7 +696,6 @@ if (typeof document !== 'undefined') {
       setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
     }
     function closePanel() {
-      if (settingsOpen) closeSettings();
       panel.classList.remove('open');
       panelOpen = false;
       deps.setTypingActive(false);
@@ -715,46 +708,15 @@ if (typeof document !== 'undefined') {
       if (running) finishRun();
     }
 
-    // --- Settings modal (modes, modifiers, leaderboards) ---------------------
-    function openSettings() {
-      if (!settingsEl) return;
-      if (running) finishRun();             // pause play while configuring
-      renderModes();
-      renderMods();
-      renderToggles();
-      renderUpgrades();
-      loadBoard('words');
-      settingsEl.classList.add('open');
-      settingsEl.setAttribute('aria-hidden', 'false');
-      settingsOpen = true;
-    }
-    function closeSettings() {
-      if (!settingsEl) return;
-      settingsEl.classList.remove('open');
-      settingsEl.setAttribute('aria-hidden', 'true');
-      settingsOpen = false;
-      if (panelOpen) {                      // resume with any new mode/modifiers
-        startRun();
-        setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
-      }
-    }
-
     btn.addEventListener('click', (e) => { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
     // Clicking the floating play area just refocuses the input (resume typing).
-    panel.addEventListener('click', () => { if (!settingsOpen) inputEl.focus({ preventScroll: true }); });
+    panel.addEventListener('click', () => inputEl.focus({ preventScroll: true }));
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
-    if (moreBtn) moreBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
 
-    // Settings modal: backdrop closes it; clicks on the dialog stay open.
-    if (settingsEl) settingsEl.addEventListener('click', () => closeSettings());
-    if (settingsDialog) settingsDialog.addEventListener('click', (e) => e.stopPropagation());
-    if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', (e) => { e.stopPropagation(); closeSettings(); });
-
-    // Esc closes the settings modal first, otherwise the play overlay.
+    // Esc closes the play overlay.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (settingsOpen) closeSettings();
-      else if (panelOpen) closePanel();
+      if (panelOpen) closePanel();
     });
 
     inputEl.addEventListener('keydown', onKey);
@@ -786,7 +748,7 @@ if (typeof document !== 'undefined') {
 
     api.open = openPanel;
     api.close = closePanel;
-    api.openSettings = openSettings;
+    api.loadBoard = loadBoard;
     api.refreshKeyboardPanel = refreshKeyboardPanel;
     api.setSubMode = function (sm) {
       if (running) finishRun();                 // finalize under the run's own submode first

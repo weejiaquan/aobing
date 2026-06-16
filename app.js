@@ -3231,10 +3231,26 @@
     const leaderboardSignin   = document.getElementById('leaderboard-signin');
     let leaderboardUnsub = null;
 
-    function openLeaderboard() {
+    const lbScopeEl   = document.getElementById('lb-scope');
+    const lbClickerEl = document.getElementById('lb-clicker');
+    const lbTypingEl  = document.getElementById('lb-typing');
+    function setLeaderboardScope(scope) {
+      const s = (scope === 'typing') ? 'typing' : 'clicker';
+      if (lbScopeEl) lbScopeEl.querySelectorAll('button[data-scope]').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-scope') === s));
+      if (lbClickerEl) lbClickerEl.hidden = (s !== 'clicker');
+      if (lbTypingEl)  lbTypingEl.hidden  = (s !== 'typing');
+      if (s === 'clicker') {
+        loadLeaderboard();
+      } else {
+        if (leaderboardUnsub) { leaderboardUnsub(); leaderboardUnsub = null; } // stop the clicks listener
+        if (window.TypingGame && window.TypingGame.loadBoard) window.TypingGame.loadBoard('words');
+      }
+    }
+    function openLeaderboard(scope) {
       leaderboardModal.classList.add('open');
       leaderboardModal.setAttribute('aria-hidden', 'false');
-      loadLeaderboard();
+      setLeaderboardScope(scope || 'clicker');
     }
     function closeLeaderboard() {
       leaderboardModal.classList.remove('open');
@@ -3255,6 +3271,10 @@
     leaderboardSignin.addEventListener('click', () => {
       closeLeaderboard();
       senseiBar.click();
+    });
+    if (lbScopeEl) lbScopeEl.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-scope]');
+      if (b) setLeaderboardScope(b.getAttribute('data-scope'));
     });
 
     // Admin hide-toggle: event delegation on the list since rows are re-rendered.
@@ -5178,7 +5198,7 @@
       const accBoardsBtn = document.getElementById('acc-boards-btn');
       if (accBoardsBtn) accBoardsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (window.TypingGame && window.TypingGame.openSettings) window.TypingGame.openSettings();
+        openLeaderboard('typing');
       });
       setAccordion(settings.gameMode || 'clicker');
       renderModeMenu();

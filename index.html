@@ -318,6 +318,16 @@
       #mode-menu { top: 12%; left: 4%; transform: none; }
     }
 
+    /* Leaderboard scope toggle (Clicker vs Keyboard) */
+    .lb-scope { display: flex; gap: 8px; margin: 4px 0 12px; }
+    .lb-scope button {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 10px; border-radius: 10px;
+      border: 1px solid rgba(0,0,0,0.15);
+      background: rgba(0,0,0,0.04); color: #333; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    .lb-scope button.sel { background: #3a6ea5; color: #fff; border-color: #3a6ea5; }
+
     #combo-display.active { opacity: 1; }
 
     /* `transform` lives on the inner element so anime.js scale-bumps don't
@@ -1414,21 +1424,6 @@
     }
     .typing-icon-btn:hover { background: #fff; transform: translateY(-1px); }
 
-    /* SETTINGS modal: separate, proper modal (modes, modifiers, leaderboards). */
-    #typing-settings {
-      position: fixed; inset: 0; z-index: 210;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
-      opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-    }
-    #typing-settings.open { opacity: 1; pointer-events: auto; }
-    .typing-settings-dialog {
-      width: min(420px, 92vw); max-height: 86vh; overflow-y: auto;
-      background: var(--ba-card-bg); border: var(--ba-card-border); border-radius: 16px;
-      padding: 14px 18px 18px; color: var(--ba-text); font-size: 0.85rem; box-shadow: var(--ba-card-shadow);
-      transform: translateY(8px) scale(0.99); transition: transform 0.2s ease;
-    }
-    #typing-settings.open .typing-settings-dialog { transform: translateY(0) scale(1); }
     .typing-modes { display: flex; gap: 6px; margin: 4px 0 14px; }
     .typing-modes button {
       flex: 1; padding: 7px 0; border-radius: 8px; border: 1px solid var(--ba-divider);
@@ -2629,10 +2624,24 @@
         <div class="stats-title"><span data-i18n="leaderboard.title">Leaderboard</span></div>
         <button class="stats-close" id="leaderboard-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
-      <div class="lb-info-banner" data-i18n="leaderboard.info_banner">Only mouse and tap clicks count toward your rank. Keyboard mashing is fun, but it's not on the board.</div>
-      <div id="leaderboard-list"></div>
-      <div id="leaderboard-yourrank" class="lb-yourrank"></div>
-      <div id="leaderboard-signin" class="lb-signin-cta" data-i18n="leaderboard.sign_in_cta" hidden>Sign in to join the leaderboard →</div>
+      <div class="lb-scope" id="lb-scope">
+        <button type="button" data-scope="clicker" class="sel"><span>🖱</span> <span data-i18n="mode.clicker">Clicker</span></button>
+        <button type="button" data-scope="typing"><span>⌨</span> <span data-i18n="mode.keyboard">Keyboard</span></button>
+      </div>
+      <div id="lb-clicker">
+        <div class="lb-info-banner" data-i18n="leaderboard.info_banner">Only mouse and tap clicks count toward your rank. Keyboard mashing is fun, but it's not on the board.</div>
+        <div id="leaderboard-list"></div>
+        <div id="leaderboard-yourrank" class="lb-yourrank"></div>
+        <div id="leaderboard-signin" class="lb-signin-cta" data-i18n="leaderboard.sign_in_cta" hidden>Sign in to join the leaderboard →</div>
+      </div>
+      <div id="lb-typing" hidden>
+        <div class="typing-board-tabs">
+          <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
+          <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
+          <button id="typing-board-score" data-i18n="typing.board_score">Score</button>
+        </div>
+        <div id="typing-board-list" class="typing-board-list"></div>
+      </div>
     </div>
   </div>
 
@@ -2646,7 +2655,6 @@
   <!-- Typing PLAY overlay: pure floating text over the character, no modal box -->
   <div id="typing-panel">
     <div class="typing-corner">
-      <button id="typing-more" class="typing-icon-btn" type="button" aria-label="Typing settings" data-i18n-attr="aria-label:typing.modifiers">&#9881;</button>
       <button id="typing-close" class="typing-icon-btn" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
     </div>
     <div id="typing-stream" class="typing-stream"></div>
@@ -2656,23 +2664,6 @@
       <button id="typing-stop" class="typing-stop" type="button" hidden data-i18n="typing.stop">Stop</button>
     </div>
     <div id="typing-result" class="typing-result" hidden></div>
-  </div>
-
-  <!-- Typing SETTINGS modal: modes, modifiers, leaderboards -->
-  <div id="typing-settings" aria-hidden="true">
-    <div class="typing-settings-dialog" role="dialog" aria-label="Typing settings">
-      <div class="stats-header">
-        <div class="stats-title"><span data-i18n="typing.boards">Leaderboards</span></div>
-        <button class="stats-close" id="typing-settings-close" type="button" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
-      </div>
-      <div class="shop-section-title" data-i18n="typing.boards">Leaderboards</div>
-      <div class="typing-board-tabs">
-        <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
-        <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
-        <button id="typing-board-score" data-i18n="typing.board_score">Score</button>
-      </div>
-      <div id="typing-board-list" class="typing-board-list"></div>
-    </div>
   </div>
 
   <!-- Stats -->
