@@ -351,14 +351,15 @@ if (typeof document !== 'undefined') {
       return ENGINE.nextWords(pack, STREAM_REFILL, freshSeed());
     }
 
-    // Modifiers are locked at run start (toggling mid-run can't change ranked
-    // eligibility). Only owned + toggled-on assists count.
+    // Modifiers are locked at run start. Ranked force-disables every assist
+    // (so a ranked run is always legit); QoL is ranked-safe and always allowed.
     function activeMods() {
       const shop = deps.getUserShop();
+      const ranked = (settings.typingSubMode === 'ranked');
       return {
-        freedom:     !!(shop.typingFreedom && settings.typingFreedomOn),
-        noBackspace: !!(shop.typingNoBackspace && settings.typingNoBackspaceOn),
-        stopOnError: !!(shop.typingStopOnError && settings.typingStopOnErrorOn),
+        freedom:     !ranked && !!(shop.typingFreedom && settings.typingFreedomOn),
+        noBackspace: !ranked && !!(shop.typingNoBackspace && settings.typingNoBackspaceOn),
+        stopOnError: !ranked && !!(shop.typingStopOnError && settings.typingStopOnErrorOn),
         qol:         !!shop.typingQol,
       };
     }
@@ -589,6 +590,13 @@ if (typeof document !== 'undefined') {
             else { buy.disabled = false; buy.classList.add('typing-buy-err'); }
           });
           row.appendChild(buy);
+        } else if (d.toggle && settings.typingSubMode === 'ranked') {
+          // Assists are force-disabled in Ranked — show a static label, keep the
+          // saved toggle state for when the player switches back to Casual.
+          const off = document.createElement('span');
+          off.className = 'typing-mod-off';
+          off.textContent = t('typing.off_ranked');
+          row.appendChild(off);
         } else if (d.toggle) {
           const tg = document.createElement('button');
           tg.className = 'settings-toggle' + (settings[d.toggle] ? ' on' : '');

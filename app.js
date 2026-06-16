@@ -431,6 +431,7 @@
           'typing.times_up':"Time's up!",
           'typing.restart_hint':'Press Enter or Restart to go again.',
           'typing.restart':'Restart',
+          'typing.off_ranked':'Off in Ranked',
           'typing.board_words':'Words','typing.board_wpm':'WPM',
           'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
           'typing.ranked':'Ranked','typing.casual':'Casual',
