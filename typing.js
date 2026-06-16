@@ -611,18 +611,28 @@ if (typeof document !== 'undefined') {
     async function loadBoard(kind) {
       boardWordsBtn.classList.toggle('sel', kind === 'words');
       boardWpmBtn.classList.toggle('sel', kind === 'wpm');
+      const boardScoreBtn = document.getElementById('typing-board-score');
+      if (boardScoreBtn) boardScoreBtn.classList.toggle('sel', kind === 'score');
       boardListEl.textContent = t('typing.loading');
-      const order = kind === 'wpm' ? 'wpm' : 'typingWords';
-      const path = kind === 'wpm' ? 'leaderboard/typingWpm' : 'leaderboard/typingWords';
+      const path = kind === 'wpm' ? 'leaderboard/typingWpm'
+        : kind === 'score' ? 'leaderboard/typingScore'
+        : 'leaderboard/typingWords';
+      const order = kind === 'wpm' ? 'wpm' : kind === 'score' ? 'score' : 'typingWords';
       try {
         const snap = await db.ref(path).orderByChild(order).limitToLast(50).once('value');
         const rows = [];
         snap.forEach((c) => { const v = c.val(); if (v && v.hidden !== true) rows.push(v); });
-        rows.sort((a, b) => (kind === 'wpm' ? (b.wpm || 0) - (a.wpm || 0) : (b.typingWords || 0) - (a.typingWords || 0)));
+        rows.sort((a, b) => (
+          kind === 'wpm'   ? (b.wpm || 0) - (a.wpm || 0)
+          : kind === 'score' ? (b.score || 0) - (a.score || 0)
+          : (b.typingWords || 0) - (a.typingWords || 0)
+        ));
         if (!rows.length) { boardListEl.innerHTML = '<div class="typing-empty">' + t('typing.board_empty') + '</div>'; return; }
         boardListEl.innerHTML = rows.map((v, i) => {
           const val = kind === 'wpm'
             ? ((v.wpm || 0) + ' ' + t('typing.wpm') + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
+            : kind === 'score'
+            ? ((v.score || 0).toLocaleString() + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
             : ((v.typingWords || 0) + ' ' + t('typing.words'));
           return '<div class="typing-row"><span class="typing-rank">' + (i + 1) + '</span>' +
             '<span class="typing-name">' + (flag(v.country) || '') + ' ' + esc(v.name || '') + '</span>' +
@@ -705,6 +715,8 @@ if (typeof document !== 'undefined') {
     });
     boardWordsBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('words'); });
     boardWpmBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('wpm'); });
+    const boardScoreBtn = document.getElementById('typing-board-score');
+    if (boardScoreBtn) boardScoreBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('score'); });
 
     // Re-render localized labels when the language changes.
     window.addEventListener('i18nchange', () => {
