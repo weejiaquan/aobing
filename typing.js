@@ -709,8 +709,12 @@ if (typeof document !== 'undefined') {
     }
 
     btn.addEventListener('click', (e) => { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
-    // Clicking the floating play area just refocuses the input (resume typing).
-    panel.addEventListener('click', () => inputEl.focus({ preventScroll: true }));
+    // Click the word stream to type; click anywhere else in the play area to
+    // unfocus (stop typing). There's no close button — leave via the mode menu/Esc.
+    panel.addEventListener('click', (e) => {
+      if (streamEl.contains(e.target)) inputEl.focus({ preventScroll: true });
+      else inputEl.blur();
+    });
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
 
     // Esc closes the play overlay.
