@@ -437,7 +437,7 @@
           'typing.ranked':'Ranked','typing.casual':'Casual',
           'typing.mod.freedom':'Freedom mode','typing.mod.nobackspace':'No backspace',
           'typing.mod.stoponerror':'Stop on error','typing.mod.qol':'QoL pack (live WPM)',
-          'typing.toggle.on_word':'Bounce on word','typing.toggle.per_key':'Bounce on each key',
+          'typing.toggle.on_word':'Bounce on word','typing.toggle.per_key':'Bounce on each key','typing.toggle.caret_follow':'Typewriter caret (follow)',
           'typing.loading':'Loading…','typing.board_empty':'No entries yet','typing.board_error':'Could not load board',
         },
         ja: {
@@ -1045,6 +1045,7 @@
       typingFreedomOn: false, typingNoBackspaceOn: false, typingStopOnErrorOn: false,
       gameMode: 'clicker',        // 'clicker' | 'typing' — left mode menu top level
       typingSubMode: 'casual',    // 'casual' | 'ranked' — only meaningful in typing mode
+      typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
     };
 
     // --- Admin gating -----------------------------------------------------------

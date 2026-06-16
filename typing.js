@@ -346,6 +346,7 @@ if (typeof document !== 'undefined') {
     let lastElapsed = 0;
     let selectAllPending = false; // true after Ctrl+A, until the next key
     let awaitingRestart = false;  // run ended (e.g. time's up) — keys won't auto-start a new run
+    let streamWindowStart = 0;    // typewriter (caret-follow) mode: first visible word index
 
     function freshSeed() {
       seedCounter += 1;
@@ -393,6 +394,7 @@ if (typeof document !== 'undefined') {
       startMs = 0;
       endsAt = 0;
       awaitingRestart = false;
+      streamWindowStart = 0;
       if (deps.resetTypingCombo) deps.resetTypingCombo();
       resultEl.hidden = true;
       streamEl.classList.remove('typing-dim');
@@ -490,11 +492,25 @@ if (typeof document !== 'undefined') {
 
     function renderStream() {
       const cur = run.wordIndex;
-      const end = Math.min(cur + VISIBLE_WORDS, run.words.length);
       const parts = [];
-      for (let i = cur; i < end; i++) {
-        if (i === cur) parts.push('<span class="tw tw-cur">' + renderCurrentWord(run.words[i], run.buffer) + '</span>');
-        else parts.push('<span class="tw">' + esc(run.words[i]) + '</span>');
+      if (settings.typingCaretFollow) {
+        // Typewriter/typeracer: caret follows along a fixed window of words; once
+        // the window is used up it returns to the start (current word -> first slot).
+        if (cur < streamWindowStart || cur >= streamWindowStart + VISIBLE_WORDS) streamWindowStart = cur;
+        const start = streamWindowStart;
+        const end = Math.min(start + VISIBLE_WORDS, run.words.length);
+        for (let i = start; i < end; i++) {
+          if (i < cur)        parts.push('<span class="tw tw-done">' + esc(run.words[i]) + '</span>');
+          else if (i === cur) parts.push('<span class="tw tw-cur">' + renderCurrentWord(run.words[i], run.buffer) + '</span>');
+          else                parts.push('<span class="tw">' + esc(run.words[i]) + '</span>');
+        }
+      } else {
+        // Scroll (default): active word pinned to the front, text scrolls per word.
+        const end = Math.min(cur + VISIBLE_WORDS, run.words.length);
+        for (let i = cur; i < end; i++) {
+          if (i === cur) parts.push('<span class="tw tw-cur">' + renderCurrentWord(run.words[i], run.buffer) + '</span>');
+          else parts.push('<span class="tw">' + esc(run.words[i]) + '</span>');
+        }
       }
       streamEl.innerHTML = parts.join(' ');
     }
@@ -632,6 +648,7 @@ if (typeof document !== 'undefined') {
     const TOGGLE_DEFS = [
       { key: 'typingClickOnWord', label: 'typing.toggle.on_word' },
       { key: 'typingClickPerKey', label: 'typing.toggle.per_key' },
+      { key: 'typingCaretFollow', label: 'typing.toggle.caret_follow' },
     ];
 
     function renderToggles() {
