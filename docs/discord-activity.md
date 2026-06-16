@@ -102,7 +102,8 @@ App Check is **enforced** on RTDB + Auth. The iframe can't run reCAPTCHA, so it 
 
 - The Activity calls `discordSdk.commands.authorize()` → code → `/api/activity/token` → `signInWithCustomToken(customToken)`.
 - The token's `uid` is the **canonical uid**: the user's linked Google uid if they've linked, else `discord:<id>`. So a linked user lands on the **same account** whether they play on web or in Discord.
-- A Discord-platform custom token carries a `platform: "discord"` claim (used to gate `/api/activity/appcheck-token`).
+- A Discord-platform custom token carries `platform: "discord"` + `discord_id` claims. **`discord_id` is a STRING** — Discord snowflake IDs exceed 2^53, so an int claim loses precision when Firebase RTDB rules / the JS client read it back. The `activities/*` presence rule compares the node's `discordId` against `auth.token.discord_id`, so they must stay string-equal.
+- `/api/activity/token` also returns the player's **Discord identity** — `discordId` (string), `discordName`, `discordPhotoURL` — so the Activity can label the presence panel and persist a Discord avatar for the web leaderboard photo picker. The client never gets the Discord *access token* back (kei-bot exchanges the code server-side), which is why the SDK's authenticated participants API is unavailable — see §9.
 
 ---
 
@@ -113,12 +114,14 @@ detect IN_ACTIVITY
  → import vendored Discord SDK (cache-busted)
  → fetch activity-mappings.json (cache-busted) → patchUrlMappings(...)
  → DiscordSDK.ready() → authorize() → code
- → POST /api/activity/token → { customToken, appCheckToken, uid }
- → window.__ACTIVITY__ = {...}
- → window.__loadLibsAndApp()   // loads proxied libs + app.js
- → app.js: initializeApp → App Check CustomProvider → signInWithCustomToken
+ → POST /api/activity/token → { customToken, appCheckToken, uid, discordId, discordName, discordPhotoURL }
+ → window.__ACTIVITY__ = {...}   // also: instanceId, discordId, discordName, discordPhotoURL
+ → window.__loadLibsAndApp()   // loads proxied libs + app.js + typing.js + presence.js
+ → app.js: initializeApp → App Check CustomProvider → signInWithCustomToken → ensureDiscordProfile
 ```
-The libs and `app.js` must load **after** `patchUrlMappings` (so their requests are rewritten) — that's why they're loaded dynamically, not via static `<head>` tags.
+The libs and `app.js` must load **after** `patchUrlMappings` (so their requests are rewritten) — that's why they're loaded dynamically, not via static `<head>` tags. `typing.js` and `presence.js` load after `app.js` (all cache-busted in the Activity).
+
+> **Activity users get a profile too.** `signInWithCustomToken` is followed by `ensureDiscordProfile(uid, discordName, discordPhotoURL)` (mirrors the web Discord-login path). Without it `userProfile` stays null, which gates off the presence panel **and** the leaderboard photo picker (both require a profile).
 
 ---
 
@@ -148,13 +151,36 @@ You can only test the Activity by launching it in Discord. Open devtools in the 
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/activity/token` | Discord code → Firebase custom token + bootstrap App Check token |
+| `POST /api/activity/token` | Discord code → Firebase custom token + bootstrap App Check token + Discord identity (`discordId`/`discordName`/`discordPhotoURL`) |
 | `POST /api/activity/appcheck-token` | refresh App Check token (gated to `platform=discord`) |
 | `GET /api/img?url=` | allowlisted image proxy for avatars |
 | `POST /api/link/start` + `GET /api/link/callback` | web Discord linking (popup) |
 | `GET /api/link/compare` + `POST /api/link/resolve` | "keep which save" merge |
 | `POST /api/link/unlink` + `GET /api/link/status` | unlink Discord / linked-state |
 | `POST /api/web/discord/start` + `GET /api/web/discord/callback` | web "Sign in with Discord" |
+
+---
+
+## 9. In-Activity presence panel + dual identity
+
+An always-visible panel (bottom-right, above the `#system-time` clock) shows who else is in **this Activity instance**, with their Discord identity, in-game identity, and total / this-session clicks. Active members sit on top; departed members drop into a dimmed **"Left"** section. It also drives a **leaderboard photo picker** in the profile panel (Google / Discord / Hidden). All of this is Discord-only — `presence.js` is inert on the web (no `window.__ACTIVITY__`).
+
+### The big gotcha: the SDK participants API doesn't work here → **pure-RTDB instead**
+`getInstanceConnectedParticipants()` and the `ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE` subscribe require an **`authenticate()`-d SDK session**. Our boot does `authorize()` but kei-bot exchanges the code server-side, so the client never gets the Discord *access token* to call `authenticate()`. Calling those APIs throws **`{ code: 4006, "Not authenticated or invalid scope" }`**.
+
+So presence is **pure RTDB**: each client self-registers at `activities/{instanceId}/participants/{uid}`, writing its **own** Discord identity (from the `/api/activity/token` response), its in-game identity, click totals, and `active: true`. The panel renders entirely from that node list — no SDK roster. In an Activity "self-registered in this instance" == "in the call", so nothing real is lost.
+
+- **Presence/leave:** `onDisconnect().update({ active: false, leftAt })` (NOT remove) so a departed player moves to "Left" instead of vanishing. Re-joining flips `active` back to true.
+- **Identity trust:** the RTDB rule pins `participants/$uid/discordId === auth.token.discord_id` (the string claim), so a client can't spoof another's row. `totalClicks` is capped to the user's real `stats/totalClicks (+10k)`; `sessionClicks` is cosmetic.
+- **Files:** `presence.js` (new, cache-busted) — pure layer (`buildRows` / `resolveLeaderboardPhoto` / `photoOptionsFor`, unit-tested in `presence.test.js`) + `window.Presence.init(deps)` browser wiring. `app.js` wires it after the profile loads. Panel position is set via **inline styles in `presence.js`**, so re-positioning needs no `index.html` change.
+
+### Dual-identity leaderboard photo picker
+The leaderboard **name** is always the custom display name; only the **photo** is selectable: Google avatar / Discord avatar / Hidden (placeholder). Stored at `users/{uid}/profile/leaderboardPhoto`. The leaderboard `photoURL` RTDB rule is relaxed to accept exactly `'' | profile.photoURL | profile.discordPhotoURL` (still anti-spoof). The Discord avatar is persisted to `users/{uid}/profile/discordPhotoURL` on Activity launch so the picker works on the **web** too.
+
+### Gotcha: global `<script>` files share one scope
+`app.js`, `typing.js`, and `presence.js` are plain (non-module) scripts — they all execute in the **same global scope**. Two of them declaring the same top-level `const`/`var` (e.g. both had `ENGINE`) throws `Identifier '…' has already been declared` at parse time and the **whole file silently fails to run**. Keep each file's top-level identifiers unique (presence.js uses `PRESENCE_ENGINE`).
+
+> Most presence work ships **without touching `index.html`**: `presence.js` is cache-busted, RTDB rules deploy via `firebase deploy --only database`, and the kei-bot token fields deploy via Railway. So you skip the 10-min `index.html` cache lag (§7) — a relaunch picks up `presence.js`.
 
 ---
 
@@ -170,16 +196,18 @@ Before assuming a new feature works in Discord, ask:
 6. **Did you add a new `<head>` `<link>`/`<script>`?** → it'll be CSP-blocked in the iframe. Load it dynamically via the loader instead (and proxify/map it).
 7. **Does it rely on `window`/`document` timing at parse?** → remember `app.js` loads *after* the Discord auth flow in the Activity, not at page parse.
 8. **Web regression check** → load `aobing.it` (not the Activity) and confirm sign-in + leaderboard + clicking still work. The web path must be byte-identical.
-9. **Test live** → the Activity can only be tested by launching it in Discord. Switch the console off `top` to the `discordsays.com` frame (§7.5); CSP errors name the exact host/script that needs a mapping.
+9. **Does it call a Discord SDK command beyond `authorize`** (e.g. `getInstanceConnectedParticipants`, channel/guild reads)? → those need an **`authenticate()`-d** session, which our server-side-token-exchange boot can't establish → **error 4006**. Prefer an RTDB/kei-bot path (see §9).
+10. **Add a new global `<script>`?** → it shares scope with `app.js`/`typing.js`/`presence.js`; keep top-level identifiers unique or it throws "already declared" and silently fails to run (§9).
+11. **Test live** → the Activity can only be tested by launching it in Discord. Switch the console off `top` to the `discordsays.com` frame (§7.5); CSP errors name the exact host/script that needs a mapping.
 
 ---
 
-## Status (as of 2026-06-15)
+## Status (as of 2026-06-16)
 
-The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The web app is unchanged.
+The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The **in-Activity presence panel** (pure-RTDB, with active/Left sections) and the **dual-identity leaderboard photo picker** are live (§9). The web app is unchanged.
 
 **Known cosmetic issue:** a `Refused to load the script '<URL>'` (`script-src`) message appears a handful of times in the activity console. It does **not** break anything (auth + RTDB both work). The URL is redacted by Chrome; it was never pinned down. If you want to chase it, use Network → JS → the red `blocked:csp` request to get the real URL, then map or suppress whatever loads it.
 
 ---
 
-*Last updated: 2026-06-15. If the proxy mapping list changes, update both `activity-mappings.json` (client) and the Discord Dev Portal URL Mappings — they must match.*
+*Last updated: 2026-06-16. If the proxy mapping list changes, update both `activity-mappings.json` (client) and the Discord Dev Portal URL Mappings — they must match.*
