@@ -16,6 +16,7 @@ const {
   createRunState,
   applyKey,
   completeWord,
+  effMultiplier,
   wpm,
   rankedEligible,
 } = T;
@@ -471,4 +472,44 @@ test('submit: casual does NOT reset combo on a fixable word (legacy noop on spac
   s = applyKey(s, ' ', NO_MODS);          // legacy: noop, must fix
   assert.equal(s.lastAction.type, 'noop');
   assert.equal(s.comboCount, 0);          // unchanged; no commit happened
+});
+
+// =========================================================================
+// effMultiplier(state) — the honest ×multiplier shown by the in-play widget
+// =========================================================================
+
+test('effMultiplier: ranked returns the raw streak below the hard cap', () => {
+  const s = createRunState(['x'], 's30', NO_MODS, { subMode: 'ranked', comboPowerLevel: 1 });
+  s.comboCount = 17;
+  assert.equal(effMultiplier(s), 17);
+});
+
+test('effMultiplier: ranked clamps to the 50x hard cap once the streak exceeds it', () => {
+  const s = createRunState(['x'], 's30', NO_MODS, { subMode: 'ranked', comboPowerLevel: 1 });
+  s.comboCount = 137;
+  assert.equal(effMultiplier(s), 50);   // raw streak overstates; real multiplier caps at 50
+});
+
+test('effMultiplier: casual clamps to the casual cap when it is the tighter limit', () => {
+  const s = createRunState(['x'], 's30', NO_MODS, { subMode: 'casual', comboPowerLevel: 1, casualComboCap: 20 });
+  s.comboCount = 80;
+  assert.equal(effMultiplier(s), 20);   // casual cap (20) bites before the 50x hard cap
+});
+
+test('effMultiplier: casual cap above the hard cap still yields at most 50', () => {
+  const s = createRunState(['x'], 's30', NO_MODS, { subMode: 'casual', comboPowerLevel: 1, casualComboCap: 500 });
+  s.comboCount = 300;
+  assert.equal(effMultiplier(s), 50);   // 500 casual cap, but hard cap wins
+});
+
+test('effMultiplier: equals the per-word payout divisor (matches what a word actually pays)', () => {
+  // Drive a real ranked run; the multiplier reported must match payout / wordBuffer.
+  let s = createRunState(['ab', 'cd'], 's30', NO_MODS, { subMode: 'ranked', comboPowerLevel: 3, commitOnSpace: true });
+  s = applyKey(s, 'a', NO_MODS);
+  s = applyKey(s, 'b', NO_MODS);
+  const bufferBeforeSubmit = s.wordBuffer;     // 2 chars x comboPowerLevel(3) = 6
+  const multAtSubmit = effMultiplier(s);       // streak is 2 here (2 correct chars)
+  s = applyKey(s, ' ', NO_MODS);               // submit -> payout recorded
+  assert.equal(s.lastAction.type, 'word');
+  assert.equal(s.lastAction.payout, bufferBeforeSubmit * multAtSubmit);
 });

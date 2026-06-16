@@ -93,6 +93,18 @@ function nextWords(pack, count, seedIndex) {
 // Hard cap on the per-word payout multiplier (balance). The combo streak keeps
 // climbing for feel, but a single word can never pay more than this ×.
 const WORD_MULT_CAP = 50;
+
+// effMultiplier — the ×multiplier a word WOULD pay right now: the combo streak,
+// clamped by the casual cap (casual only) and the hard WORD_MULT_CAP. This is the
+// honest number the in-play combo widget should show — the raw streak keeps
+// climbing for feel but overstates what you actually earn once it passes the cap.
+function effMultiplier(s) {
+  const m = (s.subMode === 'casual' && s.casualComboCap > 0)
+    ? Math.min(s.comboCount, s.casualComboCap)
+    : s.comboCount;
+  return Math.min(m, WORD_MULT_CAP);
+}
+
 function createRunState(words, mode, mods, scoring) {
   scoring = scoring || {};
   return {
@@ -196,12 +208,7 @@ function applyKey(state, key, mods) {
       s.lastAction = { type: 'noop' };
       return s;
     }
-    let effMul = (s.subMode === 'casual' && s.casualComboCap > 0)
-      ? Math.min(s.comboCount, s.casualComboCap)
-      : s.comboCount;
-    // Hard balance cap on the per-word multiplier (the combo streak still climbs for
-    // feel, but a word can't pay more than WORD_MULT_CAP×). Keeps the economy sane.
-    effMul = Math.min(effMul, WORD_MULT_CAP);
+    const effMul = effMultiplier(s);  // combo streak clamped by casual cap + WORD_MULT_CAP
     const payout = s.wordBuffer * effMul;
     const res = completeWord(s);
     const ns = res.state;
@@ -285,6 +292,7 @@ const ENGINE = {
   createRunState: createRunState,
   applyKey: applyKey,
   completeWord: completeWord,
+  effMultiplier: effMultiplier,
   wpm: wpm,
   rankedEligible: rankedEligible,
 };
@@ -531,10 +539,10 @@ if (typeof document !== 'undefined') {
       if (act && act.type === 'word') {
         deps.creditTyping(act.payout || 0, 1);
         if (settings.typingClickOnWord) deps.reactCharacter();
-        if (deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
+        if (deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount, ENGINE.effMultiplier(run));
         ensureWords();
       } else if (act && act.type === 'char') {
-        if (act.correct && deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
+        if (act.correct && deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount, ENGINE.effMultiplier(run));
         if (settings.typingClickPerKey) deps.reactCharacter();
       }
       if (act && act.type === 'char') {
@@ -720,6 +728,12 @@ if (typeof document !== 'undefined') {
         'casualComboCap', capAtMax));
     }
 
+    // Short "Jun 16, 2026" style stamp for when a record landed.
+    function fmtRecordDate(ts) {
+      try {
+        return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      } catch (e) { return ''; }
+    }
     let boardKind = 'words';      // current typing board: words | wpm | score
     let boardMode = 's30';        // current mode for wpm/score boards: s15 | s30 | s60
     async function loadBoard(kind, mode) {
@@ -761,12 +775,20 @@ if (typeof document !== 'undefined') {
           const avatar = v.photoURL
             ? '<img class="lb-avatar" src="' + esc(activityImg(v.photoURL)) + '" alt="">'
             : '<div class="lb-avatar lb-avatar-fallback">' + esc((v.name || '?').slice(0, 1)) + '</div>';
+          const lvl = (v.level > 0) ? 'Lv.' + v.level : '';
+          // Date the record landed — WPM/Score boards only (the Words board is a
+          // running total, not a single-moment record). Shown under the value.
+          const ts = kind === 'wpm' ? v.wpmAt : kind === 'score' ? v.scoreAt : 0;
+          const dateStr = ts ? fmtRecordDate(ts) : '';
           return '<div class="lb-row lb-row-typing">' +
             '<span class="lb-rank">#' + (i + 1) + '</span>' +
             avatar +
             '<span class="lb-flag">' + (flag(v.country) || '') + '</span>' +
             '<span class="lb-name">' + esc(v.name || '') + '</span>' +
-            '<span class="lb-clicks">' + esc(val) + '</span></div>';
+            '<span class="lb-level">' + lvl + '</span>' +
+            '<span class="lb-clicks">' + esc(val) +
+              (dateStr ? '<span class="lb-date">' + dateStr + '</span>' : '') +
+            '</span></div>';
         }).join('');
       } catch (err) {
         boardListEl.textContent = t('typing.board_error');

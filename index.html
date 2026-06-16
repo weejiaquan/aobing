@@ -1760,7 +1760,10 @@
     .lb-level  { font-size: 0.74rem; color: var(--ba-text-muted); font-weight: 700; }
     .lb-stars  { color: var(--ba-yellow); font-weight: 800; }
     .lb-clicks { font-weight: 800; color: var(--ba-accent-strong); font-variant-numeric: tabular-nums; }
-    .lb-row.lb-row-typing { grid-template-columns: 32px 28px 1.5rem 1fr auto; }
+    /* Date a typing record was set — small, dim, stacked under the value. */
+    .lb-date { display: block; font-size: 0.62rem; font-weight: 600; color: var(--ba-text-faint); margin-top: 1px; }
+    .lb-row.lb-row-typing { grid-template-columns: 32px 28px 1.5rem 1fr auto auto; }
+    .lb-row.lb-row-typing .lb-clicks { text-align: right; }
     .lb-avatar-fallback { display: flex; align-items: center; justify-content: center; color: var(--ba-accent-strong); font-weight: 800; font-size: 0.8rem; }
     .lb-row.admin { grid-template-columns: 32px 28px 1.5rem 1fr auto auto 28px; }
     .lb-admin-del {

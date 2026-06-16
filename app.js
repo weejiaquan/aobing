@@ -3134,39 +3134,46 @@
             prestigeStars: userStats.prestigeStars || 0,
           }).catch(() => {});
           // Typing boards — same profile-gated mirror. Words board tracks all
-          // typed words; WPM board tracks the user's single best ranked run.
+          // typed words; WPM/Score boards track the user's single best ranked run
+          // per mode. `level` (clicks+typing, computed at render on the clicker
+          // board but stored here so the typing rows can show a badge) rides along.
+          const nowTs   = Date.now();
+          const lbLevel = levelOf(progressXp(userStats.totalClicks || 0, userStats.typingWords || 0));
+          const lbName  = userProfile.displayName || I18N.t('sensei.trainer');
+          const lbCty   = userProfile.country || 'XX';
           const typingWords = userStats.typingWords || 0;
           if (typingWords > 0) {
             db.ref('leaderboard/typingWords/' + uid).update({
-              name:        userProfile.displayName || I18N.t('sensei.trainer'),
-              country:     userProfile.country || 'XX',
+              name:        lbName,
+              country:     lbCty,
               photoURL:    lbPhoto(userProfile),
               typingWords: typingWords,
+              level:       lbLevel,
             }).catch(() => {});
           }
           // Per-mode WPM/Score boards (15s/30s/60s are ranked separately — fair).
+          // Transaction (not update) so wpmAt/scoreAt is stamped only the moment a
+          // NEW best lands and the original date survives later profile-only syncs.
           const VALID_BMODES = { s15: 1, s30: 1, s60: 1 };
+          const mirrorRecord = (kind, md, val) => {
+            const ref   = db.ref('leaderboard/typing' + (kind === 'wpm' ? 'Wpm' : 'Score') + '/' + md + '/' + uid);
+            const atKey = kind === 'wpm' ? 'wpmAt' : 'scoreAt';
+            ref.transaction((cur) => {
+              const prev = (cur && cur[kind]) || 0;
+              const out  = { name: lbName, country: lbCty, photoURL: lbPhoto(userProfile), level: lbLevel };
+              out[kind]  = Math.max(prev, val);            // never regress a higher server best
+              out[atKey] = (val > prev) ? nowTs : ((cur && cur[atKey]) || nowTs);
+              if (cur && cur.hidden === true) out.hidden = true;   // preserve admin hide
+              return out;
+            }).catch(() => {});
+          };
           const bestWpmMap = userStats.typingBestWpm || {};
           for (const md in bestWpmMap) {
-            if (bestWpmMap[md] > 0 && VALID_BMODES[md]) {
-              db.ref('leaderboard/typingWpm/' + md + '/' + uid).update({
-                name:     userProfile.displayName || I18N.t('sensei.trainer'),
-                country:  userProfile.country || 'XX',
-                photoURL: lbPhoto(userProfile),
-                wpm:      bestWpmMap[md],
-              }).catch(() => {});
-            }
+            if (bestWpmMap[md] > 0 && VALID_BMODES[md]) mirrorRecord('wpm', md, bestWpmMap[md]);
           }
           const bestScoreMap = userStats.typingBestScore || {};
           for (const md in bestScoreMap) {
-            if (bestScoreMap[md] > 0 && VALID_BMODES[md]) {
-              db.ref('leaderboard/typingScore/' + md + '/' + uid).update({
-                name:     userProfile.displayName || I18N.t('sensei.trainer'),
-                country:  userProfile.country || 'XX',
-                photoURL: lbPhoto(userProfile),
-                score:    bestScoreMap[md],
-              }).catch(() => {});
-            }
+            if (bestScoreMap[md] > 0 && VALID_BMODES[md]) mirrorRecord('score', md, bestScoreMap[md]);
           }
         }
       };
@@ -4848,9 +4855,15 @@
     // --- Typing combo bridge --------------------------------------------------
     // The typing engine owns its own multiplier; this only paints #combo-display.
     // It deliberately skips recordComboPeak / the expiry timer (click-only).
-    function renderTypingCombo(n) {
+    // n   = raw combo streak (drives the tier effects — long no-miss runs still
+    //       earn confetti even after the multiplier caps)
+    // mult = the effective ×multiplier actually applied to a word (streak clamped
+    //       by the casual cap + the 50× hard cap). We DISPLAY this so the number
+    //       matches what you earn rather than the inflated raw streak.
+    function renderTypingCombo(n, mult) {
       if (!(n > 0)) { resetTypingCombo(); return; }
-      comboNumEl.textContent = n.toLocaleString();
+      const shown = (mult > 0) ? mult : n;
+      comboNumEl.textContent = '×' + shown.toLocaleString();
       comboEl.classList.add('active');
       let tier = 0;
       for (const tr of COMBO_TIERS) if (n >= tr.threshold) tier = Math.min(tr.tier, COMBO_CAP_TIER);
@@ -4870,12 +4883,14 @@
       void comboCpsEl.offsetWidth;
       comboCpsEl.classList.add('cps-pulse');
     }
-    // Typing countdown shown on the mode dropdown chip.
+    // Typing countdown — chip clock hidden for now (redundant with the in-run
+    // timing). Kept as a no-op stub so the engine's tick calls stay harmless and
+    // re-enabling is a one-line change.
     const modeTimerEl = document.getElementById('mode-timer');
-    function setTypingTimer(text) {
+    function setTypingTimer(_text) {
       if (!modeTimerEl) return;
-      if (text) { modeTimerEl.textContent = text; modeTimerEl.hidden = false; }
-      else { modeTimerEl.textContent = ''; modeTimerEl.hidden = true; }
+      modeTimerEl.textContent = '';
+      modeTimerEl.hidden = true;
     }
 
     function fireComboEffect(effect, tier) {
