@@ -293,7 +293,6 @@ if (typeof window !== 'undefined') {
 // are NOT exercised by typing.test.js (verified manually in the running app).
 // =========================================================================
 if (typeof document !== 'undefined') {
-  const PER_WORD_COINS = 1;                       // base coins per completed word
   const MODE_SECONDS = { s15: 15, s30: 30, s60: 60, endless: 0 };
   const STREAM_REFILL = 40;                       // words drawn per refill
   const VISIBLE_WORDS = 14;                       // words shown in the stream
@@ -363,16 +362,29 @@ if (typeof document !== 'undefined') {
       };
     }
 
+    // Combo-economy scoring config, locked at run start. Ranked = uncapped +
+    // commit-on-space (bad word breaks the streak); Casual = capped safe farm.
+    function scoringConfig() {
+      const ranked = (settings.typingSubMode === 'ranked');
+      return {
+        subMode: ranked ? 'ranked' : 'casual',
+        comboPowerLevel: deps.comboPowerLevel ? deps.comboPowerLevel() : 1,
+        casualComboCap: ranked ? 0 : (deps.casualComboCap ? deps.casualComboCap() : 0),
+        commitOnSpace: ranked,
+      };
+    }
+
     function clearTimer() {
       if (timerId) { clearInterval(timerId); timerId = null; }
     }
 
     function startRun() {
       clearTimer();
-      run = ENGINE.createRunState(drawWords(), settings.typingMode || 's30', activeMods());
+      run = ENGINE.createRunState(drawWords(), settings.typingMode || 's30', activeMods(), scoringConfig());
       running = true;
       startMs = 0;
       endsAt = 0;
+      if (deps.resetTypingCombo) deps.resetTypingCombo();
       resultEl.hidden = true;
       streamEl.classList.remove('typing-dim');
       stopBtn.hidden = (MODE_SECONDS[run.mode] !== 0); // stop button only for endless
@@ -401,9 +413,13 @@ if (typeof document !== 'undefined') {
       lastElapsed = startMs ? (performance.now() - startMs) : 0;
       const w = ENGINE.wpm(run.correctChars, lastElapsed);
       const ranked = ENGINE.rankedEligible(run.mods);
-      // WPM board accepts only ranked, timed runs (rules allow s15/s30/s60).
-      if (ranked && w > 0 && MODE_SECONDS[run.mode] > 0) {
-        deps.creditTyping(0, 0, { mode: run.mode, bestWpm: w });
+      const isRankedMode = (settings.typingSubMode === 'ranked');
+      // WPM + score boards accept only ranked-eligible, timed runs (s15/s30/s60).
+      if (ranked && MODE_SECONDS[run.mode] > 0) {
+        const opts = { mode: run.mode };
+        if (w > 0) opts.bestWpm = w;
+        if (isRankedMode && run.runScore > 0) opts.runScore = run.runScore;
+        if (opts.bestWpm || opts.runScore) deps.creditTyping(0, 0, opts);
       }
       showResult(w, ranked);
       streamEl.classList.add('typing-dim');
@@ -478,11 +494,13 @@ if (typeof document !== 'undefined') {
       run = ENGINE.applyKey(run, key, run.mods);
       const act = run.lastAction;
       if (act && act.type === 'word') {
-        deps.creditTyping(PER_WORD_COINS, 1);
+        deps.creditTyping(act.payout || 0, 1);
         if (settings.typingClickOnWord) deps.reactCharacter();
+        if (deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
         ensureWords();
-      } else if (act && act.type === 'char' && settings.typingClickPerKey) {
-        deps.reactCharacter();
+      } else if (act && act.type === 'char') {
+        if (act.correct && deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
+        if (settings.typingClickPerKey) deps.reactCharacter();
       }
       renderStream();
       updateLive();
@@ -627,6 +645,7 @@ if (typeof document !== 'undefined') {
       panel.classList.remove('open');
       panelOpen = false;
       deps.setTypingActive(false);
+      if (deps.resetTypingCombo) deps.resetTypingCombo();
       if (running) finishRun();
     }
 
