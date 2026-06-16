@@ -4841,6 +4841,21 @@
       comboNumEl.textContent = '0';
       comboLabelEl.textContent = I18N.t('combo.label');
     }
+    // CPS readout pulse — bounces the "N cps" line per keystroke (imitates the click bounce).
+    const comboCpsEl = comboEl.querySelector('.combo-cps');
+    function pulseCps() {
+      if (!comboCpsEl) return;
+      comboCpsEl.classList.remove('cps-pulse');
+      void comboCpsEl.offsetWidth;
+      comboCpsEl.classList.add('cps-pulse');
+    }
+    // Typing countdown shown on the mode dropdown chip.
+    const modeTimerEl = document.getElementById('mode-timer');
+    function setTypingTimer(text) {
+      if (!modeTimerEl) return;
+      if (text) { modeTimerEl.textContent = text; modeTimerEl.hidden = false; }
+      else { modeTimerEl.textContent = ''; modeTimerEl.hidden = true; }
+    }
 
     function fireComboEffect(effect, tier) {
       if (effect === 'pulse') {
@@ -5161,6 +5176,8 @@
       casualCapTiers:    CASUAL_CAP_TIERS,
       renderTypingCombo: renderTypingCombo,
       resetTypingCombo:  resetTypingCombo,
+      pulseCps:          pulseCps,
+      setTypingTimer:    setTypingTimer,
       t:                 function (k, p) { return I18N.t(k, p); },
       escapeHtml:        escapeHtml,
       flagFromCountry:   flagFromCountry,

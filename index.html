@@ -256,12 +256,11 @@
       transition: opacity 0.35s ease;
     }
 
-    /* --- Left Mode Menu — one button + dropdown (mirrors #combo-display position) */
+    /* --- Mode menu — one button + dropdown, bottom-right, opens upward */
     #mode-menu {
       position: fixed;
-      top: 22%;
-      left: calc(50% - 28vh);
-      transform: translateX(-100%);
+      bottom: 16px;
+      right: 16px;
       /* Normal UI level — above the typing word-stream (z 40), below the modals
          (z 205) so it's covered by them like every other UI element. */
       z-index: 70;
@@ -269,6 +268,9 @@
       font: 600 14px/1.1 'Segoe UI', system-ui, sans-serif;
       color: var(--ba-text);
       width: 264px;
+      display: flex;
+      flex-direction: column-reverse;  /* dropdown opens upward from the chip */
+      gap: 6px;
     }
     /* Shop relocated inside the dropdown — render inline, not as a fixed corner panel. */
     #mode-menu #shop-panel {
@@ -287,10 +289,14 @@
       font: inherit; cursor: pointer; white-space: nowrap;
     }
     #mode-chip #mode-chip-label { flex: 1; text-align: left; }
+    #mode-timer { font-weight: 800; color: var(--ba-accent-strong); font-variant-numeric: tabular-nums; }
+    #mode-timer[hidden] { display: none; }
+    @keyframes cpsPop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+    .combo-cps.cps-pulse { animation: cpsPop 0.18s ease; transform-origin: right center; }
     #mode-chip .mode-caret { font-size: 10px; color: var(--ba-text-muted); transition: transform 0.18s ease; }
     #mode-menu.open #mode-chip .mode-caret { transform: rotate(180deg); }
     #mode-pop {
-      margin-top: 6px; padding: 8px;
+      margin: 0; padding: 8px;
       border-radius: 14px; border: var(--ba-card-border);
       background: var(--ba-card-bg); box-shadow: var(--ba-card-shadow);
       max-height: 64vh; overflow-y: auto;
@@ -317,7 +323,7 @@
     }
     .mp-action:hover { background: var(--ba-hover); }
     @media (max-width: 1080px) {
-      #mode-menu { top: 12%; left: 4%; transform: none; }
+      #mode-menu { bottom: 12px; right: 12px; width: min(264px, 70vw); }
     }
     /* Shop now opens from the mode dropdown; hide the standalone top-right button. */
     #shop-btn { display: none; }
@@ -2352,6 +2358,7 @@
   <div id="mode-menu">
     <button id="mode-chip" type="button" aria-haspopup="true" aria-expanded="false">
       <span id="mode-chip-label">Clicker</span>
+      <span id="mode-timer" hidden></span>
       <span class="mode-caret">▾</span>
     </button>
     <div id="mode-pop" hidden>

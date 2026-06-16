@@ -431,6 +431,7 @@ if (typeof document !== 'undefined') {
       // After a finished run the stream is frozen until an explicit restart, so a
       // fast typist doesn't blow straight past the result into a new run.
       awaitingRestart = (reason !== 'close');
+      if (deps.setTypingTimer) deps.setTypingTimer('');
     }
 
     function showResult(w, ranked, timedUp) {
@@ -449,12 +450,14 @@ if (typeof document !== 'undefined') {
     }
 
     function updateLive(reset) {
-      if (reset) { liveEl.textContent = ''; return; }
+      if (reset) { liveEl.textContent = ''; if (deps.setTypingTimer) deps.setTypingTimer(''); return; }
       const elapsed = startMs ? (performance.now() - startMs) : 0;
       const secs = MODE_SECONDS[run.mode];
-      const parts = [];
-      if (secs > 0) parts.push(Math.max(0, Math.ceil((endsAt - performance.now()) / 1000)) + 's');
-      else parts.push(Math.floor(elapsed / 1000) + 's');
+      const timeText = secs > 0
+        ? Math.max(0, Math.ceil((endsAt - performance.now()) / 1000)) + 's'
+        : Math.floor(elapsed / 1000) + 's';
+      if (deps.setTypingTimer) deps.setTypingTimer(timeText);   // shown on the mode dropdown chip
+      const parts = [timeText];
       parts.push(run.completedWords + ' ' + t('typing.words'));
       if (deps.getUserShop().typingQol) parts.push(ENGINE.wpm(run.correctChars, elapsed) + ' ' + t('typing.wpm'));
       liveEl.textContent = parts.join('  ·  ');
@@ -512,9 +515,12 @@ if (typeof document !== 'undefined') {
         if (act.correct && deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
         if (settings.typingClickPerKey) deps.reactCharacter();
       }
-      // Every typed character counts as a keyboard input in the global click count
-      // (same as keyboard mashing in clicker mode — global/keyboard only, not rank).
-      if (act && act.type === 'char' && deps.recordKeyboard) deps.recordKeyboard();
+      if (act && act.type === 'char') {
+        // Every typed character counts as a keyboard input in the global click count
+        // (global/keyboard only, not rank), and bounces the CPS readout.
+        if (deps.recordKeyboard) deps.recordKeyboard();
+        if (deps.pulseCps) deps.pulseCps();
+      }
       renderStream();
       updateLive();
     }
@@ -745,6 +751,7 @@ if (typeof document !== 'undefined') {
       panelOpen = false;
       deps.setTypingActive(false);
       if (deps.resetTypingCombo) deps.resetTypingCombo();
+      if (deps.setTypingTimer) deps.setTypingTimer('');
       if (settings.gameMode === 'typing') {
         settings.gameMode = 'clicker';
         deps.saveSettings();
