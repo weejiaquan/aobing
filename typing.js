@@ -608,6 +608,54 @@ if (typeof document !== 'undefined') {
       });
     }
 
+    function upgradeRow(label, cost, key, atMax) {
+      const row = document.createElement('div');
+      row.className = 'typing-mod';
+      const name = document.createElement('span');
+      name.textContent = label;
+      row.appendChild(name);
+      if (atMax) {
+        const max = document.createElement('span');
+        max.className = 'typing-owned';
+        max.textContent = t('typing.upg.max');
+        row.appendChild(max);
+      } else {
+        const buy = document.createElement('button');
+        buy.className = 'typing-buy';
+        buy.textContent = cost + ' 🪙';
+        buy.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          buy.disabled = true;
+          const ok = await deps.buyTypingUpgrade(key);
+          if (ok) renderUpgrades();
+          else { buy.disabled = false; buy.classList.add('typing-buy-err'); }
+        });
+        row.appendChild(buy);
+      }
+      return row;
+    }
+
+    function renderUpgrades() {
+      const el = document.getElementById('typing-upgrades');
+      if (!el) return;
+      const lvl = deps.comboPowerLevel ? deps.comboPowerLevel() : 1;
+      const cap = deps.casualComboCap ? deps.casualComboCap() : 0;
+      const maxLvl = deps.comboPowerMax || 100;
+      const tiers = deps.casualCapTiers || [];
+      const capIdx = tiers.indexOf(cap);
+      el.innerHTML = '';
+      const powerAtMax = lvl >= maxLvl;
+      el.appendChild(upgradeRow(
+        t('typing.upg.power') + ' ×' + lvl,
+        powerAtMax ? null : (deps.comboPowerCost ? deps.comboPowerCost(lvl + 1) : 0),
+        'comboPowerLevel', powerAtMax));
+      const capAtMax = capIdx === -1 || capIdx >= tiers.length - 1;
+      el.appendChild(upgradeRow(
+        t('typing.upg.cap') + ' ×' + cap,
+        capAtMax ? null : (deps.casualCapCost ? deps.casualCapCost(capIdx + 1) : 0),
+        'casualComboCap', capAtMax));
+    }
+
     async function loadBoard(kind) {
       boardWordsBtn.classList.toggle('sel', kind === 'words');
       boardWpmBtn.classList.toggle('sel', kind === 'wpm');
@@ -666,6 +714,7 @@ if (typeof document !== 'undefined') {
       renderModes();
       renderMods();
       renderToggles();
+      renderUpgrades();
       loadBoard('words');
       settingsEl.classList.add('open');
       settingsEl.setAttribute('aria-hidden', 'false');
@@ -721,7 +770,7 @@ if (typeof document !== 'undefined') {
     // Re-render localized labels when the language changes.
     window.addEventListener('i18nchange', () => {
       renderModes();
-      if (settingsOpen) { renderMods(); renderToggles(); }
+      if (settingsOpen) { renderMods(); renderToggles(); renderUpgrades(); }
     });
   }
 
