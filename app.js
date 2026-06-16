@@ -1003,6 +1003,8 @@
       typingMode: 's30',          // s15 | s30 | s60 | endless
       typingPack: 'english-common',
       typingFreedomOn: false, typingNoBackspaceOn: false, typingStopOnErrorOn: false,
+      gameMode: 'clicker',        // 'clicker' | 'typing' — left mode menu top level
+      typingSubMode: 'casual',    // 'casual' | 'ranked' — only meaningful in typing mode
     };
 
     // --- Admin gating -----------------------------------------------------------
