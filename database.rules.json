@@ -197,13 +197,17 @@
         "participants": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid",
-            "discordId":     { ".validate": "newData.isString() && newData.val() === auth.token.discord_id + ''" },
-            "name":          { ".validate": "newData.isString() && newData.val().length <= 64" },
-            "photoURL":      { ".validate": "newData.isString() && newData.val().length <= 500" },
-            "totalClicks":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0) + 10000" },
-            "sessionClicks": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
-            "updatedAt":     { ".validate": "newData.isNumber()" },
-            "$other":        { ".validate": false }
+            "discordId":       { ".validate": "newData.isString() && newData.val() === auth.token.discord_id + ''" },
+            "discordName":     { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "discordPhotoURL": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "name":            { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "photoURL":        { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "totalClicks":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0) + 10000" },
+            "sessionClicks":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
+            "active":          { ".validate": "newData.isBoolean()" },
+            "leftAt":          { ".validate": "newData.isNumber()" },
+            "updatedAt":       { ".validate": "newData.isNumber()" },
+            "$other":          { ".validate": false }
           }
         }
       }

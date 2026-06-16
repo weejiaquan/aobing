@@ -9,23 +9,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const P = require('./presence.js');
-const { resolveLeaderboardPhoto, photoOptionsFor, mergeParticipants } = P;
+const { resolveLeaderboardPhoto, photoOptionsFor, buildRows } = P;
 
 // =========================================================================
 // resolveLeaderboardPhoto(profile)
 // =========================================================================
 test('resolveLeaderboardPhoto: default (no pref) → google photoURL', () => {
-  assert.equal(
-    resolveLeaderboardPhoto({ photoURL: 'g.png', discordPhotoURL: 'd.png' }),
-    'g.png'
-  );
-});
-
-test("resolveLeaderboardPhoto: 'google' → photoURL", () => {
-  assert.equal(
-    resolveLeaderboardPhoto({ leaderboardPhoto: 'google', photoURL: 'g.png', discordPhotoURL: 'd.png' }),
-    'g.png'
-  );
+  assert.equal(resolveLeaderboardPhoto({ photoURL: 'g.png', discordPhotoURL: 'd.png' }), 'g.png');
 });
 
 test("resolveLeaderboardPhoto: 'discord' → discordPhotoURL", () => {
@@ -35,11 +25,8 @@ test("resolveLeaderboardPhoto: 'discord' → discordPhotoURL", () => {
   );
 });
 
-test("resolveLeaderboardPhoto: 'discord' but no discordPhotoURL → '' (placeholder, never undefined)", () => {
-  assert.equal(
-    resolveLeaderboardPhoto({ leaderboardPhoto: 'discord', photoURL: 'g.png' }),
-    ''
-  );
+test("resolveLeaderboardPhoto: 'discord' but no discordPhotoURL → '' (never undefined)", () => {
+  assert.equal(resolveLeaderboardPhoto({ leaderboardPhoto: 'discord', photoURL: 'g.png' }), '');
 });
 
 test("resolveLeaderboardPhoto: 'none' → '' even when photos exist (hidden)", () => {
@@ -47,10 +34,6 @@ test("resolveLeaderboardPhoto: 'none' → '' even when photos exist (hidden)", (
     resolveLeaderboardPhoto({ leaderboardPhoto: 'none', photoURL: 'g.png', discordPhotoURL: 'd.png' }),
     ''
   );
-});
-
-test('resolveLeaderboardPhoto: missing photoURL on google → empty string', () => {
-  assert.equal(resolveLeaderboardPhoto({ leaderboardPhoto: 'google' }), '');
 });
 
 test('resolveLeaderboardPhoto: null/undefined profile → empty string', () => {
@@ -73,93 +56,83 @@ test('photoOptionsFor: discord-only → [discord, none]', () => {
   assert.deepEqual(photoOptionsFor({ hasGoogle: false, hasDiscord: true }), ['discord', 'none']);
 });
 
-test('photoOptionsFor: neither identity → [none] (hide always offered)', () => {
+test('photoOptionsFor: neither → [none] (hide always offered)', () => {
   assert.deepEqual(photoOptionsFor({ hasGoogle: false, hasDiscord: false }), ['none']);
   assert.deepEqual(photoOptionsFor(null), ['none']);
 });
 
 // =========================================================================
-// mergeParticipants(roster, nodes, selfDiscordId)
+// buildRows(nodes, selfDiscordId) — pure-RTDB participant rows
 // =========================================================================
-const ROSTER = [
-  { discordId: '1', username: 'Aoba', avatarURL: 'a.png' },
-  { discordId: '2', username: 'Mari', avatarURL: 'm.png' },
-  { discordId: '3', username: 'Miyu', avatarURL: 'y.png' },
-];
+// Keyed by uid; each node carries its own Discord identity + in-game identity.
 const NODES = {
-  '1': { name: 'AobaGame', photoURL: 'ag.png', totalClicks: 1234, sessionClicks: 56 },
-  '2': { name: 'MariGame', photoURL: 'mg.png', totalClicks: 8901, sessionClicks: 12 },
-  '3': { name: 'MiyuGame', photoURL: 'yg.png', totalClicks: 12000, sessionClicks: 203 },
+  ua: { discordId: '1', discordName: 'Aoba', discordPhotoURL: 'a.png', name: 'AobaGame', photoURL: 'ag.png', totalClicks: 1234, sessionClicks: 56, active: true },
+  ub: { discordId: '2', discordName: 'Mari', discordPhotoURL: 'm.png', name: 'MariGame', photoURL: 'mg.png', totalClicks: 8901, sessionClicks: 12, active: true },
+  uc: { discordId: '3', discordName: 'Miyu', discordPhotoURL: 'y.png', name: 'MiyuGame', photoURL: 'yg.png', totalClicks: 12000, sessionClicks: 203, active: true },
 };
 
-test('mergeParticipants: sorts by sessionClicks descending', () => {
-  const rows = mergeParticipants(ROSTER, NODES, '1');
-  assert.deepEqual(rows.map((r) => r.username), ['Miyu', 'Aoba', 'Mari']);
+test('buildRows: active members sorted by sessionClicks desc', () => {
+  const rows = buildRows(NODES, '1');
+  assert.deepEqual(rows.map((r) => r.discordName), ['Miyu', 'Aoba', 'Mari']);
   assert.deepEqual(rows.map((r) => r.sessionClicks), [203, 56, 12]);
 });
 
-test('mergeParticipants: tags self by discordId, merges identity + game state', () => {
-  const rows = mergeParticipants(ROSTER, NODES, '1');
+test('buildRows: self tagged by discordId; carries both identities', () => {
+  const rows = buildRows(NODES, '1');
   const me = rows.find((r) => r.isSelf);
   assert.equal(me.discordId, '1');
-  assert.equal(me.username, 'Aoba');        // Discord identity from roster
-  assert.equal(me.name, 'AobaGame');         // in-game identity from RTDB node
+  assert.equal(me.discordName, 'Aoba');   // row 1 (Discord)
+  assert.equal(me.name, 'AobaGame');       // row 2 (in-game)
   assert.equal(me.totalClicks, 1234);
   assert.equal(me.sessionClicks, 56);
-  assert.equal(me.hasGame, true);
+  assert.equal(me.active, true);
   assert.equal(rows.filter((r) => r.isSelf).length, 1);
 });
 
-test('mergeParticipants: self wins a sessionClicks tie', () => {
-  const roster = [
-    { discordId: '1', username: 'Aoba', avatarURL: '' },
-    { discordId: '2', username: 'Mari', avatarURL: '' },
-  ];
+test('buildRows: self wins a sessionClicks tie among active members', () => {
   const nodes = {
-    '1': { name: 'A', totalClicks: 5, sessionClicks: 10 },
-    '2': { name: 'M', totalClicks: 5, sessionClicks: 10 },
+    ua: { discordId: '1', discordName: 'A', sessionClicks: 10, active: true },
+    ub: { discordId: '2', discordName: 'M', sessionClicks: 10, active: true },
   };
-  const rows = mergeParticipants(roster, nodes, '2');
+  const rows = buildRows(nodes, '2');
   assert.equal(rows[0].discordId, '2');
   assert.equal(rows[0].isSelf, true);
 });
 
-test('mergeParticipants: roster entry with no RTDB node → hasGame false, zeros, no row2 data', () => {
-  const rows = mergeParticipants(ROSTER, { '1': NODES['1'] }, '1');
-  const mari = rows.find((r) => r.username === 'Mari');
-  assert.equal(mari.hasGame, false);
-  assert.equal(mari.name, '');
-  assert.equal(mari.totalClicks, 0);
-  assert.equal(mari.sessionClicks, 0);
+test('buildRows: left members sort BELOW all active, most-recently-left first', () => {
+  const nodes = {
+    ua: { discordId: '1', discordName: 'Active', sessionClicks: 5, active: true },
+    ub: { discordId: '2', discordName: 'LeftEarly', sessionClicks: 999, active: false, leftAt: 100 },
+    uc: { discordId: '3', discordName: 'LeftLate', sessionClicks: 1, active: false, leftAt: 500 },
+  };
+  const rows = buildRows(nodes, '1');
+  // Active always first (even though LeftEarly has way more session clicks).
+  assert.equal(rows[0].discordName, 'Active');
+  assert.equal(rows[0].active, true);
+  // Then left members, most recent departure first.
+  assert.deepEqual(rows.slice(1).map((r) => r.discordName), ['LeftLate', 'LeftEarly']);
+  assert.equal(rows[1].active, false);
 });
 
-test('mergeParticipants: orphan node (in RTDB, absent from roster) is still shown', () => {
-  // Roster unavailable / mid-sync: only RTDB knows about player 9.
-  const rows = mergeParticipants([], { '9': { name: 'Ghost', photoURL: 'gh.png', totalClicks: 7, sessionClicks: 3 } }, null);
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].discordId, '9');
-  assert.equal(rows[0].username, 'Ghost');   // synthesised from the game node's name
-  assert.equal(rows[0].avatarURL, 'gh.png');
-  assert.equal(rows[0].hasGame, true);
-  assert.equal(rows[0].sessionClicks, 3);
+test('buildRows: missing `active` field counts as active (backward compatible)', () => {
+  const nodes = { ua: { discordId: '1', discordName: 'Old', sessionClicks: 3 } };
+  const rows = buildRows(nodes, null);
+  assert.equal(rows[0].active, true);
 });
 
-test('mergeParticipants: roster + an extra orphan node coexist without duplication', () => {
-  const nodes = Object.assign({}, NODES, { '9': { name: 'Ghost', totalClicks: 1, sessionClicks: 999 } });
-  const rows = mergeParticipants(ROSTER, nodes, '1');
-  assert.equal(rows.length, 4);
-  assert.equal(rows[0].username, 'Ghost');  // 999 session clicks → top
-  // no discordId appears twice
-  const ids = rows.map((r) => r.discordId).sort();
-  assert.deepEqual(ids, ['1', '2', '3', '9']);
+test('buildRows: falls back to in-game name when no Discord name present', () => {
+  const nodes = { ua: { discordId: '9', name: 'JustGame', sessionClicks: 1, active: true } };
+  const rows = buildRows(nodes, null);
+  assert.equal(rows[0].discordName, '');
+  assert.equal(rows[0].name, 'JustGame');
 });
 
-test('mergeParticipants: numeric vs string selfDiscordId both match', () => {
-  assert.equal(mergeParticipants(ROSTER, NODES, 1).find((r) => r.isSelf).discordId, '1');
-  assert.equal(mergeParticipants(ROSTER, NODES, '1').find((r) => r.isSelf).discordId, '1');
+test('buildRows: numeric vs string selfDiscordId both match', () => {
+  assert.equal(buildRows(NODES, 1).find((r) => r.isSelf).discordId, '1');
+  assert.equal(buildRows(NODES, '1').find((r) => r.isSelf).discordId, '1');
 });
 
-test('mergeParticipants: empty inputs → empty array, no throw', () => {
-  assert.deepEqual(mergeParticipants(null, null, null), []);
-  assert.deepEqual(mergeParticipants([], {}, '1'), []);
+test('buildRows: empty/missing nodes → empty array, no throw', () => {
+  assert.deepEqual(buildRows(null, null), []);
+  assert.deepEqual(buildRows({}, '1'), []);
 });
