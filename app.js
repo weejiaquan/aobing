@@ -2709,6 +2709,10 @@
     // tune so a skilled ranked typist out-earns a ~lvl-20 clicker (500–1000/s).
     const COMBO_POWER_MAX = 100;
     const CASUAL_CAP_TIERS = [20, 50, 100, 250, 500]; // ×multiplier ceilings
+    // Flat coin rate applied to the raw per-word typing payout (see creditTyping).
+    // Typing is decoupled from shopMul.coin; this is the only currency knob. Sized
+    // so a maxed Combo Power (100) no-miss ~15s run (~800k raw) lands near 5M.
+    const TYPING_COIN_RATE = 6;
     function comboPowerLevelOf(shop) { return Math.max(1, (shop && shop.comboPowerLevel) || 1); }
     function casualComboCapOf(shop)  { return (shop && shop.casualComboCap) || CASUAL_CAP_TIERS[0]; }
     function comboPowerCost(nextLevel) { return nextLevel * nextLevel * 250; }   // L2=1000, L10=25000…
@@ -4600,16 +4604,22 @@
     let isTypingActive = false;
     function setTypingActive(v) { isTypingActive = !!v; }
 
-    // Routes typing earnings into the existing pending batch so shopMul.coin,
-    // buffs, optimistic UI, and the 5s flush all apply — WITHOUT touching
-    // userClicks/totalClicks (the clicker leaderboard stays typing-free).
-    //   coins:        base per-word coins (multiplied by shopMul.coin here)
+    // Routes typing earnings into the existing pending batch so the optimistic
+    // UI and the 5s flush apply — WITHOUT touching userClicks/totalClicks (the
+    // clicker leaderboard stays typing-free).
+    //
+    // Typing coins are DELIBERATELY decoupled from shopMul.coin: the clicker
+    // coin multiplier can reach ~100x on a maxed save, and compounding it on top
+    // of comboPowerLevel (up to 100x) and the combo cap (50x) is what let a
+    // single session print ~100M. Instead we apply a flat TYPING_COIN_RATE, sized
+    // so a maxed-Combo-Power, no-miss ~15s run lands around 5M and never inflates
+    // as clicking upgrades grow.
+    //   coins:        raw per-word payout from the engine (wordBuffer x effMul)
     //   words:        completed-word count -> stats/typingWords + words board
     //   opts.mode +   run-end ranked WPM submit, best-of per mode
     //   opts.bestWpm
     function creditTyping(coins, words, opts) {
-      const m = shopMul(Date.now());
-      const coinGain = Math.floor((coins || 0) * m.coin);
+      const coinGain = Math.floor((coins || 0) * TYPING_COIN_RATE);
       if (coinGain) pending.userCoins += coinGain;
       if (words > 0) pending.typingWords += words;
       if (opts && opts.mode && opts.bestWpm > 0) {
