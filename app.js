@@ -395,6 +395,11 @@
           'typing.upg.power':'Combo Power',
           'typing.upg.cap':'Casual Cap',
           'typing.upg.max':'MAX',
+          'typing.board_score':'Score',
+          'mode.clicker':'Clicker',
+          'mode.typing':'Typing',
+          'mode.casual':'Casual',
+          'mode.ranked':'Ranked',
           'typing.board_words':'Words','typing.board_wpm':'WPM',
           'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
           'typing.ranked':'Ranked','typing.casual':'Casual',
@@ -4962,5 +4967,45 @@
     };
     if (window.TypingGame && typeof window.TypingGame.init === 'function') {
       window.TypingGame.init(window.__typingDeps);
+    }
+
+    // --- Left mode menu wiring ----------------------------------------------
+    const modeMenuEl = document.getElementById('mode-menu');
+    const modeSubEl  = document.getElementById('mode-sub');
+    function renderModeMenu() {
+      if (!modeMenuEl) return;
+      const mode = settings.gameMode || 'clicker';
+      const sub  = settings.typingSubMode || 'casual';
+      modeMenuEl.querySelectorAll('button[data-mode]').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-mode') === mode));
+      modeMenuEl.querySelectorAll('button[data-submode]').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
+      if (modeSubEl) modeSubEl.hidden = (mode !== 'typing');
+    }
+    function setGameMode(mode) {
+      settings.gameMode = (mode === 'typing') ? 'typing' : 'clicker';
+      saveSettings(settings);
+      renderModeMenu();
+      if (settings.gameMode === 'typing') {
+        if (window.TypingGame && window.TypingGame.open) window.TypingGame.open();
+      } else {
+        if (window.TypingGame && window.TypingGame.close) window.TypingGame.close();
+      }
+    }
+    if (modeMenuEl) {
+      modeMenuEl.addEventListener('click', (e) => {
+        const top = e.target.closest('button[data-mode]');
+        if (top) { e.stopPropagation(); setGameMode(top.getAttribute('data-mode')); return; }
+        const sub = e.target.closest('button[data-submode]');
+        if (sub) {
+          e.stopPropagation();
+          if (window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub.getAttribute('data-submode'));
+          settings.typingSubMode = sub.getAttribute('data-submode');
+          renderModeMenu();
+        }
+      });
+      renderModeMenu();
+      window.addEventListener('i18nchange', renderModeMenu);
+      window.addEventListener('gamemodechange', renderModeMenu);
     }
 

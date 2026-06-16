@@ -293,6 +293,7 @@ if (typeof window !== 'undefined') {
 // are NOT exercised by typing.test.js (verified manually in the running app).
 // =========================================================================
 if (typeof document !== 'undefined') {
+  const api = { init: initBrowser };
   const MODE_SECONDS = { s15: 15, s30: 30, s60: 60, endless: 0 };
   const STREAM_REFILL = 40;                       // words drawn per refill
   const VISIBLE_WORDS = 14;                       // words shown in the stream
@@ -704,6 +705,11 @@ if (typeof document !== 'undefined') {
       panelOpen = false;
       deps.setTypingActive(false);
       if (deps.resetTypingCombo) deps.resetTypingCombo();
+      if (settings.gameMode === 'typing') {
+        settings.gameMode = 'clicker';
+        deps.saveSettings();
+        window.dispatchEvent(new CustomEvent('gamemodechange'));
+      }
       if (running) finishRun();
     }
 
@@ -772,8 +778,17 @@ if (typeof document !== 'undefined') {
       renderModes();
       if (settingsOpen) { renderMods(); renderToggles(); renderUpgrades(); }
     });
+
+    api.open = openPanel;
+    api.close = closePanel;
+    api.setSubMode = function (sm) {
+      settings.typingSubMode = (sm === 'ranked') ? 'ranked' : 'casual';
+      deps.saveSettings();
+      if (panelOpen) startRun();
+      if (panelOpen) setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
+    };
   }
 
-  window.TypingGame = { init: initBrowser };
+  window.TypingGame = api;
   if (window.__typingDeps) initBrowser(window.__typingDeps);
 }
