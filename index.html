@@ -1467,6 +1467,10 @@
     .typing-board-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
     .typing-board-tabs button { flex: 1; padding: 5px 0; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255, 255, 255, 0.5); cursor: pointer; font: inherit; color: inherit; }
     .typing-board-tabs button.sel { background: #4dabf7; color: #fff; border-color: transparent; }
+    .typing-board-modes { display: flex; gap: 6px; margin-bottom: 8px; }
+    .typing-board-modes[hidden] { display: none; }
+    .typing-board-modes button { flex: 1; padding: 4px 0; border-radius: 8px; border: 1px solid var(--ba-divider); background: rgba(255,255,255,0.5); cursor: pointer; font: inherit; font-size: 0.82rem; color: inherit; }
+    .typing-board-modes button.sel { background: var(--ba-accent-strong); color: #fff; border-color: transparent; }
     .typing-board-list { font-size: 0.8rem; color: var(--ba-text-faint); }
     .typing-row { display: flex; gap: 8px; padding: 4px 2px; align-items: center; }
     .typing-rank { width: 22px; color: var(--ba-text-faint); text-align: right; }
@@ -2667,6 +2671,11 @@
           <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
           <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
           <button id="typing-board-score" data-i18n="typing.board_score">Score</button>
+        </div>
+        <div id="typing-board-modes" class="typing-board-modes" hidden>
+          <button type="button" data-bmode="s15">15s</button>
+          <button type="button" data-bmode="s30" class="sel">30s</button>
+          <button type="button" data-bmode="s60">60s</button>
         </div>
         <div id="typing-board-list" class="typing-board-list"></div>
       </div>

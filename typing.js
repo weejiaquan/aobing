@@ -703,14 +703,25 @@ if (typeof document !== 'undefined') {
         'casualComboCap', capAtMax));
     }
 
-    async function loadBoard(kind) {
+    let boardKind = 'words';      // current typing board: words | wpm | score
+    let boardMode = 's30';        // current mode for wpm/score boards: s15 | s30 | s60
+    async function loadBoard(kind, mode) {
+      boardKind = kind;
+      if ((kind === 'wpm' || kind === 'score') && mode) boardMode = mode;
       boardWordsBtn.classList.toggle('sel', kind === 'words');
       boardWpmBtn.classList.toggle('sel', kind === 'wpm');
       const boardScoreBtn = document.getElementById('typing-board-score');
       if (boardScoreBtn) boardScoreBtn.classList.toggle('sel', kind === 'score');
+      // Per-mode sub-selector (15/30/60) shows for WPM/Score, hidden for Words.
+      const bModesEl = document.getElementById('typing-board-modes');
+      if (bModesEl) {
+        bModesEl.hidden = (kind === 'words');
+        bModesEl.querySelectorAll('button[data-bmode]').forEach((b) =>
+          b.classList.toggle('sel', b.getAttribute('data-bmode') === boardMode));
+      }
       boardListEl.textContent = t('typing.loading');
-      const path = kind === 'wpm' ? 'leaderboard/typingWpm'
-        : kind === 'score' ? 'leaderboard/typingScore'
+      const path = kind === 'wpm' ? 'leaderboard/typingWpm/' + boardMode
+        : kind === 'score' ? 'leaderboard/typingScore/' + boardMode
         : 'leaderboard/typingWords';
       const order = kind === 'wpm' ? 'wpm' : kind === 'score' ? 'score' : 'typingWords';
       try {
@@ -726,9 +737,9 @@ if (typeof document !== 'undefined') {
         // Render with the SAME row UI as the clicker board (.lb-row) for consistency.
         boardListEl.innerHTML = rows.map((v, i) => {
           const val = kind === 'wpm'
-            ? ((v.wpm || 0) + ' ' + t('typing.wpm') + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
+            ? ((v.wpm || 0) + ' ' + t('typing.wpm'))
             : kind === 'score'
-            ? ((v.score || 0).toLocaleString() + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
+            ? ((v.score || 0).toLocaleString())
             : ((v.typingWords || 0) + ' ' + t('typing.words'));
           const avatar = v.photoURL
             ? '<img class="lb-avatar" src="' + esc(activityImg(v.photoURL)) + '" alt="">'
@@ -803,9 +814,16 @@ if (typeof document !== 'undefined') {
       renderModes();                        // applied on the next run (settings close)
     });
     boardWordsBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('words'); });
-    boardWpmBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('wpm'); });
+    boardWpmBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('wpm', boardMode); });
     const boardScoreBtn = document.getElementById('typing-board-score');
-    if (boardScoreBtn) boardScoreBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('score'); });
+    if (boardScoreBtn) boardScoreBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('score', boardMode); });
+    const bModesEl = document.getElementById('typing-board-modes');
+    if (bModesEl) bModesEl.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-bmode]');
+      if (!b) return;
+      e.stopPropagation();
+      loadBoard(boardKind, b.getAttribute('data-bmode'));   // reload current board in the chosen mode
+    });
 
     // The typing config (modes/modifiers/upgrades/toggles) now lives inline in the
     // left accordion's Keyboard section, so render it once on init and on language

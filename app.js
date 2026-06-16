@@ -3139,29 +3139,29 @@
               typingWords: typingWords,
             }).catch(() => {});
           }
+          // Per-mode WPM/Score boards (15s/30s/60s are ranked separately — fair).
+          const VALID_BMODES = { s15: 1, s30: 1, s60: 1 };
           const bestWpmMap = userStats.typingBestWpm || {};
-          let bestWpm = 0, bestMode = '';
-          for (const md in bestWpmMap) { if (bestWpmMap[md] > bestWpm) { bestWpm = bestWpmMap[md]; bestMode = md; } }
-          if (bestWpm > 0) {
-            db.ref('leaderboard/typingWpm/' + uid).update({
-              name:     userProfile.displayName || I18N.t('sensei.trainer'),
-              country:  userProfile.country || 'XX',
-              photoURL: lbPhoto(userProfile),
-              wpm:      bestWpm,
-              mode:     bestMode,
-            }).catch(() => {});
+          for (const md in bestWpmMap) {
+            if (bestWpmMap[md] > 0 && VALID_BMODES[md]) {
+              db.ref('leaderboard/typingWpm/' + md + '/' + uid).update({
+                name:     userProfile.displayName || I18N.t('sensei.trainer'),
+                country:  userProfile.country || 'XX',
+                photoURL: lbPhoto(userProfile),
+                wpm:      bestWpmMap[md],
+              }).catch(() => {});
+            }
           }
           const bestScoreMap = userStats.typingBestScore || {};
-          let bestScore = 0, bestScoreMode = '';
-          for (const md in bestScoreMap) { if (bestScoreMap[md] > bestScore) { bestScore = bestScoreMap[md]; bestScoreMode = md; } }
-          if (bestScore > 0) {
-            db.ref('leaderboard/typingScore/' + uid).update({
-              name:     userProfile.displayName || I18N.t('sensei.trainer'),
-              country:  userProfile.country || 'XX',
-              photoURL: userProfile.photoURL || '',
-              score:    bestScore,
-              mode:     bestScoreMode,
-            }).catch(() => {});
+          for (const md in bestScoreMap) {
+            if (bestScoreMap[md] > 0 && VALID_BMODES[md]) {
+              db.ref('leaderboard/typingScore/' + md + '/' + uid).update({
+                name:     userProfile.displayName || I18N.t('sensei.trainer'),
+                country:  userProfile.country || 'XX',
+                photoURL: lbPhoto(userProfile),
+                score:    bestScoreMap[md],
+              }).catch(() => {});
+            }
           }
         }
       };
