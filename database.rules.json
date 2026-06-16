@@ -144,6 +144,8 @@
           "typingNoBackspace":       { ".validate": "newData.isBoolean()" },
           "typingStopOnError":       { ".validate": "newData.isBoolean()" },
           "typingQol":               { ".validate": "newData.isBoolean()" },
+          "comboPowerLevel":         { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100" },
+          "casualComboCap":          { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
           "buffs": {
             "$kind": {
               ".validate": "$kind === 'coins' || $kind === 'clicks' || $kind === 'autoRate'",
