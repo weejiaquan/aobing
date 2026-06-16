@@ -1526,6 +1526,10 @@
     const tileCpv = document.getElementById('tile-cpv');
     const tileMaxCombo = document.getElementById('tile-max-combo');
     const tileMaxComboLabel = document.getElementById('tile-max-combo-label');
+    const tileTypingWpm = document.getElementById('tile-typing-wpm');
+    const tileTypingWpmLabel = document.getElementById('tile-typing-wpm-label');
+    const tileTypingScore = document.getElementById('tile-typing-score');
+    const tileTypingScoreLabel = document.getElementById('tile-typing-score-label');
     const trendGrid = document.getElementById('stats-trend-grid');
     const countriesEmpty = document.getElementById('countries-empty');
     const skinsEmpty = document.getElementById('skins-empty');
@@ -1635,6 +1639,8 @@
       let totalClicks = 0;
       let totalVisitors = 0;
       let rangeMaxCombo = 0;
+      let rangeMaxTypingWpm = 0;
+      let rangeMaxTypingScore = 0;
 
       dates.forEach(d => {
         const day = dailyData[d] || {};
@@ -1651,6 +1657,8 @@
         if (day.maxCombo && day.maxCombo > rangeMaxCombo) {
           rangeMaxCombo = day.maxCombo;
         }
+        if (day.typingMaxWpm && day.typingMaxWpm > rangeMaxTypingWpm) rangeMaxTypingWpm = day.typingMaxWpm;
+        if (day.typingMaxScore && day.typingMaxScore > rangeMaxTypingScore) rangeMaxTypingScore = day.typingMaxScore;
         if (day.countries) {
           Object.entries(day.countries).forEach(([code, n]) => {
             countryTotals[code] = (countryTotals[code] || 0) + n;
@@ -1709,6 +1717,10 @@
       tileVisitors.textContent = totalVisitors.toLocaleString();
       tileCpv.textContent = totalVisitors > 0 ? (totalClicks / totalVisitors).toFixed(1) : '—';
       tileMaxCombo.textContent = rangeMaxCombo > 0 ? rangeMaxCombo.toLocaleString() + 'x' : '—';
+      tileTypingWpmLabel.textContent = (isToday ? 'Fastest WPM today' : 'Fastest WPM') + (isSingleDay ? '' : labelSuffix);
+      tileTypingScoreLabel.textContent = (isToday ? 'Highest score today' : 'Highest score') + (isSingleDay ? '' : labelSuffix);
+      tileTypingWpm.textContent = rangeMaxTypingWpm > 0 ? rangeMaxTypingWpm.toLocaleString() + ' wpm' : '—';
+      tileTypingScore.textContent = rangeMaxTypingScore > 0 ? rangeMaxTypingScore.toLocaleString() : '—';
 
       // Live tick for today's tiles
       if (isToday) {
@@ -4596,9 +4608,23 @@
         const curS = pending.typingBestScore[opts.mode] || 0;
         if (opts.runScore > curS) pending.typingBestScore[opts.mode] = opts.runScore;
       }
+      // Global daily records (shown in analytics) — only ranked-eligible runs reach
+      // here with bestWpm/runScore. Monotonic max, same pattern as the combo peak.
+      if (opts && (opts.bestWpm > 0 || opts.runScore > 0)) {
+        recordTypingDaily(opts.bestWpm || 0, opts.runScore || 0);
+      }
       savePendingDeferred();
       scheduleFlush();
       if (typeof scheduleOptimisticRender === 'function') scheduleOptimisticRender();
+    }
+    function recordTypingDaily(wpm, score) {
+      const day = todayKey();
+      if (wpm > 0) {
+        db.ref('daily/' + day + '/typingMaxWpm').transaction((cur) => (cur == null || wpm > cur) ? wpm : undefined);
+      }
+      if (score > 0) {
+        db.ref('daily/' + day + '/typingMaxScore').transaction((cur) => (cur == null || score > cur) ? score : undefined);
+      }
     }
 
     character.addEventListener('click', (e) => {

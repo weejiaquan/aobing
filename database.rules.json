@@ -47,6 +47,12 @@
         "maxCombo": {
           ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 1000000000"
         },
+        "typingMaxWpm": {
+          ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 100000"
+        },
+        "typingMaxScore": {
+          ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= 1000000000000"
+        },
         "visitorCount": {
           ".write": "newData.exists() && newData.isNumber() && newData.val() >= (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 1 && newData.val() <= 1000000000"
         },
