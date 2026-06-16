@@ -1513,7 +1513,7 @@
     #leaderboard-btn { top: 16px; right: 70px; }
 
     /* --- Typing Button (bottom-left corner, floating above the player profile) --- */
-    #typing-btn { left: 16px; bottom: 96px; }
+    #typing-btn { display: none; left: 16px; bottom: 96px; }
     @media (max-width: 480px) { #typing-btn { left: 8px; bottom: 84px; } }
     @media (max-width: 480px) {
       #leaderboard-btn { top: 12px; right: 56px; }
@@ -2250,6 +2250,18 @@
     </div>
   </div>
 
+  <!-- Left mode menu (mirrors #combo-display; always visible) -->
+  <div id="mode-menu">
+    <div class="mode-row" id="mode-top">
+      <button class="mode-btn" data-mode="clicker" data-i18n="mode.clicker">Clicker</button>
+      <button class="mode-btn" data-mode="typing" data-i18n="mode.typing">Typing</button>
+    </div>
+    <div class="mode-row" id="mode-sub" hidden>
+      <button class="mode-btn" data-submode="casual" data-i18n="mode.casual">Casual</button>
+      <button class="mode-btn" data-submode="ranked" data-i18n="mode.ranked">Ranked</button>
+    </div>
+  </div>
+
   <!-- Floating text particles container -->
   <div id="particles"></div>
 
@@ -2475,6 +2487,7 @@
       <div class="typing-board-tabs">
         <button id="typing-board-words" type="button" class="sel" data-i18n="typing.board_words">Words</button>
         <button id="typing-board-wpm" type="button" data-i18n="typing.board_wpm">WPM</button>
+        <button id="typing-board-score" data-i18n="typing.board_score">Score</button>
       </div>
       <div id="typing-board-list" class="typing-board-list"></div>
     </div>
