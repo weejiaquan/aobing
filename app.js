@@ -5122,6 +5122,7 @@
       saveSettings:      function () { saveSettings(settings); },
       creditTyping:      creditTyping,
       reactCharacter:    reactCharacter,
+      recordKeyboard:    function () { recordClick('keyboard'); },
       setTypingActive:   setTypingActive,
       buyTypingMod:      buyTypingMod,
       buyTypingUpgrade:  buyTypingUpgrade,
@@ -5198,12 +5199,6 @@
         shopPanelEl.classList.add('open');
         if (typeof renderShopPanel === 'function') renderShopPanel();
       }
-      const accBoardsBtn = document.getElementById('acc-boards-btn');
-      if (accBoardsBtn) accBoardsBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeModePop();
-        openLeaderboard('typing');
-      });
       document.addEventListener('click', (e) => { if (!modeMenuEl.contains(e.target)) closeModePop(); });
       renderModeMenu();
       window.addEventListener('i18nchange', renderModeMenu);

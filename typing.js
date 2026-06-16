@@ -511,6 +511,9 @@ if (typeof document !== 'undefined') {
         if (act.correct && deps.renderTypingCombo) deps.renderTypingCombo(run.comboCount);
         if (settings.typingClickPerKey) deps.reactCharacter();
       }
+      // Every typed character counts as a keyboard input in the global click count
+      // (same as keyboard mashing in clicker mode — global/keyboard only, not rank).
+      if (act && act.type === 'char' && deps.recordKeyboard) deps.recordKeyboard();
       renderStream();
       updateLive();
     }
