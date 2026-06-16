@@ -256,35 +256,64 @@
       transition: opacity 0.35s ease;
     }
 
-    /* --- Left Mode Menu --- mirror of #combo-display, on the LEFT, always shown */
+    /* --- Left Mode Menu (dropdown) --- mirrors #combo-display position, on the LEFT */
     #mode-menu {
       position: fixed;
       top: 22%;
       left: calc(50% - 28vh);
       transform: translateX(-100%);
-      z-index: 70;
+      /* Above the typing play overlay (z 200) so the chip stays clickable while
+         typing — it's the way back to Clicker — but below the settings modal (210). */
+      z-index: 201;
       user-select: none;
+      font: 600 14px/1 'Segoe UI', system-ui, sans-serif;
+    }
+    #mode-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.45);
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    #mode-chip .mode-caret { font-size: 10px; opacity: 0.85; transition: transform 0.18s ease; }
+    #mode-menu.open #mode-chip .mode-caret { transform: rotate(180deg); }
+    #mode-list {
+      margin-top: 6px;
       display: flex;
       flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(15,15,20,0.92);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    #mode-list[hidden] { display: none; }
+    #mode-list .mode-opt {
+      display: flex;
+      align-items: center;
       gap: 8px;
-      align-items: flex-start;
-    }
-    #mode-menu .mode-row { display: flex; gap: 6px; }
-    #mode-menu .mode-btn {
-      padding: 6px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.25);
-      background: rgba(0,0,0,0.35);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
       color: #fff;
-      font: 600 14px/1 'Segoe UI', system-ui, sans-serif;
+      font: inherit;
+      text-align: left;
       cursor: pointer;
-      backdrop-filter: blur(4px);
+      white-space: nowrap;
     }
-    #mode-menu .mode-btn.sel {
-      background: rgba(255,255,255,0.9);
-      color: #111;
-      border-color: #fff;
-    }
+    #mode-list .mode-opt .mode-opt-icon { width: 16px; text-align: center; }
+    #mode-list .mode-opt:hover { background: rgba(255,255,255,0.12); }
+    #mode-list .mode-opt.sel { background: rgba(255,255,255,0.9); color: #111; }
     @media (max-width: 1080px) {
       #mode-menu { top: 16%; left: 4%; transform: none; }
     }
@@ -2312,15 +2341,23 @@
     </div>
   </div>
 
-  <!-- Left mode menu (mirrors #combo-display; always visible) -->
+  <!-- Left mode menu — dropdown (mirrors #combo-display position) -->
   <div id="mode-menu">
-    <div class="mode-row" id="mode-top">
-      <button class="mode-btn" data-mode="clicker" data-i18n="mode.clicker">Clicker</button>
-      <button class="mode-btn" data-mode="typing" data-i18n="mode.typing">Typing</button>
-    </div>
-    <div class="mode-row" id="mode-sub" hidden>
-      <button class="mode-btn" data-submode="casual" data-i18n="mode.casual">Casual</button>
-      <button class="mode-btn" data-submode="ranked" data-i18n="mode.ranked">Ranked</button>
+    <button id="mode-chip" type="button" aria-haspopup="listbox" aria-expanded="false">
+      <span id="mode-chip-icon">🖱</span>
+      <span id="mode-chip-label">Clicker</span>
+      <span class="mode-caret">▾</span>
+    </button>
+    <div id="mode-list" role="listbox" hidden>
+      <button class="mode-opt" type="button" role="option" data-mode="clicker" data-submode="">
+        <span class="mode-opt-icon">🖱</span><span data-i18n="mode.clicker">Clicker</span>
+      </button>
+      <button class="mode-opt" type="button" role="option" data-mode="typing" data-submode="casual">
+        <span class="mode-opt-icon">⌨</span><span><span data-i18n="mode.typing">Typing</span> · <span data-i18n="mode.casual">Casual</span></span>
+      </button>
+      <button class="mode-opt" type="button" role="option" data-mode="typing" data-submode="ranked">
+        <span class="mode-opt-icon">⌨</span><span><span data-i18n="mode.typing">Typing</span> · <span data-i18n="mode.ranked">Ranked</span></span>
+      </button>
     </div>
   </div>
 

@@ -5116,40 +5116,67 @@
       window.TypingGame.init(window.__typingDeps);
     }
 
-    // --- Left mode menu wiring ----------------------------------------------
-    const modeMenuEl = document.getElementById('mode-menu');
-    const modeSubEl  = document.getElementById('mode-sub');
+    // --- Left mode menu (dropdown) ------------------------------------------
+    const modeMenuEl      = document.getElementById('mode-menu');
+    const modeChipEl      = document.getElementById('mode-chip');
+    const modeListEl      = document.getElementById('mode-list');
+    const modeChipLabelEl = document.getElementById('mode-chip-label');
+    const modeChipIconEl  = document.getElementById('mode-chip-icon');
+    function modeLabel(mode, sub) {
+      if (mode === 'typing') {
+        return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
+      }
+      return I18N.t('mode.clicker');
+    }
     function renderModeMenu() {
       if (!modeMenuEl) return;
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
-      modeMenuEl.querySelectorAll('button[data-mode]').forEach((b) =>
-        b.classList.toggle('sel', b.getAttribute('data-mode') === mode));
-      modeMenuEl.querySelectorAll('button[data-submode]').forEach((b) =>
-        b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
-      if (modeSubEl) modeSubEl.hidden = (mode !== 'typing');
+      if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
+      if (modeChipIconEl)  modeChipIconEl.textContent  = (mode === 'typing') ? '⌨' : '🖱';
+      if (modeListEl) modeListEl.querySelectorAll('.mode-opt').forEach((b) => {
+        const m = b.getAttribute('data-mode'), s = b.getAttribute('data-submode');
+        b.classList.toggle('sel', m === mode && (m !== 'typing' || s === sub));
+      });
     }
-    function setGameMode(mode) {
+    function closeModeList() {
+      if (!modeMenuEl) return;
+      modeMenuEl.classList.remove('open');
+      if (modeListEl) modeListEl.hidden = true;
+      if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false');
+    }
+    function openModeList() {
+      if (!modeMenuEl) return;
+      modeMenuEl.classList.add('open');
+      if (modeListEl) modeListEl.hidden = false;
+      if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true');
+    }
+    function applyModeChoice(mode, sub) {
       settings.gameMode = (mode === 'typing') ? 'typing' : 'clicker';
       saveSettings(settings);
-      renderModeMenu();
       if (settings.gameMode === 'typing') {
+        if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         if (window.TypingGame && window.TypingGame.open) window.TypingGame.open();
-      } else {
-        if (window.TypingGame && window.TypingGame.close) window.TypingGame.close();
+      } else if (window.TypingGame && window.TypingGame.close) {
+        window.TypingGame.close();
       }
+      renderModeMenu();
     }
     if (modeMenuEl) {
-      modeMenuEl.addEventListener('click', (e) => {
-        const top = e.target.closest('button[data-mode]');
-        if (top) { e.stopPropagation(); setGameMode(top.getAttribute('data-mode')); return; }
-        const sub = e.target.closest('button[data-submode]');
-        if (sub) {
-          e.stopPropagation();
-          if (window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub.getAttribute('data-submode'));
-          settings.typingSubMode = sub.getAttribute('data-submode');
-          renderModeMenu();
-        }
+      if (modeChipEl) modeChipEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (modeListEl && modeListEl.hidden) openModeList(); else closeModeList();
+      });
+      if (modeListEl) modeListEl.addEventListener('click', (e) => {
+        const opt = e.target.closest('.mode-opt');
+        if (!opt) return;
+        e.stopPropagation();
+        closeModeList();
+        applyModeChoice(opt.getAttribute('data-mode'), opt.getAttribute('data-submode') || '');
+      });
+      // Click anywhere outside the menu closes the dropdown.
+      document.addEventListener('click', (e) => {
+        if (!modeMenuEl.contains(e.target)) closeModeList();
       });
       renderModeMenu();
       window.addEventListener('i18nchange', renderModeMenu);
