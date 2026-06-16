@@ -775,15 +775,19 @@ if (typeof document !== 'undefined') {
     const boardScoreBtn = document.getElementById('typing-board-score');
     if (boardScoreBtn) boardScoreBtn.addEventListener('click', (e) => { e.stopPropagation(); loadBoard('score'); });
 
-    // Re-render localized labels when the language changes.
-    window.addEventListener('i18nchange', () => {
-      renderModes();
-      if (settingsOpen) { renderMods(); renderToggles(); renderUpgrades(); }
-    });
+    // The typing config (modes/modifiers/upgrades/toggles) now lives inline in the
+    // left accordion's Keyboard section, so render it once on init and on language
+    // change — not only when a modal opens.
+    function refreshKeyboardPanel() {
+      renderModes(); renderMods(); renderToggles(); renderUpgrades();
+    }
+    refreshKeyboardPanel();
+    window.addEventListener('i18nchange', refreshKeyboardPanel);
 
     api.open = openPanel;
     api.close = closePanel;
     api.openSettings = openSettings;
+    api.refreshKeyboardPanel = refreshKeyboardPanel;
     api.setSubMode = function (sm) {
       if (running) finishRun();                 // finalize under the run's own submode first
       settings.typingSubMode = (sm === 'ranked') ? 'ranked' : 'casual';

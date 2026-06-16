@@ -426,6 +426,7 @@
           'mode.typing':'Typing',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
+          'mode.keyboard':'Keyboard',
           'mode.settings':'Settings',
           'typing.board_words':'Words','typing.board_wpm':'WPM',
           'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
@@ -5117,76 +5118,71 @@
       window.TypingGame.init(window.__typingDeps);
     }
 
-    // --- Left mode menu (dropdown) ------------------------------------------
-    const modeMenuEl      = document.getElementById('mode-menu');
-    const modeChipEl      = document.getElementById('mode-chip');
-    const modeListEl      = document.getElementById('mode-list');
-    const modeChipLabelEl = document.getElementById('mode-chip-label');
-    const modeChipIconEl  = document.getElementById('mode-chip-icon');
-    const modeSettingsEl  = document.getElementById('mode-settings');
-    function modeLabel(mode, sub) {
-      if (mode === 'typing') {
-        return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
-      }
-      return I18N.t('mode.clicker');
+    // --- Left mode menu (foldable Clicker/Keyboard accordion) ----------------
+    const modeMenuEl  = document.getElementById('mode-menu');
+    const accClicker  = document.getElementById('acc-clicker');
+    const accKeyboard = document.getElementById('acc-keyboard');
+    function setAccordion(mode) {
+      if (accClicker)  accClicker.classList.toggle('open', mode === 'clicker');
+      if (accKeyboard) accKeyboard.classList.toggle('open', mode === 'typing');
     }
     function renderModeMenu() {
-      if (!modeMenuEl) return;
-      const mode = settings.gameMode || 'clicker';
-      const sub  = settings.typingSubMode || 'casual';
-      if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
-      if (modeChipIconEl)  modeChipIconEl.textContent  = (mode === 'typing') ? '⌨' : '🖱';
-      if (modeListEl) modeListEl.querySelectorAll('.mode-opt').forEach((b) => {
-        const m = b.getAttribute('data-mode'), s = b.getAttribute('data-submode');
-        b.classList.toggle('sel', m === mode && (m !== 'typing' || s === sub));
-      });
+      const sub = settings.typingSubMode || 'casual';
+      const subEl = document.getElementById('typing-submode');
+      if (subEl) subEl.querySelectorAll('button[data-submode]').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
     }
-    function closeModeList() {
-      if (!modeMenuEl) return;
-      modeMenuEl.classList.remove('open');
-      if (modeListEl) modeListEl.hidden = true;
-      if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false');
-    }
-    function openModeList() {
-      if (!modeMenuEl) return;
-      modeMenuEl.classList.add('open');
-      if (modeListEl) modeListEl.hidden = false;
-      if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true');
-    }
-    function applyModeChoice(mode, sub) {
+    function switchMode(mode) {
       settings.gameMode = (mode === 'typing') ? 'typing' : 'clicker';
       saveSettings(settings);
       if (settings.gameMode === 'typing') {
-        if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         if (window.TypingGame && window.TypingGame.open) window.TypingGame.open();
+        if (window.TypingGame && window.TypingGame.refreshKeyboardPanel) window.TypingGame.refreshKeyboardPanel();
       } else if (window.TypingGame && window.TypingGame.close) {
         window.TypingGame.close();
       }
+      setAccordion(settings.gameMode);
       renderModeMenu();
     }
     if (modeMenuEl) {
-      if (modeChipEl) modeChipEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (modeListEl && modeListEl.hidden) openModeList(); else closeModeList();
+      modeMenuEl.querySelectorAll('.acc-header').forEach((h) => {
+        h.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const mode = h.getAttribute('data-mode');
+          if (settings.gameMode === mode) {
+            // already in this mode → just fold/unfold this section
+            const section = (mode === 'clicker') ? accClicker : accKeyboard;
+            if (section) section.classList.toggle('open');
+          } else {
+            switchMode(mode);
+          }
+        });
       });
-      if (modeListEl) modeListEl.addEventListener('click', (e) => {
-        const opt = e.target.closest('.mode-opt');
-        if (!opt) return;
+      const subEl = document.getElementById('typing-submode');
+      if (subEl) subEl.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-submode]');
+        if (!b) return;
         e.stopPropagation();
-        closeModeList();
-        applyModeChoice(opt.getAttribute('data-mode'), opt.getAttribute('data-submode') || '');
+        const sm = b.getAttribute('data-submode');
+        if (settings.gameMode !== 'typing') switchMode('typing');
+        if (window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sm);
+        settings.typingSubMode = sm;
+        renderModeMenu();
       });
-      if (modeSettingsEl) modeSettingsEl.addEventListener('click', (e) => {
+      const accShopBtn = document.getElementById('acc-shop-btn');
+      if (accShopBtn) accShopBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        closeModeList();
+        const sp = document.getElementById('shop-panel');
+        if (sp) { sp.classList.add('open'); if (typeof renderShopPanel === 'function') renderShopPanel(); }
+      });
+      const accBoardsBtn = document.getElementById('acc-boards-btn');
+      if (accBoardsBtn) accBoardsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (window.TypingGame && window.TypingGame.openSettings) window.TypingGame.openSettings();
       });
-      // Click anywhere outside the menu closes the dropdown.
-      document.addEventListener('click', (e) => {
-        if (!modeMenuEl.contains(e.target)) closeModeList();
-      });
+      setAccordion(settings.gameMode || 'clicker');
       renderModeMenu();
       window.addEventListener('i18nchange', renderModeMenu);
-      window.addEventListener('gamemodechange', renderModeMenu);
+      window.addEventListener('gamemodechange', () => { setAccordion(settings.gameMode || 'clicker'); renderModeMenu(); });
     }
 
