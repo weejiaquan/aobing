@@ -2644,6 +2644,58 @@
       }
     }
 
+    // Tiered typing combo upgrades (numeric, not boolean). Stored under
+    // users/{uid}/shop. comboPowerLevel scales every word's buffer; casualComboCap
+    // raises the safe-farm multiplier ceiling. Costs are a placeholder curve —
+    // tune so a skilled ranked typist out-earns a ~lvl-20 clicker (500–1000/s).
+    const COMBO_POWER_MAX = 100;
+    const CASUAL_CAP_TIERS = [20, 50, 100, 250, 500]; // ×multiplier ceilings
+    function comboPowerLevelOf(shop) { return Math.max(1, (shop && shop.comboPowerLevel) || 1); }
+    function casualComboCapOf(shop)  { return (shop && shop.casualComboCap) || CASUAL_CAP_TIERS[0]; }
+    function comboPowerCost(nextLevel) { return nextLevel * nextLevel * 250; }   // L2=1000, L10=25000…
+    function casualCapCost(tierIdx)    { return (tierIdx + 1) * 5000; }          // tier1=10000…
+
+    // key: 'comboPowerLevel' | 'casualComboCap'. Returns true on success.
+    async function buyTypingUpgrade(key) {
+      const shop = userShop || {};
+      let nextVal, cost;
+      if (key === 'comboPowerLevel') {
+        const cur = comboPowerLevelOf(shop);
+        if (cur >= COMBO_POWER_MAX) return false;
+        nextVal = cur + 1;
+        cost = comboPowerCost(nextVal);
+      } else if (key === 'casualComboCap') {
+        const cur = casualComboCapOf(shop);
+        const idx = CASUAL_CAP_TIERS.indexOf(cur);
+        if (idx === -1 || idx >= CASUAL_CAP_TIERS.length - 1) return false;
+        nextVal = CASUAL_CAP_TIERS[idx + 1];
+        cost = casualCapCost(idx + 1);
+      } else {
+        return false;
+      }
+      if (shopAffordableCoins() < cost) return false;
+      pending.userCoins -= cost;
+      savePending();
+      scheduleFlush();
+      renderSenseiBar();
+      if (!currentUser) {
+        userShop[key] = nextVal;
+        saveLocalUserData();
+        return true;
+      }
+      try {
+        await db.ref(`users/${currentUser.uid}/shop/${key}`).set(nextVal);
+        userShop[key] = nextVal; // optimistic; shop listener confirms
+        return true;
+      } catch (err) {
+        pending.userCoins += cost; // rollback
+        savePending();
+        scheduleFlush();
+        renderSenseiBar();
+        return false;
+      }
+    }
+
     async function buyBuff(kind, itemEl) {
       if (!['coins','clicks','autoRate'].includes(kind)) return;
       const cost = SHOP_BUFF_COST;
@@ -4848,6 +4900,15 @@
       reactCharacter:    reactCharacter,
       setTypingActive:   setTypingActive,
       buyTypingMod:      buyTypingMod,
+      buyTypingUpgrade:  buyTypingUpgrade,
+      comboPowerLevel:   function () { return comboPowerLevelOf(userShop || {}); },
+      casualComboCap:    function () { return casualComboCapOf(userShop || {}); },
+      comboPowerCost:    comboPowerCost,
+      casualCapCost:     casualCapCost,
+      comboPowerMax:     COMBO_POWER_MAX,
+      casualCapTiers:    CASUAL_CAP_TIERS,
+      renderTypingCombo: renderTypingCombo,
+      resetTypingCombo:  resetTypingCombo,
       t:                 function (k, p) { return I18N.t(k, p); },
       escapeHtml:        escapeHtml,
       flagFromCountry:   flagFromCountry,
