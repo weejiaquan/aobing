@@ -90,6 +90,9 @@ function nextWords(pack, count, seedIndex) {
 // =========================================================================
 // Run state + input reducer
 // =========================================================================
+// Hard cap on the per-word payout multiplier (balance). The combo streak keeps
+// climbing for feel, but a single word can never pay more than this ×.
+const WORD_MULT_CAP = 50;
 function createRunState(words, mode, mods, scoring) {
   scoring = scoring || {};
   return {
@@ -193,9 +196,12 @@ function applyKey(state, key, mods) {
       s.lastAction = { type: 'noop' };
       return s;
     }
-    const effMul = (s.subMode === 'casual' && s.casualComboCap > 0)
+    let effMul = (s.subMode === 'casual' && s.casualComboCap > 0)
       ? Math.min(s.comboCount, s.casualComboCap)
       : s.comboCount;
+    // Hard balance cap on the per-word multiplier (the combo streak still climbs for
+    // feel, but a word can't pay more than WORD_MULT_CAP×). Keeps the economy sane.
+    effMul = Math.min(effMul, WORD_MULT_CAP);
     const payout = s.wordBuffer * effMul;
     const res = completeWord(s);
     const ns = res.state;

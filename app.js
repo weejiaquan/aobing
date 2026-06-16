@@ -5198,14 +5198,19 @@
       if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
       return I18N.t('mode.clicker');
     }
+    const mpSubmodeEl = document.getElementById('mp-submode');
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
-        const m = b.getAttribute('data-mode'), s = b.getAttribute('data-submode');
-        b.classList.toggle('sel', m === mode && (m !== 'typing' || s === sub));
+        b.classList.toggle('sel', b.getAttribute('data-mode') === mode);
       });
+      if (mpSubmodeEl) {
+        mpSubmodeEl.hidden = (mode !== 'typing');
+        mpSubmodeEl.querySelectorAll('button[data-submode]').forEach((b) =>
+          b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
+      }
       if (mpClickerEl) mpClickerEl.hidden = (mode !== 'clicker');
       if (mpTypingEl)  mpTypingEl.hidden  = (mode !== 'typing');
     }
@@ -5232,8 +5237,21 @@
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         b.addEventListener('click', (e) => {
           e.stopPropagation();
-          applyMode(b.getAttribute('data-mode'), b.getAttribute('data-submode') || '');
+          applyMode(b.getAttribute('data-mode'), settings.typingSubMode || 'casual');
         });
+      });
+      // Casual/Ranked sub-toggle — lightweight switch (panel already open), no full
+      // re-open, so the modifier list just refreshes in place.
+      if (mpSubmodeEl) mpSubmodeEl.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-submode]');
+        if (!b) return;
+        e.stopPropagation();
+        const sm = b.getAttribute('data-submode');
+        if (settings.gameMode !== 'typing') { applyMode('typing', sm); return; }
+        settings.typingSubMode = sm;
+        if (window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sm);
+        if (window.TypingGame && window.TypingGame.refreshKeyboardPanel) window.TypingGame.refreshKeyboardPanel();
+        renderModeMenu();
       });
       // Inline the shop into the dropdown's Clicker section (relocate its DOM so
       // the existing render + buy-delegation keep working by id).

@@ -424,7 +424,18 @@ test('submit: ranked uncapped uses full combo', () => {
   });
   s = typeWord(s, 'abcdefghij', NO_MODS); // comboCount 10, wordBuffer 10
   s = applyKey(s, ' ', NO_MODS);
-  assert.equal(s.lastAction.payout, 100); // 10 * 10
+  assert.equal(s.lastAction.payout, 100); // 10 * 10 (under the cap)
+});
+
+test('submit: per-word multiplier is hard-capped at 50 (combo streak still climbs)', () => {
+  const longWord = 'a'.repeat(60);
+  let s = createRunState([longWord, 'cat'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 1, commitOnSpace: true,
+  });
+  s = typeWord(s, longWord, NO_MODS);   // comboCount 60, wordBuffer 60
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.comboCount, 60);        // streak keeps climbing
+  assert.equal(s.lastAction.payout, 3000); // 60 * min(60, 50) = 60 * 50, NOT 60*60
 });
 
 test('submit: ranked committing a fully-typed wrong word resets comboCount to 0', () => {
