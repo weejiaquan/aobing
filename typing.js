@@ -783,6 +783,7 @@ if (typeof document !== 'undefined') {
 
     api.open = openPanel;
     api.close = closePanel;
+    api.openSettings = openSettings;
     api.setSubMode = function (sm) {
       if (running) finishRun();                 // finalize under the run's own submode first
       settings.typingSubMode = (sm === 'ranked') ? 'ranked' : 'casual';

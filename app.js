@@ -426,6 +426,7 @@
           'mode.typing':'Typing',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
+          'mode.settings':'Settings',
           'typing.board_words':'Words','typing.board_wpm':'WPM',
           'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
           'typing.ranked':'Ranked','typing.casual':'Casual',
@@ -5122,6 +5123,7 @@
     const modeListEl      = document.getElementById('mode-list');
     const modeChipLabelEl = document.getElementById('mode-chip-label');
     const modeChipIconEl  = document.getElementById('mode-chip-icon');
+    const modeSettingsEl  = document.getElementById('mode-settings');
     function modeLabel(mode, sub) {
       if (mode === 'typing') {
         return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
@@ -5173,6 +5175,11 @@
         e.stopPropagation();
         closeModeList();
         applyModeChoice(opt.getAttribute('data-mode'), opt.getAttribute('data-submode') || '');
+      });
+      if (modeSettingsEl) modeSettingsEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeModeList();
+        if (window.TypingGame && window.TypingGame.openSettings) window.TypingGame.openSettings();
       });
       // Click anywhere outside the menu closes the dropdown.
       document.addEventListener('click', (e) => {

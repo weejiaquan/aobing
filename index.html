@@ -267,7 +267,12 @@
       z-index: 201;
       user-select: none;
       font: 600 14px/1 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
     }
+    #mode-chip-wrap { position: relative; }
     #mode-chip {
       display: flex;
       align-items: center;
@@ -285,7 +290,9 @@
     #mode-chip .mode-caret { font-size: 10px; opacity: 0.85; transition: transform 0.18s ease; }
     #mode-menu.open #mode-chip .mode-caret { transform: rotate(180deg); }
     #mode-list {
-      margin-top: 6px;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -314,6 +321,21 @@
     #mode-list .mode-opt .mode-opt-icon { width: 16px; text-align: center; }
     #mode-list .mode-opt:hover { background: rgba(255,255,255,0.12); }
     #mode-list .mode-opt.sel { background: rgba(255,255,255,0.9); color: #111; }
+    #mode-settings {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    #mode-settings:hover { background: rgba(0,0,0,0.55); }
     @media (max-width: 1080px) {
       #mode-menu { top: 16%; left: 4%; transform: none; }
     }
@@ -2341,8 +2363,9 @@
     </div>
   </div>
 
-  <!-- Left mode menu — dropdown (mirrors #combo-display position) -->
+  <!-- Left mode menu — dropdown + settings (mirrors #combo-display position) -->
   <div id="mode-menu">
+    <div id="mode-chip-wrap">
     <button id="mode-chip" type="button" aria-haspopup="listbox" aria-expanded="false">
       <span id="mode-chip-icon">🖱</span>
       <span id="mode-chip-label">Clicker</span>
@@ -2359,6 +2382,10 @@
         <span class="mode-opt-icon">⌨</span><span><span data-i18n="mode.typing">Typing</span> · <span data-i18n="mode.ranked">Ranked</span></span>
       </button>
     </div>
+    </div>
+    <button id="mode-settings" type="button" aria-label="Typing settings" title="Typing settings">
+      <span class="mode-opt-icon">⚙</span><span data-i18n="mode.settings">Settings</span>
+    </button>
   </div>
 
   <!-- Floating text particles container -->
