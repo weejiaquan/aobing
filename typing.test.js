@@ -296,7 +296,7 @@ test('applyKey space: completes the current word (delegates to completeWord)', (
   assert.equal(s.wordIndex, 1);
   assert.equal(s.completedWords, 1);
   assert.equal(s.buffer, '');
-  assert.deepEqual(s.lastAction, { type: 'word', correct: true });
+  assert.deepEqual(s.lastAction, { type: 'word', correct: true, payout: 9 });
 });
 
 test('applyKey space: space on empty buffer is a no-op (no empty words)', () => {
@@ -348,7 +348,7 @@ test('applyKey space (default): a fully-correct word advances', () => {
   s = typeKeys(s, ['t', 'e', 's', 't'], NO_MODS);
   s = applyKey(s, ' ', NO_MODS);
   assert.equal(s.wordIndex, 1);
-  assert.deepEqual(s.lastAction, { type: 'word', correct: true });
+  assert.deepEqual(s.lastAction, { type: 'word', correct: true, payout: 16 });
 });
 
 test('applyKey space (noBackspace): incorrect word DOES advance (mistakes lock in)', () => {
@@ -357,7 +357,7 @@ test('applyKey space (noBackspace): incorrect word DOES advance (mistakes lock i
   s = typeKeys(s, ['t', 'e', 'x'], mods);
   s = applyKey(s, ' ', mods);
   assert.equal(s.wordIndex, 1, 'advances despite the error');
-  assert.deepEqual(s.lastAction, { type: 'word', correct: false });
+  assert.deepEqual(s.lastAction, { type: 'word', correct: false, payout: 4 });
 });
 
 // =========================================================================
@@ -385,4 +385,68 @@ test('applyKey ClearWord: no-op on an empty buffer', () => {
   s = applyKey(s, 'ClearWord', NO_MODS);
   assert.equal(s.buffer, '');
   assert.deepEqual(s.lastAction, { type: 'noop' });
+});
+
+// =========================================================================
+// applyKey word submit — payout, casual cap, ranked reset
+// =========================================================================
+function typeWord(s, word, mods) {
+  return word.split('').reduce((st, ch) => applyKey(st, ch, mods), s);
+}
+
+test('submit: COMBO at comboPowerLevel 2 pays (5*2)*5 = 50 (worked example)', () => {
+  let s = createRunState(['combo'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 2, commitOnSpace: true,
+  });
+  s = typeWord(s, 'combo', NO_MODS);   // 5 correct chars -> comboCount 5, wordBuffer 10
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.lastAction.type, 'word');
+  assert.equal(s.lastAction.correct, true);
+  assert.equal(s.lastAction.payout, 50);
+  assert.equal(s.runScore, 50);
+  assert.equal(s.wordBuffer, 0);       // buffer reset for next word
+  assert.equal(s.comboCount, 5);       // combo persists across correct words
+});
+
+test('submit: casual cap clamps the multiplier', () => {
+  let s = createRunState(['abcdefghij'], 's30', NO_MODS, {
+    subMode: 'casual', comboPowerLevel: 1, casualComboCap: 4, commitOnSpace: false,
+  });
+  s = typeWord(s, 'abcdefghij', NO_MODS); // 10 chars -> comboCount 10, wordBuffer 10
+  s = applyKey(s, ' ', NO_MODS);
+  // effMul = min(10, 4) = 4 -> payout = 10 * 4 = 40
+  assert.equal(s.lastAction.payout, 40);
+});
+
+test('submit: ranked uncapped uses full combo', () => {
+  let s = createRunState(['abcdefghij'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 1, casualComboCap: 0, commitOnSpace: true,
+  });
+  s = typeWord(s, 'abcdefghij', NO_MODS); // comboCount 10, wordBuffer 10
+  s = applyKey(s, ' ', NO_MODS);
+  assert.equal(s.lastAction.payout, 100); // 10 * 10
+});
+
+test('submit: ranked committing a wrong word resets comboCount to 0', () => {
+  let s = createRunState(['cat', 'dog'], 's30', NO_MODS, {
+    subMode: 'ranked', comboPowerLevel: 1, commitOnSpace: true,
+  });
+  s = typeWord(s, 'cat', NO_MODS);
+  s = applyKey(s, ' ', NO_MODS);          // correct word -> combo 3 retained
+  assert.equal(s.comboCount, 3);
+  s = applyKey(s, 'x', NO_MODS);          // wrong first char of 'dog' (no accrual)
+  s = applyKey(s, ' ', NO_MODS);          // commit incorrect -> reset
+  assert.equal(s.lastAction.type, 'word');
+  assert.equal(s.lastAction.correct, false);
+  assert.equal(s.comboCount, 0);
+});
+
+test('submit: casual does NOT reset combo on a fixable word (legacy noop on space)', () => {
+  let s = createRunState(['cat'], 's30', NO_MODS, {
+    subMode: 'casual', comboPowerLevel: 1, commitOnSpace: false,
+  });
+  s = applyKey(s, 'x', NO_MODS);          // wrong char in buffer
+  s = applyKey(s, ' ', NO_MODS);          // legacy: noop, must fix
+  assert.equal(s.lastAction.type, 'noop');
+  assert.equal(s.comboCount, 0);          // unchanged; no commit happened
 });

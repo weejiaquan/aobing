@@ -182,16 +182,26 @@ function applyKey(state, key, mods) {
       s.lastAction = { type: 'noop' };
       return s;
     }
-    // Do NOT skip an unfinished/incorrect word — the player must correct it
-    // (backspace) before advancing. No-backspace mode is the exception:
-    // mistakes lock in there, so space always advances.
-    if (s.buffer === target || mods.noBackspace) {
-      const res = completeWord(s);
-      res.state.lastAction = { type: 'word', correct: res.correct };
-      return res.state;
+    const matches = (s.buffer === target);
+    // Default casual keeps the fix-first rule (noop on incorrect). No-backspace
+    // locks mistakes in, and ranked commitOnSpace advances even when wrong so the
+    // bad word can break the streak.
+    const willCommit = matches || mods.noBackspace || s.commitOnSpace;
+    if (!willCommit) {
+      s.lastAction = { type: 'noop' };
+      return s;
     }
-    s.lastAction = { type: 'noop' };
-    return s;
+    const effMul = (s.subMode === 'casual' && s.casualComboCap > 0)
+      ? Math.min(s.comboCount, s.casualComboCap)
+      : s.comboCount;
+    const payout = s.wordBuffer * effMul;
+    const res = completeWord(s);
+    const ns = res.state;
+    ns.wordBuffer = 0;                                 // reset score buffer for next word
+    ns.runScore += payout;
+    if (ns.subMode === 'ranked' && !res.correct) ns.comboCount = 0; // streak broken
+    ns.lastAction = { type: 'word', correct: res.correct, payout: payout };
+    return ns;
   }
 
   // Ignore non-printable keys (Shift, Enter, arrows, …)
