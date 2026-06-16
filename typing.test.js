@@ -237,6 +237,35 @@ test('applyKey freedom: typing the correct next char drops the wrong tail', () =
 });
 
 // =========================================================================
+// applyKey combo accrual (per correct keystroke)
+// =========================================================================
+test('applyKey: correct char bumps comboCount and wordBuffer by comboPowerLevel', () => {
+  let s = createRunState(['cat'], 's30', NO_MODS, { comboPowerLevel: 2 });
+  s = applyKey(s, 'c', NO_MODS);
+  assert.equal(s.comboCount, 1);
+  assert.equal(s.wordBuffer, 2);
+  s = applyKey(s, 'a', NO_MODS);
+  assert.equal(s.comboCount, 2);
+  assert.equal(s.wordBuffer, 4);
+});
+
+test('applyKey: wrong char does not bump combo or buffer (errors still count)', () => {
+  let s = createRunState(['cat'], 's30', NO_MODS, { comboPowerLevel: 2 });
+  s = applyKey(s, 'x', NO_MODS); // wrong: target[0] === 'c'
+  assert.equal(s.comboCount, 0);
+  assert.equal(s.wordBuffer, 0);
+  assert.equal(s.errors, 1);
+});
+
+test('applyKey: freedom-mode correct char also accrues combo', () => {
+  const mods = { freedom: true };
+  let s = createRunState(['cat'], 's30', mods, { comboPowerLevel: 3 });
+  s = applyKey(s, 'c', mods);
+  assert.equal(s.comboCount, 1);
+  assert.equal(s.wordBuffer, 3);
+});
+
+// =========================================================================
 // completeWord — word boundary advances, reports correctness, credits chars.
 // =========================================================================
 test('completeWord: fully-correct word advances and credits chars + space', () => {

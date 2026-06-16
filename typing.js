@@ -214,6 +214,8 @@ function applyKey(state, key, mods) {
     const expected = target[m];
     if (key === expected) {
       s.buffer = target.slice(0, m) + key;
+      s.comboCount += 1;
+      s.wordBuffer += s.comboPowerLevel;
       s.lastAction = { type: 'char', correct: true };
       return s;
     }
@@ -227,7 +229,12 @@ function applyKey(state, key, mods) {
   // wrong chars that must be backspaced.
   const correct = key === target[s.buffer.length];
   s.buffer = s.buffer + key;
-  if (!correct) s.errors += 1;
+  if (!correct) {
+    s.errors += 1;
+  } else {
+    s.comboCount += 1;
+    s.wordBuffer += s.comboPowerLevel;
+  }
   s.lastAction = { type: 'char', correct: correct };
   return s;
 }
