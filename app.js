@@ -3089,6 +3089,18 @@
               mode:     bestMode,
             }).catch(() => {});
           }
+          const bestScoreMap = userStats.typingBestScore || {};
+          let bestScore = 0, bestScoreMode = '';
+          for (const md in bestScoreMap) { if (bestScoreMap[md] > bestScore) { bestScore = bestScoreMap[md]; bestScoreMode = md; } }
+          if (bestScore > 0) {
+            db.ref('leaderboard/typingScore/' + uid).update({
+              name:     userProfile.displayName || I18N.t('sensei.trainer'),
+              country:  userProfile.country || 'XX',
+              photoURL: userProfile.photoURL || '',
+              score:    bestScore,
+              mode:     bestScoreMode,
+            }).catch(() => {});
+          }
         }
       };
       statsRef.on('value', statsCb);
@@ -3786,6 +3798,7 @@
       userBySource: {},  // per-user per-source — users/{uid}/stats/bySource/{src}
       typingWords: 0,    // additive — users/{uid}/stats/typingWords (typing-game completed words)
       typingBestWpm: {}, // best-of per mode { s15,s30,s60 } — users/{uid}/stats/typingBestWpm/{mode}
+      typingBestScore: {}, // best-of per mode — users/{uid}/stats/typingBestScore/{mode}
     };
     let flushDebounceTimer = null;
     let flushHeartbeatTimer = null;
@@ -3803,7 +3816,8 @@
         || Object.keys(pending.bySource).length      > 0
         || Object.keys(pending.userBySource).length  > 0
         || pending.typingWords > 0
-        || Object.keys(pending.typingBestWpm).length > 0;
+        || Object.keys(pending.typingBestWpm).length > 0
+        || Object.keys(pending.typingBestScore).length > 0;
     }
 
     // Immediate localStorage write — use this after flushPending zeros the
@@ -3847,6 +3861,7 @@
         for (const k in saved.userBySource || {}) pending.userBySource[k] = (pending.userBySource[k] || 0) + saved.userBySource[k];
         if (typeof saved.typingWords === 'number') pending.typingWords += saved.typingWords;
         for (const k in saved.typingBestWpm || {}) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, saved.typingBestWpm[k]);
+        for (const k in saved.typingBestScore || {}) pending.typingBestScore[k] = Math.max(pending.typingBestScore[k] || 0, saved.typingBestScore[k]);
       } catch {}
     }
     loadPending();
@@ -3976,7 +3991,7 @@
     async function flushPending() {
       if (isFlushing) return;
       if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0
-          && pending.typingWords === 0 && Object.keys(pending.typingBestWpm).length === 0) return;
+          && pending.typingWords === 0 && Object.keys(pending.typingBestWpm).length === 0 && Object.keys(pending.typingBestScore).length === 0) return;
       isFlushing = true;
       // Chunked snapshot: move at most CHUNK_CAP per capped path into `batch`,
       // leaving any remainder in `pending` to drain on follow-up flushes. The
@@ -4016,6 +4031,7 @@
         userBySource: takeChunk(pending.userBySource),
         typingWords:  Math.min(pending.typingWords, CHUNK_CAP),
         typingBestWpm: takeBest(pending.typingBestWpm),
+        typingBestScore: takeBest(pending.typingBestScore),
       };
       pending.userCoins  -= batch.userCoins;
       pending.userClicks -= batch.userClicks;
@@ -4138,6 +4154,11 @@
           tasks.push(db.ref(`users/${currentUser.uid}/stats/typingBestWpm/${mode}`)
             .transaction((c) => (c == null || w > c) ? w : c));
         }
+        for (const mode in batch.typingBestScore) {
+          const sc = batch.typingBestScore[mode];
+          tasks.push(db.ref(`users/${currentUser.uid}/stats/typingBestScore/${mode}`)
+            .transaction((c) => (c == null || sc > c) ? sc : c));
+        }
       }
 
       try {
@@ -4165,6 +4186,7 @@
         for (const k in batch.userBySource) pending.userBySource[k] = (pending.userBySource[k] || 0) + batch.userBySource[k];
         pending.typingWords += batch.typingWords;
         for (const k in batch.typingBestWpm) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, batch.typingBestWpm[k]);
+        for (const k in batch.typingBestScore) pending.typingBestScore[k] = Math.max(pending.typingBestScore[k] || 0, batch.typingBestScore[k]);
         // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
         inFlightGlobal     = wasInFlightGlobal;
