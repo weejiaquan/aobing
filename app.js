@@ -428,6 +428,9 @@
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
           'mode.settings':'Settings',
+          'typing.times_up':"Time's up!",
+          'typing.restart_hint':'Press Enter or Restart to go again.',
+          'typing.restart':'Restart',
           'typing.board_words':'Words','typing.board_wpm':'WPM',
           'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
           'typing.ranked':'Ranked','typing.casual':'Casual',
@@ -5133,6 +5136,7 @@
       t:                 function (k, p) { return I18N.t(k, p); },
       escapeHtml:        escapeHtml,
       flagFromCountry:   flagFromCountry,
+      activityImg:       activityImg,
     };
     if (window.TypingGame && typeof window.TypingGame.init === 'function') {
       window.TypingGame.init(window.__typingDeps);
@@ -5143,7 +5147,6 @@
     const modeChipEl      = document.getElementById('mode-chip');
     const modePopEl       = document.getElementById('mode-pop');
     const modeChipLabelEl = document.getElementById('mode-chip-label');
-    const modeChipIconEl  = document.getElementById('mode-chip-icon');
     const mpClickerEl     = document.getElementById('mp-clicker');
     const mpTypingEl      = document.getElementById('mp-typing');
     function modeLabel(mode, sub) {
@@ -5154,7 +5157,6 @@
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
-      if (modeChipIconEl)  modeChipIconEl.textContent  = (mode === 'typing') ? '⌨' : '🖱';
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         const m = b.getAttribute('data-mode'), s = b.getAttribute('data-submode');
         b.classList.toggle('sel', m === mode && (m !== 'typing' || s === sub));
@@ -5188,13 +5190,14 @@
           applyMode(b.getAttribute('data-mode'), b.getAttribute('data-submode') || '');
         });
       });
-      const accShopBtn = document.getElementById('acc-shop-btn');
-      if (accShopBtn) accShopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeModePop();
-        const sp = document.getElementById('shop-panel');
-        if (sp) { sp.classList.add('open'); if (typeof renderShopPanel === 'function') renderShopPanel(); }
-      });
+      // Inline the shop into the dropdown's Clicker section (relocate its DOM so
+      // the existing render + buy-delegation keep working by id).
+      const shopPanelEl = document.getElementById('shop-panel');
+      if (mpClickerEl && shopPanelEl) {
+        mpClickerEl.appendChild(shopPanelEl);
+        shopPanelEl.classList.add('open');
+        if (typeof renderShopPanel === 'function') renderShopPanel();
+      }
       const accBoardsBtn = document.getElementById('acc-boards-btn');
       if (accBoardsBtn) accBoardsBtn.addEventListener('click', (e) => {
         e.stopPropagation();

@@ -314,6 +314,7 @@ if (typeof document !== 'undefined') {
     const t = deps.t || ((k) => k);
     const esc = deps.escapeHtml || ((s) => String(s));
     const flag = deps.flagFromCountry || (() => '');
+    const activityImg = deps.activityImg || ((u) => u);
 
     const streamEl = document.getElementById('typing-stream');
     const inputEl = document.getElementById('typing-input');
@@ -327,6 +328,7 @@ if (typeof document !== 'undefined') {
     const boardWpmBtn = document.getElementById('typing-board-wpm');
     const boardListEl = document.getElementById('typing-board-list');
     const closeBtn = document.getElementById('typing-close');
+    const restartBtn = document.getElementById('typing-restart');
 
     let run = null;
     let running = false;
@@ -337,6 +339,7 @@ if (typeof document !== 'undefined') {
     let seedCounter = 0;
     let lastElapsed = 0;
     let selectAllPending = false; // true after Ctrl+A, until the next key
+    let awaitingRestart = false;  // run ended (e.g. time's up) — keys won't auto-start a new run
 
     function freshSeed() {
       seedCounter += 1;
@@ -382,6 +385,7 @@ if (typeof document !== 'undefined') {
       running = true;
       startMs = 0;
       endsAt = 0;
+      awaitingRestart = false;
       if (deps.resetTypingCombo) deps.resetTypingCombo();
       resultEl.hidden = true;
       streamEl.classList.remove('typing-dim');
@@ -396,7 +400,7 @@ if (typeof document !== 'undefined') {
       if (secs > 0) {
         endsAt = startMs + secs * 1000;
         timerId = setInterval(() => {
-          if (performance.now() >= endsAt) finishRun();
+          if (performance.now() >= endsAt) finishRun('timeup');
           else updateLive();
         }, 100);
       } else {
@@ -404,7 +408,7 @@ if (typeof document !== 'undefined') {
       }
     }
 
-    function finishRun() {
+    function finishRun(reason) {
       if (!running) return;
       running = false;
       clearTimer();
@@ -419,21 +423,27 @@ if (typeof document !== 'undefined') {
         if (isRankedMode && run.runScore > 0) opts.runScore = run.runScore;
         if (opts.bestWpm || opts.runScore) deps.creditTyping(0, 0, opts);
       }
-      showResult(w, ranked);
+      showResult(w, ranked, reason === 'timeup');
       streamEl.classList.add('typing-dim');
       stopBtn.hidden = true;
       startMs = 0;
+      // After a finished run the stream is frozen until an explicit restart, so a
+      // fast typist doesn't blow straight past the result into a new run.
+      awaitingRestart = (reason !== 'close');
     }
 
-    function showResult(w, ranked) {
+    function showResult(w, ranked, timedUp) {
       const acc = (run.correctChars + run.errors) > 0
         ? Math.round((100 * run.correctChars) / (run.correctChars + run.errors))
         : 100;
-      resultEl.innerHTML =
+      const head = timedUp
+        ? '<div class="typing-result-head">' + t('typing.times_up') + '</div>' : '';
+      resultEl.innerHTML = head +
         '<div class="typing-result-row"><b>' + w + '</b> ' + t('typing.wpm') + '</div>' +
         '<div class="typing-result-row"><b>' + acc + '%</b> ' + t('typing.accuracy') + '</div>' +
         '<div class="typing-result-row"><b>' + run.completedWords + '</b> ' + t('typing.words') + '</div>' +
-        '<div class="typing-result-tag">' + (ranked ? t('typing.ranked') : t('typing.casual')) + '</div>';
+        '<div class="typing-result-tag">' + (ranked ? t('typing.ranked') : t('typing.casual')) + '</div>' +
+        '<div class="typing-result-hint">' + t('typing.restart_hint') + '</div>';
       resultEl.hidden = false;
     }
 
@@ -487,6 +497,7 @@ if (typeof document !== 'undefined') {
     }
 
     function step(key) {
+      if (awaitingRestart) return;   // run finished — wait for an explicit restart
       if (!running) startRun();
       if (startMs === 0) beginTiming();
       run = ENGINE.applyKey(run, key, run.mods);
@@ -508,6 +519,8 @@ if (typeof document !== 'undefined') {
       const k = e.key;
       if (k === 'Tab') return;                 // let focus move out
       if (k === 'Escape') return;              // handled by the document Esc listener
+      // Enter restarts after a finished run (time's up); ignored mid-run.
+      if (k === 'Enter') { if (awaitingRestart) { e.preventDefault(); startRun(); } return; }
       // Ctrl/Cmd shortcuts: clear the whole current word.
       if (e.ctrlKey || e.metaKey) {
         if (k === 'Backspace') { e.preventDefault(); selectAllPending = false; step('ClearWord'); return; }
@@ -531,10 +544,14 @@ if (typeof document !== 'undefined') {
     }
 
     const MOD_DEFS = [
-      { key: 'typingFreedom', label: 'typing.mod.freedom', toggle: 'typingFreedomOn' },
-      { key: 'typingNoBackspace', label: 'typing.mod.nobackspace', toggle: 'typingNoBackspaceOn' },
-      { key: 'typingStopOnError', label: 'typing.mod.stoponerror', toggle: 'typingStopOnErrorOn' },
-      { key: 'typingQol', label: 'typing.mod.qol', toggle: null },
+      { key: 'typingFreedom', label: 'typing.mod.freedom', toggle: 'typingFreedomOn',
+        desc: 'Wrong letters snap back as you keep typing — no backspacing needed. (assist)' },
+      { key: 'typingNoBackspace', label: 'typing.mod.nobackspace', toggle: 'typingNoBackspaceOn',
+        desc: 'Backspace is disabled — mistakes lock in. (assist)' },
+      { key: 'typingStopOnError', label: 'typing.mod.stoponerror', toggle: 'typingStopOnErrorOn',
+        desc: "Can't move past a wrong letter until you fix it. (assist)" },
+      { key: 'typingQol', label: 'typing.mod.qol', toggle: null,
+        desc: 'Quality-of-life: live WPM readout and a smoother caret. (ranked-safe)' },
     ];
 
     function renderMods() {
@@ -543,14 +560,24 @@ if (typeof document !== 'undefined') {
       MOD_DEFS.forEach((d) => {
         const row = document.createElement('div');
         row.className = 'typing-mod';
+        const info = document.createElement('div');
+        info.className = 'typing-mod-info';
         const name = document.createElement('span');
+        name.className = 'typing-mod-name';
         name.textContent = t(d.label);
-        row.appendChild(name);
+        info.appendChild(name);
+        if (d.desc) {
+          const desc = document.createElement('span');
+          desc.className = 'typing-mod-desc';
+          desc.textContent = d.desc;
+          info.appendChild(desc);
+        }
+        row.appendChild(info);
         const owned = !!shop[d.key];
         if (!owned) {
           const buy = document.createElement('button');
           buy.className = 'typing-buy';
-          buy.textContent = (deps.typingCosts[d.key] || '?') + ' 🪙';
+          buy.textContent = (deps.typingCosts[d.key] || '?');
           buy.addEventListener('click', async (e) => {
             e.stopPropagation();
             buy.disabled = true;
@@ -619,7 +646,7 @@ if (typeof document !== 'undefined') {
       } else {
         const buy = document.createElement('button');
         buy.className = 'typing-buy';
-        buy.textContent = cost + ' 🪙';
+        buy.textContent = cost;
         buy.addEventListener('click', async (e) => {
           e.stopPropagation();
           buy.disabled = true;
@@ -673,15 +700,22 @@ if (typeof document !== 'undefined') {
           : (b.typingWords || 0) - (a.typingWords || 0)
         ));
         if (!rows.length) { boardListEl.innerHTML = '<div class="typing-empty">' + t('typing.board_empty') + '</div>'; return; }
+        // Render with the SAME row UI as the clicker board (.lb-row) for consistency.
         boardListEl.innerHTML = rows.map((v, i) => {
           const val = kind === 'wpm'
             ? ((v.wpm || 0) + ' ' + t('typing.wpm') + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
             : kind === 'score'
             ? ((v.score || 0).toLocaleString() + (v.mode ? ' (' + esc(v.mode) + ')' : ''))
             : ((v.typingWords || 0) + ' ' + t('typing.words'));
-          return '<div class="typing-row"><span class="typing-rank">' + (i + 1) + '</span>' +
-            '<span class="typing-name">' + (flag(v.country) || '') + ' ' + esc(v.name || '') + '</span>' +
-            '<span class="typing-val">' + esc(val) + '</span></div>';
+          const avatar = v.photoURL
+            ? '<img class="lb-avatar" src="' + esc(activityImg(v.photoURL)) + '" alt="">'
+            : '<div class="lb-avatar lb-avatar-fallback">' + esc((v.name || '?').slice(0, 1)) + '</div>';
+          return '<div class="lb-row lb-row-typing">' +
+            '<span class="lb-rank">#' + (i + 1) + '</span>' +
+            avatar +
+            '<span class="lb-flag">' + (flag(v.country) || '') + '</span>' +
+            '<span class="lb-name">' + esc(v.name || '') + '</span>' +
+            '<span class="lb-clicks">' + esc(val) + '</span></div>';
         }).join('');
       } catch (err) {
         boardListEl.textContent = t('typing.board_error');
@@ -705,7 +739,11 @@ if (typeof document !== 'undefined') {
         deps.saveSettings();
         window.dispatchEvent(new CustomEvent('gamemodechange'));
       }
-      if (running) finishRun();
+      if (running) finishRun('close');
+    }
+    function restartRun() {
+      startRun();
+      setTimeout(() => inputEl.focus({ preventScroll: true }), 0);
     }
 
     btn.addEventListener('click', (e) => { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
@@ -717,16 +755,20 @@ if (typeof document !== 'undefined') {
     });
     if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
 
-    // Esc closes the play overlay.
+    // Esc restarts an in-progress/finished run (keeping focus); on a fresh run that
+    // hasn't started yet, Esc exits keyboard mode. Ignored while a modal is up.
     document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
-      if (panelOpen) closePanel();
+      if (e.key !== 'Escape' || !panelOpen) return;
+      if (document.activeElement !== inputEl && !awaitingRestart) return; // a modal has focus — let it handle Esc
+      if (startMs > 0 || awaitingRestart) restartRun();
+      else closePanel();
     });
 
     inputEl.addEventListener('keydown', onKey);
     inputEl.addEventListener('focus', () => deps.setTypingActive(true));
     inputEl.addEventListener('blur', () => deps.setTypingActive(false));
-    stopBtn.addEventListener('click', (e) => { e.stopPropagation(); finishRun(); });
+    stopBtn.addEventListener('click', (e) => { e.stopPropagation(); finishRun('manual'); });
+    if (restartBtn) restartBtn.addEventListener('click', (e) => { e.stopPropagation(); restartRun(); });
 
     streamEl.addEventListener('click', (e) => { e.stopPropagation(); inputEl.focus({ preventScroll: true }); });
     modesEl.addEventListener('click', (e) => {
