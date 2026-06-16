@@ -4412,6 +4412,10 @@
         const cur = pending.typingBestWpm[opts.mode] || 0;
         if (opts.bestWpm > cur) pending.typingBestWpm[opts.mode] = opts.bestWpm;
       }
+      if (opts && opts.mode && opts.runScore > 0) {
+        const curS = pending.typingBestScore[opts.mode] || 0;
+        if (opts.runScore > curS) pending.typingBestScore[opts.mode] = opts.runScore;
+      }
       savePendingDeferred();
       scheduleFlush();
       if (typeof scheduleOptimisticRender === 'function') scheduleOptimisticRender();
