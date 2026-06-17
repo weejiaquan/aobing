@@ -271,6 +271,7 @@ if (typeof document !== 'undefined') {
   const LANE_COLORS = ['#2b6cff', '#ff5470', '#39d98a', '#ffd166', '#b06bff', '#22d3ee', '#f59e0b'];
   const TIER_COLORS = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
   const APPROACH_MS = 1600;   // base approach time (1.0x speed); scaled by scroll-speed setting
+  const RELEASE_SCALE = 1.5;  // hold releases use windows 1.5x wider than taps (osu!mania-style)
   const LEAD_IN_MS = 2000;    // silence/scroll before the song's audio starts
   const END_PAD_MS = 2000;    // wait after the last note before results
 
@@ -306,6 +307,7 @@ if (typeof document !== 'undefined') {
     const comboEl = document.getElementById('vsrg-combo');
     const accEl = document.getElementById('vsrg-acc');
     const judgeEl = document.getElementById('vsrg-judge');
+    const infoEl = document.getElementById('vsrg-info');
     const resultsBody = document.getElementById('vsrg-results-body');
     const retryBtn = document.getElementById('vsrg-retry');
     const backBtn = document.getElementById('vsrg-back');
@@ -329,8 +331,16 @@ if (typeof document !== 'undefined') {
 
     function calOffset() { return Number(settings.vsrgCalibrationOffset) || 0; }
     // Scroll speed: higher multiplier -> shorter approach time -> faster notes.
-    function scrollSpeed() { return Math.max(0.5, Math.min(3, Number(settings.vsrgScrollSpeed) || 1)); }
+    function scrollSpeed() { return Math.max(0.5, Math.min(10, Number(settings.vsrgScrollSpeed) || 1)); }
     function approachMs() { return APPROACH_MS / scrollSpeed(); }
+    // Apply a new scroll speed everywhere (live: also updates the active run).
+    function setScrollSpeed(v) {
+      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(10, Math.round(v * 10) / 10));
+      if (deps.saveSettings) deps.saveSettings();
+      if (run) run.approachMs = approachMs();
+      if (speedSlider) speedSlider.value = settings.vsrgScrollSpeed;
+      if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
+    }
 
     // ---- Screen management -------------------------------------------------
     function show(name) {
@@ -791,12 +801,25 @@ if (typeof document !== 'undefined') {
           if (n.endTime != null) n.holding = false;
           applyTier('miss', n.lane, true);
         }
-        // Tail: if head was hit but never released and the tail window passed.
-        if (n.endTime != null && n.headJudged && !n.tailJudged && st > n.endTime + badMs) {
-          n.tailJudged = true; n.holding = false;
-          applyTier('miss', n.lane, true);
+        // Tail window fully passed and still unjudged:
+        if (n.endTime != null && n.headJudged && !n.tailJudged && st > n.endTime + badMs * RELEASE_SCALE) {
+          n.tailJudged = true;
+          if (n.holding) { n.holding = false; applyTier('good', n.lane, false); }  // held all the way through -> credit
+          else { applyTier('miss', n.lane, true); }                                // head missed / let go early -> miss
         }
       }
+    }
+
+    // Hold tail tier from how EARLY the release was (lateness is free — holding
+    // long enough is full credit). Uses release-widened windows.
+    function tierForRelease(earlyMs) {
+      const w = run.windows;
+      if (earlyMs <= w.marvelous * RELEASE_SCALE) return 'marvelous';
+      if (earlyMs <= w.perfect * RELEASE_SCALE) return 'perfect';
+      if (earlyMs <= w.great * RELEASE_SCALE) return 'great';
+      if (earlyMs <= w.good * RELEASE_SCALE) return 'good';
+      if (earlyMs <= w.bad * RELEASE_SCALE) return 'bad';
+      return 'miss';
     }
 
     function applyTier(tier, lane, isMiss) {
@@ -831,16 +854,12 @@ if (typeof document !== 'undefined') {
       const n = run.notes.find((x) => x.lane === lane && x.holding && !x.tailJudged);
       if (!n) return;
       n.holding = false;
-      const err = Math.abs(st - n.endTime);
-      if (err <= run.windows.bad) {
-        const res = judge(n.endTime, st, run.windows);
-        n.tailJudged = true;
-        applyTier(res.tier, lane, res.tier === 'miss');
-      } else if (st < n.endTime - run.windows.bad) {
-        // released far too early — tail miss
-        n.tailJudged = true;
-        applyTier('miss', lane, true);
-      }
+      n.tailJudged = true;
+      // Only an EARLY release is penalised; releasing on time or a bit late is
+      // full credit (you held it long enough).
+      const early = Math.max(0, n.endTime - st);
+      const tier = tierForRelease(early);
+      applyTier(tier, lane, tier === 'miss');
     }
 
     // Input timestamps use e.timeStamp (when the event actually occurred, same
@@ -849,6 +868,7 @@ if (typeof document !== 'undefined') {
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
+      if (handleControlKey(e.key)) { e.preventDefault(); return; }   // 1/2 speed, -/= offset
       const lane = run.keys.indexOf(e.key.toLowerCase());
       if (lane < 0 || run.pressed[lane]) return;     // ignore auto-repeat
       run.pressed[lane] = true;
@@ -969,25 +989,29 @@ if (typeof document !== 'undefined') {
         const yHead = hitY - ((n.time - st) / run.approachMs) * hitY;
 
         if (n.endTime != null) {
-          // --- Hold: bright bordered body with a gradient, caps, and a glow while held ---
+          // --- Hold: bright bordered body with a gradient, a tail cap, glow while held ---
           const yTail = hitY - ((n.endTime - st) / run.approachMs) * hitY;
-          const top = Math.min(yHead, yTail);
-          const bot = Math.max(yHead, yTail) + noteH;
-          const bodyTop = n.holding ? Math.max(top, hitY) : top;   // consumed part stops at the line while held
-          ctx2d.save();
-          const grad = ctx2d.createLinearGradient(0, bodyTop, 0, bot);
-          grad.addColorStop(0, color); grad.addColorStop(1, color + '55');
-          ctx2d.fillStyle = grad;
-          if (n.holding) { ctx2d.shadowColor = color; ctx2d.shadowBlur = 18 * dpr; }
-          ctx2d.beginPath();
-          ctx2d.roundRect(x, bodyTop, w, Math.max(noteH, bot - bodyTop), 6 * dpr);
-          ctx2d.fill();
-          ctx2d.lineWidth = 2.5 * dpr; ctx2d.strokeStyle = 'rgba(255,255,255,0.85)';
-          ctx2d.stroke();
-          ctx2d.restore();
-          // tail cap (so the end is unmistakable)
-          ctx2d.fillStyle = '#fff';
-          ctx2d.fillRect(x, yTail, w, 4 * dpr);
+          // While holding, show only the REMAINING segment: from the tail down to
+          // the judgement line (it shrinks as the tail nears the line). Before the
+          // hit, draw the full body between head and tail.
+          let bTop, bBot;
+          if (n.holding) { bTop = yTail; bBot = hitY; }
+          else { bTop = Math.min(yHead, yTail); bBot = Math.max(yHead, yTail) + noteH; }
+          if (bBot > bTop) {
+            ctx2d.save();
+            const grad = ctx2d.createLinearGradient(0, bTop, 0, bBot);
+            grad.addColorStop(0, color); grad.addColorStop(1, color + '66');
+            ctx2d.fillStyle = grad;
+            if (n.holding) { ctx2d.shadowColor = color; ctx2d.shadowBlur = 18 * dpr; }
+            ctx2d.beginPath();
+            ctx2d.roundRect(x, bTop, w, bBot - bTop, 6 * dpr);
+            ctx2d.fill();
+            ctx2d.lineWidth = 2.5 * dpr; ctx2d.strokeStyle = 'rgba(255,255,255,0.85)';
+            ctx2d.stroke();
+            ctx2d.restore();
+          }
+          // tail cap (so the end is unmistakable) — only while the tail is above the line
+          if (yTail <= hitY + noteH) { ctx2d.fillStyle = '#fff'; ctx2d.fillRect(x, yTail, w, 4 * dpr); }
         }
 
         if (!n.headJudged && yHead > -noteH && yHead < H) {
@@ -1045,6 +1069,30 @@ if (typeof document !== 'undefined') {
         judgeEl.style.opacity = '0';
         judgeEl.style.transform = 'scale(1)';
       });
+    }
+    // Brief centred readout for live speed/offset changes during a run.
+    function flashInfo(text) {
+      if (!infoEl) return;
+      infoEl.textContent = text;
+      infoEl.style.transition = 'none'; infoEl.style.opacity = '1';
+      requestAnimationFrame(() => { infoEl.style.transition = 'opacity .6s'; infoEl.style.opacity = '0'; });
+    }
+    // In-game control keys (don't clash with lane keys d/f/j/k/s/l/space):
+    //   1 = slower, 2 = faster · - = offset earlier, = / + = offset later.
+    function handleControlKey(key) {
+      if (key === '1' || key === '2') {
+        setScrollSpeed(scrollSpeed() + (key === '2' ? 0.5 : -0.5));
+        flashInfo('Speed ' + scrollSpeed().toFixed(1) + '×');
+        return true;
+      }
+      if (key === '-' || key === '_' || key === '=' || key === '+') {
+        const delta = (key === '-' || key === '_') ? -5 : 5;
+        settings.vsrgCalibrationOffset = (Number(settings.vsrgCalibrationOffset) || 0) + delta;
+        if (deps.saveSettings) deps.saveSettings();
+        flashInfo('Offset ' + settings.vsrgCalibrationOffset + ' ms');
+        return true;
+      }
+      return false;
     }
     function updateHud() {
       if (comboEl) {
@@ -1255,8 +1303,9 @@ if (typeof document !== 'undefined') {
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
     // Scroll-speed slider — the preview reads scrollSpeed() live, so it updates as you drag.
     if (speedSlider) speedSlider.addEventListener('input', (e) => {
-      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(3, Number(e.target.value) || 1));
+      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(10, Number(e.target.value) || 1));
       if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
+      if (run) run.approachMs = approachMs();
       if (deps.saveSettings) deps.saveSettings();
     });
     // Tap calibration: the button or Space (while the calib screen is open) registers a tap.

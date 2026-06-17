@@ -2734,6 +2734,8 @@
     @keyframes vsrg-combo-pop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
     #vsrg-combo.pop { animation: vsrg-combo-pop .16s ease-out; }
     #vsrg-judge { will-change: transform, opacity; }
+    #vsrg-info { position: absolute; bottom: 70px; left: 0; right: 0; text-align: center;
+      font-size: 15px; color: #9be7ff; opacity: 0; font-variant-numeric: tabular-nums; }
     #vsrg-acc { position: absolute; top: 16px; right: 20px; font-size: 18px;
       font-variant-numeric: tabular-nums; }
     #vsrg-judge { font-size: 30px; font-weight: 800; opacity: 0; margin-top: 70px; }
@@ -2762,7 +2764,7 @@
           <button id="vsrg-import-osz" type="button">Import .osz</button>
           <input id="vsrg-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <label class="vsrg-speed">Speed
-            <input type="range" id="vsrg-speed" min="0.5" max="3" step="0.1" value="1">
+            <input type="range" id="vsrg-speed" min="0.5" max="10" step="0.1" value="1">
             <b id="vsrg-speed-val">1.0×</b>
           </label>
           <button id="vsrg-calibrate" type="button">Calibrate</button>
@@ -2779,6 +2781,7 @@
         <div id="vsrg-acc"></div>
         <div id="vsrg-combo"></div>
         <div id="vsrg-judge"></div>
+        <div id="vsrg-info"></div>
       </div>
     </div>
     <div id="vsrg-results" class="vsrg-screen" hidden>
