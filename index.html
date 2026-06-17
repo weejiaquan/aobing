@@ -2710,6 +2710,14 @@
       padding: 8px 14px; font: inherit; cursor: pointer; }
     #vsrg-panel button.sel { background: #2b6cff; color: #fff; }
     #vsrg-import { background: #2b6cff; color: #fff; }
+    .vsrg-speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c8ccd4; }
+    .vsrg-speed input[type=range] { width: 110px; }
+    .vsrg-speed-preview { position: absolute; top: 70px; right: 22px; border: 1px solid #20232c;
+      border-radius: 8px; background: #0e0f13; z-index: 2; }
+    #vsrg-osz-status { color: #9aa0ab; font-size: 13px; min-height: 0; }
+    .vsrg-tap-btn { background: #2b6cff !important; color: #fff !important; font-size: 18px !important;
+      padding: 18px 40px !important; border-radius: 12px !important; }
+    #vsrg-tap-result { color: #ffd166; min-height: 20px; font-variant-numeric: tabular-nums; }
     #vsrg-songlist { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
     .vsrg-song { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
       width: 100%; text-align: left; padding: 12px 14px !important; }
@@ -2751,10 +2759,18 @@
           </span>
           <button id="vsrg-import" type="button">Import osu! folder</button>
           <input id="vsrg-import-input" type="file" webkitdirectory directory multiple hidden>
+          <button id="vsrg-import-osz" type="button">Import .osz</button>
+          <input id="vsrg-osz-input" type="file" accept=".osz,.zip" multiple hidden>
+          <label class="vsrg-speed">Speed
+            <input type="range" id="vsrg-speed" min="0.5" max="3" step="0.1" value="1">
+            <b id="vsrg-speed-val">1.0×</b>
+          </label>
           <button id="vsrg-calibrate" type="button">Calibrate</button>
         </div>
       </div>
       <div id="vsrg-import-status"></div>
+      <div id="vsrg-osz-status"></div>
+      <canvas id="vsrg-speed-preview" width="132" height="220" class="vsrg-speed-preview"></canvas>
       <div id="vsrg-songlist"></div>
     </div>
     <div id="vsrg-game" class="vsrg-screen" hidden>
@@ -2775,9 +2791,11 @@
     </div>
     <div id="vsrg-calib" class="vsrg-screen" hidden>
       <h2>Calibration</h2>
-      <p>Adjust the offset until the beep lands with the flash.</p>
+      <p>Tap the button (or press Space) in time with the beat — your offset is measured automatically.</p>
       <canvas id="vsrg-calib-canvas" width="200" height="120"></canvas>
-      <label>Offset <input type="range" id="vsrg-calib-slider" min="-150" max="150" step="1"><b id="vsrg-calib-val">0 ms</b></label>
+      <button id="vsrg-tap" type="button" class="vsrg-tap-btn">Tap to the beat</button>
+      <div id="vsrg-tap-result"></div>
+      <label>Offset <input type="range" id="vsrg-calib-slider" min="-200" max="200" step="1"><b id="vsrg-calib-val">0 ms</b></label>
       <button id="vsrg-calib-done" type="button">Done</button>
     </div>
   </div>

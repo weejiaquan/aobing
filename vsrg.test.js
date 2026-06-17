@@ -126,6 +126,16 @@ test('parseOsu: assembles a full chart object', () => {
   assert.equal(c.notes[1].endTime, 2750);
 });
 
+test('parseOsu: reads the background image filename from [Events]', () => {
+  const withBg = FULL_OSU.replace('[TimingPoints]',
+    '[Events]\n0,0,"bg art.jpg",0,0\n//Break Periods\n[TimingPoints]');
+  assert.equal(ENGINE.parseOsu(withBg).backgroundFile, 'bg art.jpg');
+});
+
+test('parseOsu: backgroundFile is empty string when no [Events] background', () => {
+  assert.equal(ENGINE.parseOsu(FULL_OSU).backgroundFile, '');
+});
+
 test('parseOsu: throws on non-mania (Mode !== 3)', () => {
   const std = FULL_OSU.replace('Mode: 3', 'Mode: 0');
   assert.throws(() => ENGINE.parseOsu(std), /mania/i);
