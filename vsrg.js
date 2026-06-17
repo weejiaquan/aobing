@@ -109,6 +109,20 @@ function parseTiming(text) {
   return { bpm: null, offset: null };
 }
 
+// Read the background image filename from an [Events] block. Background events
+// look like `0,0,"bg.jpg",0,0` (type 0 = background). Returns '' if none.
+function parseBackground(text) {
+  for (const line of String(text).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.charAt(0) === '/') continue;          // skip comments
+    const p = t.split(',');
+    if ((p[0] === '0' || p[0] === 'Background') && p[2]) {
+      return p[2].trim().replace(/^"|"$/g, '');
+    }
+  }
+  return '';
+}
+
 // Top-level parse: raw .osu text -> validated chart object. Throws on charts
 // this engine cannot play (non-mania, or empty).
 function parseOsu(text) {
@@ -127,6 +141,7 @@ function parseOsu(text) {
   const timing = parseTiming((sections.TimingPoints || []).join('\n'));
   return {
     audioFile: meta.audioFile,
+    backgroundFile: parseBackground((sections.Events || []).join('\n')),
     title: meta.title,
     artist: meta.artist,
     diffName: meta.diffName,
@@ -255,7 +270,7 @@ if (typeof document !== 'undefined') {
   };
   const LANE_COLORS = ['#2b6cff', '#ff5470', '#39d98a', '#ffd166', '#b06bff', '#22d3ee', '#f59e0b'];
   const TIER_COLORS = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
-  const APPROACH_MS = 1600;   // time a note is visible before the judgement line
+  const APPROACH_MS = 1600;   // base approach time (1.0x speed); scaled by scroll-speed setting
   const LEAD_IN_MS = 2000;    // silence/scroll before the song's audio starts
   const END_PAD_MS = 2000;    // wait after the last note before results
 
@@ -278,6 +293,14 @@ if (typeof document !== 'undefined') {
     const importStatusEl = document.getElementById('vsrg-import-status');
     const keyFilterEl = document.getElementById('vsrg-keyfilter');
     const calibrateBtn = document.getElementById('vsrg-calibrate');
+    const oszBtn = document.getElementById('vsrg-import-osz');
+    const oszInput = document.getElementById('vsrg-osz-input');
+    const oszStatusEl = document.getElementById('vsrg-osz-status');
+    const speedSlider = document.getElementById('vsrg-speed');
+    const speedValEl = document.getElementById('vsrg-speed-val');
+    const speedPreview = document.getElementById('vsrg-speed-preview');
+    const tapBtn = document.getElementById('vsrg-tap');
+    const tapResultEl = document.getElementById('vsrg-tap-result');
     const canvas = document.getElementById('vsrg-canvas');
     const ctx2d = canvas.getContext('2d');
     const comboEl = document.getElementById('vsrg-combo');
@@ -305,10 +328,21 @@ if (typeof document !== 'undefined') {
     let run = null;
 
     function calOffset() { return Number(settings.vsrgCalibrationOffset) || 0; }
+    // Scroll speed: higher multiplier -> shorter approach time -> faster notes.
+    function scrollSpeed() { return Math.max(0.5, Math.min(3, Number(settings.vsrgScrollSpeed) || 1)); }
+    function approachMs() { return APPROACH_MS / scrollSpeed(); }
 
     // ---- Screen management -------------------------------------------------
     function show(name) {
       for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
+    }
+
+    // Pull keyboard focus into this window/iframe. In the Discord Activity the
+    // game runs in an iframe; clicking Discord's chat steals focus, so we must
+    // re-grab it (window.focus + a focusable canvas) when the user clicks back in.
+    function grabFocus() {
+      try { window.focus(); } catch (e) {}
+      try { if (canvas && canvas.focus) canvas.focus({ preventScroll: true }); } catch (e) {}
     }
 
     // ---- Audio -------------------------------------------------------------
@@ -337,6 +371,7 @@ if (typeof document !== 'undefined') {
             keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
             getOsuText: () => Promise.resolve(osuText),
             getAudio: () => fetch(base + '/' + m.audio).then((r) => r.arrayBuffer()),
+            getArt: () => m.bg ? fetch(base + '/' + m.bg).then((r) => r.blob()).catch(() => null) : Promise.resolve(null),
           });
         }
       } catch (e) { /* no bundled maps — fine */ }
@@ -369,7 +404,10 @@ if (typeof document !== 'undefined') {
 
     async function refreshLibrary() {
       const bundled = await loadBundled();
-      library = bundled.concat(localEntries);   // localEntries = maps imported this session
+      let cached = [];
+      try { cached = await loadCachedOsz(); } catch (e) { /* none */ }
+      // cached .osz (persisted) + this session's folder import + bundled
+      library = bundled.concat(cached).concat(localEntries);
       renderSongList();
     }
 
@@ -446,6 +484,7 @@ if (typeof document !== 'undefined') {
           if (!KEY_MAPS[chart.keyCount]) { stats.skippedKeys++; continue; }
           const audio = files.get(String(chart.audioFile).toLowerCase()) || null;
           if (!audio) { stats.skippedNoAudio++; continue; }
+          const art = chart.backgroundFile ? (files.get(chart.backgroundFile.toLowerCase()) || null) : null;
           const hash = await sha256(osuText);
           out.push({
             id: 'local:' + hash,
@@ -454,10 +493,180 @@ if (typeof document !== 'undefined') {
             keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
             getOsuText: () => f.text(),
             getAudio: () => audio.arrayBuffer(),
+            getArt: () => Promise.resolve(art),    // File (Blob) or null
           });
         }
       }
       return { entries: out, stats: stats };
+    }
+
+    // ---- .osz import (unzip in-browser, cache so it persists) ----------------
+    function setOszStatus(msg) { if (oszStatusEl) oszStatusEl.textContent = msg; }
+
+    async function handleOszFiles(fileList) {
+      if (!fileList || !fileList.length) return;
+      let imported = 0, scanned = 0, skipped = 0, failed = 0;
+      try {
+        for (const file of fileList) {
+          setOszStatus('Reading ' + file.name + '…');
+          let entries;
+          try { entries = await unzip(await file.arrayBuffer()); }
+          catch (e) { failed++; setOszStatus('Could not read ' + file.name + ': ' + ((e && e.message) || e)); continue; }
+          // index entry files by base filename (lower-cased) for sibling lookup
+          const byName = new Map();
+          for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          for (const [nm, bytes] of entries) {
+            if (!nm.toLowerCase().endsWith('.osu')) continue;
+            scanned++;
+            const osuText = new TextDecoder().decode(bytes);
+            let chart;
+            try { chart = parseOsu(osuText); } catch (e) { skipped++; continue; }
+            if (!KEY_MAPS[chart.keyCount]) { skipped++; continue; }
+            const audio = byName.get(String(chart.audioFile).toLowerCase());
+            if (!audio) { skipped++; continue; }
+            const art = chart.backgroundFile ? (byName.get(chart.backgroundFile.toLowerCase()) || null) : null;
+            const hash = await sha256(osuText);
+            await idbPut('osz', hash, {
+              title: chart.title, artist: chart.artist, diffName: chart.diffName,
+              keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
+              osuText: osuText, audio: audio, art: art,    // Uint8Arrays (structured-cloned)
+            });
+            imported++;
+          }
+        }
+        await refreshLibrary();
+        setOszStatus('Imported ' + imported + ' map(s)' +
+          (skipped ? ' · ' + skipped + ' skipped (non-mania / unsupported / no audio)' : '') +
+          (failed ? ' · ' + failed + ' file(s) unreadable' : '') + '. Saved — they persist across reloads.');
+      } catch (e) {
+        setOszStatus('Import failed: ' + ((e && e.message) || e));
+        try { console.error('[vsrg] osz import error', e); } catch (_) {}
+      }
+    }
+
+    async function loadCachedOsz() {
+      const all = await idbGetAll('osz');
+      return (all || []).filter((s) => KEY_MAPS[s.keyCount]).map((s) => ({
+        id: 'osz:' + s.hash, source: 'osz',
+        title: s.title, artist: s.artist, diffName: s.diffName,
+        keyCount: s.keyCount, od: s.od, hash: s.hash,
+        getOsuText: () => Promise.resolve(s.osuText),
+        getAudio: () => Promise.resolve(s.audio.slice().buffer),     // fresh copy each play
+        getArt: () => Promise.resolve(s.art ? new Blob([s.art]) : null),
+      }));
+    }
+
+    // Minimal ZIP reader: parse the central directory and inflate each entry with
+    // DecompressionStream('deflate-raw'). Sizes come from the central directory so
+    // entries written with a data descriptor still work. Returns Map(name -> bytes).
+    async function unzip(arrayBuffer) {
+      const dv = new DataView(arrayBuffer);
+      const u8 = new Uint8Array(arrayBuffer);
+      const n = dv.byteLength;
+      let eocd = -1;
+      for (let i = n - 22; i >= 0 && i >= n - 22 - 65536; i--) {
+        if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+      }
+      if (eocd < 0) throw new Error('not a valid .osz/zip file');
+      const count = dv.getUint16(eocd + 10, true);
+      let off = dv.getUint32(eocd + 16, true);
+      const headers = [];
+      for (let i = 0; i < count; i++) {
+        if (dv.getUint32(off, true) !== 0x02014b50) break;
+        const method = dv.getUint16(off + 10, true);
+        const compSize = dv.getUint32(off + 20, true);
+        const nameLen = dv.getUint16(off + 28, true);
+        const extraLen = dv.getUint16(off + 30, true);
+        const commentLen = dv.getUint16(off + 32, true);
+        const localOff = dv.getUint32(off + 42, true);
+        const name = new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nameLen));
+        headers.push({ name: name, method: method, compSize: compSize, localOff: localOff });
+        off += 46 + nameLen + extraLen + commentLen;
+      }
+      const out = new Map();
+      for (const h of headers) {
+        if (h.name.endsWith('/')) continue;       // directory entry
+        const lhNameLen = dv.getUint16(h.localOff + 26, true);
+        const lhExtraLen = dv.getUint16(h.localOff + 28, true);
+        const dataStart = h.localOff + 30 + lhNameLen + lhExtraLen;
+        const comp = u8.subarray(dataStart, dataStart + h.compSize);
+        let bytes;
+        if (h.method === 0) bytes = comp.slice();                 // stored
+        else if (h.method === 8) bytes = await inflateRaw(comp);  // deflate
+        else continue;                                            // unsupported
+        out.set(h.name, bytes);
+      }
+      return out;
+    }
+
+    async function inflateRaw(u8) {
+      const ds = new DecompressionStream('deflate-raw');
+      const ab = await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+      return new Uint8Array(ab);
+    }
+
+    // ---- Speed preview (mini highway in song-select; updates live with slider) -
+    let previewRaf = 0;
+    function startSpeedPreview() {
+      if (!speedPreview || previewRaf) return;
+      const g = speedPreview.getContext('2d');
+      const W = speedPreview.width, H = speedPreview.height, lanes = 4;
+      const laneW = W / lanes, hitY = H - 24, spacing = 360;
+      function frame(ts) {
+        const appr = approachMs();          // live: reflects the slider as it moves
+        g.clearRect(0, 0, W, H);
+        g.fillStyle = '#0e0f13'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#3a4050'; g.fillRect(0, hitY, W, 2);
+        for (let lane = 0; lane < lanes; lane++) {
+          g.fillStyle = LANE_COLORS[lane % LANE_COLORS.length];
+          const phase = (ts + lane * 137) % appr;        // stagger lanes for a real-ish pattern
+          for (let k = 0; k <= Math.ceil(appr / spacing); k++) {
+            const noteAge = phase - k * spacing;         // ms since this note spawned
+            if (noteAge < 0 || noteAge > appr) continue;
+            const y = (noteAge / appr) * hitY - 6;
+            g.fillRect(lane * laneW + 4, y, laneW - 8, 9);
+          }
+        }
+        previewRaf = requestAnimationFrame(frame);
+      }
+      previewRaf = requestAnimationFrame(frame);
+    }
+    function stopSpeedPreview() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; }
+
+    // ---- Tap-to-the-beat calibration ----------------------------------------
+    // Plays a steady metronome; each tap's offset from the nearest beat is
+    // collected, and after enough taps the trimmed mean becomes the offset.
+    let tapState = null;
+    function tapReset() {
+      tapState = null;
+      if (tapResultEl) tapResultEl.textContent = '';
+      if (tapBtn) tapBtn.textContent = 'Tap to the beat';
+    }
+    function registerTap(perfTs) {
+      if (!tapState) return;
+      const tapCtx = tapState.tc0 + (perfTs - tapState.tp0) / 1000;
+      const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
+      const beat = tapState.baseTick + k * tapState.period;
+      if (k < 0) return;                                  // before the first beat
+      const errMs = (tapCtx - beat) * 1000;
+      if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
+      tapState.errors.push(errMs);
+      const need = 12;
+      if (tapBtn) tapBtn.textContent = 'Tap! (' + tapState.errors.length + '/' + need + ')';
+      if (tapState.errors.length >= need) finishTapCalibration();
+    }
+    function finishTapCalibration() {
+      const e = tapState.errors.slice().sort((a, b) => a - b);
+      const trimmed = e.slice(1, e.length - 1);           // drop the worst outlier each side
+      const mean = trimmed.reduce((a, b) => a + b, 0) / (trimmed.length || 1);
+      const offset = Math.round(mean);
+      settings.vsrgCalibrationOffset = offset;
+      if (deps.saveSettings) deps.saveSettings();
+      if (calibSlider) calibSlider.value = offset;
+      if (calibValEl) calibValEl.textContent = offset + ' ms';
+      if (tapResultEl) tapResultEl.textContent = 'Your offset: ' + offset + ' ms (set). Tap again to redo.';
+      tapState = null;
+      if (tapBtn) tapBtn.textContent = 'Tap to the beat';
     }
 
     // ---- Loading a chart for play -----------------------------------------
@@ -495,8 +704,10 @@ if (typeof document !== 'undefined') {
 
     function startRun(entry, chart, audioBuf) {
       teardownRun();                 // defensive: never overlap with a prior run
+      stopSpeedPreview();
       if (deps.pauseBgm) deps.pauseBgm();
       show('game');
+      grabFocus();                   // pull keyboard focus into the iframe (Discord Activity)
       sizeCanvas();
       const ac = audioCtx;
       const windows = windowsForOD(chart.overallDifficulty);
@@ -527,11 +738,24 @@ if (typeof document !== 'undefined') {
       run = {
         entry, chart, notes, keys, keyCount, windows, src, gain,
         startCtx, t0perf, t0ctx, totalJudgements,
+        approachMs: approachMs(),     // visual scroll speed, snapshot at run start
         state: createRunState({ notes: notes }),
         lastNoteTime: notes.reduce((m, n) => Math.max(m, n.endTime || n.time), 0),
         finished: false, rafId: 0, pressed: {},
       };
       run.state.totalNotes = totalJudgements;
+
+      // Album art (async): draw dimmed behind the highway once it decodes.
+      if (entry.getArt) {
+        entry.getArt().then((blob) => {
+          if (!blob || !run || run.entry !== entry) return;
+          const url = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = () => { if (run && run.entry === entry) run.artImg = img; URL.revokeObjectURL(url); };
+          img.onerror = () => URL.revokeObjectURL(url);
+          img.src = url;
+        }).catch(() => {});
+      }
 
       src.onended = () => {};   // end is driven by song-time, not this event
       bindInput(true);
@@ -703,6 +927,17 @@ if (typeof document !== 'undefined') {
 
       ctx2d.clearRect(0, 0, W, H);
       ctx2d.fillStyle = '#0e0f13'; ctx2d.fillRect(0, 0, W, H);
+      // album art: cover-fit, heavily dimmed so notes stay readable
+      if (run.artImg) {
+        const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
+        if (iw && ih) {
+          const scale = Math.max(W / iw, H / ih);
+          const dw = iw * scale, dh = ih * scale;
+          ctx2d.globalAlpha = 0.22;
+          ctx2d.drawImage(run.artImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+          ctx2d.globalAlpha = 1;
+        }
+      }
       for (let i = 0; i < keyCount; i++) {
         ctx2d.fillStyle = held[i] ? 'rgba(255,255,255,0.09)' : ((i % 2) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)');
         ctx2d.fillRect(i * laneW, 0, laneW, H);
@@ -731,11 +966,11 @@ if (typeof document !== 'undefined') {
         const color = LANE_COLORS[n.lane % LANE_COLORS.length];
         const x = n.lane * laneW + 5 * dpr;
         const w = laneW - 10 * dpr;
-        const yHead = hitY - ((n.time - st) / APPROACH_MS) * hitY;
+        const yHead = hitY - ((n.time - st) / run.approachMs) * hitY;
 
         if (n.endTime != null) {
           // --- Hold: bright bordered body with a gradient, caps, and a glow while held ---
-          const yTail = hitY - ((n.endTime - st) / APPROACH_MS) * hitY;
+          const yTail = hitY - ((n.endTime - st) / run.approachMs) * hitY;
           const top = Math.min(yHead, yTail);
           const bot = Math.max(yHead, yTail) + noteH;
           const bodyTop = n.holding ? Math.max(top, hitY) : top;   // consumed part stops at the line while held
@@ -867,6 +1102,7 @@ if (typeof document !== 'undefined') {
       if (deps.resumeBgm) deps.resumeBgm();
       show('select');
       renderSongList();
+      startSpeedPreview();
     }
 
     // ---- Personal bests (IndexedDB) ---------------------------------------
@@ -885,8 +1121,19 @@ if (typeof document !== 'undefined') {
 
     // ---- Calibration -------------------------------------------------------
     let calibLoop = null;
+    let calibTiming = null;       // { baseTick, period, tc0, tp0 } for tap mapping
+    function onTapButton(perfTs) {
+      if (!calibTiming) return;
+      if (!tapState) tapState = {
+        baseTick: calibTiming.baseTick, period: calibTiming.period,
+        tc0: calibTiming.tc0, tp0: calibTiming.tp0, errors: [],
+      };
+      registerTap(perfTs);
+    }
     function openCalibration() {
+      stopSpeedPreview();
       show('calib');
+      tapReset();
       if (calibSlider) {
         calibSlider.value = calOffset();
         if (calibValEl) calibValEl.textContent = calOffset() + ' ms';
@@ -895,6 +1142,7 @@ if (typeof document !== 'undefined') {
         const cctx = calibCanvas ? calibCanvas.getContext('2d') : null;
         const period = 0.6;                       // 100 BPM metronome
         const baseTick = ac.currentTime + 0.2;    // first beep; flash phase is anchored to this
+        calibTiming = { baseTick: baseTick, period: period, tc0: ac.currentTime, tp0: performance.now() };
         let nextTick = baseTick;
         function tick() {
           while (nextTick < ac.currentTime + 0.1) {
@@ -928,7 +1176,10 @@ if (typeof document !== 'undefined') {
     function closeCalibration() {
       if (calibLoop) cancelAnimationFrame(calibLoop);
       calibLoop = null;
+      calibTiming = null;
+      tapReset();
       show('select');
+      startSpeedPreview();        // back on the select screen
     }
 
     // ---- Public open/close (called by app.js applyMode) -------------------
@@ -936,13 +1187,17 @@ if (typeof document !== 'undefined') {
       panel.classList.add('open');
       panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);   // panel owns the keyboard
+      if (speedSlider) { speedSlider.value = scrollSpeed(); }
+      if (speedValEl) { speedValEl.textContent = scrollSpeed().toFixed(1) + '×'; }
       show('select');
       refreshLibrary();
+      startSpeedPreview();
     }
     function close() {
       loadGen++;                 // cancel any load still in flight
       if (run && !run.finished) quitToSelect();
       if (calibLoop) closeCalibration();
+      stopSpeedPreview();
       panel.classList.remove('open');
       panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);  // release the keyboard
@@ -995,7 +1250,29 @@ if (typeof document !== 'undefined') {
       if (lastSong) loadAndPlay(lastSong);
     });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
+    // .osz import
+    if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
+    if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
+    // Scroll-speed slider — the preview reads scrollSpeed() live, so it updates as you drag.
+    if (speedSlider) speedSlider.addEventListener('input', (e) => {
+      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(3, Number(e.target.value) || 1));
+      if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
+      if (deps.saveSettings) deps.saveSettings();
+    });
+    // Tap calibration: the button or Space (while the calib screen is open) registers a tap.
+    if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === ' ' && panelOpen && screens.calib && !screens.calib.hidden) {
+        e.preventDefault();
+        onTapButton(e.timeStamp);
+      }
+    });
     window.addEventListener('resize', () => { if (run && !run.finished) sizeCanvas(); });
+    // Keep keyboard focus inside the iframe: make the canvas focusable and
+    // re-grab focus whenever the user clicks anywhere in the panel (Discord
+    // steals focus when its chat box is clicked).
+    if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; }
+    if (panel) panel.addEventListener('pointerdown', grabFocus);
 
     api.open = open;
     api.close = close;
@@ -1017,12 +1294,14 @@ if (typeof document !== 'undefined') {
   function idb() {
     if (_dbPromise) return _dbPromise;
     _dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open('aobing-vsrg', 1);
+      const req = indexedDB.open('aobing-vsrg', 2);
       req.onupgradeneeded = () => {
         const db = req.result;
-        // 'pb' = personal bests, keyed by chart hash. (The library itself isn't
-        // persisted — webkitdirectory imports are re-picked each session.)
+        // 'pb'  = personal bests, keyed by chart hash.
+        // 'osz' = imported .osz maps (osuText + audio + art bytes), keyed by hash;
+        //         these persist across reloads (unlike folder imports).
         if (!db.objectStoreNames.contains('pb')) db.createObjectStore('pb');
+        if (!db.objectStoreNames.contains('osz')) db.createObjectStore('osz');
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -1042,6 +1321,14 @@ if (typeof document !== 'undefined') {
       const tx = db.transaction(store, 'readonly');
       const r = tx.objectStore(store).get(key);
       r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    }));
+  }
+  function idbGetAll(store) {
+    return idb().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readonly');
+      const r = tx.objectStore(store).getAll();
+      r.onsuccess = () => resolve(r.result || []);
       r.onerror = () => reject(r.error);
     }));
   }
