@@ -376,27 +376,57 @@ if (typeof document !== 'undefined') {
     // ---- Folder import (File System Access API; desktop Chromium only) ------
     async function importFolder() {
       if (!window.showDirectoryPicker) {
-        setImportStatus(t('vsrg.noFsApi') ||
-          'Folder import needs Chrome or Edge on desktop. Bundled songs still work.');
+        setImportStatus('Folder import needs Chrome or Edge on desktop — your browser does not support it. Bundled songs still work.');
         return;
       }
       let dir;
-      try { dir = await window.showDirectoryPicker({ id: 'osu-songs', mode: 'read' }); }
-      catch (e) { return; }                   // user cancelled
-      setImportStatus(t('vsrg.scanning') || 'Scanning…');
-      await idbPut('handles', 'songsDir', dir);
-      const found = await scanDirectory(dir);
-      await idbPut('library', 'local', serializeLocal(found));
-      library = (await loadBundled()).concat(found);
-      renderSongList();
-      setImportStatus((t('vsrg.imported') || 'Imported {n} charts.').replace('{n}', found.length));
+      try {
+        dir = await window.showDirectoryPicker({ id: 'osu-songs', mode: 'read' });
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // user cancelled the picker — silent
+        setImportStatus('Could not open the folder picker: ' + ((e && e.message) || e));
+        return;
+      }
+      try {
+        setImportStatus('Scanning… (a full osu! Songs folder can take a while)');
+        const res = await scanDirectory(dir, function (n) {
+          setImportStatus('Scanning… ' + n + ' .osu files seen');
+        });
+        library = (await loadBundled()).concat(res.entries);
+        renderSongList();
+        // Persist for auto-rescan next launch — best-effort; a storage failure
+        // must not stop the maps we just scanned from being playable this session.
+        try {
+          await idbPut('handles', 'songsDir', dir);
+          await idbPut('library', 'local', serializeLocal(res.entries));
+        } catch (persistErr) {
+          try { console.warn('[vsrg] could not persist imported library', persistErr); } catch (_) {}
+        }
+        const s = res.stats;
+        if (res.entries.length === 0) {
+          setImportStatus(
+            'No playable maps found in ' + s.scanned + ' .osu file(s): ' +
+            s.skippedNonMania + ' not osu!mania, ' + s.skippedKeys + ' unsupported key count, ' +
+            s.skippedNoAudio + ' missing audio. This mode only plays osu!mania (4–7K) charts.'
+          );
+        } else {
+          setImportStatus('Imported ' + res.entries.length + ' playable map(s) from ' + s.scanned + ' .osu file(s) scanned.');
+        }
+      } catch (e) {
+        setImportStatus('Import failed: ' + ((e && e.message) || e));
+        try { console.error('[vsrg] import error', e); } catch (_) {}
+      }
     }
 
     function setImportStatus(msg) { if (importStatusEl) importStatusEl.textContent = msg; }
 
     // Recursively walk a directory handle, parsing every mania .osu it finds.
-    async function scanDirectory(dir) {
+    // Returns { entries, stats } so the caller can explain why maps were skipped
+    // (osu! libraries are mostly osu!standard, which this mode cannot play).
+    // onProgress(scannedCount) is called periodically for large folders.
+    async function scanDirectory(dir, onProgress) {
       const out = [];
+      const stats = { scanned: 0, skippedNonMania: 0, skippedKeys: 0, skippedNoAudio: 0 };
       async function walk(handle) {
         // collect files at this level first so .osu can resolve its audio sibling.
         // Keys are lower-cased: osu charts reference audio with arbitrary case but
@@ -409,13 +439,15 @@ if (typeof document !== 'undefined') {
         }
         for (const [name, h] of files) {
           if (!name.endsWith('.osu')) continue;
+          stats.scanned++;
+          if (onProgress && stats.scanned % 50 === 0) onProgress(stats.scanned);
           let osuText;
           try { osuText = await (await h.getFile()).text(); } catch (e) { continue; }
           let chart;
-          try { chart = parseOsu(osuText); } catch (e) { continue; }  // skip non-mania/empty
-          if (!KEY_MAPS[chart.keyCount]) continue;     // no keymap for this key count
+          try { chart = parseOsu(osuText); } catch (e) { stats.skippedNonMania++; continue; }
+          if (!KEY_MAPS[chart.keyCount]) { stats.skippedKeys++; continue; }
           const audioHandle = files.get(String(chart.audioFile).toLowerCase()) || null;
-          if (!audioHandle) continue;          // can't play without its audio
+          if (!audioHandle) { stats.skippedNoAudio++; continue; }
           const hash = await sha256(osuText);
           out.push({
             id: 'local:' + hash,
@@ -430,7 +462,7 @@ if (typeof document !== 'undefined') {
         for (const sd of subdirs) await walk(sd);
       }
       await walk(dir);
-      return out;
+      return { entries: out, stats: stats };
     }
 
     // Persist only the serialisable parts (handles ARE structured-cloneable).
