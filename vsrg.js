@@ -338,6 +338,7 @@ if (typeof document !== 'undefined') {
     const sizeSlider = document.getElementById('vsrg-size');
     const sizeValEl = document.getElementById('vsrg-size-val');
     const laneColorsEl = document.getElementById('vsrg-lane-colors');
+    const keybindsEl = document.getElementById('vsrg-keybinds');
     const appearPreview = document.getElementById('vsrg-appear-preview');
     const appearResetBtn = document.getElementById('vsrg-appear-reset');
     const appearDoneBtn = document.getElementById('vsrg-appear-done');
@@ -843,7 +844,12 @@ if (typeof document !== 'undefined') {
     }
 
     // ---- Gameplay ----------------------------------------------------------
-    function laneKeyMap(keyCount) { return KEY_MAPS[keyCount] || KEY_MAPS[4]; }
+    function defaultKeyMap(keyCount) { return KEY_MAPS[keyCount] || KEY_MAPS[4]; }
+    function laneKeyMap(keyCount) {
+      const custom = settings.vsrgKeybinds && settings.vsrgKeybinds[keyCount];
+      if (custom && custom.length === keyCount) return custom.map((k) => String(k).toLowerCase());
+      return defaultKeyMap(keyCount);
+    }
 
     function startRun(entry, chart, audioBuf) {
       teardownRun();                 // defensive: never overlap with a prior run
@@ -1431,6 +1437,42 @@ if (typeof document !== 'undefined') {
           laneColorsEl.appendChild(inp);
         }
       }
+      renderKeybinds();
+    }
+    // Lane-key rebinding: a row of key slots per key count (4–7K). Click a slot,
+    // then press the key you want bound to that lane.
+    let rebindTarget = null;   // { keyCount, lane, btn } while capturing
+    function renderKeybinds() {
+      if (!keybindsEl) return;
+      keybindsEl.innerHTML = '';
+      [4, 5, 6, 7].forEach((kc) => {
+        const row = document.createElement('div'); row.className = 'vsrg-kb-row';
+        const lbl = document.createElement('b'); lbl.textContent = kc + 'K'; row.appendChild(lbl);
+        const keys = laneKeyMap(kc);
+        for (let lane = 0; lane < kc; lane++) {
+          const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'vsrg-key';
+          btn.textContent = keys[lane] === ' ' ? '␣' : keys[lane];
+          btn.addEventListener('click', () => startRebind(kc, lane, btn));
+          row.appendChild(btn);
+        }
+        keybindsEl.appendChild(row);
+      });
+    }
+    function startRebind(keyCount, lane, btn) {
+      if (rebindTarget) rebindTarget.btn.classList.remove('binding');
+      rebindTarget = { keyCount: keyCount, lane: lane, btn: btn };
+      btn.classList.add('binding'); btn.textContent = '…';
+    }
+    function applyRebind(key) {
+      const t = rebindTarget; rebindTarget = null;
+      const binds = Object.assign({}, settings.vsrgKeybinds || {});
+      const cur = (binds[t.keyCount] && binds[t.keyCount].length === t.keyCount)
+        ? binds[t.keyCount].slice() : laneKeyMap(t.keyCount).slice();
+      cur[t.lane] = key;
+      binds[t.keyCount] = cur;
+      settings.vsrgKeybinds = binds;
+      if (deps.saveSettings) deps.saveSettings();
+      renderKeybinds();
     }
     function startAppearancePreview() {
       if (!appearPreview || appearRaf) return;
@@ -1561,9 +1603,17 @@ if (typeof document !== 'undefined') {
     });
     if (appearResetBtn) appearResetBtn.addEventListener('click', () => {
       settings.vsrgNoteStyle = 'bar'; settings.vsrgNoteScale = 1.0;
-      settings.vsrgColorPreset = 'default'; settings.vsrgLaneColors = [];
+      settings.vsrgColorPreset = 'default'; settings.vsrgLaneColors = []; settings.vsrgKeybinds = {};
       if (deps.saveSettings) deps.saveSettings(); renderAppearanceControls();
     });
+    // Capture the next key while a lane-key slot is being rebound (capture phase,
+    // so it pre-empts the panel's Escape/Space handlers). Escape cancels.
+    window.addEventListener('keydown', (e) => {
+      if (!rebindTarget) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.key === 'Escape') { rebindTarget.btn.classList.remove('binding'); rebindTarget = null; renderKeybinds(); return; }
+      if (e.key.length === 1 || e.key === ' ') applyRebind(e.key.toLowerCase());
+    }, true);
     // Tap calibration: the button or Space (while the calib screen is open) registers a tap.
     if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
     window.addEventListener('keydown', (e) => {
