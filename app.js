@@ -1224,6 +1224,9 @@
       if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
       // Re-render the country area so the dropdown picker appears/disappears.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Show/hide the admin-gated Rhythm mode; exit it if admin mode was turned off.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!vsrgAllowed() && settings.gameMode === 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
     });
     function syncAdminVisibility() {
       // Use style.display because the [hidden] attribute is overridden by the
@@ -1236,6 +1239,9 @@
       }
       // Country picker visibility depends on admin status too.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Hide the admin-gated Rhythm mode and exit it if admin access was lost.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!vsrgAllowed() && settings.gameMode === 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
     }
     // Subscription listener (subscribeAdminStatus) already calls
     // syncAdminVisibility when admin status changes. No need for a separate
@@ -5260,10 +5266,15 @@
       return I18N.t('mode.clicker');
     }
     const mpSubmodeEl = document.getElementById('mp-submode');
+    // VSRG (Rhythm) is gated behind admin mode for now so it can be tested on
+    // production without exposing it to players. Same gate as other admin tools.
+    function vsrgAllowed() { return isAdmin() && !!settings.adminMode; }
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
+      const vsrgBtn = modePopEl && modePopEl.querySelector('.mp-opt[data-mode="vsrg"]');
+      if (vsrgBtn) vsrgBtn.style.display = vsrgAllowed() ? '' : 'none';
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         b.classList.toggle('sel', b.getAttribute('data-mode') === mode);
       });
@@ -5278,6 +5289,7 @@
     function openModePop()  { if (modeMenuEl) { modeMenuEl.classList.add('open');    if (modePopEl) modePopEl.hidden = false; if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true'); } }
     function closeModePop() { if (modeMenuEl) { modeMenuEl.classList.remove('open'); if (modePopEl) modePopEl.hidden = true;  if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false'); } }
     function applyMode(mode, sub) {
+      if (mode === 'vsrg' && !vsrgAllowed()) mode = 'clicker';   // admin-gated
       settings.gameMode = (mode === 'typing' || mode === 'vsrg') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
