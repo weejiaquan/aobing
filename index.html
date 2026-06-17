@@ -2,21 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- BUILD MARKER (temporary — to verify index.html cache freshness). Logs to console,
-       shows a small bottom-right "build bN" badge, and sets window.__BUILD__. If you do
-       NOT see this badge / __BUILD__ is undefined, you are on a stale cached index.html. -->
-  <script>
-    window.__BUILD__ = 'b1';
-    console.log('%c[aobing] index.html BUILD ' + window.__BUILD__,
-                'color:#1c7ed6;font-weight:bold;font-size:14px');
-    window.addEventListener('DOMContentLoaded', function () {
-      var b = document.createElement('div');
-      b.textContent = 'build ' + window.__BUILD__;
-      b.style.cssText = 'position:fixed;bottom:4px;right:6px;z-index:99999;font:11px/1.4 monospace;'
-        + 'color:#1c7ed6;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:6px;pointer-events:none';
-      document.body.appendChild(b);
-    });
-  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta property="og:title" content="Aobing IT!">
