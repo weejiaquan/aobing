@@ -489,6 +489,9 @@ if (typeof document !== 'undefined') {
       const objs = chart.objects.map((o) => {
         const st = { o: o, judged: false, result: null };
         if (o.kind === 'circle' || o.kind === 'slider') { st.number = ++combo; st.color = COMBO_COLORS[colorIdx % COMBO_COLORS.length]; }
+        if (o.kind === 'slider') {
+          st.headJudged = false; st.headResult = null; st.checkpoints = buildSliderCheckpoints(o, chart);
+        }
         return st;
       });
       const startCtx = ac.currentTime + LEAD_IN_MS / 1000;
@@ -525,6 +528,7 @@ if (typeof document !== 'undefined') {
     function loop() {
       if (!run || run.finished) return;
       const st = songTimeNow();
+      updateSliders(st);
       sweepMisses(st);
       render(st);
       if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
@@ -535,11 +539,73 @@ if (typeof document !== 'undefined') {
       for (const s of run.objs) {
         if (s.judged) continue;
         if (s.o.kind === 'circle' && st > s.o.time + run.windows.h50) { judgeResult(s, 'miss'); }
-        // sliders/spinners auto-resolve (Phase 3/4 will score them); for now mark
-        // them judged once passed so the run can end, without affecting accuracy.
-        else if (s.o.kind === 'slider' && st > (s.o.endTime || s.o.time) + run.windows.h50) { s.judged = true; }
-        else if (s.o.kind === 'spinner' && st > s.o.endTime) { s.judged = true; }
+        else if (s.o.kind === 'spinner' && st > s.o.endTime) { s.judged = true; }  // Phase 4
       }
+    }
+
+    // ---- Sliders -------------------------------------------------------------
+    function buildSliderCheckpoints(o, chart) {
+      const tm = timingAt(chart.timingPoints, o.time);
+      const tickSpacing = Math.max(60, tm.beatLength / (chart.sliderTickRate || 1));
+      const pts = [];
+      for (let span = 0; span < o.slides; span++) {
+        const spanStart = o.time + span * o.spanDuration;
+        const reverse = (span % 2) === 1;
+        for (let t = tickSpacing; t < o.spanDuration - 10; t += tickSpacing) {
+          const fr = reverse ? 1 - t / o.spanDuration : t / o.spanDuration;
+          pts.push({ time: spanStart + t, frac: fr, kind: 'tick', hit: false, ev: false });
+        }
+        pts.push({ time: spanStart + o.spanDuration, frac: reverse ? 0 : 1,
+          kind: span === o.slides - 1 ? 'tail' : 'repeat', hit: false, ev: false });
+      }
+      return pts;
+    }
+    function pointAtFrac(path, frac) {
+      if (!path.length) return { x: 0, y: 0 };
+      const f = Math.max(0, Math.min(1, frac)) * (path.length - 1);
+      const i = Math.floor(f), t = f - i;
+      const a = path[i], b = path[Math.min(path.length - 1, i + 1)];
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    function sliderBallPos(o, st) {
+      let local = st - o.time; if (local < 0) local = 0;
+      let span = Math.floor(local / o.spanDuration);
+      if (span >= o.slides) span = o.slides - 1;
+      let fr = (local - span * o.spanDuration) / o.spanDuration;
+      if ((span % 2) === 1) fr = 1 - fr;
+      return pointAtFrac(o.path, fr);
+    }
+    function heldAny() { return !!(run.pressed.z || run.pressed.x || run.pressed.mouse); }
+
+    function updateSliders(st) {
+      const followR = run.radius * 2.4;
+      for (const s of run.objs) {
+        if (s.o.kind !== 'slider' || s.judged) continue;
+        const o = s.o;
+        if (!s.headJudged && st > o.time + run.windows.h50) { s.headJudged = true; s.headResult = 'miss'; run.combo = 0; updateHud(); }
+        if (st >= o.time && st <= o.endTime + 30) {
+          const ball = sliderBallPos(o, st);
+          s.following = heldAny() && dist(cursor, ball) <= followR;
+          for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) { cp.ev = true; cp.hit = s.following; }
+        }
+        if (st > o.endTime + 30) {
+          for (const cp of s.checkpoints) if (!cp.ev) { cp.ev = true; cp.hit = false; }
+          finalizeSlider(s);
+        }
+      }
+    }
+    function finalizeSlider(s) {
+      const headOk = (s.headJudged && s.headResult !== 'miss') ? 1 : 0;
+      const collected = headOk + s.checkpoints.filter((c) => c.hit).length;
+      const total = 1 + s.checkpoints.length;
+      const frac = total ? collected / total : 0;
+      const result = frac >= 1 ? 'h300' : frac >= 0.5 ? 'h100' : frac > 0 ? 'h50' : 'miss';
+      s.judged = true; s.result = result;
+      const c = run.counts;
+      if (result === 'miss') { c.miss++; run.combo = 0; }
+      else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
+      bursts.push({ x: s.o.x, y: s.o.y, result: result, t: performance.now() });
+      flashJudge(result); updateHud();
     }
 
     function judgeResult(s, result) {
@@ -557,29 +623,36 @@ if (typeof document !== 'undefined') {
     function onTap(perfTs) {
       if (!run || run.finished) return;
       const st = inputSongTime(perfTs);
-      // earliest unjudged circle within the catchable window
+      // earliest object whose head is still unhit, within the catchable window
       let best = null;
       for (const s of run.objs) {
-        if (s.judged || s.o.kind !== 'circle') continue;
-        if (st < s.o.time - run.windows.h50) break;          // next ones are later — too early
-        if (st <= s.o.time + run.windows.h50) { best = s; break; }
+        const o = s.o;
+        if (o.kind === 'spinner') continue;
+        const headDone = o.kind === 'circle' ? s.judged : s.headJudged;
+        if (headDone) continue;
+        if (st < o.time - run.windows.h50) break;            // next ones are later — too early
+        if (st <= o.time + run.windows.h50) { best = s; break; }
       }
       if (!best) return;
-      // cursor must be over the circle
-      if (dist(cursor, best.o) > run.radius) { return; }     // missed aim — no judgement (click wasted)
+      // cursor must be over the head
+      if (dist(cursor, { x: best.o.x, y: best.o.y }) > run.radius) return;   // missed aim
       const err = Math.abs(st - best.o.time);
       const w = run.windows;
       const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
-      judgeResult(best, result);
+      if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; }  // body/tail scored later
+      else judgeResult(best, result);
     }
     function bindInput(on) {
       const fn = on ? 'addEventListener' : 'removeEventListener';
       canvas[fn]('pointermove', onPointerMove);
       canvas[fn]('pointerdown', onPointerDown);
+      canvas[fn]('pointerup', onPointerUp);
+      canvas[fn]('pointercancel', onPointerUp);
       window[fn]('keydown', onKeyDown);
     }
     function onPointerMove(e) { updateCursorFromEvent(e); }
-    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); onTap(e.timeStamp); }
+    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); if (run) run.pressed.mouse = true; onTap(e.timeStamp); }
+    function onPointerUp(e) { if (run) run.pressed.mouse = false; }
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
@@ -614,19 +687,43 @@ if (typeof document !== 'undefined') {
         if (st < appear || s.judged) continue;
         const sc = osuToScreen(o.x, o.y, tf);
         const fade = Math.min(1, (st - appear) / run.fadeIn);
-        if (o.kind === 'slider') {                             // placeholder body (Phase 3 = full)
-          g.globalAlpha = fade * 0.5; g.strokeStyle = s.color; g.lineWidth = rad * 1.6;
-          g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
+
+        if (o.kind === 'slider') {
+          // body track
+          g.globalAlpha = fade;
+          g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = rad * 2; g.lineCap = 'round'; g.lineJoin = 'round';
+          g.beginPath();
           for (let j = 0; j < o.path.length; j++) { const pp = osuToScreen(o.path[j].x, o.path[j].y, tf); j ? g.lineTo(pp.x, pp.y) : g.moveTo(pp.x, pp.y); }
-          g.stroke(); g.globalAlpha = 1;
+          g.stroke();
+          g.strokeStyle = s.color + '99'; g.lineWidth = rad * 1.6; g.stroke();
+          // ticks
+          for (const cp of s.checkpoints) {
+            if (cp.kind !== 'tick' || cp.ev) continue;
+            const tp = osuToScreen(pointAtFrac(o.path, cp.frac).x, pointAtFrac(o.path, cp.frac).y, tf);
+            g.fillStyle = '#fff'; g.beginPath(); g.arc(tp.x, tp.y, 3 * dpr, 0, Math.PI * 2); g.fill();
+          }
+          // tail cap
+          const tail = osuToScreen(o.path[o.path.length - 1].x, o.path[o.path.length - 1].y, tf);
+          g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(tail.x, tail.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
+          // follow-ball while active
+          if (st >= o.time && st <= o.endTime) {
+            const ball = sliderBallPos(o, st); const bp = osuToScreen(ball.x, ball.y, tf);
+            g.save();
+            g.fillStyle = s.color; g.globalAlpha = 0.9; g.beginPath(); g.arc(bp.x, bp.y, rad * 0.7, 0, Math.PI * 2); g.fill();
+            g.globalAlpha = s.following ? 0.9 : 0.4; g.strokeStyle = '#fff'; g.lineWidth = 3 * dpr;
+            g.beginPath(); g.arc(bp.x, bp.y, rad * 2.4, 0, Math.PI * 2); g.stroke();   // follow circle
+            g.restore();
+          }
+          g.globalAlpha = 1;
+          if (s.headJudged) continue;   // head consumed — skip the head circle/approach below
         }
-        // hit circle body + ring + number
+
+        // hit-circle head: body + ring + number + approach circle
         g.globalAlpha = fade;
         g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
         g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
         g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(String(s.number || ''), sc.x, sc.y);
-        // approach circle
         const ap = Math.max(0, (o.time - st) / run.preempt);
         if (ap > 0) { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + ap * 3), 0, Math.PI * 2); g.stroke(); }
         g.globalAlpha = 1;
