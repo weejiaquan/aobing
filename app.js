@@ -5232,6 +5232,10 @@
     window.__vsrgDeps = {
       settings:    settings,
       saveSettings: function () { saveSettings(settings); },
+      // While the rhythm panel is open it owns the keyboard — suppress the global
+      // keydown clicker handler (same isTypingActive gate the typing panel uses)
+      // so lane keys don't trigger the character behind the overlay.
+      captureKeyboard: function (on) { setTypingActive(!!on); },
       pauseBgm:    function () { try { bgm.pause(); bgmPlaying = false; } catch (e) {} },
       resumeBgm:   function () {
         try { if ((settings.musicVol || 0) > 0) { bgm.play().then(function(){ bgmPlaying = true; }).catch(function(){}); } } catch (e) {}

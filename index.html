@@ -2737,7 +2737,10 @@
     #vsrg-canvas { touch-action: none; display: block; height: 100%; }
     #vsrg-hud { position: absolute; inset: 0; pointer-events: none; display: flex;
       flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-    #vsrg-combo { font-size: 44px; font-weight: 800; opacity: .9; }
+    #vsrg-combo { font-size: 48px; font-weight: 800; opacity: .92; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+    @keyframes vsrg-combo-pop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+    #vsrg-combo.pop { animation: vsrg-combo-pop .16s ease-out; }
+    #vsrg-judge { will-change: transform, opacity; }
     #vsrg-acc { position: absolute; top: 16px; right: 20px; font-size: 18px;
       font-variant-numeric: tabular-nums; }
     #vsrg-judge { font-size: 30px; font-weight: 800; opacity: 0; margin-top: 70px; }

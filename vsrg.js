@@ -254,6 +254,7 @@ if (typeof document !== 'undefined') {
     7: ['s', 'd', 'f', ' ', 'j', 'k', 'l'],
   };
   const LANE_COLORS = ['#2b6cff', '#ff5470', '#39d98a', '#ffd166', '#b06bff', '#22d3ee', '#f59e0b'];
+  const TIER_COLORS = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
   const APPROACH_MS = 1600;   // time a note is visible before the judgement line
   const LEAD_IN_MS = 2000;    // silence/scroll before the song's audio starts
   const END_PAD_MS = 2000;    // wait after the last note before results
@@ -296,6 +297,7 @@ if (typeof document !== 'undefined') {
     let keyFilter = 'all';
     let lastSong = null;       // remember for Retry
     let loading = false;       // guards against re-entrant loadAndPlay
+    let loadGen = 0;           // bumped to cancel an in-flight async load
 
     // Active run (null when not playing)
     let run = null;
@@ -449,7 +451,7 @@ if (typeof document !== 'undefined') {
         const perm = await dir.queryPermission({ mode: 'read' });
         if (perm !== 'granted') return [];     // needs a fresh user gesture to re-grant
       }
-      return saved.map((s) => ({
+      return saved.filter((s) => KEY_MAPS[s.keyCount]).map((s) => ({
         id: s.id, source: 'local',
         title: s.title, artist: s.artist, diffName: s.diffName,
         keyCount: s.keyCount, od: s.od, hash: s.hash,
@@ -472,6 +474,7 @@ if (typeof document !== 'undefined') {
     async function loadAndPlay(entry) {
       if (loading) return;        // ignore double-clicks / overlapping loads
       loading = true;
+      const gen = ++loadGen;      // cancels if close()/quit bumps loadGen mid-load
       teardownRun();              // never leave a previous run/audio running
       lastSong = entry;
       setImportStatus('');
@@ -480,6 +483,7 @@ if (typeof document !== 'undefined') {
         const chart = parseOsu(osuText);
         const ac = await ensureCtx();
         const audioBuf = await ac.decodeAudioData(await entry.getAudio());
+        if (gen !== loadGen || !panelOpen) return;   // user left during the load
         startRun(entry, chart, audioBuf);
       } finally {
         loading = false;
@@ -574,7 +578,7 @@ if (typeof document !== 'undefined') {
     function applyTier(tier, lane, isMiss) {
       run.state = applyJudgement(run.state, tier);
       flashJudge(tier);
-      if (!isMiss) flashLane(lane);
+      pushFx(lane, isMiss ? 'miss' : 'hit', TIER_COLORS[tier] || '#fff');
       updateHud();
     }
 
@@ -625,6 +629,7 @@ if (typeof document !== 'undefined') {
       if (lane < 0 || run.pressed[lane]) return;     // ignore auto-repeat
       run.pressed[lane] = true;
       e.preventDefault();
+      pushFx(lane, 'press', '#ffffff');              // every press flashes its lane
       onHit(lane, e.timeStamp);
     }
     function onKeyUp(e) {
@@ -647,6 +652,7 @@ if (typeof document !== 'undefined') {
       try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       const lane = laneFromX(e.clientX);
       run.pressed['p' + e.pointerId] = lane;
+      pushFx(lane, 'press', '#ffffff');
       onHit(lane, e.timeStamp);
     }
     function onPointerUp(e) {
@@ -667,60 +673,151 @@ if (typeof document !== 'undefined') {
       canvas.style.height = (r.height) + 'px';
     }
 
+    // Transient hit/press effects drawn at the judgement line.
+    // kind: 'press' (white pulse), 'hit' (tier ring + pulse), 'miss' (red pulse).
+    let hitFx = [];
+    function pushFx(lane, kind, color) {
+      hitFx.push({ lane: lane, kind: kind, color: color, t: performance.now() });
+      if (hitFx.length > 48) hitFx.shift();
+    }
+
+    function heldLanes() {
+      const held = {};
+      for (const k in run.pressed) {
+        if (k.charAt(0) === 'p') held[run.pressed[k]] = true;   // pointer -> lane
+        else if (run.pressed[k]) held[k] = true;                // keyboard lane bool
+      }
+      return held;
+    }
+
     function render(st) {
       const W = canvas.width, H = canvas.height;
       const dpr = window.devicePixelRatio || 1;
       const keyCount = run.keyCount;
       const laneW = W / keyCount;
       const hitY = H - 90 * dpr;
+      const noteH = 18 * dpr;
+      const recH = 22 * dpr;
+      const held = heldLanes();
+      const nowP = performance.now();
+
       ctx2d.clearRect(0, 0, W, H);
-      // background + lanes
       ctx2d.fillStyle = '#0e0f13'; ctx2d.fillRect(0, 0, W, H);
       for (let i = 0; i < keyCount; i++) {
-        ctx2d.fillStyle = (i % 2) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)';
+        ctx2d.fillStyle = held[i] ? 'rgba(255,255,255,0.09)' : ((i % 2) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)');
         ctx2d.fillRect(i * laneW, 0, laneW, H);
       }
       // judgement line
-      ctx2d.fillStyle = '#3a4050'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
-      // receptors
+      ctx2d.fillStyle = '#4a5060'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
+
+      // receptors (filled + glowing while the lane key is held)
       for (let i = 0; i < keyCount; i++) {
-        ctx2d.strokeStyle = LANE_COLORS[i % LANE_COLORS.length];
-        ctx2d.lineWidth = 2 * dpr;
-        ctx2d.strokeRect(i * laneW + 4 * dpr, hitY, laneW - 8 * dpr, 18 * dpr);
+        const color = LANE_COLORS[i % LANE_COLORS.length];
+        const x = i * laneW + 4 * dpr, w = laneW - 8 * dpr;
+        if (held[i]) {
+          ctx2d.save();
+          ctx2d.shadowColor = color; ctx2d.shadowBlur = 22 * dpr;
+          ctx2d.fillStyle = color; ctx2d.globalAlpha = 0.85;
+          ctx2d.fillRect(x, hitY, w, recH);
+          ctx2d.restore();
+        }
+        ctx2d.strokeStyle = color; ctx2d.lineWidth = 2 * dpr;
+        ctx2d.strokeRect(x, hitY, w, recH);
       }
-      // notes
-      const noteH = 16 * dpr;
+
+      // notes (holds first so taps/caps draw on top)
       for (const n of run.notes) {
         if (n.headJudged && (n.endTime == null || n.tailJudged)) continue;
         const color = LANE_COLORS[n.lane % LANE_COLORS.length];
-        const yHead = hitY - ((n.time - st) / APPROACH_MS) * (hitY);
-        const x = n.lane * laneW + 4 * dpr;
-        const w = laneW - 8 * dpr;
+        const x = n.lane * laneW + 5 * dpr;
+        const w = laneW - 10 * dpr;
+        const yHead = hitY - ((n.time - st) / APPROACH_MS) * hitY;
+
         if (n.endTime != null) {
-          const yTail = hitY - ((n.endTime - st) / APPROACH_MS) * (hitY);
-          ctx2d.fillStyle = color + '88';
-          ctx2d.fillRect(x, Math.min(yHead, yTail), w, Math.abs(yHead - yTail) + noteH);
+          // --- Hold: bright bordered body with a gradient, caps, and a glow while held ---
+          const yTail = hitY - ((n.endTime - st) / APPROACH_MS) * hitY;
+          const top = Math.min(yHead, yTail);
+          const bot = Math.max(yHead, yTail) + noteH;
+          const bodyTop = n.holding ? Math.max(top, hitY) : top;   // consumed part stops at the line while held
+          ctx2d.save();
+          const grad = ctx2d.createLinearGradient(0, bodyTop, 0, bot);
+          grad.addColorStop(0, color); grad.addColorStop(1, color + '55');
+          ctx2d.fillStyle = grad;
+          if (n.holding) { ctx2d.shadowColor = color; ctx2d.shadowBlur = 18 * dpr; }
+          ctx2d.beginPath();
+          ctx2d.roundRect(x, bodyTop, w, Math.max(noteH, bot - bodyTop), 6 * dpr);
+          ctx2d.fill();
+          ctx2d.lineWidth = 2.5 * dpr; ctx2d.strokeStyle = 'rgba(255,255,255,0.85)';
+          ctx2d.stroke();
+          ctx2d.restore();
+          // tail cap (so the end is unmistakable)
+          ctx2d.fillStyle = '#fff';
+          ctx2d.fillRect(x, yTail, w, 4 * dpr);
         }
+
         if (!n.headJudged && yHead > -noteH && yHead < H) {
+          // tap / hold-head: solid bar with a white top edge for a chunky look
           ctx2d.fillStyle = color;
-          ctx2d.fillRect(x, yHead, w, noteH);
+          ctx2d.beginPath();
+          ctx2d.roundRect(x, yHead, w, noteH, 5 * dpr);
+          ctx2d.fill();
+          ctx2d.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx2d.fillRect(x, yHead, w, 3 * dpr);
         }
+      }
+
+      // --- hit/press effects at the line ---
+      for (let i = hitFx.length - 1; i >= 0; i--) {
+        const f = hitFx[i];
+        const dur = f.kind === 'press' ? 130 : 280;
+        const age = nowP - f.t;
+        if (age > dur) { hitFx.splice(i, 1); continue; }
+        const k = age / dur;                       // 0..1 progress
+        const cx = f.lane * laneW + laneW / 2;
+        ctx2d.save();
+        if (f.kind === 'hit') {
+          // expanding ring + bright receptor flash
+          ctx2d.globalAlpha = 1 - k;
+          ctx2d.strokeStyle = f.color;
+          ctx2d.lineWidth = (3 * (1 - k) + 1) * dpr;
+          ctx2d.beginPath();
+          ctx2d.arc(cx, hitY + recH / 2, (laneW * 0.18 + k * laneW * 0.55), 0, Math.PI * 2);
+          ctx2d.stroke();
+          ctx2d.globalAlpha = (1 - k) * 0.7;
+          ctx2d.fillStyle = f.color;
+          ctx2d.fillRect(f.lane * laneW + 4 * dpr, hitY - 4 * dpr, laneW - 8 * dpr, recH + 8 * dpr);
+        } else {
+          // press / miss: quick receptor pulse (no ring)
+          ctx2d.globalAlpha = (1 - k) * (f.kind === 'miss' ? 0.5 : 0.4);
+          ctx2d.fillStyle = f.color;
+          ctx2d.fillRect(f.lane * laneW + 4 * dpr, hitY, laneW - 8 * dpr, recH);
+        }
+        ctx2d.restore();
       }
     }
 
-    let laneFlash = {};
-    function flashLane(lane) { laneFlash[lane] = performance.now(); }
+    const JUDGE_LABELS = { marvelous: 'MARVELOUS', perfect: 'PERFECT', great: 'GREAT', good: 'GOOD', bad: 'BAD', miss: 'MISS' };
     function flashJudge(tier) {
       if (!judgeEl) return;
-      const labels = { marvelous: 'MARVELOUS', perfect: 'PERFECT', great: 'GREAT', good: 'GOOD', bad: 'BAD', miss: 'MISS' };
-      const colors = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
-      judgeEl.textContent = labels[tier] || tier;
-      judgeEl.style.color = colors[tier] || '#fff';
-      judgeEl.style.transition = 'none'; judgeEl.style.opacity = '1';
-      requestAnimationFrame(() => { judgeEl.style.transition = 'opacity .3s'; judgeEl.style.opacity = '0'; });
+      judgeEl.textContent = JUDGE_LABELS[tier] || tier;
+      judgeEl.style.color = TIER_COLORS[tier] || '#fff';
+      // pop: snap big+opaque, then settle — gives the readout some punch
+      judgeEl.style.transition = 'none';
+      judgeEl.style.opacity = '1';
+      judgeEl.style.transform = 'scale(1.35)';
+      requestAnimationFrame(() => {
+        judgeEl.style.transition = 'opacity .32s, transform .18s';
+        judgeEl.style.opacity = '0';
+        judgeEl.style.transform = 'scale(1)';
+      });
     }
     function updateHud() {
-      if (comboEl) comboEl.textContent = run.state.combo > 1 ? run.state.combo + 'x' : '';
+      if (comboEl) {
+        comboEl.textContent = run.state.combo > 1 ? run.state.combo + 'x' : '';
+        if (run.state.combo > 1) {                 // bump the combo on each gain
+          comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
+        }
+      }
       if (accEl) accEl.textContent = accuracy(run.state.counts).toFixed(2) + '%';
     }
 
@@ -765,6 +862,7 @@ if (typeof document !== 'undefined') {
     }
 
     function quitToSelect() {
+      loadGen++;                 // cancel any load still in flight
       teardownRun();
       if (deps.resumeBgm) deps.resumeBgm();
       show('select');
@@ -796,7 +894,8 @@ if (typeof document !== 'undefined') {
       ensureCtx().then((ac) => {
         const cctx = calibCanvas ? calibCanvas.getContext('2d') : null;
         const period = 0.6;                       // 100 BPM metronome
-        let nextTick = ac.currentTime + 0.2;
+        const baseTick = ac.currentTime + 0.2;    // first beep; flash phase is anchored to this
+        let nextTick = baseTick;
         function tick() {
           while (nextTick < ac.currentTime + 0.1) {
             const o = ac.createOscillator(), g = ac.createGain();
@@ -809,9 +908,11 @@ if (typeof document !== 'undefined') {
             nextTick += period;
           }
           if (cctx) {
-            // Same sign convention as gameplay (inputSongTime subtracts calOffset),
-            // so nudging the slider moves the flash the way it moves real judgement.
-            const phase = ((ac.currentTime - calOffset() / 1000) % period) / period;
+            // Phase is measured from baseTick (when beeps actually fire), not the raw
+            // ctx epoch, so flash and beep share a timeline. Same sign as gameplay
+            // (inputSongTime subtracts calOffset), and we wrap negatives into [0,period).
+            const rel = ac.currentTime - baseTick - calOffset() / 1000;
+            const phase = (((rel % period) + period) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
             cctx.fillStyle = flash ? '#39d98a' : '#1a1c22';
@@ -834,14 +935,17 @@ if (typeof document !== 'undefined') {
     function open() {
       panel.classList.add('open');
       panelOpen = true;
+      if (deps.captureKeyboard) deps.captureKeyboard(true);   // panel owns the keyboard
       show('select');
       refreshLibrary();
     }
     function close() {
+      loadGen++;                 // cancel any load still in flight
       if (run && !run.finished) quitToSelect();
       if (calibLoop) closeCalibration();
       panel.classList.remove('open');
       panelOpen = false;
+      if (deps.captureKeyboard) deps.captureKeyboard(false);  // release the keyboard
       if (deps.resumeBgm) deps.resumeBgm();
       if (settings.gameMode === 'vsrg') {
         settings.gameMode = 'clicker';
