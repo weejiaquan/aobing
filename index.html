@@ -2726,6 +2726,11 @@
     #vsrg-lane-colors { display: inline-flex; gap: 6px; }
     #vsrg-lane-colors input[type=color] { width: 30px; height: 30px; border: 1px solid #333; border-radius: 6px;
       background: none; padding: 0; cursor: pointer; }
+    #vsrg-keybinds { display: inline-flex; flex-direction: column; gap: 5px; }
+    .vsrg-kb-row { display: flex; align-items: center; gap: 5px; }
+    .vsrg-kb-row > b { width: 28px; color: #9aa0ab; font-weight: 600; font-size: 12px; }
+    .vsrg-key { min-width: 30px; padding: 5px 8px !important; text-transform: uppercase; font-size: 12px !important; }
+    .vsrg-key.binding { background: #2b6cff !important; color: #fff !important; }
     .vsrg-appear-actions { display: flex; gap: 10px; margin-top: 6px; }
     #vsrg-appear-done { background: #2b6cff !important; color: #fff !important; }
     #vsrg-appear-preview { border: 1px solid #20232c; border-radius: 8px; background: #0e0f13; }
@@ -2847,6 +2852,9 @@
           <div class="vsrg-appear-row"><span>Lane colours</span>
             <span id="vsrg-lane-colors"></span>
           </div>
+          <div class="vsrg-appear-row" style="align-items:flex-start;"><span>Lane keys</span>
+            <span id="vsrg-keybinds"></span>
+          </div>
           <div class="vsrg-appear-actions">
             <button id="vsrg-appear-reset" type="button">Reset</button>
             <button id="vsrg-appear-done" type="button">Done</button>
@@ -2887,6 +2895,9 @@
     .osu-results-actions { display: flex; gap: 10px; }
     #osu-retry { background: #2b6cff !important; color: #fff !important; }
     #osu-exit { background: #2a2d36; }
+    #osu-keybinds { display: inline-flex; gap: 4px; }
+    #osu-keybinds button { padding: 5px 9px !important; text-transform: uppercase; min-width: 28px; }
+    #osu-keybinds button.binding { background: #2b6cff !important; color: #fff !important; }
   </style>
   <div id="osu-panel">
     <div id="osu-select" class="osu-screen">
@@ -2897,6 +2908,9 @@
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
           <button id="osu-import-osz" type="button">Import .osz</button>
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
+          <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
+            <span id="osu-keybinds"></span>
+          </span>
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
       </div>

@@ -361,6 +361,7 @@ if (typeof document !== 'undefined') {
       results: document.getElementById('osu-results'),
     };
     const songlistEl = document.getElementById('osu-songlist');
+    const keybindsEl = document.getElementById('osu-keybinds');
     const exitBtn = document.getElementById('osu-exit');
     const canvas = document.getElementById('osu-canvas');
     const g = canvas.getContext('2d');
@@ -774,11 +775,41 @@ if (typeof document !== 'undefined') {
     function onPointerMove(e) { updateCursorFromEvent(e); }
     function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); if (run) run.pressed.mouse = true; onTap(e.timeStamp); }
     function onPointerUp(e) { if (run) run.pressed.mouse = false; }
+    function tapKeys() {
+      const k = settings.osuKeys;
+      return (Array.isArray(k) && k.length) ? k.map((x) => String(x).toLowerCase()) : ['z', 'x'];
+    }
+    // Tap-key rebinding (song-select): click a key slot, then press the new key.
+    let rebindIdx = null, rebindBtn = null;
+    function renderKeybinds() {
+      if (!keybindsEl) return;
+      keybindsEl.innerHTML = '';
+      tapKeys().forEach((key, i) => {
+        const btn = document.createElement('button'); btn.type = 'button';
+        btn.textContent = key === ' ' ? '␣' : key;
+        btn.addEventListener('click', () => {
+          if (rebindBtn) rebindBtn.classList.remove('binding');
+          rebindIdx = i; rebindBtn = btn; btn.classList.add('binding'); btn.textContent = '…';
+        });
+        keybindsEl.appendChild(btn);
+      });
+    }
+    function applyRebind(key) {
+      const keys = tapKeys(); keys[rebindIdx] = key;
+      settings.osuKeys = keys; if (deps.saveSettings) deps.saveSettings();
+      rebindIdx = null; rebindBtn = null; renderKeybinds();
+    }
+    window.addEventListener('keydown', (e) => {
+      if (rebindIdx === null) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.key === 'Escape') { if (rebindBtn) rebindBtn.classList.remove('binding'); rebindIdx = null; rebindBtn = null; renderKeybinds(); return; }
+      if (e.key.length === 1 || e.key === ' ') applyRebind(e.key.toLowerCase());
+    }, true);
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
       const k = e.key.toLowerCase();
-      if (k === 'z' || k === 'x') { if (run.pressed[k]) return; run.pressed[k] = true; e.preventDefault(); onTap(e.timeStamp); }
+      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; e.preventDefault(); onTap(e.timeStamp); }
     }
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (run) run.pressed[k] = false; });
 
@@ -917,7 +948,7 @@ if (typeof document !== 'undefined') {
     function open() {
       panel.classList.add('open'); panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);
-      show('select'); refreshLibrary();
+      show('select'); refreshLibrary(); renderKeybinds();
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();

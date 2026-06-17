@@ -1055,6 +1055,8 @@
       vsrgColorPreset: 'default', // 'default' | 'osu' | 'mono' | 'pastel'
       vsrgLaneColors: [],         // per-lane hex overrides; [] = use the preset
       osuCalibrationOffset: 0,    // ms applied to osu!standard input->song-time mapping
+      vsrgKeybinds: {},           // keyCount -> [keys] overriding the default lane keys (vsrg.js)
+      osuKeys: ['z', 'x'],        // osu!standard tap keys (osustd.js)
     };
 
     // --- Admin gating -----------------------------------------------------------
