@@ -341,10 +341,410 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
 if (typeof window !== 'undefined') window.OsuStdEngine = ENGINE;
 
 // =========================================================================
-// Browser wiring (playfield, cursor, audio) — added in Phase 2.
+// Browser wiring — window.OsuStdGame.init(deps). Playfield + cursor + circles.
+// Sliders/spinners are parsed and drawn as simple placeholders here (Phase 2);
+// full slider/spinner judgement lands in later phases.
 // =========================================================================
 if (typeof document !== 'undefined') {
-  // Intentionally empty until the playfield runtime lands.
+  const api = { init: initBrowser };
+  const COMBO_COLORS = ['#ffd166', '#56a0ff', '#39d98a', '#ff7eb6', '#b06bff'];
+  const LEAD_IN_MS = 1500, END_PAD_MS = 2500;
+  const PLAY_W = 512, PLAY_H = 384;
+
+  function initBrowser(deps) {
+    const settings = deps.settings || {};
+    const panel = document.getElementById('osu-panel');
+    if (!panel) return;
+    const screens = {
+      select:  document.getElementById('osu-select'),
+      game:    document.getElementById('osu-game'),
+      results: document.getElementById('osu-results'),
+    };
+    const songlistEl = document.getElementById('osu-songlist');
+    const exitBtn = document.getElementById('osu-exit');
+    const canvas = document.getElementById('osu-canvas');
+    const g = canvas.getContext('2d');
+    const comboEl = document.getElementById('osu-combo');
+    const accEl = document.getElementById('osu-acc');
+    const judgeEl = document.getElementById('osu-judge');
+    const resultsBody = document.getElementById('osu-results-body');
+    const retryBtn = document.getElementById('osu-retry');
+    const backBtn = document.getElementById('osu-back');
+
+    let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
+    let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
+    let trail = [];                                   // recent cursor positions (osu!px) for a trail
+    let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
+
+    function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
+    function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
+    function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
+
+    function ensureCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state !== 'running') return audioCtx.resume().then(() => audioCtx);
+      return Promise.resolve(audioCtx);
+    }
+
+    // ---- Playfield transform (osu 512x384 letterboxed into the canvas) -------
+    function sizeCanvas() {
+      // Size the backing store from the canvas's OWN rendered size (it fills the
+      // game screen via CSS). Using a separate dpr assumption breaks the inverse
+      // mapping when the rendered size differs from CSS*dpr.
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    }
+    function transform() {
+      const W = canvas.width, H = canvas.height;
+      const scale = Math.min(W / PLAY_W, H / PLAY_H) * 0.82;
+      return { scale: scale, ox: (W - PLAY_W * scale) / 2, oy: (H - PLAY_H * scale) / 2 };
+    }
+    function osuToScreen(x, y, tf) { return { x: tf.ox + x * tf.scale, y: tf.oy + y * tf.scale }; }
+    // Map a mouse event to osu!px using the canvas's actual backing/CSS ratio
+    // (robust to any devicePixelRatio / layout mismatch).
+    function updateCursorFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+      const tf = transform();
+      cursor = {
+        x: ((e.clientX - rect.left) * sx - tf.ox) / tf.scale,
+        y: ((e.clientY - rect.top) * sy - tf.oy) / tf.scale,
+      };
+      trail.push({ x: cursor.x, y: cursor.y, t: performance.now() });
+      if (trail.length > 24) trail.shift();
+    }
+
+    // ---- Library / song select ----------------------------------------------
+    async function loadBundled() {
+      const entries = [];
+      try {
+        const manifest = await fetch('assets/osustd/bundled.json').then((r) => r.json());
+        for (const m of manifest) {
+          const base = m.dir.replace(/\/$/, '');
+          const osuText = await fetch(base + '/' + m.osu).then((r) => r.text());
+          let chart; try { chart = assembleChart(osuText); } catch (e) { continue; }
+          entries.push({
+            id: 'bundled:' + m.id, title: chart.title, artist: chart.artist, diffName: chart.diffName,
+            getOsuText: () => Promise.resolve(osuText),
+            getAudio: () => fetch(base + '/' + m.audio).then((r) => r.arrayBuffer()),
+            getArt: () => m.bg ? fetch(base + '/' + m.bg).then((r) => r.blob()).catch(() => null) : Promise.resolve(null),
+          });
+        }
+      } catch (e) { /* no bundled maps */ }
+      return entries;
+    }
+    function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
+    function renderSongList() {
+      if (!songlistEl) return;
+      if (!library.length) { songlistEl.innerHTML = '<div class="osu-empty">No songs yet.</div>'; return; }
+      songlistEl.innerHTML = library.map((e, i) =>
+        '<button class="osu-song" data-i="' + i + '"><span class="osu-song-title">' + escapeH(e.title || '(untitled)') +
+        '</span><span class="osu-song-meta">' + escapeH(e.artist || '') + ' · ' + escapeH(e.diffName || '') + '</span></button>'
+      ).join('');
+    }
+    async function refreshLibrary() { library = await loadBundled(); renderSongList(); }
+
+    async function sha256(text) {
+      const data = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ---- Run lifecycle -------------------------------------------------------
+    function teardownRun() {
+      if (!run) return;
+      run.finished = true;
+      cancelAnimationFrame(run.rafId);
+      bindInput(false);
+      try { run.src.stop(); } catch (e) {}
+      run = null;
+    }
+    async function loadAndPlay(entry) {
+      if (loading) return;
+      loading = true; const gen = ++loadGen; teardownRun(); run = null;
+      try {
+        const osuText = await entry.getOsuText();
+        const chart = assembleChart(osuText);
+        const ac = await ensureCtx();
+        const audioBuf = await ac.decodeAudioData(await entry.getAudio());
+        if (gen !== loadGen || !panelOpen) return;
+        startRun(entry, chart, audioBuf);
+      } catch (e) { try { console.error('[osustd] load', e); } catch (_) {} }
+      finally { loading = false; }
+    }
+
+    function startRun(entry, chart, audioBuf) {
+      teardownRun();
+      if (deps.pauseBgm) deps.pauseBgm();
+      show('game'); grabFocus(); sizeCanvas();
+      const ac = audioCtx;
+      const preempt = arPreempt(chart.ar), fadeIn = arFadeIn(chart.ar);
+      const radius = csRadius(chart.cs);
+      const windows = odWindows(chart.od);
+      // per-object play state; assign combo colours/numbers
+      let combo = 0, colorIdx = 0;
+      const objs = chart.objects.map((o) => {
+        const st = { o: o, judged: false, result: null };
+        if (o.kind === 'circle' || o.kind === 'slider') { st.number = ++combo; st.color = COMBO_COLORS[colorIdx % COMBO_COLORS.length]; }
+        return st;
+      });
+      const startCtx = ac.currentTime + LEAD_IN_MS / 1000;
+      const src = ac.createBufferSource();
+      const gain = ac.createGain();
+      gain.gain.value = Math.max(0, Math.min(1, (Number(settings.musicVol) || 0) / 100)) || 0.6;
+      src.buffer = audioBuf; src.connect(gain).connect(ac.destination); src.start(startCtx);
+      const lastTime = chart.objects.reduce((m, o) => Math.max(m, o.endTime || o.time), 0);
+      run = {
+        entry: entry, chart: chart, objs: objs, src: src, gain: gain, startCtx: startCtx,
+        t0perf: performance.now(), t0ctx: ac.currentTime,
+        preempt: preempt, fadeIn: fadeIn, radius: radius, windows: windows,
+        counts: { h300: 0, h100: 0, h50: 0, miss: 0 }, combo: 0, maxCombo: 0,
+        lastTime: lastTime, finished: false, rafId: 0, artImg: null, pressed: {},
+      };
+      if (entry.getArt) entry.getArt().then((b) => {
+        if (!b || !run || run.entry !== entry) return;
+        const url = URL.createObjectURL(b), img = new Image();
+        img.onload = () => { if (run && run.entry === entry) run.artImg = img; URL.revokeObjectURL(url); };
+        img.onerror = () => URL.revokeObjectURL(url); img.src = url;
+      }).catch(() => {});
+      trail = []; bursts = [];
+      bindInput(true);
+      run.rafId = requestAnimationFrame(loop);
+      updateHud();
+    }
+
+    function songTimeNow() { return (audioCtx.currentTime - run.startCtx) * 1000; }
+    function inputSongTime(perfTs) {
+      const ctxAtInput = run.t0ctx + (perfTs - run.t0perf) / 1000;
+      return (ctxAtInput - run.startCtx) * 1000 - calOffset();
+    }
+
+    function loop() {
+      if (!run || run.finished) return;
+      const st = songTimeNow();
+      sweepMisses(st);
+      render(st);
+      if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
+      run.rafId = requestAnimationFrame(loop);
+    }
+
+    function sweepMisses(st) {
+      for (const s of run.objs) {
+        if (s.judged) continue;
+        if (s.o.kind === 'circle' && st > s.o.time + run.windows.h50) { judgeResult(s, 'miss'); }
+        // sliders/spinners auto-resolve (Phase 3/4 will score them); for now mark
+        // them judged once passed so the run can end, without affecting accuracy.
+        else if (s.o.kind === 'slider' && st > (s.o.endTime || s.o.time) + run.windows.h50) { s.judged = true; }
+        else if (s.o.kind === 'spinner' && st > s.o.endTime) { s.judged = true; }
+      }
+    }
+
+    function judgeResult(s, result) {
+      s.judged = true; s.result = result;
+      const c = run.counts;
+      if (result === 'miss') { c.miss++; run.combo = 0; }
+      else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
+      if (s.o.x != null) bursts.push({ x: s.o.x, y: s.o.y, result: result, t: performance.now() });
+      if (bursts.length > 32) bursts.shift();
+      flashJudge(result);
+      updateHud();
+    }
+
+    // ---- Input ---------------------------------------------------------------
+    function onTap(perfTs) {
+      if (!run || run.finished) return;
+      const st = inputSongTime(perfTs);
+      // earliest unjudged circle within the catchable window
+      let best = null;
+      for (const s of run.objs) {
+        if (s.judged || s.o.kind !== 'circle') continue;
+        if (st < s.o.time - run.windows.h50) break;          // next ones are later — too early
+        if (st <= s.o.time + run.windows.h50) { best = s; break; }
+      }
+      if (!best) return;
+      // cursor must be over the circle
+      if (dist(cursor, best.o) > run.radius) { return; }     // missed aim — no judgement (click wasted)
+      const err = Math.abs(st - best.o.time);
+      const w = run.windows;
+      const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
+      judgeResult(best, result);
+    }
+    function bindInput(on) {
+      const fn = on ? 'addEventListener' : 'removeEventListener';
+      canvas[fn]('pointermove', onPointerMove);
+      canvas[fn]('pointerdown', onPointerDown);
+      window[fn]('keydown', onKeyDown);
+    }
+    function onPointerMove(e) { updateCursorFromEvent(e); }
+    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); onTap(e.timeStamp); }
+    function onKeyDown(e) {
+      if (!run || run.finished) return;
+      if (e.key === 'Escape') { quitToSelect(); return; }
+      const k = e.key.toLowerCase();
+      if (k === 'z' || k === 'x') { if (run.pressed[k]) return; run.pressed[k] = true; e.preventDefault(); onTap(e.timeStamp); }
+    }
+    window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (run) run.pressed[k] = false; });
+
+    // ---- Render --------------------------------------------------------------
+    function accuracy() {
+      const c = run.counts, total = c.h300 + c.h100 + c.h50 + c.miss;
+      if (!total) return 100;
+      return Math.round(((300 * c.h300 + 100 * c.h100 + 50 * c.h50) / (300 * total)) * 10000) / 100;
+    }
+    function render(st) {
+      const W = canvas.width, H = canvas.height, dpr = window.devicePixelRatio || 1;
+      const tf = transform();
+      g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
+      if (run.artImg) {
+        const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
+        if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = 0.18; g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
+      }
+      // playfield border
+      const p0 = osuToScreen(0, 0, tf), p1 = osuToScreen(PLAY_W, PLAY_H, tf);
+      g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1 * dpr; g.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+      const rad = run.radius * tf.scale;
+      // draw objects latest-first so earlier (upcoming) circles sit on top
+      for (let i = run.objs.length - 1; i >= 0; i--) {
+        const s = run.objs[i], o = s.o;
+        if (o.kind === 'spinner') continue;                    // Phase 4
+        const appear = o.time - run.preempt;
+        if (st < appear || s.judged) continue;
+        const sc = osuToScreen(o.x, o.y, tf);
+        const fade = Math.min(1, (st - appear) / run.fadeIn);
+        if (o.kind === 'slider') {                             // placeholder body (Phase 3 = full)
+          g.globalAlpha = fade * 0.5; g.strokeStyle = s.color; g.lineWidth = rad * 1.6;
+          g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
+          for (let j = 0; j < o.path.length; j++) { const pp = osuToScreen(o.path[j].x, o.path[j].y, tf); j ? g.lineTo(pp.x, pp.y) : g.moveTo(pp.x, pp.y); }
+          g.stroke(); g.globalAlpha = 1;
+        }
+        // hit circle body + ring + number
+        g.globalAlpha = fade;
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(String(s.number || ''), sc.x, sc.y);
+        // approach circle
+        const ap = Math.max(0, (o.time - st) / run.preempt);
+        if (ap > 0) { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + ap * 3), 0, Math.PI * 2); g.stroke(); }
+        g.globalAlpha = 1;
+      }
+      // hit-feedback bursts at the circle position (expanding ring + judgement)
+      const nowB = performance.now();
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const b = bursts[i]; const age = nowB - b.t;
+        if (age > 350) { bursts.splice(i, 1); continue; }
+        const k = age / 350, sc = osuToScreen(b.x, b.y, tf), col = JUDGE_COLORS[b.result] || '#fff';
+        g.globalAlpha = 1 - k; g.strokeStyle = col; g.lineWidth = 3 * dpr;
+        g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + k * 0.8), 0, Math.PI * 2); g.stroke();
+        if (b.result !== 'miss') { g.globalAlpha = (1 - k) * 0.9; g.fillStyle = col; g.font = (rad * 0.7) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(JUDGE_LABELS[b.result], sc.x, sc.y - rad * 1.4); }
+        g.globalAlpha = 1;
+      }
+      // cursor trail
+      const nowC = performance.now();
+      for (let i = 1; i < trail.length; i++) {
+        const a = osuToScreen(trail[i - 1].x, trail[i - 1].y, tf), bp = osuToScreen(trail[i].x, trail[i].y, tf);
+        const age = nowC - trail[i].t; if (age > 220) continue;
+        g.globalAlpha = (1 - age / 220) * 0.5; g.strokeStyle = '#2b6cff'; g.lineWidth = 4 * dpr; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(bp.x, bp.y); g.stroke();
+      }
+      g.globalAlpha = 1;
+      // cursor (always drawn, bigger, with a glow so it never gets lost)
+      const cs = osuToScreen(cursor.x, cursor.y, tf);
+      g.save();
+      g.shadowColor = '#2b6cff'; g.shadowBlur = 14 * dpr;
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(cs.x, cs.y, 8 * dpr, 0, Math.PI * 2); g.fill();
+      g.shadowBlur = 0; g.strokeStyle = '#2b6cff'; g.lineWidth = 3 * dpr;
+      g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr, 0, Math.PI * 2); g.stroke();
+      g.restore();
+    }
+
+    const JUDGE_LABELS = { h300: '300', h100: '100', h50: '50', miss: 'MISS' };
+    const JUDGE_COLORS = { h300: '#56a0ff', h100: '#39d98a', h50: '#ffd166', miss: '#ff5470' };
+    function flashJudge(r) {
+      if (!judgeEl) return;
+      judgeEl.textContent = JUDGE_LABELS[r] || r; judgeEl.style.color = JUDGE_COLORS[r] || '#fff';
+      judgeEl.style.transition = 'none'; judgeEl.style.opacity = '1';
+      requestAnimationFrame(() => { judgeEl.style.transition = 'opacity .3s'; judgeEl.style.opacity = '0'; });
+    }
+    function updateHud() {
+      if (comboEl) comboEl.textContent = run.combo > 1 ? run.combo + 'x' : '';
+      if (accEl) accEl.textContent = accuracy().toFixed(2) + '%';
+    }
+
+    // ---- Results / PB --------------------------------------------------------
+    async function finishRun() {
+      if (!run || run.finished) return;
+      run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
+      try { run.src.stop(); } catch (e) {}
+      const acc = accuracy(), hash = await sha256(await run.entry.getOsuText());
+      const prev = await idbGet('osu-pb', hash);
+      const improved = !prev || acc > prev.accuracy;
+      if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+      const c = run.counts;
+      resultsBody.innerHTML =
+        '<div class="osu-res-title">' + escapeH(run.entry.title) + ' · ' + escapeH(run.entry.diffName) + '</div>' +
+        '<div class="osu-res-acc">' + acc.toFixed(2) + '%</div>' +
+        '<div class="osu-res-combo">' + run.maxCombo + 'x max combo</div>' +
+        '<div class="osu-res-breakdown">300: ' + c.h300 + ' · 100: ' + c.h100 + ' · 50: ' + c.h50 + ' · Miss: ' + c.miss + '</div>' +
+        (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — new best!' : '') + '</div>'
+              : '<div class="osu-res-pb">First clear — saved as your best.</div>');
+      show('results');
+    }
+    function quitToSelect() { loadGen++; teardownRun(); if (deps.resumeBgm) deps.resumeBgm(); show('select'); renderSongList(); }
+
+    // ---- Open / close (called by app.js applyMode) ---------------------------
+    function open() {
+      panel.classList.add('open'); panelOpen = true;
+      if (deps.captureKeyboard) deps.captureKeyboard(true);
+      show('select'); refreshLibrary();
+    }
+    function close() {
+      loadGen++; if (run && !run.finished) quitToSelect();
+      panel.classList.remove('open'); panelOpen = false;
+      if (deps.captureKeyboard) deps.captureKeyboard(false);
+      if (deps.resumeBgm) deps.resumeBgm();
+      if (settings.gameMode === 'osu') { settings.gameMode = 'clicker'; if (deps.saveSettings) deps.saveSettings(); window.dispatchEvent(new CustomEvent('gamemodechange')); }
+    }
+
+    if (songlistEl) songlistEl.addEventListener('click', (e) => {
+      const b = e.target.closest('.osu-song'); if (!b) return;
+      const entry = library[Number(b.getAttribute('data-i'))]; if (entry) loadAndPlay(entry);
+    });
+    if (exitBtn) exitBtn.addEventListener('click', () => close());
+    if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
+    if (backBtn) backBtn.addEventListener('click', quitToSelect);
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !panelOpen) return;
+      if (run && !run.finished) return;
+      if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
+      close();
+    });
+    window.addEventListener('resize', () => { if (run && !run.finished) sizeCanvas(); });
+    if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; canvas.style.cursor = 'none'; }
+    if (panel) panel.addEventListener('pointerdown', grabFocus);
+
+    api.open = open; api.close = close;
+  }
+
+  // ---- Minimal IndexedDB (osu!standard personal bests) ----------------------
+  let _db = null;
+  function idb() {
+    if (_db) return _db;
+    _db = new Promise((res, rej) => {
+      const req = indexedDB.open('aobing-osustd', 1);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('osu-pb')) db.createObjectStore('osu-pb'); };
+      req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+    });
+    return _db;
+  }
+  function idbPut(store, key, val) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(val, key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
+  function idbGet(store, key) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const r = tx.objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+
+  window.OsuStdGame = api;
+  if (window.__osustdDeps) initBrowser(window.__osustdDeps);
 }
 
 })();

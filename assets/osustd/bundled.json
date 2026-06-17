@@ -1,0 +1,9 @@
+[
+  {
+    "id": "std-tutorial",
+    "dir": "assets/osustd/test",
+    "osu": "test.osu",
+    "audio": "audio.wav",
+    "bg": "../../default-bg.png"
+  }
+]

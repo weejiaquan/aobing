@@ -2377,6 +2377,7 @@
         <button class="mp-opt" type="button" data-mode="clicker"><span data-i18n="mode.clicker">Clicker</span></button>
         <button class="mp-opt" type="button" data-mode="typing"><span data-i18n="mode.typing">Typing</span></button>
         <button class="mp-opt" type="button" data-mode="vsrg"><span data-i18n="mode.vsrg">Rhythm</span></button>
+        <button class="mp-opt" type="button" data-mode="osu"><span data-i18n="mode.osu">Standard</span></button>
       </div>
       <div class="mp-submode" id="mp-submode" hidden>
         <button type="button" data-submode="casual" data-i18n="mode.casual">Casual</button>
@@ -2856,6 +2857,63 @@
     </div>
   </div>
 
+  <!-- osu!standard (Standard) mode — full-screen overlay; inert until OsuStdGame.open() -->
+  <style>
+    #osu-panel { position: fixed; inset: 0; z-index: 240; display: none; background: #0b0c10; color: #e8e8ec; flex-direction: column; }
+    #osu-panel.open { display: flex; }
+    .osu-screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .osu-screen[hidden] { display: none; }
+    #osu-select { padding: 22px; gap: 12px; }
+    .osu-select-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .osu-select-head h2 { margin: 0; font-size: 20px; }
+    #osu-panel button { background: #2a2d36; color: #e8e8ec; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+    #osu-songlist { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .osu-song { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 12px 14px !important; }
+    .osu-song:hover { background: #343845 !important; }
+    .osu-song-title { font-weight: 700; }
+    .osu-song-meta { font-size: 12px; color: #9aa0ab; }
+    .osu-empty { color: #9aa0ab; padding: 24px 4px; }
+    #osu-game { align-items: center; justify-content: center; }
+    #osu-canvas { touch-action: none; display: block; width: 100%; height: 100%; }
+    #osu-hud { position: absolute; inset: 0; pointer-events: none; }
+    #osu-acc { position: absolute; top: 16px; right: 20px; font-size: 18px; font-variant-numeric: tabular-nums; }
+    #osu-combo { position: absolute; bottom: 24px; left: 24px; font-size: 30px; font-weight: 800; }
+    #osu-judge { position: absolute; top: 50%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 800; opacity: 0; }
+    #osu-results { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+    .osu-res-acc { font-size: 48px; font-weight: 800; color: #56a0ff; }
+    .osu-res-combo { font-size: 18px; }
+    .osu-res-breakdown { color: #9aa0ab; }
+    .osu-res-pb { color: #ffd166; }
+    .osu-results-actions { display: flex; gap: 10px; }
+    #osu-retry { background: #2b6cff !important; color: #fff !important; }
+    #osu-exit { background: #2a2d36; }
+  </style>
+  <div id="osu-panel">
+    <div id="osu-select" class="osu-screen">
+      <div class="osu-select-head">
+        <h2 data-i18n="mode.osu">Standard</h2>
+        <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
+      </div>
+      <div id="osu-songlist"></div>
+    </div>
+    <div id="osu-game" class="osu-screen" hidden>
+      <canvas id="osu-canvas"></canvas>
+      <div id="osu-hud">
+        <div id="osu-acc"></div>
+        <div id="osu-combo"></div>
+        <div id="osu-judge"></div>
+      </div>
+    </div>
+    <div id="osu-results" class="osu-screen" hidden>
+      <h2>Results</h2>
+      <div id="osu-results-body"></div>
+      <div class="osu-results-actions">
+        <button id="osu-retry" type="button">Retry</button>
+        <button id="osu-back" type="button">Back to songs</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats -->
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
@@ -3017,6 +3075,9 @@
         // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
         // window.__vsrgDeps. Inert on the web until the mode is opened.
         .then(function () { return loadScript('vsrg.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // osustd.js (osu!standard mode) loads after app.js and self-initialises from
+        // window.__osustdDeps. Inert until the mode is opened.
+        .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })

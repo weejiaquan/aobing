@@ -425,6 +425,7 @@
           'mode.clicker':'Clicker',
           'mode.typing':'Typing',
           'mode.vsrg':'Rhythm',
+          'mode.osu':'Standard',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
@@ -1053,6 +1054,7 @@
       vsrgNoteScale: 1.0,         // note size multiplier (0.6–1.8)
       vsrgColorPreset: 'default', // 'default' | 'osu' | 'mono' | 'pastel'
       vsrgLaneColors: [],         // per-lane hex overrides; [] = use the preset
+      osuCalibrationOffset: 0,    // ms applied to osu!standard input->song-time mapping
     };
 
     // --- Admin gating -----------------------------------------------------------
@@ -1229,6 +1231,9 @@
       if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
       // Re-render the country area so the dropdown picker appears/disappears.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Show/hide the admin-gated Standard mode; exit it if admin mode was turned off.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!osuAllowed() && settings.gameMode === 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
     });
     function syncAdminVisibility() {
       // Use style.display because the [hidden] attribute is overridden by the
@@ -1241,6 +1246,9 @@
       }
       // Country picker visibility depends on admin status too.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Hide the admin-gated Standard mode and exit it if admin access was lost.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!osuAllowed() && settings.gameMode === 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
     }
     // Subscription listener (subscribeAdminStatus) already calls
     // syncAdminVisibility when admin status changes. No need for a separate
@@ -5252,6 +5260,22 @@
       window.VsrgGame.init(window.__vsrgDeps);
     }
 
+    // --- osu!standard wiring (same seam; reuses VSRG's settings/deps shape) -----
+    window.__osustdDeps = {
+      settings:    settings,
+      saveSettings: function () { saveSettings(settings); },
+      captureKeyboard: function (on) { setTypingActive(!!on); },
+      pauseBgm:    function () { try { bgm.pause(); bgmPlaying = false; } catch (e) {} },
+      resumeBgm:   function () {
+        try { if ((settings.musicVol || 0) > 0) { bgm.play().then(function(){ bgmPlaying = true; }).catch(function(){}); } } catch (e) {}
+      },
+      t:           function (k, p) { return I18N.t(k, p); },
+      escapeHtml:  escapeHtml,
+    };
+    if (window.OsuStdGame && typeof window.OsuStdGame.init === 'function') {
+      window.OsuStdGame.init(window.__osustdDeps);
+    }
+
     // --- Left mode menu (one button + dropdown: mode switch + options inside) -
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
@@ -5262,13 +5286,19 @@
     function modeLabel(mode, sub) {
       if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
       if (mode === 'vsrg') return 'Rhythm';
+      if (mode === 'osu') return 'Standard';
       return I18N.t('mode.clicker');
     }
     const mpSubmodeEl = document.getElementById('mp-submode');
+    // osu!standard is admin-gated while it's still being built (incomplete:
+    // sliders/spinners not yet scored). Un-gated in a later phase.
+    function osuAllowed() { return isAdmin() && !!settings.adminMode; }
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
+      const osuBtn = modePopEl && modePopEl.querySelector('.mp-opt[data-mode="osu"]');
+      if (osuBtn) osuBtn.style.display = osuAllowed() ? '' : 'none';
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         b.classList.toggle('sel', b.getAttribute('data-mode') === mode);
       });
@@ -5283,12 +5313,14 @@
     function openModePop()  { if (modeMenuEl) { modeMenuEl.classList.add('open');    if (modePopEl) modePopEl.hidden = false; if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true'); } }
     function closeModePop() { if (modeMenuEl) { modeMenuEl.classList.remove('open'); if (modePopEl) modePopEl.hidden = true;  if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false'); } }
     function applyMode(mode, sub) {
-      settings.gameMode = (mode === 'typing' || mode === 'vsrg') ? mode : 'clicker';
+      if (mode === 'osu' && !osuAllowed()) mode = 'clicker';   // admin-gated while in dev
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
       // keeps these from stomping the new selection.
       if (settings.gameMode !== 'typing' && window.TypingGame && window.TypingGame.close) window.TypingGame.close();
       if (settings.gameMode !== 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
+      if (settings.gameMode !== 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
@@ -5297,6 +5329,9 @@
       } else if (settings.gameMode === 'vsrg') {
         saveSettings(settings);
         if (window.VsrgGame && window.VsrgGame.open) window.VsrgGame.open();
+      } else if (settings.gameMode === 'osu') {
+        saveSettings(settings);
+        if (window.OsuStdGame && window.OsuStdGame.open) window.OsuStdGame.open();
       } else {
         saveSettings(settings);
       }
