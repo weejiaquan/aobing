@@ -389,6 +389,7 @@ if (typeof document !== 'undefined') {
     const backBtn = document.getElementById('osu-back');
 
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
+    let currentGroups = [], expandedKey = null;       // song-select accordion (one open group at a time)
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
@@ -460,13 +461,41 @@ if (typeof document !== 'undefined') {
       return entries;
     }
     function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
+    // Group the flat library by song (artist+title) so each song is one collapsible
+    // row; difficulties live under it and only one song is expanded at a time.
+    function buildGroups() {
+      const map = new Map();
+      library.forEach((e, i) => {
+        const key = (e.artist || '') + ' ' + (e.title || '');
+        let grp = map.get(key);
+        if (!grp) { grp = { key: key, title: e.title || '(untitled)', artist: e.artist || '', items: [] }; map.set(key, grp); }
+        grp.items.push({ entry: e, i: i });
+      });
+      return Array.from(map.values());
+    }
     function renderSongList() {
       if (!songlistEl) return;
       if (!library.length) { songlistEl.innerHTML = '<div class="osu-empty">No songs yet.</div>'; return; }
-      songlistEl.innerHTML = library.map((e, i) =>
-        '<button class="osu-song" data-i="' + i + '"><span class="osu-song-title">' + escapeH(e.title || '(untitled)') +
-        '</span><span class="osu-song-meta">' + escapeH(e.artist || '') + ' · ' + escapeH(e.diffName || '') + '</span></button>'
-      ).join('');
+      currentGroups = buildGroups();
+      if (expandedKey && !currentGroups.some((g) => g.key === expandedKey)) expandedKey = null;
+      songlistEl.innerHTML = currentGroups.map((g, gi) => {
+        const single = g.items.length === 1;
+        const open = !single && g.key === expandedKey;
+        const caret = single ? '▸' : (open ? '▾' : '▸');
+        const head =
+          '<button class="osu-group' + (open ? ' open' : '') + '" data-g="' + gi + '">' +
+            '<span class="osu-group-caret">' + caret + '</span>' +
+            '<span class="osu-group-info"><span class="osu-song-title">' + escapeH(g.title) + '</span>' +
+            '<span class="osu-song-meta">' + escapeH(g.artist || '(unknown)') + ' · ' +
+              g.items.length + ' ' + (single ? 'difficulty' : 'difficulties') + '</span></span>' +
+          '</button>';
+        const diffs = open
+          ? '<div class="osu-group-diffs">' + g.items.map((it) =>
+              '<button class="osu-song osu-diff" data-i="' + it.i + '">' + escapeH(it.entry.diffName || '(difficulty)') + '</button>'
+            ).join('') + '</div>'
+          : '';
+        return '<div class="osu-group-wrap">' + head + diffs + '</div>';
+      }).join('');
     }
     async function refreshLibrary() {
       const bundled = await loadBundled();
@@ -483,10 +512,8 @@ if (typeof document !== 'undefined') {
     const oszInput = document.getElementById('osu-osz-input');
     const importStatusEl = document.getElementById('osu-import-status');
     const skinBtn = document.getElementById('osu-import-skin');
-    const skinDirBtn = document.getElementById('osu-import-skin-dir');
     const skinClearBtn = document.getElementById('osu-skin-clear');
     const skinOskInput = document.getElementById('osu-skin-osk-input');
-    const skinDirInput = document.getElementById('osu-skin-dir-input');
     const skinStatusEl = document.getElementById('osu-skin-status');
     function setImportStatus(m) { if (importStatusEl) importStatusEl.textContent = m; }
     function setSkinStatus(m) { if (skinStatusEl) skinStatusEl.textContent = m; }
@@ -505,7 +532,39 @@ if (typeof document !== 'undefined') {
         setImportStatus(res.entries.length
           ? ('Imported ' + res.entries.length + ' map(s) from ' + res.scanned + ' .osu scanned (re-import after reload).')
           : ('No osu!standard maps in ' + res.scanned + ' .osu (this mode plays Mode 0 only).'));
+        // The same folder may also contain skins (e.g. an osu! install's Skins/).
+        // Auto-load the most complete one; note any others.
+        const skinDirs = findSkinDirs(fileList);
+        if (skinDirs.length) {
+          await loadSkinDir(skinDirs[0]);
+          if (skin && skinDirs.length > 1 && skinStatusEl) setSkinStatus(skinStatusEl.textContent + ' (+' + (skinDirs.length - 1) + ' more skin folder(s) found)');
+        }
       } catch (e) { setImportStatus('Import failed: ' + ((e && e.message) || e)); }
+    }
+    // Find directories that look like a skin (skin sprites/ini, no .osu), best first.
+    function findSkinDirs(fileList) {
+      const byDir = new Map();
+      for (const f of fileList) {
+        const rel = f.webkitRelativePath || f.name;
+        const slash = rel.lastIndexOf('/');
+        const dir = slash >= 0 ? rel.slice(0, slash) : '';
+        let m = byDir.get(dir); if (!m) { m = new Map(); byDir.set(dir, m); }
+        m.set(f.name.toLowerCase(), f);
+      }
+      const dirs = [];
+      for (const [dir, files] of byDir) {
+        let hasOsu = false, skinCount = 0;
+        for (const name of files.keys()) { if (name.endsWith('.osu')) hasOsu = true; if (skinFileWanted(name)) skinCount++; }
+        if (hasOsu || !skinCount) continue;                 // beatmap dirs aren't skins
+        dirs.push({ name: dir.split('/').pop() || 'skin', files: files, count: skinCount });
+      }
+      dirs.sort((a, b) => b.count - a.count);               // most complete first
+      return dirs;
+    }
+    async function loadSkinDir(d) {
+      const map = new Map();
+      for (const [name, f] of d.files) if (skinFileWanted(name)) map.set(name, new Uint8Array(await f.arrayBuffer()));
+      await importSkinMap(d.name, map);
     }
     // Group webkitdirectory files by folder so each .osu resolves its audio/bg.
     async function scanFileList(fileList, onProgress) {
@@ -673,20 +732,6 @@ if (typeof document !== 'undefined') {
       try {
         const entries = await unzip(await file.arrayBuffer());
         await importSkinMap(file.name.replace(/\.(osk|zip)$/i, ''), entries);
-      } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
-    }
-    async function handleSkinDir(fileList) {
-      if (!fileList || !fileList.length) return;
-      try {
-        const map = new Map();
-        let folderName = 'skin';
-        for (const f of fileList) {
-          const rel = f.webkitRelativePath || f.name;
-          if (rel.indexOf('/') >= 0) folderName = rel.slice(0, rel.indexOf('/'));
-          const base = f.name.toLowerCase();
-          if (skinFileWanted(base)) map.set(base, new Uint8Array(await f.arrayBuffer()));
-        }
-        await importSkinMap(folderName, map);
       } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
     }
     async function clearSkin() {
@@ -1215,8 +1260,14 @@ if (typeof document !== 'undefined') {
     }
 
     if (songlistEl) songlistEl.addEventListener('click', (e) => {
-      const b = e.target.closest('.osu-song'); if (!b) return;
-      const entry = library[Number(b.getAttribute('data-i'))]; if (entry) loadAndPlay(entry);
+      const diff = e.target.closest('.osu-diff');
+      if (diff) { const entry = library[Number(diff.getAttribute('data-i'))]; if (entry) loadAndPlay(entry); return; }
+      const head = e.target.closest('.osu-group');
+      if (!head) return;
+      const g = currentGroups[Number(head.getAttribute('data-g'))]; if (!g) return;
+      if (g.items.length === 1) { loadAndPlay(g.items[0].entry); return; }   // single diff → play directly
+      expandedKey = (expandedKey === g.key) ? null : g.key;                  // accordion toggle
+      renderSongList();
     });
     if (exitBtn) exitBtn.addEventListener('click', () => close());
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
@@ -1226,9 +1277,7 @@ if (typeof document !== 'undefined') {
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
-    if (skinDirBtn) skinDirBtn.addEventListener('click', () => { if (skinDirInput) { skinDirInput.value = ''; skinDirInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
-    if (skinDirInput) skinDirInput.addEventListener('change', () => handleSkinDir(skinDirInput.files));
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || !panelOpen) return;
