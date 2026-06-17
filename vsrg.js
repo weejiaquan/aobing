@@ -295,6 +295,7 @@ if (typeof document !== 'undefined') {
     let library = [];          // [{ id, source, title, artist, diffName, keyCount, od, hash, getOsuText, getAudio }]
     let keyFilter = 'all';
     let lastSong = null;       // remember for Retry
+    let loading = false;       // guards against re-entrant loadAndPlay
 
     // Active run (null when not playing)
     let run = null;
@@ -323,6 +324,7 @@ if (typeof document !== 'undefined') {
           const osuText = await fetch(base + '/' + m.osu).then((r) => r.text());
           let chart;
           try { chart = parseOsu(osuText); } catch (e) { continue; }
+          if (!KEY_MAPS[chart.keyCount]) continue;     // no keymap for this key count
           const hash = await sha256(osuText);
           entries.push({
             id: 'bundled:' + m.id,
@@ -393,21 +395,24 @@ if (typeof document !== 'undefined') {
     // Recursively walk a directory handle, parsing every mania .osu it finds.
     async function scanDirectory(dir) {
       const out = [];
-      async function walk(handle, audioSiblings) {
-        // collect files at this level first so .osu can resolve its audio sibling
+      async function walk(handle) {
+        // collect files at this level first so .osu can resolve its audio sibling.
+        // Keys are lower-cased: osu charts reference audio with arbitrary case but
+        // the real file may differ (esp. on Windows), so match case-insensitively.
         const files = new Map();
         const subdirs = [];
         for await (const [name, h] of handle.entries()) {
-          if (h.kind === 'file') files.set(name, h);
+          if (h.kind === 'file') files.set(name.toLowerCase(), h);
           else subdirs.push(h);
         }
         for (const [name, h] of files) {
-          if (!name.toLowerCase().endsWith('.osu')) continue;
+          if (!name.endsWith('.osu')) continue;
           let osuText;
           try { osuText = await (await h.getFile()).text(); } catch (e) { continue; }
           let chart;
           try { chart = parseOsu(osuText); } catch (e) { continue; }  // skip non-mania/empty
-          const audioHandle = files.get(chart.audioFile) || null;
+          if (!KEY_MAPS[chart.keyCount]) continue;     // no keymap for this key count
+          const audioHandle = files.get(String(chart.audioFile).toLowerCase()) || null;
           if (!audioHandle) continue;          // can't play without its audio
           const hash = await sha256(osuText);
           out.push({
@@ -454,20 +459,38 @@ if (typeof document !== 'undefined') {
     }
 
     // ---- Loading a chart for play -----------------------------------------
+    // Fully stop and discard the current run (audio, RAF loop, input binding).
+    function teardownRun() {
+      if (!run) return;
+      run.finished = true;
+      cancelAnimationFrame(run.rafId);
+      bindInput(false);
+      try { run.src.stop(); } catch (e) {}
+      run = null;
+    }
+
     async function loadAndPlay(entry) {
+      if (loading) return;        // ignore double-clicks / overlapping loads
+      loading = true;
+      teardownRun();              // never leave a previous run/audio running
       lastSong = entry;
       setImportStatus('');
-      const osuText = await entry.getOsuText();
-      const chart = parseOsu(osuText);
-      const ac = await ensureCtx();
-      const audioBuf = await ac.decodeAudioData(await entry.getAudio());
-      startRun(entry, chart, audioBuf);
+      try {
+        const osuText = await entry.getOsuText();
+        const chart = parseOsu(osuText);
+        const ac = await ensureCtx();
+        const audioBuf = await ac.decodeAudioData(await entry.getAudio());
+        startRun(entry, chart, audioBuf);
+      } finally {
+        loading = false;
+      }
     }
 
     // ---- Gameplay ----------------------------------------------------------
     function laneKeyMap(keyCount) { return KEY_MAPS[keyCount] || KEY_MAPS[4]; }
 
     function startRun(entry, chart, audioBuf) {
+      teardownRun();                 // defensive: never overlap with a prior run
       if (deps.pauseBgm) deps.pauseBgm();
       show('game');
       sizeCanvas();
@@ -592,6 +615,9 @@ if (typeof document !== 'undefined') {
       }
     }
 
+    // Input timestamps use e.timeStamp (when the event actually occurred, same
+    // epoch as performance.now()) rather than sampling inside the handler, so a
+    // main-thread stall can't turn into bogus hit error.
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
@@ -599,14 +625,14 @@ if (typeof document !== 'undefined') {
       if (lane < 0 || run.pressed[lane]) return;     // ignore auto-repeat
       run.pressed[lane] = true;
       e.preventDefault();
-      onHit(lane, performance.now());
+      onHit(lane, e.timeStamp);
     }
     function onKeyUp(e) {
       if (!run || run.finished) return;
       const lane = run.keys.indexOf(e.key.toLowerCase());
       if (lane < 0) return;
       run.pressed[lane] = false;
-      onRelease(lane, performance.now());
+      onRelease(lane, e.timeStamp);
     }
     function laneFromX(clientX) {
       const rect = canvas.getBoundingClientRect();
@@ -616,16 +642,19 @@ if (typeof document !== 'undefined') {
     function onPointerDown(e) {
       if (!run || run.finished) return;
       e.preventDefault();
+      // Capture the pointer so pointerup/cancel still fire here even if the
+      // finger slides off the canvas mid-hold (otherwise the hold tail auto-misses).
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       const lane = laneFromX(e.clientX);
       run.pressed['p' + e.pointerId] = lane;
-      onHit(lane, performance.now());
+      onHit(lane, e.timeStamp);
     }
     function onPointerUp(e) {
       if (!run || run.finished) return;
       const lane = run.pressed['p' + e.pointerId];
       if (lane == null) return;
       delete run.pressed['p' + e.pointerId];
-      onRelease(lane, performance.now());
+      onRelease(lane, e.timeStamp);
     }
 
     // ---- Rendering ---------------------------------------------------------
@@ -736,13 +765,7 @@ if (typeof document !== 'undefined') {
     }
 
     function quitToSelect() {
-      if (run && !run.finished) {
-        run.finished = true;
-        cancelAnimationFrame(run.rafId);
-        bindInput(false);
-        try { run.src.stop(); } catch (e) {}
-      }
-      run = null;
+      teardownRun();
       if (deps.resumeBgm) deps.resumeBgm();
       show('select');
       renderSongList();
@@ -786,7 +809,9 @@ if (typeof document !== 'undefined') {
             nextTick += period;
           }
           if (cctx) {
-            const phase = ((ac.currentTime + calOffset() / 1000) % period) / period;
+            // Same sign convention as gameplay (inputSongTime subtracts calOffset),
+            // so nudging the slider moves the flash the way it moves real judgement.
+            const phase = ((ac.currentTime - calOffset() / 1000) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
             cctx.fillStyle = flash ? '#39d98a' : '#1a1c22';
@@ -843,6 +868,18 @@ if (typeof document !== 'undefined') {
       renderSongList();
     });
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
+    const exitBtn = document.getElementById('vsrg-exit');
+    if (exitBtn) exitBtn.addEventListener('click', function () { close(); });
+    // Panel-level Escape: back out of a sub-screen, or exit the mode entirely.
+    // During an active run, onKeyDown (bound only then) owns Escape as quit-to-select,
+    // so this defers in that case to avoid double-handling.
+    window.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || !panelOpen) return;
+      if (run && !run.finished) return;
+      if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; }
+      if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
+      close();
+    });
     if (calibDoneBtn) calibDoneBtn.addEventListener('click', closeCalibration);
     if (calibSlider) calibSlider.addEventListener('input', (e) => {
       settings.vsrgCalibrationOffset = Number(e.target.value);
