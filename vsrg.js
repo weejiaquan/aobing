@@ -274,6 +274,7 @@ if (typeof document !== 'undefined') {
     };
     const songlistEl = document.getElementById('vsrg-songlist');
     const importBtn = document.getElementById('vsrg-import');
+    const importInput = document.getElementById('vsrg-import-input');
     const importStatusEl = document.getElementById('vsrg-import-status');
     const keyFilterEl = document.getElementById('vsrg-keyfilter');
     const calibrateBtn = document.getElementById('vsrg-calibrate');
@@ -294,6 +295,7 @@ if (typeof document !== 'undefined') {
     let audioCtx = null;
     let panelOpen = false;
     let library = [];          // [{ id, source, title, artist, diffName, keyCount, od, hash, getOsuText, getAudio }]
+    let localEntries = [];     // maps imported this session (webkitdirectory; not persisted)
     let keyFilter = 'all';
     let lastSong = null;       // remember for Retry
     let loading = false;       // guards against re-entrant loadAndPlay
@@ -367,41 +369,35 @@ if (typeof document !== 'undefined') {
 
     async function refreshLibrary() {
       const bundled = await loadBundled();
-      let local = [];
-      try { local = await restoreLocalLibrary(); } catch (e) { /* none */ }
-      library = bundled.concat(local);
+      library = bundled.concat(localEntries);   // localEntries = maps imported this session
       renderSongList();
     }
 
-    // ---- Folder import (File System Access API; desktop Chromium only) ------
-    async function importFolder() {
-      if (!window.showDirectoryPicker) {
-        setImportStatus('Folder import needs Chrome or Edge on desktop — your browser does not support it. Bundled songs still work.');
+    // ---- Folder import --------------------------------------------------------
+    // Uses <input webkitdirectory>, NOT the File System Access API: osu! stable
+    // installs to %LOCALAPPDATA%\osu!\Songs, which Chrome's File System Access
+    // blocklist refuses to open ("this folder contains system files").
+    // webkitdirectory has no such blocklist. Tradeoff: no cross-session
+    // persistence — the folder is re-picked each visit (PBs still persist, keyed
+    // by chart hash).
+    function importFolder() {
+      if (!importInput) {
+        setImportStatus('Folder import is unavailable in this browser. Bundled songs still work.');
         return;
       }
-      let dir;
-      try {
-        dir = await window.showDirectoryPicker({ id: 'osu-songs', mode: 'read' });
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;   // user cancelled the picker — silent
-        setImportStatus('Could not open the folder picker: ' + ((e && e.message) || e));
-        return;
-      }
+      importInput.value = '';     // allow re-picking the same folder
+      importInput.click();
+    }
+
+    async function handleImportFiles(fileList) {
+      if (!fileList || !fileList.length) return;
       try {
         setImportStatus('Scanning… (a full osu! Songs folder can take a while)');
-        const res = await scanDirectory(dir, function (n) {
+        const res = await scanFileList(fileList, function (n) {
           setImportStatus('Scanning… ' + n + ' .osu files seen');
         });
-        library = (await loadBundled()).concat(res.entries);
-        renderSongList();
-        // Persist for auto-rescan next launch — best-effort; a storage failure
-        // must not stop the maps we just scanned from being playable this session.
-        try {
-          await idbPut('handles', 'songsDir', dir);
-          await idbPut('library', 'local', serializeLocal(res.entries));
-        } catch (persistErr) {
-          try { console.warn('[vsrg] could not persist imported library', persistErr); } catch (_) {}
-        }
+        localEntries = res.entries;
+        await refreshLibrary();
         const s = res.stats;
         if (res.entries.length === 0) {
           setImportStatus(
@@ -410,7 +406,8 @@ if (typeof document !== 'undefined') {
             s.skippedNoAudio + ' missing audio. This mode only plays osu!mania (4–7K) charts.'
           );
         } else {
-          setImportStatus('Imported ' + res.entries.length + ' playable map(s) from ' + s.scanned + ' .osu file(s) scanned.');
+          setImportStatus('Imported ' + res.entries.length + ' playable map(s) from ' + s.scanned +
+            ' .osu file(s). They stay for this session — re-import after reloading the page.');
         }
       } catch (e) {
         setImportStatus('Import failed: ' + ((e && e.message) || e));
@@ -420,76 +417,47 @@ if (typeof document !== 'undefined') {
 
     function setImportStatus(msg) { if (importStatusEl) importStatusEl.textContent = msg; }
 
-    // Recursively walk a directory handle, parsing every mania .osu it finds.
-    // Returns { entries, stats } so the caller can explain why maps were skipped
-    // (osu! libraries are mostly osu!standard, which this mode cannot play).
-    // onProgress(scannedCount) is called periodically for large folders.
-    async function scanDirectory(dir, onProgress) {
+    // Scan a webkitdirectory FileList: group files by their parent directory (via
+    // webkitRelativePath) so each .osu resolves its audio sibling, then parse and
+    // filter exactly like a beatmapset folder. Returns { entries, stats } so the
+    // caller can explain skips (osu! libraries are mostly osu!standard, unplayable
+    // here). onProgress(scannedCount) fires periodically for large folders.
+    async function scanFileList(fileList, onProgress) {
+      const byDir = new Map();
+      for (const f of fileList) {
+        const rel = f.webkitRelativePath || f.name;
+        const slash = rel.lastIndexOf('/');
+        const dir = slash >= 0 ? rel.slice(0, slash) : '';
+        let m = byDir.get(dir);
+        if (!m) { m = new Map(); byDir.set(dir, m); }
+        m.set(f.name.toLowerCase(), f);   // lower-cased for case-insensitive audio match
+      }
       const out = [];
       const stats = { scanned: 0, skippedNonMania: 0, skippedKeys: 0, skippedNoAudio: 0 };
-      async function walk(handle) {
-        // collect files at this level first so .osu can resolve its audio sibling.
-        // Keys are lower-cased: osu charts reference audio with arbitrary case but
-        // the real file may differ (esp. on Windows), so match case-insensitively.
-        const files = new Map();
-        const subdirs = [];
-        for await (const [name, h] of handle.entries()) {
-          if (h.kind === 'file') files.set(name.toLowerCase(), h);
-          else subdirs.push(h);
-        }
-        for (const [name, h] of files) {
+      for (const files of byDir.values()) {
+        for (const [name, f] of files) {
           if (!name.endsWith('.osu')) continue;
           stats.scanned++;
           if (onProgress && stats.scanned % 50 === 0) onProgress(stats.scanned);
           let osuText;
-          try { osuText = await (await h.getFile()).text(); } catch (e) { continue; }
+          try { osuText = await f.text(); } catch (e) { continue; }
           let chart;
           try { chart = parseOsu(osuText); } catch (e) { stats.skippedNonMania++; continue; }
           if (!KEY_MAPS[chart.keyCount]) { stats.skippedKeys++; continue; }
-          const audioHandle = files.get(String(chart.audioFile).toLowerCase()) || null;
-          if (!audioHandle) { stats.skippedNoAudio++; continue; }
+          const audio = files.get(String(chart.audioFile).toLowerCase()) || null;
+          if (!audio) { stats.skippedNoAudio++; continue; }
           const hash = await sha256(osuText);
           out.push({
             id: 'local:' + hash,
             source: 'local',
             title: chart.title, artist: chart.artist, diffName: chart.diffName,
             keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
-            _osuHandle: h, _audioHandle: audioHandle,
-            getOsuText: () => h.getFile().then((f) => f.text()),
-            getAudio: () => audioHandle.getFile().then((f) => f.arrayBuffer()),
+            getOsuText: () => f.text(),
+            getAudio: () => audio.arrayBuffer(),
           });
         }
-        for (const sd of subdirs) await walk(sd);
       }
-      await walk(dir);
       return { entries: out, stats: stats };
-    }
-
-    // Persist only the serialisable parts (handles ARE structured-cloneable).
-    function serializeLocal(entries) {
-      return entries.map((e) => ({
-        id: e.id, title: e.title, artist: e.artist, diffName: e.diffName,
-        keyCount: e.keyCount, od: e.od, hash: e.hash,
-        osuHandle: e._osuHandle, audioHandle: e._audioHandle,
-      }));
-    }
-
-    async function restoreLocalLibrary() {
-      const saved = await idbGet('library', 'local');
-      if (!saved || !saved.length) return [];
-      // Verify we still have read permission on the stored directory handle.
-      const dir = await idbGet('handles', 'songsDir');
-      if (dir && dir.queryPermission) {
-        const perm = await dir.queryPermission({ mode: 'read' });
-        if (perm !== 'granted') return [];     // needs a fresh user gesture to re-grant
-      }
-      return saved.filter((s) => KEY_MAPS[s.keyCount]).map((s) => ({
-        id: s.id, source: 'local',
-        title: s.title, artist: s.artist, diffName: s.diffName,
-        keyCount: s.keyCount, od: s.od, hash: s.hash,
-        getOsuText: () => s.osuHandle.getFile().then((f) => f.text()),
-        getAudio: () => s.audioHandle.getFile().then((f) => f.arrayBuffer()),
-      }));
     }
 
     // ---- Loading a chart for play -----------------------------------------
@@ -995,6 +963,7 @@ if (typeof document !== 'undefined') {
       if (entry) loadAndPlay(entry).catch((err) => setImportStatus('Load failed: ' + err.message));
     });
     if (importBtn) importBtn.addEventListener('click', () => importFolder());
+    if (importInput) importInput.addEventListener('change', () => handleImportFiles(importInput.files));
     if (keyFilterEl) keyFilterEl.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-keys]');
       if (!b) return;
@@ -1051,9 +1020,9 @@ if (typeof document !== 'undefined') {
       const req = indexedDB.open('aobing-vsrg', 1);
       req.onupgradeneeded = () => {
         const db = req.result;
-        for (const s of ['handles', 'library', 'pb']) {
-          if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
-        }
+        // 'pb' = personal bests, keyed by chart hash. (The library itself isn't
+        // persisted — webkitdirectory imports are re-picked each session.)
+        if (!db.objectStoreNames.contains('pb')) db.createObjectStore('pb');
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
