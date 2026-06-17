@@ -2914,6 +2914,13 @@
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
           <button id="osu-import-osz" type="button">Import .osz</button>
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
+          <span id="osu-skin-wrap" style="display:inline-flex; align-items:center; gap:4px;">
+            <button id="osu-import-skin" type="button" title="Load a custom osu! skin from a .osk file">Skin (.osk)</button>
+            <button id="osu-import-skin-dir" type="button" title="Load a custom osu! skin from its folder">folder</button>
+            <button id="osu-skin-clear" type="button" title="Use the built-in look" hidden>✕</button>
+          </span>
+          <input id="osu-skin-osk-input" type="file" accept=".osk,.zip" hidden>
+          <input id="osu-skin-dir-input" type="file" webkitdirectory directory multiple hidden>
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
@@ -2921,6 +2928,7 @@
         </div>
       </div>
       <div id="osu-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
+      <div id="osu-skin-status" style="color:#7d8a9a; font-size:12px; min-height:16px;"></div>
       <div id="osu-songlist"></div>
     </div>
     <div id="osu-game" class="osu-screen" hidden>

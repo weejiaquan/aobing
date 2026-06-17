@@ -77,6 +77,37 @@ test('parseHitObjects: circle / slider / spinner', () => {
   assert.equal(objs[2].endTime, 6000);
 });
 
+test('parseHitObjects: NewCombo flag (type bit 2) is read', () => {
+  const objs = E.parseHitObjects([
+    '256,192,1000,1,0,0:0:0:0:',     // circle, type 1 -> no new combo
+    '256,192,1100,5,0,0:0:0:0:',     // circle, type 5 (1|4) -> new combo
+    '100,100,2000,6,0,L|300:100,1,200', // slider, type 6 (2|4) -> new combo
+    '256,192,4000,12,0,6000',        // spinner, type 12 (8|4) -> new combo
+  ].join('\n'));
+  assert.equal(objs[0].newCombo, false);
+  assert.equal(objs[1].newCombo, true);
+  assert.equal(objs[2].newCombo, true);
+  assert.equal(objs[3].newCombo, true);
+});
+
+test('parseSkinColors: reads [Colours] Combo1..N in order, skips gaps', () => {
+  const ini = [
+    '[General]', 'Name: My Skin',
+    '[Colours]',
+    'Combo1 : 255,192,0',
+    'Combo2: 0,202,0',
+    'SliderBorder: 1,2,3',          // ignored (not a Combo entry)
+    'Combo4 : 10,20,30',            // Combo3 absent -> skipped, Combo4 still kept
+  ].join('\n');
+  const cols = E.parseSkinColors(ini);
+  assert.deepEqual(cols, ['rgb(255,192,0)', 'rgb(0,202,0)', 'rgb(10,20,30)']);
+});
+
+test('parseSkinColors: empty / missing section -> []', () => {
+  assert.deepEqual(E.parseSkinColors(''), []);
+  assert.deepEqual(E.parseSkinColors('[General]\nName: x'), []);
+});
+
 test('parseTimingPoints + timingAt: BPM and SV resolve by time', () => {
   const tp = E.parseTimingPoints([
     '0,500,4,2,0,100,1,0',     // uninherited: beatLength 500 (120 BPM)

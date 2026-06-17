@@ -70,6 +70,20 @@ function parseStdMeta(text) {
   };
 }
 
+// Parse a skin.ini's [Colours] section into combo colours ['rgb(r,g,b)', ...]
+// in Combo1..Combo8 order (osu cycles these per combo).
+function parseSkinColors(iniText) {
+  const s = splitSections(iniText);
+  const c = keyValues(s.Colours || s.Colors || []);
+  const out = [];
+  for (let i = 1; i <= 8; i++) {
+    const v = c['Combo' + i]; if (v == null) continue;
+    const p = v.split(',').map((n) => parseInt(n, 10));
+    if (p.length >= 3 && p.slice(0, 3).every((n) => !isNaN(n))) out.push('rgb(' + p[0] + ',' + p[1] + ',' + p[2] + ')');
+  }
+  return out;
+}
+
 // Timing points -> [{ time, beatLength, uninherited, sv }]. Inherited points
 // carry SV = 100 / -beatLength; uninherited carry the BPM beatLength.
 function parseTimingPoints(text) {
@@ -326,6 +340,7 @@ const ENGINE = {
   OSUSTD_ENGINE: true,
   splitSections: splitSections,
   parseStdMeta: parseStdMeta,
+  parseSkinColors: parseSkinColors,
   parseTimingPoints: parseTimingPoints,
   timingAt: timingAt,
   parseHitObjects: parseHitObjects,
@@ -378,9 +393,13 @@ if (typeof document !== 'undefined') {
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
     let localEntries = [];                            // maps imported this session (folder; not persisted)
+    let skin = null;                                  // active custom osu! skin (null = built-in look)
+    const tintCache = new Map();                      // memoised combo-colour-tinted sprites
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
-    function comboColors() { return COMBO_COLORS; }   // overridden by an imported skin (skin combo colours)
+    // Combo colours come from the loaded skin's skin.ini [Colours] when present,
+    // otherwise the built-in palette (matches osu's per-combo colour cycling).
+    function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
     function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
 
@@ -463,7 +482,14 @@ if (typeof document !== 'undefined') {
     const oszBtn = document.getElementById('osu-import-osz');
     const oszInput = document.getElementById('osu-osz-input');
     const importStatusEl = document.getElementById('osu-import-status');
+    const skinBtn = document.getElementById('osu-import-skin');
+    const skinDirBtn = document.getElementById('osu-import-skin-dir');
+    const skinClearBtn = document.getElementById('osu-skin-clear');
+    const skinOskInput = document.getElementById('osu-skin-osk-input');
+    const skinDirInput = document.getElementById('osu-skin-dir-input');
+    const skinStatusEl = document.getElementById('osu-skin-status');
     function setImportStatus(m) { if (importStatusEl) importStatusEl.textContent = m; }
+    function setSkinStatus(m) { if (skinStatusEl) skinStatusEl.textContent = m; }
 
     function importFolder() {
       if (!importInput) { setImportStatus('Folder import unavailable in this browser.'); return; }
@@ -575,6 +601,131 @@ if (typeof document !== 'undefined') {
       const data = new TextEncoder().encode(text);
       const buf = await crypto.subtle.digest('SHA-256', data);
       return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ---- Custom osu! skins ---------------------------------------------------
+    // A skin contributes combo colours (skin.ini [Colours]) and sprite images for
+    // the hit circle, overlay, approach circle, combo digits and cursor. Sliders
+    // keep the built-in look but adopt the skin's combo colours.
+    const SKIN_SPRITES = ['hitcircle', 'hitcircleoverlay', 'approachcircle', 'cursor', 'cursortrail'];
+    // Only these files are kept/persisted from a skin (skins also ship audio etc.).
+    function skinFileWanted(base) {
+      if (base === 'skin.ini') return true;
+      const m = base.match(/^(.+?)(@2x)?\.png$/);
+      if (!m) return false;
+      const nm = m[1];
+      return SKIN_SPRITES.indexOf(nm) >= 0 || /^default-[0-9]$/.test(nm);
+    }
+    // Prefer the @2x variant (higher resolution) when both exist.
+    function pickSkinBytes(map, name) { return map.get(name + '@2x.png') || map.get(name + '.png') || null; }
+    async function buildSkin(name, map) {
+      const iniBytes = map.get('skin.ini');
+      const colors = parseSkinColors(iniBytes ? new TextDecoder('utf-8').decode(iniBytes) : '');
+      const images = { digits: [] };
+      for (const sp of SKIN_SPRITES) {
+        const bytes = pickSkinBytes(map, sp); if (!bytes) continue;
+        try { images[sp] = await createImageBitmap(new Blob([bytes])); } catch (e) {}
+      }
+      let haveAllDigits = true;
+      for (let d = 0; d <= 9; d++) {
+        const bytes = pickSkinBytes(map, 'default-' + d);
+        if (!bytes) { haveAllDigits = false; break; }
+        try { images.digits[d] = await createImageBitmap(new Blob([bytes])); } catch (e) { haveAllDigits = false; break; }
+      }
+      if (!haveAllDigits) images.digits = [];   // fall back to text numbers unless 0-9 all present
+      return { name: name, colors: colors, images: images };
+    }
+    function applySkin(s) {
+      skin = (s && (s.colors.length || s.images.hitcircle || s.images.cursor || s.images.digits.length)) ? s : null;
+      tintCache.clear();
+      renderSkinStatus();
+    }
+    function renderSkinStatus() {
+      if (skinClearBtn) skinClearBtn.hidden = !skin;
+      if (!skin) { setSkinStatus(''); return; }
+      const has = [];
+      if (skin.images.hitcircle) has.push('circles');
+      if (skin.images.digits.length) has.push('numbers');
+      if (skin.images.cursor) has.push('cursor');
+      if (skin.colors.length) has.push(skin.colors.length + ' combo colours');
+      setSkinStatus('Skin: ' + skin.name + (has.length ? ' — ' + has.join(', ') : ' (no usable sprites found)'));
+    }
+    // Keep only the sprite/ini bytes so the cached skin stays small.
+    function trimSkinFiles(map) {
+      const keep = new Map();
+      for (const [nm, bytes] of map) { const base = nm.toLowerCase().split('/').pop(); if (skinFileWanted(base)) keep.set(base, bytes); }
+      return keep;
+    }
+    async function importSkinMap(name, map) {
+      const trimmed = trimSkinFiles(map);
+      if (!trimmed.size) { setSkinStatus('No skin sprites found in ' + name + '.'); return; }
+      setSkinStatus('Loading skin “' + name + '”…');
+      const built = await buildSkin(name, trimmed);
+      applySkin(built);
+      if (skin) {
+        try {
+          await idbPut('skin', 'current', { name: name, files: Array.from(trimmed, ([n, b]) => ({ n: n, b: b })) });
+        } catch (e) {}
+      }
+    }
+    async function handleSkinOsk(file) {
+      if (!file) return;
+      try {
+        const entries = await unzip(await file.arrayBuffer());
+        await importSkinMap(file.name.replace(/\.(osk|zip)$/i, ''), entries);
+      } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
+    }
+    async function handleSkinDir(fileList) {
+      if (!fileList || !fileList.length) return;
+      try {
+        const map = new Map();
+        let folderName = 'skin';
+        for (const f of fileList) {
+          const rel = f.webkitRelativePath || f.name;
+          if (rel.indexOf('/') >= 0) folderName = rel.slice(0, rel.indexOf('/'));
+          const base = f.name.toLowerCase();
+          if (skinFileWanted(base)) map.set(base, new Uint8Array(await f.arrayBuffer()));
+        }
+        await importSkinMap(folderName, map);
+      } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
+    }
+    async function clearSkin() {
+      applySkin(null);
+      try { await idbDelete('skin', 'current'); } catch (e) {}
+      setSkinStatus('Using the built-in look.');
+    }
+    async function loadCachedSkin() {
+      try {
+        const rec = await idbGet('skin', 'current');
+        if (!rec || !rec.files) return;
+        const map = new Map(rec.files.map((f) => [f.n, f.b]));
+        applySkin(await buildSkin(rec.name, map));
+      } catch (e) {}
+    }
+    // Multiply-tint a white/greyscale sprite by a combo colour, preserving alpha.
+    function tintImage(key, img, color) {
+      const ck = key + '|' + color;
+      let c = tintCache.get(ck);
+      if (c) return c;
+      c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const cx = c.getContext('2d');
+      cx.drawImage(img, 0, 0);
+      cx.globalCompositeOperation = 'multiply'; cx.fillStyle = color; cx.fillRect(0, 0, c.width, c.height);
+      cx.globalCompositeOperation = 'destination-in'; cx.drawImage(img, 0, 0);   // restore original alpha
+      tintCache.set(ck, c);
+      return c;
+    }
+    // Draw the combo number using the skin's default-0..9 digit sprites.
+    function drawSkinNumber(sc, number, rad) {
+      const digits = String(number || '').split('');
+      const h = rad * 1.0;
+      let widths = 0; const dims = digits.map((d) => {
+        const im = skin.images.digits[+d]; const w = h * (im.width / im.height); widths += w; return { im: im, w: w };
+      });
+      const overlap = h * 0.12;
+      let total = widths - overlap * (digits.length - 1);
+      let x = sc.x - total / 2;
+      for (const dm of dims) { g.drawImage(dm.im, x, sc.y - h / 2, dm.w, h); x += dm.w - overlap; }
     }
 
     // ---- Run lifecycle -------------------------------------------------------
@@ -941,12 +1092,25 @@ if (typeof document !== 'undefined') {
 
         // hit-circle head: body + ring + number + approach circle
         g.globalAlpha = fade;
-        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
-        g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
-        g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(String(s.number || ''), sc.x, sc.y);
         const ap = Math.max(0, (o.time - st) / run.preempt);
-        if (ap > 0) { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + ap * 3), 0, Math.PI * 2); g.stroke(); }
+        if (skin && skin.images.hitcircle) {
+          const d = rad * 2;
+          g.drawImage(tintImage('hc', skin.images.hitcircle, s.color), sc.x - rad, sc.y - rad, d, d);
+          if (skin.images.hitcircleoverlay) g.drawImage(skin.images.hitcircleoverlay, sc.x - rad, sc.y - rad, d, d);
+          if (skin.images.digits.length) drawSkinNumber(sc, s.number, rad);
+          else { g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(s.number || ''), sc.x, sc.y); }
+          if (ap > 0) {
+            const ar = rad * (1 + ap * 3);
+            if (skin.images.approachcircle) g.drawImage(tintImage('ac', skin.images.approachcircle, s.color), sc.x - ar, sc.y - ar, ar * 2, ar * 2);
+            else { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, ar, 0, Math.PI * 2); g.stroke(); }
+          }
+        } else {
+          g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
+          g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(String(s.number || ''), sc.x, sc.y);
+          if (ap > 0) { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + ap * 3), 0, Math.PI * 2); g.stroke(); }
+        }
         g.globalAlpha = 1;
       }
       // hit-feedback bursts at the circle position (expanding ring + judgement)
@@ -960,23 +1124,36 @@ if (typeof document !== 'undefined') {
         if (b.result !== 'miss') { g.globalAlpha = (1 - k) * 0.9; g.fillStyle = col; g.font = (rad * 0.7) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(JUDGE_LABELS[b.result], sc.x, sc.y - rad * 1.4); }
         g.globalAlpha = 1;
       }
-      // cursor trail
+      // cursor trail — skin sprite if provided, else the built-in glow line
       const nowC = performance.now();
-      for (let i = 1; i < trail.length; i++) {
-        const a = osuToScreen(trail[i - 1].x, trail[i - 1].y, tf), bp = osuToScreen(trail[i].x, trail[i].y, tf);
-        const age = nowC - trail[i].t; if (age > 220) continue;
-        g.globalAlpha = (1 - age / 220) * 0.5; g.strokeStyle = '#2b6cff'; g.lineWidth = 4 * dpr; g.lineCap = 'round';
-        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(bp.x, bp.y); g.stroke();
+      if (skin && skin.images.cursortrail) {
+        const im = skin.images.cursortrail, ts = (30 * dpr) / Math.max(im.width, im.height), tw = im.width * ts, th = im.height * ts;
+        for (let i = 0; i < trail.length; i++) {
+          const p = osuToScreen(trail[i].x, trail[i].y, tf), age = nowC - trail[i].t; if (age > 220) continue;
+          g.globalAlpha = (1 - age / 220) * 0.6; g.drawImage(im, p.x - tw / 2, p.y - th / 2, tw, th);
+        }
+      } else {
+        for (let i = 1; i < trail.length; i++) {
+          const a = osuToScreen(trail[i - 1].x, trail[i - 1].y, tf), bp = osuToScreen(trail[i].x, trail[i].y, tf);
+          const age = nowC - trail[i].t; if (age > 220) continue;
+          g.globalAlpha = (1 - age / 220) * 0.5; g.strokeStyle = '#2b6cff'; g.lineWidth = 4 * dpr; g.lineCap = 'round';
+          g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(bp.x, bp.y); g.stroke();
+        }
       }
       g.globalAlpha = 1;
-      // cursor (always drawn, bigger, with a glow so it never gets lost)
+      // cursor — skin sprite if provided, else the built-in glowing dot
       const cs = osuToScreen(cursor.x, cursor.y, tf);
-      g.save();
-      g.shadowColor = '#2b6cff'; g.shadowBlur = 14 * dpr;
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(cs.x, cs.y, 8 * dpr, 0, Math.PI * 2); g.fill();
-      g.shadowBlur = 0; g.strokeStyle = '#2b6cff'; g.lineWidth = 3 * dpr;
-      g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr, 0, Math.PI * 2); g.stroke();
-      g.restore();
+      if (skin && skin.images.cursor) {
+        const im = skin.images.cursor, csz = (44 * dpr) / Math.max(im.width, im.height), cw = im.width * csz, ch = im.height * csz;
+        g.drawImage(im, cs.x - cw / 2, cs.y - ch / 2, cw, ch);
+      } else {
+        g.save();
+        g.shadowColor = '#2b6cff'; g.shadowBlur = 14 * dpr;
+        g.fillStyle = '#fff'; g.beginPath(); g.arc(cs.x, cs.y, 8 * dpr, 0, Math.PI * 2); g.fill();
+        g.shadowBlur = 0; g.strokeStyle = '#2b6cff'; g.lineWidth = 3 * dpr;
+        g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr, 0, Math.PI * 2); g.stroke();
+        g.restore();
+      }
     }
 
     const JUDGE_LABELS = { h300: '300', h100: '100', h50: '50', miss: 'MISS' };
@@ -1027,6 +1204,7 @@ if (typeof document !== 'undefined') {
       panel.classList.add('open'); panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);
       show('select'); refreshLibrary(); renderKeybinds();
+      if (!skin) loadCachedSkin(); else renderSkinStatus();
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();
@@ -1047,6 +1225,11 @@ if (typeof document !== 'undefined') {
     if (importInput) importInput.addEventListener('change', () => handleImportFiles(importInput.files));
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
+    if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
+    if (skinDirBtn) skinDirBtn.addEventListener('click', () => { if (skinDirInput) { skinDirInput.value = ''; skinDirInput.click(); } });
+    if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
+    if (skinDirInput) skinDirInput.addEventListener('change', () => handleSkinDir(skinDirInput.files));
+    if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || !panelOpen) return;
       if (run && !run.finished) return;
@@ -1065,11 +1248,12 @@ if (typeof document !== 'undefined') {
   function idb() {
     if (_db) return _db;
     _db = new Promise((res, rej) => {
-      const req = indexedDB.open('aobing-osustd', 2);
+      const req = indexedDB.open('aobing-osustd', 3);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains('osu-pb')) db.createObjectStore('osu-pb');   // personal bests
         if (!db.objectStoreNames.contains('osz')) db.createObjectStore('osz');          // imported .osz maps
+        if (!db.objectStoreNames.contains('skin')) db.createObjectStore('skin');        // active custom skin
       };
       req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
     });
@@ -1078,6 +1262,7 @@ if (typeof document !== 'undefined') {
   function idbPut(store, key, val) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(val, key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
   function idbGet(store, key) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const r = tx.objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
   function idbGetAll(store) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const r = tx.objectStore(store).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); })); }
+  function idbDelete(store, key) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).delete(key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
 
   window.OsuStdGame = api;
   if (window.__osustdDeps) initBrowser(window.__osustdDeps);
