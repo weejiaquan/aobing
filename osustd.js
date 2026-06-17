@@ -375,6 +375,7 @@ if (typeof document !== 'undefined') {
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
+    let localEntries = [];                            // maps imported this session (folder; not persisted)
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
     function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
@@ -445,7 +446,127 @@ if (typeof document !== 'undefined') {
         '</span><span class="osu-song-meta">' + escapeH(e.artist || '') + ' · ' + escapeH(e.diffName || '') + '</span></button>'
       ).join('');
     }
-    async function refreshLibrary() { library = await loadBundled(); renderSongList(); }
+    async function refreshLibrary() {
+      const bundled = await loadBundled();
+      let cached = [];
+      try { cached = await loadCachedOsz(); } catch (e) {}
+      library = bundled.concat(cached).concat(localEntries);
+      renderSongList();
+    }
+
+    // ---- Import (Mode-0 maps from a folder or .osz) --------------------------
+    const importBtn = document.getElementById('osu-import');
+    const importInput = document.getElementById('osu-import-input');
+    const oszBtn = document.getElementById('osu-import-osz');
+    const oszInput = document.getElementById('osu-osz-input');
+    const importStatusEl = document.getElementById('osu-import-status');
+    function setImportStatus(m) { if (importStatusEl) importStatusEl.textContent = m; }
+
+    function importFolder() {
+      if (!importInput) { setImportStatus('Folder import unavailable in this browser.'); return; }
+      importInput.value = ''; importInput.click();
+    }
+    async function handleImportFiles(fileList) {
+      if (!fileList || !fileList.length) return;
+      try {
+        setImportStatus('Scanning…');
+        const res = await scanFileList(fileList, (n) => setImportStatus('Scanning… ' + n + ' .osu seen'));
+        localEntries = res.entries;
+        await refreshLibrary();
+        setImportStatus(res.entries.length
+          ? ('Imported ' + res.entries.length + ' map(s) from ' + res.scanned + ' .osu scanned (re-import after reload).')
+          : ('No osu!standard maps in ' + res.scanned + ' .osu (this mode plays Mode 0 only).'));
+      } catch (e) { setImportStatus('Import failed: ' + ((e && e.message) || e)); }
+    }
+    // Group webkitdirectory files by folder so each .osu resolves its audio/bg.
+    async function scanFileList(fileList, onProgress) {
+      const byDir = new Map();
+      for (const f of fileList) {
+        const rel = f.webkitRelativePath || f.name;
+        const slash = rel.lastIndexOf('/');
+        const dir = slash >= 0 ? rel.slice(0, slash) : '';
+        let m = byDir.get(dir); if (!m) { m = new Map(); byDir.set(dir, m); }
+        m.set(f.name.toLowerCase(), f);
+      }
+      const out = []; let scanned = 0;
+      for (const files of byDir.values()) {
+        for (const [name, f] of files) {
+          if (!name.endsWith('.osu')) continue;
+          scanned++; if (onProgress && scanned % 40 === 0) onProgress(scanned);
+          let osuText, chart;
+          try { osuText = await f.text(); chart = assembleChart(osuText); } catch (e) { continue; }  // skips non-std
+          const audio = files.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
+          const art = chart.backgroundFile ? (files.get(chart.backgroundFile.toLowerCase()) || null) : null;
+          out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => Promise.resolve(art)));
+        }
+      }
+      return { entries: out, scanned: scanned };
+    }
+    function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt) {
+      return { id: source + ':' + chart.title + ':' + chart.diffName, source: source,
+        title: chart.title, artist: chart.artist, diffName: chart.diffName,
+        getOsuText: getOsuText, getAudio: getAudio, getArt: getArt };
+    }
+
+    async function handleOszFiles(fileList) {
+      if (!fileList || !fileList.length) return;
+      let imported = 0, scanned = 0;
+      try {
+        for (const file of fileList) {
+          setImportStatus('Reading ' + file.name + '…');
+          let entries; try { entries = await unzip(await file.arrayBuffer()); } catch (e) { continue; }
+          const byName = new Map();
+          for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          for (const [nm, bytes] of entries) {
+            if (!nm.toLowerCase().endsWith('.osu')) continue;
+            scanned++;
+            const osuText = new TextDecoder().decode(bytes); let chart;
+            try { chart = assembleChart(osuText); } catch (e) { continue; }
+            const audio = byName.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
+            const art = chart.backgroundFile ? (byName.get(chart.backgroundFile.toLowerCase()) || null) : null;
+            const hash = await sha256(osuText);
+            await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, hash: hash, osuText: osuText, audio: audio, art: art });
+            imported++;
+          }
+        }
+        await refreshLibrary();
+        setImportStatus('Imported ' + imported + ' map(s) from ' + scanned + ' .osu — saved, persist across reloads.');
+      } catch (e) { setImportStatus('Import failed: ' + ((e && e.message) || e)); }
+    }
+    async function loadCachedOsz() {
+      const all = await idbGetAll('osz');
+      return (all || []).map((s) => makeEntry('osz', s.osuText, s, () => Promise.resolve(s.osuText),
+        () => Promise.resolve(s.audio.slice().buffer), () => Promise.resolve(s.art ? new Blob([s.art]) : null)));
+    }
+    async function unzip(arrayBuffer) {
+      const dv = new DataView(arrayBuffer), u8 = new Uint8Array(arrayBuffer), n = dv.byteLength;
+      let eocd = -1;
+      for (let i = n - 22; i >= 0 && i >= n - 22 - 65536; i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+      if (eocd < 0) throw new Error('not a valid .osz/zip');
+      const count = dv.getUint16(eocd + 10, true); let off = dv.getUint32(eocd + 16, true);
+      const headers = [];
+      for (let i = 0; i < count; i++) {
+        if (dv.getUint32(off, true) !== 0x02014b50) break;
+        const method = dv.getUint16(off + 10, true), compSize = dv.getUint32(off + 20, true);
+        const nameLen = dv.getUint16(off + 28, true), extraLen = dv.getUint16(off + 30, true), commentLen = dv.getUint16(off + 32, true);
+        const localOff = dv.getUint32(off + 42, true);
+        const name = new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nameLen));
+        headers.push({ name: name, method: method, compSize: compSize, localOff: localOff });
+        off += 46 + nameLen + extraLen + commentLen;
+      }
+      const result = new Map();
+      for (const h of headers) {
+        if (h.name.endsWith('/')) continue;
+        const lhNameLen = dv.getUint16(h.localOff + 26, true), lhExtraLen = dv.getUint16(h.localOff + 28, true);
+        const dataStart = h.localOff + 30 + lhNameLen + lhExtraLen, comp = u8.subarray(dataStart, dataStart + h.compSize);
+        let bytes;
+        if (h.method === 0) bytes = comp.slice();
+        else if (h.method === 8) { const ds = new DecompressionStream('deflate-raw'); bytes = new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer()); }
+        else continue;
+        result.set(h.name, bytes);
+      }
+      return result;
+    }
 
     async function sha256(text) {
       const data = new TextEncoder().encode(text);
@@ -813,6 +934,10 @@ if (typeof document !== 'undefined') {
     if (exitBtn) exitBtn.addEventListener('click', () => close());
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
+    if (importBtn) importBtn.addEventListener('click', () => importFolder());
+    if (importInput) importInput.addEventListener('change', () => handleImportFiles(importInput.files));
+    if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
+    if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || !panelOpen) return;
       if (run && !run.finished) return;
@@ -831,14 +956,19 @@ if (typeof document !== 'undefined') {
   function idb() {
     if (_db) return _db;
     _db = new Promise((res, rej) => {
-      const req = indexedDB.open('aobing-osustd', 1);
-      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('osu-pb')) db.createObjectStore('osu-pb'); };
+      const req = indexedDB.open('aobing-osustd', 2);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('osu-pb')) db.createObjectStore('osu-pb');   // personal bests
+        if (!db.objectStoreNames.contains('osz')) db.createObjectStore('osz');          // imported .osz maps
+      };
       req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
     });
     return _db;
   }
   function idbPut(store, key, val) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(val, key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
   function idbGet(store, key) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const r = tx.objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+  function idbGetAll(store) { return idb().then((db) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const r = tx.objectStore(store).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); })); }
 
   window.OsuStdGame = api;
   if (window.__osustdDeps) initBrowser(window.__osustdDeps);
