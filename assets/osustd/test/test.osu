@@ -1,0 +1,39 @@
+osu file format v14
+
+[General]
+AudioFilename: audio.wav
+Mode: 0
+
+[Metadata]
+Title:Aobing Std Test
+Artist:aobing
+Creator:aobing
+Version:Tutorial
+
+[Difficulty]
+CircleSize:4
+OverallDifficulty:7
+ApproachRate:8
+SliderMultiplier:1.4
+SliderTickRate:1
+HPDrainRate:5
+
+[Events]
+0,0,"../../default-bg.png",0,0
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+256,192,2000,1,0,0:0:0:0:
+216,162,2600,1,0,0:0:0:0:
+296,162,3200,1,0,0:0:0:0:
+216,222,3800,1,0,0:0:0:0:
+296,222,4400,1,0,0:0:0:0:
+256,147,5000,1,0,0:0:0:0:
+256,237,5600,1,0,0:0:0:0:
+201,192,6200,1,0,0:0:0:0:
+311,192,6800,1,0,0:0:0:0:
+276,172,7400,1,0,0:0:0:0:
+236,212,8000,1,0,0:0:0:0:
+286,222,8600,1,0,0:0:0:0:
