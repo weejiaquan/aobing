@@ -111,8 +111,9 @@ function parseHitObjects(text) {
     const p = t.split(',');
     if (p.length < 4) continue;
     const x = parseFloat(p[0]), y = parseFloat(p[1]), time = parseInt(p[2], 10), type = parseInt(p[3], 10);
+    const newCombo = !!(type & 4);   // bit 2 = start of a new combo (number resets, colour cycles)
     if (type & 1) {
-      out.push({ kind: 'circle', x: x, y: y, time: time });
+      out.push({ kind: 'circle', x: x, y: y, time: time, newCombo: newCombo });
     } else if (type & 2) {
       const seg = String(p[5] || '').split('|');
       const curveType = seg[0] || 'L';
@@ -122,12 +123,12 @@ function parseHitObjects(text) {
         points.push({ x: parseFloat(xy[0]), y: parseFloat(xy[1]) });
       }
       out.push({
-        kind: 'slider', x: x, y: y, time: time,
+        kind: 'slider', x: x, y: y, time: time, newCombo: newCombo,
         curveType: curveType, points: points,
         slides: parseInt(p[6], 10) || 1, length: parseFloat(p[7]) || 0,
       });
     } else if (type & 8) {
-      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10) });
+      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10), newCombo: newCombo });
     }
   }
   out.sort((a, b) => a.time - b.time);
@@ -379,6 +380,7 @@ if (typeof document !== 'undefined') {
     let localEntries = [];                            // maps imported this session (folder; not persisted)
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
+    function comboColors() { return COMBO_COLORS; }   // overridden by an imported skin (skin combo colours)
     function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
 
@@ -606,11 +608,19 @@ if (typeof document !== 'undefined') {
       const preempt = arPreempt(chart.ar), fadeIn = arFadeIn(chart.ar);
       const radius = csRadius(chart.cs);
       const windows = odWindows(chart.od);
-      // per-object play state; assign combo colours/numbers
-      let combo = 0, colorIdx = 0;
+      // per-object play state. Combo number resets to 1 at each new combo (and the
+      // colour cycles), matching osu — a new combo is a NewCombo object, the first
+      // object, or the first object after a spinner.
+      const colors = comboColors();
+      let comboNum = 0, colorIdx = -1, forceNew = true;
       const objs = chart.objects.map((o) => {
         const st = { o: o, judged: false, result: null };
-        if (o.kind === 'circle' || o.kind === 'slider') { st.number = ++combo; st.color = COMBO_COLORS[colorIdx % COMBO_COLORS.length]; }
+        if (o.kind === 'circle' || o.kind === 'slider') {
+          if (o.newCombo || forceNew) { colorIdx++; comboNum = 1; } else { comboNum++; }
+          forceNew = false;
+          st.number = comboNum;
+          st.color = colors[colorIdx % colors.length];
+        } else if (o.kind === 'spinner') { forceNew = true; }
         if (o.kind === 'slider') {
           st.headJudged = false; st.headResult = null; st.checkpoints = buildSliderCheckpoints(o, chart);
         }
@@ -992,12 +1002,21 @@ if (typeof document !== 'undefined') {
       const improved = !prev || acc > prev.accuracy;
       if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
       const c = run.counts;
+      const total = c.h300 + c.h100 + c.h50 + c.miss;
+      const grade = c.miss === 0 && acc === 100 ? 'SS' : acc >= 95 && c.miss === 0 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
+      const gradeColor = { SS: '#ffd166', S: '#ffd166', A: '#39d98a', B: '#56a0ff', C: '#b06bff', D: '#ff5470' }[grade];
+      const fc = c.miss === 0 ? '<span class="osu-res-fc">Full Combo!</span>' : '';
+      const cell = (label, val, col) => '<div class="osu-res-cell"><div class="osu-res-cn" style="color:' + col + '">' + val + '</div><div class="osu-res-cl">' + label + '</div></div>';
       resultsBody.innerHTML =
         '<div class="osu-res-title">' + escapeH(run.entry.title) + ' · ' + escapeH(run.entry.diffName) + '</div>' +
+        '<div class="osu-res-grade" style="color:' + gradeColor + '">' + grade + '</div>' +
         '<div class="osu-res-acc">' + acc.toFixed(2) + '%</div>' +
-        '<div class="osu-res-combo">' + run.maxCombo + 'x max combo</div>' +
-        '<div class="osu-res-breakdown">300: ' + c.h300 + ' · 100: ' + c.h100 + ' · 50: ' + c.h50 + ' · Miss: ' + c.miss + '</div>' +
-        (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — new best!' : '') + '</div>'
+        '<div class="osu-res-grid">' +
+          cell('300', c.h300, '#56a0ff') + cell('100', c.h100, '#39d98a') +
+          cell('50', c.h50, '#ffd166') + cell('Miss', c.miss, '#ff5470') +
+        '</div>' +
+        '<div class="osu-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects ' + fc + '</div>' +
+        (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
               : '<div class="osu-res-pb">First clear — saved as your best.</div>');
       show('results');
     }
