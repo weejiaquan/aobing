@@ -246,9 +246,11 @@
       position: fixed;
       bottom: 16px;
       right: 16px;
-      /* Normal UI level — above the typing word-stream (z 40), below the modals
-         (z 205) so it's covered by them like every other UI element. */
-      z-index: 70;
+      /* Above the typing word-stream (z 40) AND the rhythm panels (z 240) so the
+         mode switcher (and its Standard/Mania sub-toggle) stays reachable while a
+         rhythm panel is open — same way it floats over the typing panel. Still
+         below the app modals (z 250+) so dialogs cover it. */
+      z-index: 245;
       user-select: none;
       font: 600 14px/1.1 'Segoe UI', system-ui, sans-serif;
       color: var(--ba-text);
@@ -308,6 +310,20 @@
     .mp-submode button.sel { background: var(--ba-accent-strong); color: #fff; border-color: var(--ba-accent-strong); }
     .mp-section { border-top: 1px solid var(--ba-divider); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
     .mp-section[hidden] { display: none; }
+    /* Music-game performance mode: a rhythm panel (#osu-panel/#vsrg-panel, opaque,
+       fixed inset:0) fully covers the screen, so hide the clicker background's
+       animated layers and pause every CSS animation outside those panels — pure
+       wasted GPU/CPU on weak machines otherwise. JS pauses the auto-click timers. */
+    body.music-mode #character,
+    body.music-mode #particles,
+    body.music-mode #auto-cursor,
+    body.music-mode #click-counter,
+    body.music-mode #combo-display,
+    body.music-mode #system-time { display: none !important; }
+    body.music-mode * { animation-play-state: paused !important; }
+    body.music-mode #osu-panel, body.music-mode #osu-panel *,
+    body.music-mode #vsrg-panel, body.music-mode #vsrg-panel *,
+    body.music-mode #app-modal, body.music-mode #app-modal * { animation-play-state: running !important; }
     .mp-label { color: var(--ba-text-muted); font-size: 12px; font-weight: 700; }
     .mp-action {
       display: flex; align-items: center; gap: 8px;
@@ -2376,12 +2392,15 @@
       <div class="mp-modes">
         <button class="mp-opt" type="button" data-mode="clicker"><span data-i18n="mode.clicker">Clicker</span></button>
         <button class="mp-opt" type="button" data-mode="typing"><span data-i18n="mode.typing">Typing</span></button>
-        <button class="mp-opt" type="button" data-mode="vsrg"><span data-i18n="mode.vsrg">Rhythm</span></button>
-        <button class="mp-opt" type="button" data-mode="osu"><span data-i18n="mode.osu">Standard</span></button>
+        <button class="mp-opt" type="button" data-mode="rhythm"><span data-i18n="mode.rhythm">Rhythm</span></button>
       </div>
       <div class="mp-submode" id="mp-submode" hidden>
         <button type="button" data-submode="casual" data-i18n="mode.casual">Casual</button>
         <button type="button" data-submode="ranked" data-i18n="mode.ranked">Ranked</button>
+      </div>
+      <div class="mp-submode" id="mp-rhythm-submode" hidden>
+        <button type="button" data-rhythm="standard" data-i18n="mode.osu">Standard</button>
+        <button type="button" data-rhythm="mania" data-i18n="mode.mania">Mania</button>
       </div>
       <div class="mp-section" id="mp-clicker"></div>
       <div class="mp-section" id="mp-typing" hidden>
