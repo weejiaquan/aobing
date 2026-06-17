@@ -425,7 +425,9 @@
           'mode.clicker':'Clicker',
           'mode.typing':'Typing',
           'mode.vsrg':'Rhythm',
+          'mode.rhythm':'Rhythm',
           'mode.osu':'Standard',
+          'mode.mania':'Mania',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
@@ -1045,8 +1047,9 @@
       typingMode: 's30',          // s15 | s30 | s60 | endless
       typingPack: 'english-common',
       typingFreedomOn: false, typingNoBackspaceOn: false, typingStopOnErrorOn: false,
-      gameMode: 'clicker',        // 'clicker' | 'typing' | 'vsrg' — left mode menu top level
+      gameMode: 'clicker',        // 'clicker' | 'typing' | 'vsrg' | 'osu' — left mode menu top level
       typingSubMode: 'casual',    // 'casual' | 'ranked' — only meaningful in typing mode
+      rhythmSubMode: 'standard',  // 'standard' (osu) | 'mania' (vsrg) — sub-toggle under the Rhythm mode
       typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
       vsrgCalibrationOffset: 0,   // ms applied to VSRG input->song-time mapping (vsrg.js)
       vsrgScrollSpeed: 1.0,       // VSRG note scroll-speed multiplier (higher = faster)
@@ -5281,22 +5284,31 @@
     const mpTypingEl      = document.getElementById('mp-typing');
     function modeLabel(mode, sub) {
       if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
-      if (mode === 'vsrg') return 'Rhythm';
-      if (mode === 'osu') return 'Standard';
+      if (mode === 'vsrg') return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.mania');
+      if (mode === 'osu')  return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.osu');
       return I18N.t('mode.clicker');
     }
     const mpSubmodeEl = document.getElementById('mp-submode');
+    const mpRhythmSubEl = document.getElementById('mp-rhythm-submode');
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
+      const isRhythm = (mode === 'vsrg' || mode === 'osu');
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
-        b.classList.toggle('sel', b.getAttribute('data-mode') === mode);
+        const dm = b.getAttribute('data-mode');
+        b.classList.toggle('sel', dm === 'rhythm' ? isRhythm : dm === mode);
       });
       if (mpSubmodeEl) {
         mpSubmodeEl.hidden = (mode !== 'typing');
         mpSubmodeEl.querySelectorAll('button[data-submode]').forEach((b) =>
           b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
+      }
+      if (mpRhythmSubEl) {
+        mpRhythmSubEl.hidden = !isRhythm;
+        const activeRhythm = (mode === 'vsrg') ? 'mania' : 'standard';
+        mpRhythmSubEl.querySelectorAll('button[data-rhythm]').forEach((b) =>
+          b.classList.toggle('sel', b.getAttribute('data-rhythm') === activeRhythm));
       }
       if (mpClickerEl) mpClickerEl.hidden = (mode !== 'clicker');
       if (mpTypingEl)  mpTypingEl.hidden  = (mode !== 'typing');
@@ -5304,6 +5316,12 @@
     function openModePop()  { if (modeMenuEl) { modeMenuEl.classList.add('open');    if (modePopEl) modePopEl.hidden = false; if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true'); } }
     function closeModePop() { if (modeMenuEl) { modeMenuEl.classList.remove('open'); if (modePopEl) modePopEl.hidden = true;  if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false'); } }
     function applyMode(mode, sub) {
+      // 'rhythm' is an umbrella over the two rhythm sub-modes (osu standard / vsrg
+      // mania); resolve it to the concrete gameMode the panels understand. A direct
+      // 'vsrg'/'osu' selection also records which rhythm sub-mode is active.
+      if (mode === 'rhythm') mode = (settings.rhythmSubMode === 'mania') ? 'vsrg' : 'osu';
+      else if (mode === 'vsrg') settings.rhythmSubMode = 'mania';
+      else if (mode === 'osu') settings.rhythmSubMode = 'standard';
       settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
@@ -5326,6 +5344,7 @@
         saveSettings(settings);
       }
       renderModeMenu();   // popover stays open so the options for the new mode show
+      syncMusicMode();    // pause/restore the clicker background for music-game modes
     }
     if (modeMenuEl) {
       if (modeChipEl) modeChipEl.addEventListener('click', (e) => {
@@ -5351,6 +5370,15 @@
         if (window.TypingGame && window.TypingGame.refreshKeyboardPanel) window.TypingGame.refreshKeyboardPanel();
         renderModeMenu();
       });
+      // Standard/Mania sub-toggle — switches between the two rhythm sub-modes
+      // (osu standard / vsrg mania), opening the matching panel.
+      if (mpRhythmSubEl) mpRhythmSubEl.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-rhythm]');
+        if (!b) return;
+        e.stopPropagation();
+        settings.rhythmSubMode = b.getAttribute('data-rhythm');
+        applyMode('rhythm');
+      });
       // Inline the shop into the dropdown's Clicker section (relocate its DOM so
       // the existing render + buy-delegation keep working by id).
       const shopPanelEl = document.getElementById('shop-panel');
@@ -5364,4 +5392,24 @@
       window.addEventListener('i18nchange', renderModeMenu);
       window.addEventListener('gamemodechange', renderModeMenu);
     }
+    // Music-game performance mode: while a rhythm panel is open it fully covers the
+    // screen (opaque overlay), so freeze the clicker background underneath — stop its
+    // auto-click timers and coin floaters and hide its animated visuals (CSS, below).
+    // This keeps weak machines from rendering work that isn't even visible.
+    let musicModeOn = false;
+    function setMusicMode(on) {
+      on = !!on;
+      if (on === musicModeOn) return;
+      musicModeOn = on;
+      document.body.classList.toggle('music-mode', on);
+      if (on) {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        stopAutoCoinFloater();
+      } else {
+        rearmAutoLoop();   // restores the auto-click timer + coin floater for the current CPS
+      }
+    }
+    function syncMusicMode() { setMusicMode(settings.gameMode === 'vsrg' || settings.gameMode === 'osu'); }
+    window.addEventListener('gamemodechange', syncMusicMode);
+    syncMusicMode();   // set the initial state to match the restored gameMode
 
