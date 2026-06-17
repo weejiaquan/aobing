@@ -424,6 +424,7 @@
           'typing.board_score':'Score',
           'mode.clicker':'Clicker',
           'mode.typing':'Typing',
+          'mode.vsrg':'Rhythm',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
@@ -1043,9 +1044,10 @@
       typingMode: 's30',          // s15 | s30 | s60 | endless
       typingPack: 'english-common',
       typingFreedomOn: false, typingNoBackspaceOn: false, typingStopOnErrorOn: false,
-      gameMode: 'clicker',        // 'clicker' | 'typing' — left mode menu top level
+      gameMode: 'clicker',        // 'clicker' | 'typing' | 'vsrg' — left mode menu top level
       typingSubMode: 'casual',    // 'casual' | 'ranked' — only meaningful in typing mode
       typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
+      vsrgCalibrationOffset: 0,   // ms applied to VSRG input->song-time mapping (vsrg.js)
     };
 
     // --- Admin gating -----------------------------------------------------------
@@ -1222,6 +1224,9 @@
       if (leaderboardModal && leaderboardModal.classList.contains('open')) loadLeaderboard();
       // Re-render the country area so the dropdown picker appears/disappears.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Show/hide the admin-gated Rhythm mode; exit it if admin mode was turned off.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!vsrgAllowed() && settings.gameMode === 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
     });
     function syncAdminVisibility() {
       // Use style.display because the [hidden] attribute is overridden by the
@@ -1234,6 +1239,9 @@
       }
       // Country picker visibility depends on admin status too.
       if (typeof renderCountryArea === 'function') renderCountryArea();
+      // Hide the admin-gated Rhythm mode and exit it if admin access was lost.
+      if (typeof renderModeMenu === 'function') renderModeMenu();
+      if (!vsrgAllowed() && settings.gameMode === 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
     }
     // Subscription listener (subscribeAdminStatus) already calls
     // syncAdminVisibility when admin status changes. No need for a separate
@@ -5223,6 +5231,28 @@
       window.TypingGame.init(window.__typingDeps);
     }
 
+    // --- VSRG (Rhythm) game wiring ---------------------------------------------
+    // Same seam as typing.js: vsrg.js self-initialises from these host deps and
+    // never reaches into app.js's scope. BGM is paused for the duration of a run
+    // (it would compete with the chart's music) and restored on exit.
+    window.__vsrgDeps = {
+      settings:    settings,
+      saveSettings: function () { saveSettings(settings); },
+      // While the rhythm panel is open it owns the keyboard — suppress the global
+      // keydown clicker handler (same isTypingActive gate the typing panel uses)
+      // so lane keys don't trigger the character behind the overlay.
+      captureKeyboard: function (on) { setTypingActive(!!on); },
+      pauseBgm:    function () { try { bgm.pause(); bgmPlaying = false; } catch (e) {} },
+      resumeBgm:   function () {
+        try { if ((settings.musicVol || 0) > 0) { bgm.play().then(function(){ bgmPlaying = true; }).catch(function(){}); } } catch (e) {}
+      },
+      t:           function (k, p) { return I18N.t(k, p); },
+      escapeHtml:  escapeHtml,
+    };
+    if (window.VsrgGame && typeof window.VsrgGame.init === 'function') {
+      window.VsrgGame.init(window.__vsrgDeps);
+    }
+
     // --- Left mode menu (one button + dropdown: mode switch + options inside) -
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
@@ -5232,13 +5262,19 @@
     const mpTypingEl      = document.getElementById('mp-typing');
     function modeLabel(mode, sub) {
       if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
+      if (mode === 'vsrg') return 'Rhythm';
       return I18N.t('mode.clicker');
     }
     const mpSubmodeEl = document.getElementById('mp-submode');
+    // VSRG (Rhythm) is gated behind admin mode for now so it can be tested on
+    // production without exposing it to players. Same gate as other admin tools.
+    function vsrgAllowed() { return isAdmin() && !!settings.adminMode; }
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
+      const vsrgBtn = modePopEl && modePopEl.querySelector('.mp-opt[data-mode="vsrg"]');
+      if (vsrgBtn) vsrgBtn.style.display = vsrgAllowed() ? '' : 'none';
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         b.classList.toggle('sel', b.getAttribute('data-mode') === mode);
       });
@@ -5253,15 +5289,23 @@
     function openModePop()  { if (modeMenuEl) { modeMenuEl.classList.add('open');    if (modePopEl) modePopEl.hidden = false; if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true'); } }
     function closeModePop() { if (modeMenuEl) { modeMenuEl.classList.remove('open'); if (modePopEl) modePopEl.hidden = true;  if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false'); } }
     function applyMode(mode, sub) {
-      settings.gameMode = (mode === 'typing') ? 'typing' : 'clicker';
+      if (mode === 'vsrg' && !vsrgAllowed()) mode = 'clicker';   // admin-gated
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg') ? mode : 'clicker';
+      // Close whichever mode panel is not the newly-selected one. Each close()
+      // only resets gameMode when it still owns it, so setting gameMode first
+      // keeps these from stomping the new selection.
+      if (settings.gameMode !== 'typing' && window.TypingGame && window.TypingGame.close) window.TypingGame.close();
+      if (settings.gameMode !== 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
         if (window.TypingGame && window.TypingGame.open) window.TypingGame.open();
         if (window.TypingGame && window.TypingGame.refreshKeyboardPanel) window.TypingGame.refreshKeyboardPanel();
+      } else if (settings.gameMode === 'vsrg') {
+        saveSettings(settings);
+        if (window.VsrgGame && window.VsrgGame.open) window.VsrgGame.open();
       } else {
         saveSettings(settings);
-        if (window.TypingGame && window.TypingGame.close) window.TypingGame.close();
       }
       renderModeMenu();   // popover stays open so the options for the new mode show
     }

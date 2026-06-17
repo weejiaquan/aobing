@@ -2,21 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- BUILD MARKER (temporary — to verify index.html cache freshness). Logs to console,
-       shows a small bottom-right "build bN" badge, and sets window.__BUILD__. If you do
-       NOT see this badge / __BUILD__ is undefined, you are on a stale cached index.html. -->
-  <script>
-    window.__BUILD__ = 'b1';
-    console.log('%c[aobing] index.html BUILD ' + window.__BUILD__,
-                'color:#1c7ed6;font-weight:bold;font-size:14px');
-    window.addEventListener('DOMContentLoaded', function () {
-      var b = document.createElement('div');
-      b.textContent = 'build ' + window.__BUILD__;
-      b.style.cssText = 'position:fixed;bottom:4px;right:6px;z-index:99999;font:11px/1.4 monospace;'
-        + 'color:#1c7ed6;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:6px;pointer-events:none';
-      document.body.appendChild(b);
-    });
-  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta property="og:title" content="Aobing IT!">
@@ -2391,6 +2376,7 @@
       <div class="mp-modes">
         <button class="mp-opt" type="button" data-mode="clicker"><span data-i18n="mode.clicker">Clicker</span></button>
         <button class="mp-opt" type="button" data-mode="typing"><span data-i18n="mode.typing">Typing</span></button>
+        <button class="mp-opt" type="button" data-mode="vsrg"><span data-i18n="mode.vsrg">Rhythm</span></button>
       </div>
       <div class="mp-submode" id="mp-submode" hidden>
         <button type="button" data-submode="casual" data-i18n="mode.casual">Casual</button>
@@ -2709,6 +2695,92 @@
     <div id="typing-result" class="typing-result" hidden></div>
   </div>
 
+  <!-- VSRG (Rhythm) mode — full-screen overlay; inert until window.VsrgGame.open() -->
+  <style>
+    #vsrg-panel { position: fixed; inset: 0; z-index: 240; display: none;
+      background: #0b0c10; color: #e8e8ec; flex-direction: column; }
+    #vsrg-panel.open { display: flex; }
+    .vsrg-screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .vsrg-screen[hidden] { display: none; }
+    #vsrg-select { padding: 22px; gap: 14px; }
+    .vsrg-select-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .vsrg-select-head h2 { margin: 0; font-size: 20px; }
+    .vsrg-select-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #vsrg-panel button { background: #2a2d36; color: #e8e8ec; border: 0; border-radius: 8px;
+      padding: 8px 14px; font: inherit; cursor: pointer; }
+    #vsrg-panel button.sel { background: #2b6cff; color: #fff; }
+    #vsrg-import { background: #2b6cff; color: #fff; }
+    #vsrg-songlist { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .vsrg-song { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      width: 100%; text-align: left; padding: 12px 14px !important; }
+    .vsrg-song:hover { background: #343845 !important; }
+    .vsrg-song-title { font-weight: 700; }
+    .vsrg-song-meta { font-size: 12px; color: #9aa0ab; }
+    .vsrg-empty { color: #9aa0ab; padding: 24px 4px; }
+    #vsrg-import-status { color: #9aa0ab; font-size: 13px; min-height: 18px; }
+    #vsrg-game { align-items: center; justify-content: center; }
+    #vsrg-canvas { touch-action: none; display: block; height: 100%; }
+    #vsrg-hud { position: absolute; inset: 0; pointer-events: none; display: flex;
+      flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    #vsrg-combo { font-size: 48px; font-weight: 800; opacity: .92; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+    @keyframes vsrg-combo-pop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+    #vsrg-combo.pop { animation: vsrg-combo-pop .16s ease-out; }
+    #vsrg-judge { will-change: transform, opacity; }
+    #vsrg-acc { position: absolute; top: 16px; right: 20px; font-size: 18px;
+      font-variant-numeric: tabular-nums; }
+    #vsrg-judge { font-size: 30px; font-weight: 800; opacity: 0; margin-top: 70px; }
+    #vsrg-results, #vsrg-calib { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+    .vsrg-res-acc { font-size: 48px; font-weight: 800; color: #39d98a; }
+    .vsrg-res-combo { font-size: 18px; }
+    .vsrg-res-breakdown { color: #9aa0ab; }
+    .vsrg-res-pb { color: #ffd166; }
+    .vsrg-results-actions { display: flex; gap: 10px; }
+    #vsrg-retry { background: #2b6cff; color: #fff; }
+    #vsrg-calib label { display: inline-flex; align-items: center; gap: 8px; }
+  </style>
+  <div id="vsrg-panel">
+    <div id="vsrg-select" class="vsrg-screen">
+      <div class="vsrg-select-head">
+        <h2 data-i18n="mode.vsrg">Rhythm</h2>
+        <div class="vsrg-select-actions">
+          <button id="vsrg-exit" type="button" title="Exit rhythm mode">✕ Exit</button>
+          <span id="vsrg-keyfilter">
+            <button type="button" data-keys="all" class="sel">All</button>
+            <button type="button" data-keys="4">4K</button>
+            <button type="button" data-keys="7">7K</button>
+          </span>
+          <button id="vsrg-import" type="button">Import osu! folder</button>
+          <button id="vsrg-calibrate" type="button">Calibrate</button>
+        </div>
+      </div>
+      <div id="vsrg-import-status"></div>
+      <div id="vsrg-songlist"></div>
+    </div>
+    <div id="vsrg-game" class="vsrg-screen" hidden>
+      <canvas id="vsrg-canvas"></canvas>
+      <div id="vsrg-hud">
+        <div id="vsrg-acc"></div>
+        <div id="vsrg-combo"></div>
+        <div id="vsrg-judge"></div>
+      </div>
+    </div>
+    <div id="vsrg-results" class="vsrg-screen" hidden>
+      <h2>Results</h2>
+      <div id="vsrg-results-body"></div>
+      <div class="vsrg-results-actions">
+        <button id="vsrg-retry" type="button">Retry</button>
+        <button id="vsrg-back" type="button">Back to songs</button>
+      </div>
+    </div>
+    <div id="vsrg-calib" class="vsrg-screen" hidden>
+      <h2>Calibration</h2>
+      <p>Adjust the offset until the beep lands with the flash.</p>
+      <canvas id="vsrg-calib-canvas" width="200" height="120"></canvas>
+      <label>Offset <input type="range" id="vsrg-calib-slider" min="-150" max="150" step="1"><b id="vsrg-calib-val">0 ms</b></label>
+      <button id="vsrg-calib-done" type="button">Done</button>
+    </div>
+  </div>
+
   <!-- Stats -->
   <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
@@ -2867,6 +2939,9 @@
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
+        // window.__vsrgDeps. Inert on the web until the mode is opened.
+        .then(function () { return loadScript('vsrg.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
