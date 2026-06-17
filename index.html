@@ -2881,6 +2881,17 @@
     .osu-song-title { font-weight: 700; }
     .osu-song-meta { font-size: 12px; color: #9aa0ab; }
     .osu-empty { color: #9aa0ab; padding: 24px 4px; }
+    /* Song groups (one row per song; click to expand its difficulties) */
+    .osu-group-wrap { display: flex; flex-direction: column; }
+    .osu-group { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px !important; }
+    .osu-group:hover { background: #343845 !important; }
+    .osu-group.open { background: #30343f !important; }
+    .osu-group-caret { color: #9aa0ab; font-size: 11px; width: 12px; flex: none; }
+    .osu-group-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .osu-group-info .osu-song-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .osu-group-diffs { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 10px 32px; }
+    .osu-diff { flex-direction: row !important; align-items: center !important; gap: 8px; padding: 8px 12px !important; font-size: 13px; background: #23262e !important; }
+    .osu-diff:hover { background: #343845 !important; }
     #osu-game { align-items: center; justify-content: center; }
     #osu-canvas { touch-action: none; display: block; width: 100%; height: 100%; }
     #osu-hud { position: absolute; inset: 0; pointer-events: none; }
@@ -2910,17 +2921,15 @@
       <div class="osu-select-head">
         <h2 data-i18n="mode.osu">Standard</h2>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="osu-import" type="button">Import osu! folder</button>
+          <button id="osu-import" type="button" title="Import beatmaps AND a skin from an osu! folder (point at your osu! install, or its Songs / Skins folder)">Import osu! folder</button>
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
           <button id="osu-import-osz" type="button">Import .osz</button>
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <span id="osu-skin-wrap" style="display:inline-flex; align-items:center; gap:4px;">
             <button id="osu-import-skin" type="button" title="Load a custom osu! skin from a .osk file">Skin (.osk)</button>
-            <button id="osu-import-skin-dir" type="button" title="Load a custom osu! skin from its folder">folder</button>
             <button id="osu-skin-clear" type="button" title="Use the built-in look" hidden>✕</button>
           </span>
           <input id="osu-skin-osk-input" type="file" accept=".osk,.zip" hidden>
-          <input id="osu-skin-dir-input" type="file" webkitdirectory directory multiple hidden>
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
