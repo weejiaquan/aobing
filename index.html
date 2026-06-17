@@ -2712,7 +2712,9 @@
     #vsrg-import { background: #2b6cff; color: #fff; }
     .vsrg-speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c8ccd4; }
     .vsrg-step { padding: 4px 10px !important; font-size: 16px !important; line-height: 1; min-width: 30px; }
-    #vsrg-speed-val { min-width: 42px; text-align: center; display: inline-block; }
+    #vsrg-speed-val { width: 48px; text-align: center; background: #15171e; color: #e8e8ec;
+      border: 1px solid #2a2d36; border-radius: 6px; padding: 5px 4px; font: inherit; }
+    #vsrg-speed-val:focus { outline: none; border-color: #2b6cff; }
     .vsrg-pick button { padding: 6px 12px !important; }
     .vsrg-pick button.sel { background: #2b6cff !important; color: #fff !important; }
     .vsrg-appear-grid { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
@@ -2779,7 +2781,8 @@
           <input id="vsrg-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <span class="vsrg-speed">Speed
             <button id="vsrg-speed-down" type="button" class="vsrg-step">−</button>
-            <b id="vsrg-speed-val">1.0×</b>
+            <input id="vsrg-speed-val" type="text" inputmode="decimal" value="1.0" title="Type an exact speed (e.g. 3.2)">
+            <span>×</span>
             <button id="vsrg-speed-up" type="button" class="vsrg-step">+</button>
           </span>
           <button id="vsrg-appearance-btn" type="button">Appearance</button>

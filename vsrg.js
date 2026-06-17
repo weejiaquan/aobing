@@ -376,11 +376,12 @@ if (typeof document !== 'undefined') {
     function scrollSpeed() { return Math.max(0.5, Number(settings.vsrgScrollSpeed) || 1); }
     function approachMs() { return APPROACH_MS / scrollSpeed(); }
     // Apply a new scroll speed everywhere (live: also updates the active run).
+    // Rounds to 2 decimals so typed values like 3.2 or 5.55 are preserved.
     function setScrollSpeed(v) {
-      settings.vsrgScrollSpeed = Math.max(0.5, Math.round(v * 10) / 10);
+      settings.vsrgScrollSpeed = Math.max(0.5, Math.round(v * 100) / 100);
       if (deps.saveSettings) deps.saveSettings();
       if (run) run.approachMs = approachMs();
-      if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
+      if (speedValEl) speedValEl.value = String(settings.vsrgScrollSpeed);
     }
 
     // ---- Skin: note style, size, lane colours (read live from settings) ------
@@ -884,8 +885,10 @@ if (typeof document !== 'undefined') {
         state: createRunState({ notes: notes }),
         lastNoteTime: notes.reduce((m, n) => Math.max(m, n.endTime || n.time), 0),
         finished: false, rafId: 0, pressed: {},
+        errors: [],                   // signed hit-timing errors (ms) for UR + the bar
       };
       run.state.totalNotes = totalJudgements;
+      errTicks = [];                 // clear the error bar for the new run
 
       // Album art (async): draw dimmed behind the highway once it decodes.
       if (entry.getArt) {
@@ -961,6 +964,22 @@ if (typeof document !== 'undefined') {
       updateHud();
     }
 
+    // Record a signed timing error (negative = early, positive = late) for the
+    // unstable-rate bar (live, fading ticks) and the run's UR stat.
+    let errTicks = [];
+    function recordError(errMs, tier) {
+      if (run) run.errors.push(errMs);
+      errTicks.push({ err: errMs, tier: tier, t: performance.now() });
+      if (errTicks.length > 64) errTicks.shift();
+    }
+    // Unstable rate = stdev of hit errors × 10 (osu definition).
+    function unstableRate(errs) {
+      if (!errs || errs.length < 2) return 0;
+      const m = errs.reduce((a, b) => a + b, 0) / errs.length;
+      const v = errs.reduce((s, e) => s + (e - m) * (e - m), 0) / errs.length;
+      return Math.sqrt(v) * 10;
+    }
+
     // ---- Input -------------------------------------------------------------
     function onHit(lane, perfTs) {
       if (!run || run.finished) return;
@@ -976,6 +995,7 @@ if (typeof document !== 'undefined') {
       const res = judge(best.time, st, run.windows);
       best.headJudged = true; best.headTier = res.tier;
       if (best.endTime != null && res.tier !== 'miss') best.holding = true;
+      if (res.tier !== 'miss') recordError(res.errorMs, res.tier);
       applyTier(res.tier, lane, res.tier === 'miss');
     }
 
@@ -991,6 +1011,7 @@ if (typeof document !== 'undefined') {
       // full credit (you held it long enough).
       const early = Math.max(0, n.endTime - st);
       const tier = tierForRelease(early);
+      if (tier !== 'miss') recordError(st - n.endTime, tier);   // signed release error
       applyTier(tier, lane, tier === 'miss');
     }
 
@@ -1151,6 +1172,48 @@ if (typeof document !== 'undefined') {
         }
         ctx2d.restore();
       }
+
+      drawErrorBar(W, H, dpr);
+    }
+
+    // Unstable-rate / hit-error bar near the bottom: ticks left of centre = early,
+    // right = late. Background zones show the perfect/great/good windows; a marker
+    // shows the running mean. Ticks fade over ~2.5s.
+    function drawErrorBar(W, H, dpr) {
+      const w = run.windows;
+      const cx = W / 2, y = H - 46 * dpr, half = W * 0.34;
+      const pxPerMs = half / (w.bad || 127);          // full bar = ±bad window
+      const zone = (ms, color) => {
+        ctx2d.fillStyle = color;
+        ctx2d.fillRect(cx - ms * pxPerMs, y - 5 * dpr, ms * pxPerMs * 2, 10 * dpr);
+      };
+      zone(w.good, 'rgba(245,158,11,0.20)');
+      zone(w.great, 'rgba(255,209,102,0.22)');
+      zone(w.perfect, 'rgba(57,217,138,0.28)');
+      // centre line
+      ctx2d.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx2d.fillRect(cx - dpr, y - 9 * dpr, 2 * dpr, 18 * dpr);
+      // ticks
+      const nowP = performance.now();
+      for (let i = errTicks.length - 1; i >= 0; i--) {
+        const e = errTicks[i];
+        const age = nowP - e.t;
+        if (age > 2500) { errTicks.splice(i, 1); continue; }
+        const x = cx + Math.max(-half, Math.min(half, e.err * pxPerMs));
+        ctx2d.globalAlpha = 1 - age / 2500;
+        ctx2d.fillStyle = TIER_COLORS[e.tier] || '#fff';
+        ctx2d.fillRect(x - dpr, y - 8 * dpr, 2 * dpr, 16 * dpr);
+        ctx2d.globalAlpha = 1;
+      }
+      // running-mean marker (small triangle under the bar)
+      if (run.errors.length >= 3) {
+        const mean = run.errors.reduce((a, b) => a + b, 0) / run.errors.length;
+        const mx = cx + Math.max(-half, Math.min(half, mean * pxPerMs));
+        ctx2d.fillStyle = '#9be7ff';
+        ctx2d.beginPath();
+        ctx2d.moveTo(mx, y + 9 * dpr); ctx2d.lineTo(mx - 4 * dpr, y + 15 * dpr); ctx2d.lineTo(mx + 4 * dpr, y + 15 * dpr);
+        ctx2d.closePath(); ctx2d.fill();
+      }
     }
 
     const JUDGE_LABELS = { marvelous: 'MARVELOUS', perfect: 'PERFECT', great: 'GREAT', good: 'GOOD', bad: 'BAD', miss: 'MISS' };
@@ -1179,7 +1242,7 @@ if (typeof document !== 'undefined') {
     //   1 = slower, 2 = faster · - = offset earlier, = / + = offset later.
     function handleControlKey(key) {
       if (key === '1' || key === '2') {
-        setScrollSpeed(scrollSpeed() + (key === '2' ? 0.5 : -0.5));
+        setScrollSpeed(scrollSpeed() + (key === '2' ? 0.1 : -0.1));   // fine step
         flashInfo('Speed ' + scrollSpeed().toFixed(1) + '×');
         return true;
       }
@@ -1199,7 +1262,11 @@ if (typeof document !== 'undefined') {
           comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
         }
       }
-      if (accEl) accEl.textContent = accuracy(run.state.counts).toFixed(2) + '%';
+      if (accEl) {
+        const ur = unstableRate(run.errors);
+        accEl.textContent = accuracy(run.state.counts).toFixed(2) + '%' +
+          (ur ? '  ·  UR ' + Math.round(ur) : '');
+      }
     }
 
     // ---- End of run / results ---------------------------------------------
@@ -1232,7 +1299,7 @@ if (typeof document !== 'undefined') {
       resultsBody.innerHTML =
         '<div class="vsrg-res-title">' + escapeH(r.entry.title) + ' · ' + escapeH(r.entry.diffName) + '</div>' +
         '<div class="vsrg-res-acc">' + acc.toFixed(2) + '%</div>' +
-        '<div class="vsrg-res-combo">' + r.state.maxCombo + 'x max combo</div>' +
+        '<div class="vsrg-res-combo">' + r.state.maxCombo + 'x max combo · UR ' + Math.round(unstableRate(r.errors)) + '</div>' +
         '<div class="vsrg-res-breakdown">' +
           'Marv ' + c.marvelous + ' · Perf ' + c.perfect + ' · Great ' + c.great +
           ' · Good ' + c.good + ' · Bad ' + c.bad + ' · Miss ' + c.miss +
@@ -1394,7 +1461,7 @@ if (typeof document !== 'undefined') {
       panel.classList.add('open');
       panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);   // panel owns the keyboard
-      if (speedValEl) speedValEl.textContent = scrollSpeed().toFixed(1) + '×';
+      if (speedValEl) speedValEl.value = String(scrollSpeed());
       show('select');
       refreshLibrary();
       startSpeedPreview();
@@ -1464,6 +1531,15 @@ if (typeof document !== 'undefined') {
     // Scroll-speed stepper (uncapped). The previews read scrollSpeed() live.
     if (speedDownBtn) speedDownBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() - 0.5));
     if (speedUpBtn) speedUpBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() + 0.5));
+    // Type an exact speed (e.g. 3.2, 5.55); Enter/blur applies, invalid reverts.
+    if (speedValEl) {
+      const applyTyped = () => {
+        const v = parseFloat(speedValEl.value);
+        if (isFinite(v)) setScrollSpeed(v); else speedValEl.value = String(scrollSpeed());
+      };
+      speedValEl.addEventListener('change', applyTyped);
+      speedValEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); speedValEl.blur(); } });
+    }
     // Appearance sub-screen
     if (appearanceBtn) appearanceBtn.addEventListener('click', openAppearance);
     if (appearDoneBtn) appearDoneBtn.addEventListener('click', closeAppearance);
