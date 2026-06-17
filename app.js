@@ -1049,6 +1049,10 @@
       typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
       vsrgCalibrationOffset: 0,   // ms applied to VSRG input->song-time mapping (vsrg.js)
       vsrgScrollSpeed: 1.0,       // VSRG note scroll-speed multiplier (higher = faster)
+      vsrgNoteStyle: 'bar',       // 'bar' | 'circle' | 'arrow'
+      vsrgNoteScale: 1.0,         // note size multiplier (0.6–1.8)
+      vsrgColorPreset: 'default', // 'default' | 'osu' | 'mono' | 'pastel'
+      vsrgLaneColors: [],         // per-lane hex overrides; [] = use the preset
     };
 
     // --- Admin gating -----------------------------------------------------------

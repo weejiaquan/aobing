@@ -2711,7 +2711,21 @@
     #vsrg-panel button.sel { background: #2b6cff; color: #fff; }
     #vsrg-import { background: #2b6cff; color: #fff; }
     .vsrg-speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c8ccd4; }
-    .vsrg-speed input[type=range] { width: 110px; }
+    .vsrg-step { padding: 4px 10px !important; font-size: 16px !important; line-height: 1; min-width: 30px; }
+    #vsrg-speed-val { min-width: 42px; text-align: center; display: inline-block; }
+    .vsrg-pick button { padding: 6px 12px !important; }
+    .vsrg-pick button.sel { background: #2b6cff !important; color: #fff !important; }
+    .vsrg-appear-grid { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+    .vsrg-appear-controls { display: flex; flex-direction: column; gap: 14px; min-width: 320px; text-align: left; }
+    .vsrg-appear-row { display: flex; align-items: center; gap: 10px; }
+    .vsrg-appear-row > span:first-child { width: 110px; color: #c8ccd4; font-size: 14px; }
+    .vsrg-appear-row input[type=range] { width: 130px; }
+    #vsrg-lane-colors { display: inline-flex; gap: 6px; }
+    #vsrg-lane-colors input[type=color] { width: 30px; height: 30px; border: 1px solid #333; border-radius: 6px;
+      background: none; padding: 0; cursor: pointer; }
+    .vsrg-appear-actions { display: flex; gap: 10px; margin-top: 6px; }
+    #vsrg-appear-done { background: #2b6cff !important; color: #fff !important; }
+    #vsrg-appear-preview { border: 1px solid #20232c; border-radius: 8px; background: #0e0f13; }
     .vsrg-speed-preview { position: absolute; top: 70px; right: 22px; border: 1px solid #20232c;
       border-radius: 8px; background: #0e0f13; z-index: 2; }
     #vsrg-osz-status { color: #9aa0ab; font-size: 13px; min-height: 0; }
@@ -2763,10 +2777,12 @@
           <input id="vsrg-import-input" type="file" webkitdirectory directory multiple hidden>
           <button id="vsrg-import-osz" type="button">Import .osz</button>
           <input id="vsrg-osz-input" type="file" accept=".osz,.zip" multiple hidden>
-          <label class="vsrg-speed">Speed
-            <input type="range" id="vsrg-speed" min="0.5" max="10" step="0.1" value="1">
+          <span class="vsrg-speed">Speed
+            <button id="vsrg-speed-down" type="button" class="vsrg-step">−</button>
             <b id="vsrg-speed-val">1.0×</b>
-          </label>
+            <button id="vsrg-speed-up" type="button" class="vsrg-step">+</button>
+          </span>
+          <button id="vsrg-appearance-btn" type="button">Appearance</button>
           <button id="vsrg-calibrate" type="button">Calibrate</button>
         </div>
       </div>
@@ -2800,6 +2816,40 @@
       <div id="vsrg-tap-result"></div>
       <label>Offset <input type="range" id="vsrg-calib-slider" min="-200" max="200" step="1"><b id="vsrg-calib-val">0 ms</b></label>
       <button id="vsrg-calib-done" type="button">Done</button>
+    </div>
+    <div id="vsrg-appearance" class="vsrg-screen" hidden>
+      <h2>Appearance</h2>
+      <div class="vsrg-appear-grid">
+        <div class="vsrg-appear-controls">
+          <div class="vsrg-appear-row"><span>Note style</span>
+            <span id="vsrg-style-pick" class="vsrg-pick">
+              <button type="button" data-style="bar">Bar</button>
+              <button type="button" data-style="circle">Circle</button>
+              <button type="button" data-style="arrow">Arrow</button>
+            </span>
+          </div>
+          <div class="vsrg-appear-row"><span>Note size</span>
+            <input type="range" id="vsrg-size" min="0.6" max="1.8" step="0.05" value="1">
+            <b id="vsrg-size-val">1.0×</b>
+          </div>
+          <div class="vsrg-appear-row"><span>Colour preset</span>
+            <span id="vsrg-preset-pick" class="vsrg-pick">
+              <button type="button" data-preset="default">Default</button>
+              <button type="button" data-preset="osu">osu!</button>
+              <button type="button" data-preset="mono">Mono</button>
+              <button type="button" data-preset="pastel">Pastel</button>
+            </span>
+          </div>
+          <div class="vsrg-appear-row"><span>Lane colours</span>
+            <span id="vsrg-lane-colors"></span>
+          </div>
+          <div class="vsrg-appear-actions">
+            <button id="vsrg-appear-reset" type="button">Reset</button>
+            <button id="vsrg-appear-done" type="button">Done</button>
+          </div>
+        </div>
+        <canvas id="vsrg-appear-preview" width="180" height="300"></canvas>
+      </div>
     </div>
   </div>
 
