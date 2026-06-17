@@ -614,6 +614,12 @@ if (typeof document !== 'undefined') {
         if (o.kind === 'slider') {
           st.headJudged = false; st.headResult = null; st.checkpoints = buildSliderCheckpoints(o, chart);
         }
+        if (o.kind === 'spinner') {
+          const dur = o.endTime - o.time;
+          const rps = 2 + (chart.od || 5) * 0.2;          // required spins/sec scales with OD
+          st.requiredRad = (dur / 1000) * rps * 2 * Math.PI;
+          st.rot = 0; st.lastAngle = null;
+        }
         return st;
       });
       const startCtx = ac.currentTime + LEAD_IN_MS / 1000;
@@ -651,6 +657,7 @@ if (typeof document !== 'undefined') {
       if (!run || run.finished) return;
       const st = songTimeNow();
       updateSliders(st);
+      updateSpinners(st);
       sweepMisses(st);
       render(st);
       if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
@@ -661,7 +668,36 @@ if (typeof document !== 'undefined') {
       for (const s of run.objs) {
         if (s.judged) continue;
         if (s.o.kind === 'circle' && st > s.o.time + run.windows.h50) { judgeResult(s, 'miss'); }
-        else if (s.o.kind === 'spinner' && st > s.o.endTime) { s.judged = true; }  // Phase 4
+      }
+    }
+
+    // ---- Spinners ------------------------------------------------------------
+    // Accumulate cursor rotation around the playfield centre; clear when the
+    // accumulated angle reaches the required amount (scales with duration + OD).
+    function updateSpinners(st) {
+      for (const s of run.objs) {
+        if (s.o.kind !== 'spinner' || s.judged) continue;
+        const o = s.o;
+        if (st >= o.time && st <= o.endTime) {
+          const ang = Math.atan2(cursor.y - PLAY_H / 2, cursor.x - PLAY_W / 2);
+          if (s.lastAngle !== null) {
+            let d = ang - s.lastAngle;
+            while (d > Math.PI) d -= 2 * Math.PI;
+            while (d < -Math.PI) d += 2 * Math.PI;
+            s.rot += Math.abs(d);
+          }
+          s.lastAngle = ang;
+        }
+        if (st > o.endTime) {
+          const p = s.requiredRad > 0 ? s.rot / s.requiredRad : 1;
+          const result = p >= 1 ? 'h300' : p >= 0.9 ? 'h100' : p >= 0.5 ? 'h50' : 'miss';
+          s.judged = true; s.result = result;
+          const c = run.counts;
+          if (result === 'miss') { c.miss++; run.combo = 0; }
+          else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
+          bursts.push({ x: PLAY_W / 2, y: PLAY_H / 2, result: result, t: performance.now() });
+          flashJudge(result); updateHud();
+        }
       }
     }
 
@@ -834,7 +870,30 @@ if (typeof document !== 'undefined') {
       // draw objects latest-first so earlier (upcoming) circles sit on top
       for (let i = run.objs.length - 1; i >= 0; i--) {
         const s = run.objs[i], o = s.o;
-        if (o.kind === 'spinner') continue;                    // Phase 4
+        if (o.kind === 'spinner') {
+          if (s.judged || st < o.time - 300 || st > o.endTime + 150) continue;
+          const ctr = osuToScreen(PLAY_W / 2, PLAY_H / 2, tf);
+          const prog = Math.min(1, s.requiredRad > 0 ? s.rot / s.requiredRad : 0);
+          const baseR = Math.min(W, H) * 0.32;
+          const fadeS = Math.min(1, (st - (o.time - 300)) / 250);
+          g.save(); g.globalAlpha = fadeS;
+          // outer ring + progress arc
+          g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 4 * dpr;
+          g.beginPath(); g.arc(ctr.x, ctr.y, baseR, 0, Math.PI * 2); g.stroke();
+          g.strokeStyle = prog >= 1 ? '#39d98a' : '#56a0ff'; g.lineWidth = 6 * dpr;
+          g.beginPath(); g.arc(ctr.x, ctr.y, baseR, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2); g.stroke();
+          // spinning indicator
+          const sp = (s.lastAngle || 0);
+          g.strokeStyle = '#fff'; g.lineWidth = 3 * dpr;
+          g.beginPath(); g.moveTo(ctr.x, ctr.y); g.lineTo(ctr.x + Math.cos(sp) * baseR * 0.8, ctr.y + Math.sin(sp) * baseR * 0.8); g.stroke();
+          // text
+          g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.font = (28 * dpr) + 'px system-ui'; g.fillText(prog >= 1 ? 'CLEAR!' : 'SPIN!', ctr.x, ctr.y);
+          g.font = (16 * dpr) + 'px system-ui'; g.fillStyle = '#9aa0ab';
+          g.fillText(Math.round(prog * 100) + '%', ctr.x, ctr.y + 30 * dpr);
+          g.restore();
+          continue;
+        }
         const appear = o.time - run.preempt;
         if (st < appear || s.judged) continue;
         const sc = osuToScreen(o.x, o.y, tf);
