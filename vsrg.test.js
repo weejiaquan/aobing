@@ -147,6 +147,31 @@ test('parseOsu: throws when no hit objects are present', () => {
 });
 
 // =========================================================================
+// difficultyStars (density-based estimate; NOT osu's exact star value)
+// =========================================================================
+test('difficultyStars: estimates from note density, in a sane range', () => {
+  const c = ENGINE.parseOsu(FULL_OSU);   // 2 notes spanning 1000..2750ms
+  const s = ENGINE.difficultyStars(c);
+  assert.equal(typeof s, 'number');
+  assert.ok(s >= 0.5 && s <= 12, 'within [0.5, 12], got ' + s);
+});
+
+test('difficultyStars: denser charts rate higher than sparse ones', () => {
+  const base = ENGINE.parseOsu(FULL_OSU);
+  // same timespan, many more notes -> higher NPS -> more stars
+  const dense = { notes: [], overallDifficulty: 5 };
+  for (let t = 1000; t <= 2750; t += 50) dense.notes.push({ time: t, lane: 0, endTime: null });
+  const sparse = { notes: [{ time: 1000, lane: 0, endTime: null }, { time: 2750, lane: 1, endTime: null }], overallDifficulty: 5 };
+  assert.ok(ENGINE.difficultyStars(dense) > ENGINE.difficultyStars(sparse));
+  assert.ok(ENGINE.difficultyStars(base) >= 0.5);
+});
+
+test('difficultyStars: guards tiny/empty charts (no NaN, >= 0.5)', () => {
+  assert.ok(ENGINE.difficultyStars({ notes: [] }) >= 0.5);
+  assert.ok(ENGINE.difficultyStars({ notes: [{ time: 500, lane: 0, endTime: null }] }) >= 0.5);
+});
+
+// =========================================================================
 // windowsForOD
 // =========================================================================
 test('windowsForOD: OD8 produces the standard mania half-windows (ms)', () => {

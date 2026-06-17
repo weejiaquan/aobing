@@ -153,6 +153,26 @@ function parseOsu(text) {
   };
 }
 
+// Rough difficulty estimate (osu does NOT store a star rating in the .osu file,
+// so this is a density-based approximation — shown with a leading '~'). Driven by
+// notes-per-second over the chart, nudged slightly by OverallDifficulty.
+function difficultyStars(chart) {
+  const notes = (chart && chart.notes) || [];
+  if (notes.length < 2) return 0.5;
+  let first = Infinity, last = -Infinity;
+  for (const n of notes) {
+    if (n.time < first) first = n.time;
+    const end = n.endTime != null ? n.endTime : n.time;
+    if (end > last) last = end;
+  }
+  const durationSec = Math.max(1, (last - first) / 1000);
+  const nps = notes.length / durationSec;
+  const od = Number(chart.overallDifficulty);
+  const odFactor = 1 + (((od >= 0 && od <= 10) ? od : 5) - 5) * 0.02;
+  const stars = (nps * 0.55 + 0.8) * odFactor;
+  return Math.max(0.5, Math.min(12, Math.round(stars * 10) / 10));
+}
+
 // =========================================================================
 // Judgement & scoring
 // =========================================================================
@@ -238,6 +258,7 @@ const ENGINE = {
   parseHitObjects: parseHitObjects,
   parseTiming: parseTiming,
   parseOsu: parseOsu,
+  difficultyStars: difficultyStars,
   windowsForOD: windowsForOD,
   judge: judge,
   accuracy: accuracy,
@@ -269,6 +290,15 @@ if (typeof document !== 'undefined') {
     7: ['s', 'd', 'f', ' ', 'j', 'k', 'l'],
   };
   const LANE_COLORS = ['#2b6cff', '#ff5470', '#39d98a', '#ffd166', '#b06bff', '#22d3ee', '#f59e0b'];
+  // Lane-colour presets (indexed by lane). 'osu' is the blue/pink mirror layout
+  // (4K: outer lanes blue, inner pink) that matches the common osu!mania circle skin.
+  const COLOR_PRESETS = {
+    default: ['#2b6cff', '#ff5470', '#39d98a', '#ffd166', '#b06bff', '#22d3ee', '#f59e0b'],
+    osu:     ['#56a0ff', '#ff7eb6', '#ff7eb6', '#56a0ff', '#ffd166', '#ff7eb6', '#56a0ff'],
+    mono:    ['#5b8cff', '#5b8cff', '#5b8cff', '#5b8cff', '#5b8cff', '#5b8cff', '#5b8cff'],
+    pastel:  ['#8fb3ff', '#ffb3c1', '#a8e6cf', '#ffe5a8', '#d2b3ff', '#a8e6ff', '#ffd6a8'],
+  };
+  const ARROW_DIRS = ['left', 'down', 'up', 'right'];
   const TIER_COLORS = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
   const APPROACH_MS = 1600;   // base approach time (1.0x speed); scaled by scroll-speed setting
   const RELEASE_SCALE = 1.5;  // hold releases use windows 1.5x wider than taps (osu!mania-style)
@@ -287,6 +317,7 @@ if (typeof document !== 'undefined') {
       game:    document.getElementById('vsrg-game'),
       results: document.getElementById('vsrg-results'),
       calib:   document.getElementById('vsrg-calib'),
+      appearance: document.getElementById('vsrg-appearance'),
     };
     const songlistEl = document.getElementById('vsrg-songlist');
     const importBtn = document.getElementById('vsrg-import');
@@ -297,9 +328,19 @@ if (typeof document !== 'undefined') {
     const oszBtn = document.getElementById('vsrg-import-osz');
     const oszInput = document.getElementById('vsrg-osz-input');
     const oszStatusEl = document.getElementById('vsrg-osz-status');
-    const speedSlider = document.getElementById('vsrg-speed');
+    const speedDownBtn = document.getElementById('vsrg-speed-down');
+    const speedUpBtn = document.getElementById('vsrg-speed-up');
     const speedValEl = document.getElementById('vsrg-speed-val');
     const speedPreview = document.getElementById('vsrg-speed-preview');
+    const appearanceBtn = document.getElementById('vsrg-appearance-btn');
+    const stylePickEl = document.getElementById('vsrg-style-pick');
+    const presetPickEl = document.getElementById('vsrg-preset-pick');
+    const sizeSlider = document.getElementById('vsrg-size');
+    const sizeValEl = document.getElementById('vsrg-size-val');
+    const laneColorsEl = document.getElementById('vsrg-lane-colors');
+    const appearPreview = document.getElementById('vsrg-appear-preview');
+    const appearResetBtn = document.getElementById('vsrg-appear-reset');
+    const appearDoneBtn = document.getElementById('vsrg-appear-done');
     const tapBtn = document.getElementById('vsrg-tap');
     const tapResultEl = document.getElementById('vsrg-tap-result');
     const canvas = document.getElementById('vsrg-canvas');
@@ -331,15 +372,100 @@ if (typeof document !== 'undefined') {
 
     function calOffset() { return Number(settings.vsrgCalibrationOffset) || 0; }
     // Scroll speed: higher multiplier -> shorter approach time -> faster notes.
-    function scrollSpeed() { return Math.max(0.5, Math.min(10, Number(settings.vsrgScrollSpeed) || 1)); }
+    // Uncapped on top (some players want 10x+); floored at 0.5 to stay sane.
+    function scrollSpeed() { return Math.max(0.5, Number(settings.vsrgScrollSpeed) || 1); }
     function approachMs() { return APPROACH_MS / scrollSpeed(); }
     // Apply a new scroll speed everywhere (live: also updates the active run).
     function setScrollSpeed(v) {
-      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(10, Math.round(v * 10) / 10));
+      settings.vsrgScrollSpeed = Math.max(0.5, Math.round(v * 10) / 10);
       if (deps.saveSettings) deps.saveSettings();
       if (run) run.approachMs = approachMs();
-      if (speedSlider) speedSlider.value = settings.vsrgScrollSpeed;
       if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
+    }
+
+    // ---- Skin: note style, size, lane colours (read live from settings) ------
+    function noteStyle() {
+      const s = settings.vsrgNoteStyle;
+      return (s === 'circle' || s === 'arrow') ? s : 'bar';
+    }
+    function noteScale() { return Math.max(0.6, Math.min(1.8, Number(settings.vsrgNoteScale) || 1)); }
+    function presetColors() { return COLOR_PRESETS[settings.vsrgColorPreset] || COLOR_PRESETS.default; }
+    function laneColor(i) {
+      const ov = settings.vsrgLaneColors && settings.vsrgLaneColors[i];
+      if (ov) return ov;
+      const p = presetColors();
+      return p[i % p.length];
+    }
+    function arrowDir(lane) { return ARROW_DIRS[lane % ARROW_DIRS.length]; }
+
+    // Draw a single tap note (or hold cap) centred at (laneX+laneW/2, cy).
+    function drawTap(g, style, color, laneX, laneW, cy, scale, dpr, dir) {
+      const cx = laneX + laneW / 2;
+      if (style === 'circle') {
+        const r = (laneW / 2 - 4 * dpr) * Math.min(1.15, scale);
+        g.fillStyle = color; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+        g.lineWidth = 2.5 * dpr; g.strokeStyle = 'rgba(255,255,255,0.85)'; g.stroke();
+      } else if (style === 'arrow') {
+        const s = laneW * 0.34 * Math.min(1.4, scale);
+        const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[dir] || -Math.PI / 2;
+        g.save(); g.translate(cx, cy); g.rotate(ang);
+        g.fillStyle = color; g.beginPath();
+        g.moveTo(s, 0); g.lineTo(-s * 0.5, -s); g.lineTo(-s * 0.12, 0); g.lineTo(-s * 0.5, s); g.closePath();
+        g.fill(); g.lineWidth = 2 * dpr; g.strokeStyle = 'rgba(255,255,255,0.85)'; g.stroke();
+        g.restore();
+      } else { // bar
+        const h = 18 * dpr * scale;
+        g.fillStyle = color; g.beginPath();
+        g.roundRect(laneX + 5 * dpr, cy - h / 2, laneW - 10 * dpr, h, 5 * dpr); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.9)'; g.fillRect(laneX + 5 * dpr, cy - h / 2, laneW - 10 * dpr, 3 * dpr);
+      }
+    }
+
+    // Draw a hold: connecting body (tail->head, or tail->line while held) + tail cap.
+    function drawHold(g, style, color, laneX, laneW, yHeadC, yTailC, holding, hitY, scale, dpr, dir) {
+      const top = holding ? yTailC : Math.min(yHeadC, yTailC);
+      const bot = holding ? hitY : Math.max(yHeadC, yTailC);
+      if (bot > top) {
+        const bw = (style === 'bar') ? (laneW - 10 * dpr) : (laneW * 0.46);
+        const bx = laneX + (laneW - bw) / 2;
+        g.save();
+        const grad = g.createLinearGradient(0, top, 0, bot);
+        grad.addColorStop(0, color); grad.addColorStop(1, color + '66');
+        g.fillStyle = grad;
+        if (holding) { g.shadowColor = color; g.shadowBlur = 16 * dpr; }
+        g.beginPath(); g.roundRect(bx, top, bw, bot - top, Math.min(bw / 2, 8 * dpr)); g.fill();
+        g.lineWidth = 2 * dpr; g.strokeStyle = 'rgba(255,255,255,0.7)'; g.stroke();
+        g.restore();
+      }
+      if (yTailC <= hitY + 24 * dpr) drawTap(g, style, color, laneX, laneW, yTailC, scale, dpr, dir);
+    }
+
+    // Draw a lane receptor at the judgement line, matching the note style.
+    function drawReceptor(g, style, color, laneX, laneW, hitY, recH, dpr, dir, glow) {
+      const cx = laneX + laneW / 2, cy = hitY + recH / 2;
+      g.save();
+      if (glow) { g.shadowColor = color; g.shadowBlur = 20 * dpr; g.globalAlpha = 0.9; g.fillStyle = color; }
+      else { g.globalAlpha = 1; g.strokeStyle = color; g.lineWidth = 2 * dpr; g.fillStyle = 'transparent'; }
+      if (style === 'circle') {
+        const r = laneW / 2 - 4 * dpr;
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+        if (glow) g.fill(); else g.stroke();
+      } else if (style === 'arrow') {
+        if (glow) drawTap(g, 'arrow', color, laneX, laneW, cy, 1, dpr, dir);
+        else { g.globalAlpha = 0.5; drawTapOutlineArrow(g, color, laneX, laneW, cy, dpr, dir); }
+      } else {
+        const x = laneX + 4 * dpr, w = laneW - 8 * dpr;
+        if (glow) g.fillRect(x, hitY, w, recH); else g.strokeRect(x, hitY, w, recH);
+      }
+      g.restore();
+    }
+    function drawTapOutlineArrow(g, color, laneX, laneW, cy, dpr, dir) {
+      const cx = laneX + laneW / 2, s = laneW * 0.34;
+      const ang = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[dir] || -Math.PI / 2;
+      g.save(); g.translate(cx, cy); g.rotate(ang);
+      g.strokeStyle = color; g.lineWidth = 2 * dpr; g.beginPath();
+      g.moveTo(s, 0); g.lineTo(-s * 0.5, -s); g.lineTo(-s * 0.12, 0); g.lineTo(-s * 0.5, s); g.closePath();
+      g.stroke(); g.restore();
     }
 
     // ---- Screen management -------------------------------------------------
@@ -379,6 +505,7 @@ if (typeof document !== 'undefined') {
             source: 'bundled',
             title: chart.title, artist: chart.artist, diffName: chart.diffName,
             keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
+            stars: difficultyStars(chart),
             getOsuText: () => Promise.resolve(osuText),
             getAudio: () => fetch(base + '/' + m.audio).then((r) => r.arrayBuffer()),
             getArt: () => m.bg ? fetch(base + '/' + m.bg).then((r) => r.blob()).catch(() => null) : Promise.resolve(null),
@@ -405,7 +532,8 @@ if (typeof document !== 'undefined') {
         '<button class="vsrg-song" data-i="' + library.indexOf(e) + '">' +
           '<span class="vsrg-song-title">' + escapeH(e.title || '(untitled)') + '</span>' +
           '<span class="vsrg-song-meta">' + escapeH(e.artist || '') +
-            ' · ' + escapeH(e.diffName || '') + ' · ' + e.keyCount + 'K</span>' +
+            ' · ' + escapeH(e.diffName || '') + ' · ' + e.keyCount + 'K' +
+            (e.stars ? ' · ~' + e.stars.toFixed(1) + '★' : '') + '</span>' +
         '</button>'
       ).join('');
     }
@@ -501,6 +629,7 @@ if (typeof document !== 'undefined') {
             source: 'local',
             title: chart.title, artist: chart.artist, diffName: chart.diffName,
             keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
+            stars: difficultyStars(chart),
             getOsuText: () => f.text(),
             getAudio: () => audio.arrayBuffer(),
             getArt: () => Promise.resolve(art),    // File (Blob) or null
@@ -539,6 +668,7 @@ if (typeof document !== 'undefined') {
             await idbPut('osz', hash, {
               title: chart.title, artist: chart.artist, diffName: chart.diffName,
               keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
+              stars: difficultyStars(chart),
               osuText: osuText, audio: audio, art: art,    // Uint8Arrays (structured-cloned)
             });
             imported++;
@@ -560,6 +690,7 @@ if (typeof document !== 'undefined') {
         id: 'osz:' + s.hash, source: 'osz',
         title: s.title, artist: s.artist, diffName: s.diffName,
         keyCount: s.keyCount, od: s.od, hash: s.hash,
+        stars: (typeof s.stars === 'number') ? s.stars : difficultyStars(parseOsu(s.osuText)),
         getOsuText: () => Promise.resolve(s.osuText),
         getAudio: () => Promise.resolve(s.audio.slice().buffer),     // fresh copy each play
         getArt: () => Promise.resolve(s.art ? new Blob([s.art]) : null),
@@ -623,18 +754,19 @@ if (typeof document !== 'undefined') {
       const W = speedPreview.width, H = speedPreview.height, lanes = 4;
       const laneW = W / lanes, hitY = H - 24, spacing = 360;
       function frame(ts) {
-        const appr = approachMs();          // live: reflects the slider as it moves
+        const appr = approachMs();          // live: reflects speed changes
+        const style = noteStyle(), scale = noteScale();
         g.clearRect(0, 0, W, H);
         g.fillStyle = '#0e0f13'; g.fillRect(0, 0, W, H);
         g.fillStyle = '#3a4050'; g.fillRect(0, hitY, W, 2);
+        for (let lane = 0; lane < lanes; lane++)
+          drawReceptor(g, style, laneColor(lane), lane * laneW, laneW, hitY - 9, 18, 1, arrowDir(lane), false);
         for (let lane = 0; lane < lanes; lane++) {
-          g.fillStyle = LANE_COLORS[lane % LANE_COLORS.length];
           const phase = (ts + lane * 137) % appr;        // stagger lanes for a real-ish pattern
           for (let k = 0; k <= Math.ceil(appr / spacing); k++) {
             const noteAge = phase - k * spacing;         // ms since this note spawned
             if (noteAge < 0 || noteAge > appr) continue;
-            const y = (noteAge / appr) * hitY - 6;
-            g.fillRect(lane * laneW + 4, y, laneW - 8, 9);
+            drawTap(g, style, laneColor(lane), lane * laneW, laneW, (noteAge / appr) * hitY, scale, 1, arrowDir(lane));
           }
         }
         previewRaf = requestAnimationFrame(frame);
@@ -965,63 +1097,29 @@ if (typeof document !== 'undefined') {
       // judgement line
       ctx2d.fillStyle = '#4a5060'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
 
-      // receptors (filled + glowing while the lane key is held)
+      // receptors (style-aware; filled + glowing while the lane key is held)
+      const style = noteStyle();
+      const scale = noteScale();
       for (let i = 0; i < keyCount; i++) {
-        const color = LANE_COLORS[i % LANE_COLORS.length];
-        const x = i * laneW + 4 * dpr, w = laneW - 8 * dpr;
-        if (held[i]) {
-          ctx2d.save();
-          ctx2d.shadowColor = color; ctx2d.shadowBlur = 22 * dpr;
-          ctx2d.fillStyle = color; ctx2d.globalAlpha = 0.85;
-          ctx2d.fillRect(x, hitY, w, recH);
-          ctx2d.restore();
-        }
-        ctx2d.strokeStyle = color; ctx2d.lineWidth = 2 * dpr;
-        ctx2d.strokeRect(x, hitY, w, recH);
+        const color = laneColor(i);
+        if (held[i]) drawReceptor(ctx2d, style, color, i * laneW, laneW, hitY, recH, dpr, arrowDir(i), true);
+        drawReceptor(ctx2d, style, color, i * laneW, laneW, hitY, recH, dpr, arrowDir(i), false);
       }
 
       // notes (holds first so taps/caps draw on top)
       for (const n of run.notes) {
         if (n.headJudged && (n.endTime == null || n.tailJudged)) continue;
-        const color = LANE_COLORS[n.lane % LANE_COLORS.length];
-        const x = n.lane * laneW + 5 * dpr;
-        const w = laneW - 10 * dpr;
+        const color = laneColor(n.lane);
+        const dir = arrowDir(n.lane);
+        const laneX = n.lane * laneW;
         const yHead = hitY - ((n.time - st) / run.approachMs) * hitY;
 
         if (n.endTime != null) {
-          // --- Hold: bright bordered body with a gradient, a tail cap, glow while held ---
           const yTail = hitY - ((n.endTime - st) / run.approachMs) * hitY;
-          // While holding, show only the REMAINING segment: from the tail down to
-          // the judgement line (it shrinks as the tail nears the line). Before the
-          // hit, draw the full body between head and tail.
-          let bTop, bBot;
-          if (n.holding) { bTop = yTail; bBot = hitY; }
-          else { bTop = Math.min(yHead, yTail); bBot = Math.max(yHead, yTail) + noteH; }
-          if (bBot > bTop) {
-            ctx2d.save();
-            const grad = ctx2d.createLinearGradient(0, bTop, 0, bBot);
-            grad.addColorStop(0, color); grad.addColorStop(1, color + '66');
-            ctx2d.fillStyle = grad;
-            if (n.holding) { ctx2d.shadowColor = color; ctx2d.shadowBlur = 18 * dpr; }
-            ctx2d.beginPath();
-            ctx2d.roundRect(x, bTop, w, bBot - bTop, 6 * dpr);
-            ctx2d.fill();
-            ctx2d.lineWidth = 2.5 * dpr; ctx2d.strokeStyle = 'rgba(255,255,255,0.85)';
-            ctx2d.stroke();
-            ctx2d.restore();
-          }
-          // tail cap (so the end is unmistakable) — only while the tail is above the line
-          if (yTail <= hitY + noteH) { ctx2d.fillStyle = '#fff'; ctx2d.fillRect(x, yTail, w, 4 * dpr); }
+          drawHold(ctx2d, style, color, laneX, laneW, yHead, yTail, n.holding, hitY, scale, dpr, dir);
         }
-
-        if (!n.headJudged && yHead > -noteH && yHead < H) {
-          // tap / hold-head: solid bar with a white top edge for a chunky look
-          ctx2d.fillStyle = color;
-          ctx2d.beginPath();
-          ctx2d.roundRect(x, yHead, w, noteH, 5 * dpr);
-          ctx2d.fill();
-          ctx2d.fillStyle = 'rgba(255,255,255,0.9)';
-          ctx2d.fillRect(x, yHead, w, 3 * dpr);
+        if (!n.headJudged && yHead > -noteH * 2 && yHead < H + noteH) {
+          drawTap(ctx2d, style, color, laneX, laneW, yHead, scale, dpr, dir);
         }
       }
 
@@ -1230,13 +1328,73 @@ if (typeof document !== 'undefined') {
       startSpeedPreview();        // back on the select screen
     }
 
+    // ---- Appearance sub-screen ----------------------------------------------
+    let appearRaf = 0;
+    function openAppearance() {
+      stopSpeedPreview();
+      show('appearance');
+      renderAppearanceControls();
+      startAppearancePreview();
+    }
+    function closeAppearance() {
+      if (appearRaf) cancelAnimationFrame(appearRaf);
+      appearRaf = 0;
+      show('select');
+      startSpeedPreview();
+    }
+    function toHex6(c) { return /^#[0-9a-f]{6}$/i.test(c) ? c : '#5b8cff'; }
+    function renderAppearanceControls() {
+      if (stylePickEl) stylePickEl.querySelectorAll('button').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-style') === noteStyle()));
+      if (presetPickEl) presetPickEl.querySelectorAll('button').forEach((b) =>
+        b.classList.toggle('sel', b.getAttribute('data-preset') === (settings.vsrgColorPreset || 'default')));
+      if (sizeSlider) sizeSlider.value = noteScale();
+      if (sizeValEl) sizeValEl.textContent = noteScale().toFixed(1) + '×';
+      if (laneColorsEl) {
+        laneColorsEl.innerHTML = '';
+        for (let i = 0; i < 7; i++) {
+          const inp = document.createElement('input');
+          inp.type = 'color'; inp.value = toHex6(laneColor(i)); inp.title = 'Lane ' + (i + 1);
+          inp.addEventListener('input', () => {
+            const arr = (settings.vsrgLaneColors || []).slice();
+            arr[i] = inp.value;
+            settings.vsrgLaneColors = arr;
+            if (deps.saveSettings) deps.saveSettings();
+          });
+          laneColorsEl.appendChild(inp);
+        }
+      }
+    }
+    function startAppearancePreview() {
+      if (!appearPreview || appearRaf) return;
+      const g = appearPreview.getContext('2d');
+      const W = appearPreview.width, H = appearPreview.height, lanes = 4;
+      const laneW = W / lanes, hitY = H - 40, spacing = 360, appr = 1500;
+      function frame(ts) {
+        const style = noteStyle(), scale = noteScale();
+        g.clearRect(0, 0, W, H); g.fillStyle = '#0e0f13'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#4a5060'; g.fillRect(0, hitY, W, 2);
+        for (let lane = 0; lane < lanes; lane++)
+          drawReceptor(g, style, laneColor(lane), lane * laneW, laneW, hitY - 10, 20, 1, arrowDir(lane), false);
+        for (let lane = 0; lane < lanes; lane++) {
+          const phase = (ts + lane * 137) % appr;
+          for (let k = 0; k <= Math.ceil(appr / spacing); k++) {
+            const age = phase - k * spacing;
+            if (age < 0 || age > appr) continue;
+            drawTap(g, style, laneColor(lane), lane * laneW, laneW, (age / appr) * hitY, scale, 1, arrowDir(lane));
+          }
+        }
+        appearRaf = requestAnimationFrame(frame);
+      }
+      appearRaf = requestAnimationFrame(frame);
+    }
+
     // ---- Public open/close (called by app.js applyMode) -------------------
     function open() {
       panel.classList.add('open');
       panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);   // panel owns the keyboard
-      if (speedSlider) { speedSlider.value = scrollSpeed(); }
-      if (speedValEl) { speedValEl.textContent = scrollSpeed().toFixed(1) + '×'; }
+      if (speedValEl) speedValEl.textContent = scrollSpeed().toFixed(1) + '×';
       show('select');
       refreshLibrary();
       startSpeedPreview();
@@ -1245,6 +1403,7 @@ if (typeof document !== 'undefined') {
       loadGen++;                 // cancel any load still in flight
       if (run && !run.finished) quitToSelect();
       if (calibLoop) closeCalibration();
+      if (appearRaf) { cancelAnimationFrame(appearRaf); appearRaf = 0; }
       stopSpeedPreview();
       panel.classList.remove('open');
       panelOpen = false;
@@ -1285,6 +1444,7 @@ if (typeof document !== 'undefined') {
       if (e.key !== 'Escape' || !panelOpen) return;
       if (run && !run.finished) return;
       if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; }
+      if (screens.appearance && !screens.appearance.hidden) { closeAppearance(); return; }
       if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
       close();
     });
@@ -1301,12 +1461,32 @@ if (typeof document !== 'undefined') {
     // .osz import
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
-    // Scroll-speed slider — the preview reads scrollSpeed() live, so it updates as you drag.
-    if (speedSlider) speedSlider.addEventListener('input', (e) => {
-      settings.vsrgScrollSpeed = Math.max(0.5, Math.min(10, Number(e.target.value) || 1));
-      if (speedValEl) speedValEl.textContent = settings.vsrgScrollSpeed.toFixed(1) + '×';
-      if (run) run.approachMs = approachMs();
+    // Scroll-speed stepper (uncapped). The previews read scrollSpeed() live.
+    if (speedDownBtn) speedDownBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() - 0.5));
+    if (speedUpBtn) speedUpBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() + 0.5));
+    // Appearance sub-screen
+    if (appearanceBtn) appearanceBtn.addEventListener('click', openAppearance);
+    if (appearDoneBtn) appearDoneBtn.addEventListener('click', closeAppearance);
+    if (stylePickEl) stylePickEl.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-style]'); if (!b) return;
+      settings.vsrgNoteStyle = b.getAttribute('data-style');
+      if (deps.saveSettings) deps.saveSettings(); renderAppearanceControls();
+    });
+    if (presetPickEl) presetPickEl.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-preset]'); if (!b) return;
+      settings.vsrgColorPreset = b.getAttribute('data-preset');
+      settings.vsrgLaneColors = [];               // a preset clears per-lane overrides
+      if (deps.saveSettings) deps.saveSettings(); renderAppearanceControls();
+    });
+    if (sizeSlider) sizeSlider.addEventListener('input', (e) => {
+      settings.vsrgNoteScale = Math.max(0.6, Math.min(1.8, Number(e.target.value) || 1));
+      if (sizeValEl) sizeValEl.textContent = settings.vsrgNoteScale.toFixed(1) + '×';
       if (deps.saveSettings) deps.saveSettings();
+    });
+    if (appearResetBtn) appearResetBtn.addEventListener('click', () => {
+      settings.vsrgNoteStyle = 'bar'; settings.vsrgNoteScale = 1.0;
+      settings.vsrgColorPreset = 'default'; settings.vsrgLaneColors = [];
+      if (deps.saveSettings) deps.saveSettings(); renderAppearanceControls();
     });
     // Tap calibration: the button or Space (while the calib screen is open) registers a tap.
     if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
