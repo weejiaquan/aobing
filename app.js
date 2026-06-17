@@ -2894,6 +2894,10 @@
     let autoCoinAccumulator = 0;
     const AUTO_PERIOD_MS_FLOOR = 80;     // never tick faster than 12.5/s
     const AUTO_COIN_FLOATER_MS = 1000;   // spawn the gold +X once per second
+    // Music-game perf mode (set further down): while a rhythm panel owns the CPU we
+    // stop the live auto-click timer and instead accrue idle income lazily, crediting
+    // the whole elapsed span in one batch. Declared here so rearmAutoLoop can read it.
+    let musicModeOn = false, musicIdleStart = 0, musicIdlePeriodMs = 0;
 
     function currentAutoCps() {
       if (settings.autoClicker === false) return 0;   // user disabled the auto-clicker in settings
@@ -2959,6 +2963,9 @@
     }
 
     function rearmAutoLoop() {
+      // Music mode runs idle income lazily (no per-tick timer); never arm it here —
+      // setMusicMode(false) flips musicModeOn off first, then calls us to resume.
+      if (musicModeOn) { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } return; }
       if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
       const el = document.getElementById('auto-cursor');
       if (!el) return;
@@ -2977,7 +2984,12 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         if (typeof syncBuffTimers === 'function') syncBuffTimers();
-        rearmAutoLoop();
+        // In music mode, don't count time the tab was hidden toward idle income
+        // (matches the live auto-clicker, which is throttled while hidden).
+        if (musicModeOn) musicIdleStart = performance.now();
+        rearmAutoLoop();   // no-op while music mode owns the CPU (guarded above)
+      } else if (musicModeOn) {
+        bankMusicIdle();   // bank what's accrued before a possible close/refresh
       }
     });
     // ----------------------------------------------------------------------------
@@ -5396,7 +5408,41 @@
     // screen (opaque overlay), so freeze the clicker background underneath — stop its
     // auto-click timers and coin floaters and hide its animated visuals (CSS, below).
     // This keeps weak machines from rendering work that isn't even visible.
-    let musicModeOn = false;
+    //
+    // Idle income is NOT lost: instead of ticking the auto-clicker many times per
+    // second (the expensive part), we record when music mode began + the per-tick
+    // rate, then credit the whole elapsed span in ONE batch on exit (and on tab-hide).
+    // Same coins the timer would have produced, at zero per-frame cost during play.
+    function creditAutoBatch(ticks) {
+      if (ticks <= 0) return;
+      const m = shopMul(Date.now());
+      pending.userCoins += Math.floor(m.coin) * ticks;
+      if (m.lbAuto) {   // leaderboard-auto unlocked: batch the same click stats recordClick('auto') would add
+        const clickGain = Math.floor(m.click) * ticks;
+        if (clickGain > 0) {
+          const { character: ch, variant: v } = getVariant(settings.skin);
+          pending.userClicks += clickGain; pending.global += clickGain; pending.daily += clickGain;
+          if (visitorCountry) pending.byCountry[visitorCountry] = (pending.byCountry[visitorCountry] || 0) + clickGain;
+          pending.bySkin[v.id]         = (pending.bySkin[v.id]         || 0) + clickGain;
+          pending.byCharacter[ch.id]   = (pending.byCharacter[ch.id]   || 0) + clickGain;
+          pending.allTimeSkin[v.id]    = (pending.allTimeSkin[v.id]    || 0) + clickGain;
+          pending.bySource['auto']     = (pending.bySource['auto']     || 0) + clickGain;
+          pending.userBySource['auto'] = (pending.userBySource['auto'] || 0) + clickGain;
+          sessionClicks += clickGain;
+        }
+      }
+      savePendingDeferred(); scheduleFlush(); scheduleOptimisticRender();
+    }
+    function beginMusicIdle() {
+      const cps = currentAutoCps();
+      musicIdlePeriodMs = cps > 0 ? Math.max(AUTO_PERIOD_MS_FLOOR, 1000 / cps) : 0;   // 0 = no auto-clicker, nothing to accrue
+      musicIdleStart = performance.now();
+    }
+    function bankMusicIdle() {
+      if (!musicIdlePeriodMs) return;
+      const ticks = Math.floor((performance.now() - musicIdleStart) / musicIdlePeriodMs);
+      if (ticks > 0) { creditAutoBatch(ticks); musicIdleStart += ticks * musicIdlePeriodMs; }   // keep the sub-tick remainder
+    }
     function setMusicMode(on) {
       on = !!on;
       if (on === musicModeOn) return;
@@ -5405,8 +5451,10 @@
       if (on) {
         if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
         stopAutoCoinFloater();
+        beginMusicIdle();   // start accruing idle income (credited in a batch on exit)
       } else {
-        rearmAutoLoop();   // restores the auto-click timer + coin floater for the current CPS
+        bankMusicIdle();    // credit everything earned while the game had the CPU
+        rearmAutoLoop();    // resume the live auto-click timer + coin floater
       }
     }
     function syncMusicMode() { setMusicMode(settings.gameMode === 'vsrg' || settings.gameMode === 'osu'); }
