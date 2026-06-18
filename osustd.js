@@ -420,6 +420,23 @@ if (typeof document !== 'undefined') {
       errTicks.push({ err: errMs, result: result, t: performance.now() });
       if (errTicks.length > 64) errTicks.shift();
     }
+    // Synthesized hit tick (osu-ish): a short pitched blip via the audio clock.
+    // Cheap (one short oscillator per hit, auto-disposed); silent at volume 0.
+    function playHitsound() {
+      const vol = Number(settings.hitsoundVol);
+      if (!audioCtx || !(vol > 0)) return;
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator(), gg = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(900, t);
+      o.frequency.exponentialRampToValueAtTime(260, t + 0.04);
+      const peak = Math.min(1, vol / 100) * 0.45;
+      gg.gain.setValueAtTime(0.0001, t);
+      gg.gain.exponentialRampToValueAtTime(peak, t + 0.002);
+      gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      o.connect(gg).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.08);
+    }
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
@@ -1059,6 +1076,7 @@ if (typeof document !== 'undefined') {
       const w = run.windows;
       const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
       recordError(signed, result);                         // feeds the UR + error bar (heads only, like osu)
+      playHitsound();
       if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; }  // body/tail scored later
       else judgeResult(best, result);
     }
@@ -1447,6 +1465,11 @@ if (typeof document !== 'undefined') {
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
+    const hitsoundSlider = document.getElementById('osu-hitsound-vol');
+    if (hitsoundSlider) {
+      hitsoundSlider.value = Number(settings.hitsoundVol) || 0;
+      hitsoundSlider.addEventListener('input', (e) => { settings.hitsoundVol = Number(e.target.value); if (deps.saveSettings) deps.saveSettings(); });
+    }
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     if (calibDoneBtn) calibDoneBtn.addEventListener('click', closeCalibration);
     if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
