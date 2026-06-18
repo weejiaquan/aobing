@@ -2964,6 +2964,10 @@
     #osu-keybinds { display: inline-flex; gap: 4px; }
     #osu-keybinds button { padding: 5px 9px !important; text-transform: uppercase; min-width: 28px; }
     #osu-keybinds button.binding { background: #2b6cff !important; color: #fff !important; }
+    .osu-sort-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9aa0ab; }
+    #osu-sort { background: #2a2d36; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 5px 8px; font: inherit; }
+    .osu-group-star { margin-left: auto; color: #ffd166; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
+    .osu-diff-star { margin-left: auto; color: #ffd166; font-size: 12px; font-variant-numeric: tabular-nums; }
   </style>
   <div id="osu-panel">
     <div id="osu-select" class="osu-screen">
@@ -2989,6 +2993,15 @@
       </div>
       <div id="osu-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="osu-skin-status" style="color:#7d8a9a; font-size:12px; min-height:16px;"></div>
+      <div class="osu-sort-row">
+        <span>Sort by</span>
+        <select id="osu-sort">
+          <option value="title">Title</option>
+          <option value="artist">Artist</option>
+          <option value="stars">Difficulty (★)</option>
+          <option value="length">Length</option>
+        </select>
+      </div>
       <div id="osu-songlist"></div>
     </div>
     <div id="osu-game" class="osu-screen" hidden>

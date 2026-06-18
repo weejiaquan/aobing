@@ -1063,6 +1063,7 @@
       osuCalibrationOffset: 0,    // ms applied to osu!standard input->song-time mapping
       vsrgKeybinds: {},           // keyCount -> [keys] overriding the default lane keys (vsrg.js)
       osuKeys: ['z', 'x'],        // osu!standard tap keys (osustd.js)
+      osuSortBy: 'title',         // song-select sort: 'title' | 'artist' | 'stars' | 'length' (osustd.js)
     };
 
     // --- Admin gating -----------------------------------------------------------

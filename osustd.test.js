@@ -108,6 +108,27 @@ test('parseSkinColors: empty / missing section -> []', () => {
   assert.deepEqual(E.parseSkinColors('[General]\nName: x'), []);
 });
 
+test('estimateStars: denser/wider-spaced charts rate higher; clamped to [0.5,12]', () => {
+  const mk = (n, spacing, dt) => {   // n circles, `spacing` px apart, `dt` ms apart
+    const objs = [];
+    for (let i = 0; i < n; i++) objs.push({ kind: 'circle', x: 256 + (i % 2 ? spacing : 0), y: 192, time: i * dt });
+    return objs;
+  };
+  const easy = E.estimateStars(mk(20, 20, 600), 4, 8);    // sparse + tight spacing
+  const hard = E.estimateStars(mk(120, 200, 150), 5, 9);  // dense + wide spacing
+  assert.ok(hard > easy, 'dense/spaced chart rates higher (' + hard + ' > ' + easy + ')');
+  assert.ok(easy >= 0.5 && hard <= 12, 'within [0.5,12]');
+  assert.equal(E.estimateStars([], 5, 9), 0.5);           // empty → floor
+  assert.equal(E.estimateStars(mk(50, 100, 200), 5, 9) * 10 % 1, 0);  // rounded to 1 decimal
+});
+
+test('assembleChart: attaches a star estimate + length', () => {
+  const chart = E.assembleChart(META + '\n[HitObjects]\n' +
+    '100,100,1000,1,0,0:0:0:0:\n300,100,1500,1,0,0:0:0:0:\n100,300,2000,1,0,0:0:0:0:');
+  assert.ok(chart.stars >= 0.5 && chart.stars <= 12);
+  assert.equal(chart.length, 1000);   // 2000 - 1000
+});
+
 test('parseTimingPoints + timingAt: BPM and SV resolve by time', () => {
   const tp = E.parseTimingPoints([
     '0,500,4,2,0,100,1,0',     // uninherited: beatLength 500 (120 BPM)

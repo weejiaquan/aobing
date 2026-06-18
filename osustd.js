@@ -301,6 +301,32 @@ function samplePath(curveType, points, length, spacing) {
   return arcResample(densePath(curveType, points), length, spacing || 5);
 }
 
+// Rough osu!standard star estimate (osu doesn't store a star rating in the .osu).
+// Density-driven (objects/sec) plus aim (mean spacing between consecutive objects),
+// nudged by CS (smaller circles = harder) and AR (less read time = harder). Shown
+// with a leading '~' — an approximation for labels/sorting, not osu's real algorithm.
+function estimateStars(objects, cs, ar) {
+  const objs = objects || [];
+  if (objs.length < 2) return 0.5;
+  let first = Infinity, last = -Infinity;
+  for (const o of objs) { if (o.time < first) first = o.time; const e = (o.endTime != null) ? o.endTime : o.time; if (e > last) last = e; }
+  const durSec = Math.max(1, (last - first) / 1000);
+  const density = objs.length / durSec;                       // objects per second
+  let spacingSum = 0, spacingN = 0, prev = null;
+  for (const o of objs) {
+    if (o.kind === 'spinner' || o.x == null) { prev = null; continue; }
+    if (prev) { const dx = o.x - prev.x, dy = o.y - prev.y; spacingSum += Math.sqrt(dx * dx + dy * dy); spacingN++; }
+    prev = o;
+  }
+  const meanSpacing = spacingN ? spacingSum / spacingN : 0;    // 0..~510 osu!px
+  const csv = (cs >= 0 && cs <= 10) ? cs : 5;
+  const arv = (ar >= 0 && ar <= 11) ? ar : 8;
+  const csFactor = 1 + (csv - 4) * 0.04;
+  const arFactor = 1 + (arv - 8) * 0.035;
+  const stars = (density * 0.40 + meanSpacing / 190) * csFactor * arFactor + 0.4;
+  return Math.max(0.5, Math.min(12, Math.round(stars * 10) / 10));
+}
+
 // =========================================================================
 // Assemble a full, playable Mode-0 chart
 // =========================================================================
@@ -323,6 +349,8 @@ function assembleChart(text) {
       endTime: o.time + span * o.slides,
     });
   });
+  const firstT = objects[0].time;
+  const lastT = objects.reduce((m, o) => Math.max(m, (o.endTime != null ? o.endTime : o.time)), 0);
   return {
     audioFile: meta.audioFile, title: meta.title, artist: meta.artist, diffName: meta.diffName,
     cs: meta.cs, od: meta.od, ar: meta.ar,
@@ -330,6 +358,8 @@ function assembleChart(text) {
     backgroundFile: parseBackground((s.Events || []).join('\n')),
     timingPoints: timing,
     objects: objects,
+    stars: estimateStars(objects, meta.cs, meta.ar),
+    length: Math.max(0, lastT - firstT),   // playable span (ms) for sorting/labels
   };
 }
 
@@ -339,6 +369,7 @@ function assembleChart(text) {
 const ENGINE = {
   OSUSTD_ENGINE: true,
   splitSections: splitSections,
+  estimateStars: estimateStars,
   parseStdMeta: parseStdMeta,
   parseSkinColors: parseSkinColors,
   parseTimingPoints: parseTimingPoints,
@@ -494,6 +525,7 @@ if (typeof document !== 'undefined') {
           let chart; try { chart = assembleChart(osuText); } catch (e) { continue; }
           entries.push({
             id: 'bundled:' + m.id, title: chart.title, artist: chart.artist, diffName: chart.diffName,
+            stars: chart.stars, length: chart.length,
             getOsuText: () => Promise.resolve(osuText),
             getAudio: () => fetch(base + '/' + m.audio).then((r) => r.arrayBuffer()),
             getArt: () => m.bg ? fetch(base + '/' + m.bg).then((r) => r.blob()).catch(() => null) : Promise.resolve(null),
@@ -513,8 +545,19 @@ if (typeof document !== 'undefined') {
         if (!grp) { grp = { key: key, title: e.title || '(untitled)', artist: e.artist || '', items: [] }; map.set(key, grp); }
         grp.items.push({ entry: e, i: i });
       });
-      return Array.from(map.values());
+      const groups = Array.from(map.values());
+      groups.forEach((g) => g.items.sort((a, b) => (a.entry.stars || 0) - (b.entry.stars || 0)));   // easy→hard within a song
+      const gMax = (g, f) => g.items.reduce((m, it) => Math.max(m, f(it.entry) || 0), 0);
+      const cmp = {
+        title:  (a, b) => (a.title || '').localeCompare(b.title || '') || (a.artist || '').localeCompare(b.artist || ''),
+        artist: (a, b) => (a.artist || '').localeCompare(b.artist || '') || (a.title || '').localeCompare(b.title || ''),
+        stars:  (a, b) => gMax(b, (e) => e.stars) - gMax(a, (e) => e.stars),
+        length: (a, b) => gMax(b, (e) => e.length) - gMax(a, (e) => e.length),
+      }[settings.osuSortBy || 'title'] || (() => 0);
+      groups.sort(cmp);
+      return groups;
     }
+    function starStr(s) { return '~' + (Number(s) || 0).toFixed(1) + '★'; }
     function renderSongList() {
       if (!songlistEl) return;
       if (!library.length) { songlistEl.innerHTML = '<div class="osu-empty">No songs yet.</div>'; return; }
@@ -524,16 +567,21 @@ if (typeof document !== 'undefined') {
         const single = g.items.length === 1;
         const open = !single && g.key === expandedKey;
         const caret = single ? '▸' : (open ? '▾' : '▸');
+        const sMin = Math.min.apply(null, g.items.map((it) => it.entry.stars || 0));
+        const sMax = Math.max.apply(null, g.items.map((it) => it.entry.stars || 0));
+        const starLabel = (single || sMin === sMax) ? starStr(sMax) : ('~' + sMin.toFixed(1) + '–' + sMax.toFixed(1) + '★');
         const head =
           '<button class="osu-group' + (open ? ' open' : '') + '" data-g="' + gi + '">' +
             '<span class="osu-group-caret">' + caret + '</span>' +
             '<span class="osu-group-info"><span class="osu-song-title">' + escapeH(g.title) + '</span>' +
             '<span class="osu-song-meta">' + escapeH(g.artist || '(unknown)') + ' · ' +
               g.items.length + ' ' + (single ? 'difficulty' : 'difficulties') + '</span></span>' +
+            '<span class="osu-group-star">' + starLabel + '</span>' +
           '</button>';
         const diffs = open
           ? '<div class="osu-group-diffs">' + g.items.map((it) =>
-              '<button class="osu-song osu-diff" data-i="' + it.i + '">' + escapeH(it.entry.diffName || '(difficulty)') + '</button>'
+              '<button class="osu-song osu-diff" data-i="' + it.i + '">' + escapeH(it.entry.diffName || '(difficulty)') +
+                '<span class="osu-diff-star">' + starStr(it.entry.stars) + '</span></button>'
             ).join('') + '</div>'
           : '';
         return '<div class="osu-group-wrap">' + head + diffs + '</div>';
@@ -658,6 +706,7 @@ if (typeof document !== 'undefined') {
     function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt) {
       return { id: source + ':' + chart.title + ':' + chart.diffName, source: source,
         title: chart.title, artist: chart.artist, diffName: chart.diffName,
+        stars: chart.stars, length: chart.length,   // chart = assembled chart, or a stored osz record carrying these
         getOsuText: getOsuText, getAudio: getAudio, getArt: getArt };
     }
 
@@ -683,7 +732,7 @@ if (typeof document !== 'undefined') {
             const audio = byName.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
             const art = chart.backgroundFile ? (byName.get(chart.backgroundFile.toLowerCase()) || null) : null;
             const hash = await sha256(osuText);
-            await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, hash: hash, osuText: osuText, audio: audio, art: art });
+            await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: osuText, audio: audio, art: art });
             imported++;
           }
         }
@@ -1493,6 +1542,11 @@ if (typeof document !== 'undefined') {
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
+    const sortEl = document.getElementById('osu-sort');
+    if (sortEl) {
+      sortEl.value = settings.osuSortBy || 'title';
+      sortEl.addEventListener('change', () => { settings.osuSortBy = sortEl.value; if (deps.saveSettings) deps.saveSettings(); renderSongList(); });
+    }
     if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
@@ -1525,7 +1579,7 @@ if (typeof document !== 'undefined') {
       for (const r of records) {
         let chart; try { chart = assembleChart(r.osuText); } catch (e) { continue; }   // accept Mode-0 only
         const hash = await sha256(r.osuText);
-        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null });
+        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null });
         n++;
       }
       if (n && panelOpen) await refreshLibrary();
