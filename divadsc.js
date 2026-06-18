@@ -81,10 +81,11 @@
     let off = 4, timer = 0, flyTime = 100000;        // flyTime default 1000ms (in units)
     const notes = [];
     let chainId = 0, chainActive = null;             // current slide-chain run (button or null)
+    let ended = false;                               // true only when a real END opcode is reached
     while (off + 4 <= dv.byteLength) {
       const op = dv.getInt32(off, true); off += 4;
       if (op < 0 || op >= PARAM_COUNTS.length) break; // unknown opcode → stop this chart cleanly
-      if (op === OP.END) break;
+      if (op === OP.END) { ended = true; break; }
       const argc = PARAM_COUNTS[op];
       if (off + argc * 4 > dv.byteLength) break;       // truncated tail → stop
       const a = []; for (let k = 0; k < argc; k++) { a.push(dv.getInt32(off, true)); off += 4; }
@@ -105,7 +106,7 @@
       }
     }
     notes.sort((x, y) => x.time - y.time);
-    return { notes: notes, chanceTimes: [] };
+    return { notes: notes, chanceTimes: [], ended: ended };
   }
 
   const API = { decode: decode, _mapType: mapType, _mapTarget: mapTarget, PARAM_COUNTS: PARAM_COUNTS, SIGNATURE: SIGNATURE };

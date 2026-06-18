@@ -33,6 +33,7 @@ test('decode: signature, TIME/FLY/TARGET mapping, hit time = timer + flyTime', (
   ]);
   const r = D.decode(buf);
   assert.equal(r.notes.length, 1);
+  assert.equal(r.ended, true);        // reached a real END opcode
   const n = r.notes[0];
   assert.equal(n.button, 'triangle');
   assert.ok(Math.abs(n.x - 0.5) < 1e-9 && Math.abs(n.y - 0.5) < 1e-9);
@@ -112,6 +113,14 @@ test('decode: unknown TARGET type is skipped, not emitted', () => {
   assert.equal(D.decode(buf).notes.length, 1);
 });
 
+test('decode: a chart with no END opcode reports ended=false (so the importer skips it)', () => {
+  // signature + TIME + FLY + TARGET, but truncated with no END
+  const buf = buildDsc([TIME(0), FLY(500), TARGET(0, 0, 0, 0, 1, 0, 0)]);
+  const r = D.decode(buf);
+  assert.equal(r.notes.length, 1);    // the prefix still decodes
+  assert.equal(r.ended, false);       // but it never terminated cleanly
+});
+
 test('decode: rejects a non-dsc buffer', () => {
   const bad = new ArrayBuffer(8); new DataView(bad).setUint32(0, 0xdeadbeef, true);
   assert.throws(() => D.decode(bad), /bad signature/);
@@ -124,6 +133,7 @@ test('decode: stops cleanly at END even with trailing bytes', () => {
   padded.set(new Uint8Array(base));
   const r = D.decode(padded.buffer);
   assert.equal(r.notes.length, 1);
+  assert.equal(r.ended, true);
 });
 
 // --- guarded: decode the user's REAL charts when the local fixtures exist --------
@@ -133,6 +143,7 @@ test('decode: real Mega Mix+ charts (skipped if fixtures absent)', { skip: realD
   for (const f of realDsc) {
     const b = fs.readFileSync(path.join(FIX, f));
     const r = D.decode(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+    assert.equal(r.ended, true, f + ' terminates at a real END');
     assert.ok(r.notes.length > 50, f + ' has many notes');
     assert.ok(r.notes.every((n, i, a) => i === 0 || n.time >= a[i - 1].time), f + ' time-sorted');
     assert.ok(r.notes.every((n) => n.x >= -0.1 && n.x <= 1.1 && n.y >= -0.1 && n.y <= 1.1), f + ' positions in field');

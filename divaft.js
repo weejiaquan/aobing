@@ -269,7 +269,9 @@
       // Imported charts store the assembled chart inline and reference shared audio
       // (one ogg per song, deduped across its difficulties) in the 'audio' store.
       const all = await idbGetAll('chart');
-      return (all || []).map((s) => ({
+      // Guard against any record that predates the current schema (must carry an
+      // assembled chart + an audio key) so a stale entry can't crash song select.
+      return (all || []).filter((s) => s && s.chart && s.audioKey).map((s) => ({
         id: 'cache:' + s.id, title: s.title, artist: s.artist || '', stars: s.stars || 1,
         getChart: () => Promise.resolve(s.chart),
         getAudio: () => idbGet('audio', s.audioKey).then((u8) => { if (!u8) throw new Error('audio missing for ' + s.id); return u8.slice().buffer; }),
@@ -298,24 +300,29 @@
       let songs;
       try { songs = window.DivaPvdb.parse(await dbFile.text()); }
       catch (e) { setImportStatus('Could not read pv_db.txt.'); return; }
+      // Namespace cache keys by the selected folder so two packs that reuse the same
+      // stock PV id (common) don't overwrite each other's audio/charts.
+      const pack = (relOf(dbFile).split('/')[0] || 'mod').toLowerCase();
       let imported = 0, skipped = 0, songN = 0;
       for (const song of songs) {
         const diffs = window.DivaPvdb.playableDiffs(song);
         const audioFile = song.audio ? resolve(song.audio) : null;
         if (!diffs.length || !audioFile) { skipped += Math.max(1, diffs.length); continue; }
         songN++; setImportStatus('Importing ' + songN + '/' + songs.length + '… (' + imported + ' charts)');
+        const audioKey = pack + '/' + song.id;
         let audioStored = false;
         for (const diff of diffs) {
           const scriptFile = resolve(song.diffs[diff].script);
           if (!scriptFile) { skipped++; continue; }
           try {
             const decoded = window.DivaDsc.decode(await scriptFile.arrayBuffer());
-            if (!decoded.notes.length) { skipped++; continue; }
+            // Skip corrupt/truncated charts: a valid FT chart terminates at a real END.
+            if (!decoded.ended || !decoded.notes.length) { skipped++; continue; }
             const chart = assembleChart({ title: song.title + ' [' + diff + ']', artist: song.artist, bpm: song.bpm, audioFile: song.audio, notes: decoded.notes, chanceTimes: decoded.chanceTimes });
             if (song.diffs[diff].stars) chart.stars = song.diffs[diff].stars;   // prefer the DB's official level
-            if (!audioStored) { await idbPut('audio', song.id, new Uint8Array(await audioFile.arrayBuffer())); audioStored = true; }
-            const id = song.id + '_' + diff;
-            await idbPut('chart', id, { id: id, title: chart.title, artist: chart.artist || '', stars: chart.stars, diff: diff, audioKey: song.id, chart: chart });
+            if (!audioStored) { await idbPut('audio', audioKey, new Uint8Array(await audioFile.arrayBuffer())); audioStored = true; }
+            const id = pack + '/' + song.id + '_' + diff;
+            await idbPut('chart', id, { id: id, title: chart.title, artist: chart.artist || '', stars: chart.stars, diff: diff, audioKey: audioKey, chart: chart });
             imported++;
           } catch (e) { skipped++; try { console.error('[divaft] import ' + song.id + '/' + diff, e); } catch (_) {} }
         }
