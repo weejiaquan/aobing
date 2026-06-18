@@ -26,26 +26,32 @@ test('trailPoint: sine offset perpendicular, peaks at frequency phase', () => {
 });
 
 // ---- windows / accuracy / rank ------------------------------------------
-test('tierFor: window boundaries', () => {
+test('tierFor: window boundaries match PH (32/64/96/128 ms)', () => {
   assert.equal(E.tierFor(0), 'cool');
-  assert.equal(E.tierFor(30), 'cool');
-  assert.equal(E.tierFor(31), 'fine');
-  assert.equal(E.tierFor(70), 'fine');
-  assert.equal(E.tierFor(100), 'safe');
-  assert.equal(E.tierFor(101), 'sad');
-  assert.equal(E.tierFor(130), 'sad');
-  assert.equal(E.tierFor(131), 'worst');
+  assert.equal(E.tierFor(32), 'cool');
+  assert.equal(E.tierFor(33), 'fine');
+  assert.equal(E.tierFor(64), 'fine');
+  assert.equal(E.tierFor(65), 'safe');
+  assert.equal(E.tierFor(96), 'safe');
+  assert.equal(E.tierFor(97), 'sad');
+  assert.equal(E.tierFor(128), 'sad');
+  assert.equal(E.tierFor(129), 'worst');
 });
-test('accuracy + clearRank', () => {
+test('accuracy matches PH NOTE_SCORES (COOL100/FINE80/SAFE50/SAD10)', () => {
   assert.equal(E.accuracy({ cool: 8, fine: 0, safe: 0, sad: 0, worst: 0 }), 100);
   assert.equal(E.accuracy({ cool: 0, fine: 0, safe: 0, sad: 0, worst: 0 }), 100);  // empty → 100
   assert.equal(E.accuracy({ cool: 1, fine: 1, safe: 0, sad: 0, worst: 0 }), 90);   // (100+80)/2
-  assert.equal(E.clearRank(100, 0), 'PERFECT');
-  assert.equal(E.clearRank(96, 0), 'EXCELLENT');
-  assert.equal(E.clearRank(96, 1), 'GREAT');   // a miss bars EXCELLENT
-  assert.equal(E.clearRank(85, 2), 'GREAT');
-  assert.equal(E.clearRank(60, 5), 'STANDARD');
-  assert.equal(E.clearRank(20, 9), 'STANDARD'); // no-fail
+  assert.equal(E.accuracy({ cool: 0, fine: 0, safe: 0, sad: 1, worst: 0 }), 10);   // SAD weight 10, not 30
+  assert.equal(E.accuracy({ cool: 1, fine: 0, safe: 0, sad: 0, worst: 1 }), 50);   // (100+0)/2
+});
+test('clearRank matches PH get_result_rating', () => {
+  const c = (cool, fine, safe, sad, worst) => ({ cool: cool, fine: fine, safe: safe, sad: sad, worst: worst });
+  assert.equal(E.clearRank(100, c(8, 0, 0, 0, 0)), 'PERFECT');     // all COOL
+  assert.equal(E.clearRank(95, c(4, 4, 0, 0, 0)), 'PERFECT');      // COOL+FINE only → still PERFECT
+  assert.equal(E.clearRank(96, c(7, 0, 1, 0, 0)), 'EXCELLENT');    // a SAFE bars PERFECT; ≥95 → EXCELLENT
+  assert.equal(E.clearRank(92, c(5, 0, 0, 1, 0)), 'GREAT');        // ≥90
+  assert.equal(E.clearRank(80, c(3, 0, 0, 2, 0)), 'STANDARD');     // ≥75
+  assert.equal(E.clearRank(50, c(1, 0, 0, 0, 3)), 'CHEAP');        // <75
 });
 
 // ---- chart assembly ------------------------------------------------------
