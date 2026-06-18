@@ -2599,6 +2599,10 @@
       <button id="raw-cps-toggle" class="settings-toggle"></button>
     </div>
     <div class="settings-row">
+      <span class="settings-label" data-i18n="settings.show_fps">Show FPS (rhythm)</span>
+      <button id="show-fps-toggle" class="settings-toggle on"></button>
+    </div>
+    <div class="settings-row">
       <span class="settings-label" data-i18n="settings.auto_clicker">Auto-clicker</span>
       <button id="auto-clicker-toggle" class="settings-toggle on"></button>
     </div>
@@ -2829,6 +2833,7 @@
         <div id="vsrg-combo"></div>
         <div id="vsrg-judge"></div>
         <div id="vsrg-info"></div>
+        <div id="vsrg-fps" class="rhythm-fps"></div>
       </div>
     </div>
     <div id="vsrg-results" class="vsrg-screen" hidden>
@@ -2924,6 +2929,7 @@
     #osu-canvas { touch-action: none; display: block; width: 100%; height: 100%; }
     #osu-hud { position: absolute; inset: 0; pointer-events: none; }
     #osu-acc { position: absolute; top: 16px; right: 20px; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .rhythm-fps { position: absolute; top: 14px; left: 16px; font-size: 13px; color: #7d8a9a; font-variant-numeric: tabular-nums; pointer-events: none; }
     #osu-combo { position: absolute; bottom: 24px; left: 24px; font-size: 30px; font-weight: 800; }
     #osu-judge { position: absolute; top: 50%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 800; opacity: 0; }
     #osu-results { align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
@@ -2991,6 +2997,7 @@
         <div id="osu-acc"></div>
         <div id="osu-combo"></div>
         <div id="osu-judge"></div>
+        <div id="osu-fps" class="rhythm-fps"></div>
       </div>
     </div>
     <div id="osu-results" class="osu-screen" hidden>

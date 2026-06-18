@@ -336,7 +336,7 @@
       const T = {
         en: {
           'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
-          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.raw_cps':'Show raw CPS','settings.auto_clicker':'Auto-clicker','settings.reset_defaults':'Reset defaults',
+          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.raw_cps':'Show raw CPS','settings.show_fps':'Show FPS (rhythm)','settings.auto_clicker':'Auto-clicker','settings.reset_defaults':'Reset defaults',
           'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
           'sensei.trainer':'Trainer',
           'auth.sign_in_google':'Sign in with Google','auth.sign_out':'Sign out',
@@ -1041,6 +1041,7 @@
     const DEFAULT_SETTINGS = {
       musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true,
       adminMode: false, rawCps: false, autoClicker: true,
+      showFps: true,              // show an FPS counter during rhythm gameplay (osu/mania)
       // Typing game (typing.js)
       typingClickOnWord: true,    // word-complete fires reactCharacter()
       typingClickPerKey: false,   // each keystroke fires reactCharacter()
@@ -1211,6 +1212,18 @@
       saveSettings(settings);
     });
 
+    // --- Show-FPS toggle (rhythm modes read settings.showFps) ---
+    const showFpsToggle = document.getElementById('show-fps-toggle');
+    if (showFpsToggle) {
+      showFpsToggle.classList.toggle('on', settings.showFps !== false);
+      showFpsToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settings.showFps = !(settings.showFps !== false);   // flip, treating undefined as on
+        showFpsToggle.classList.toggle('on', settings.showFps);
+        saveSettings(settings);
+      });
+    }
+
     // --- Auto-clicker toggle ---
     // ON (default) = auto-clicker runs at its purchased rate. OFF = paused
     // regardless of autoLevel/buffs. rearmAutoLoop reads currentAutoCps() which
@@ -1264,6 +1277,7 @@
       keyboardToggle.classList.toggle('on', s.keyboardClicks);
       adminToggle.classList.toggle('on', s.adminMode);
       rawCpsToggle.classList.toggle('on', s.rawCps);
+      if (showFpsToggle) showFpsToggle.classList.toggle('on', s.showFps !== false);
       autoClickerToggle.classList.toggle('on', s.autoClicker);
       rearmAutoLoop();
       applyVariant(s.skin);

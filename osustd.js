@@ -396,11 +396,13 @@ if (typeof document !== 'undefined') {
     const comboEl = document.getElementById('osu-combo');
     const accEl = document.getElementById('osu-acc');
     const judgeEl = document.getElementById('osu-judge');
+    const fpsEl = document.getElementById('osu-fps');
     const resultsBody = document.getElementById('osu-results-body');
     const retryBtn = document.getElementById('osu-retry');
     const backBtn = document.getElementById('osu-back');
 
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
+    let fpsFrames = 0, fpsLast = 0;                    // FPS counter accumulators (rhythm runs as fast as rAF allows)
     let currentGroups = [], expandedKey = null;       // song-select accordion (one open group at a time)
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
@@ -838,6 +840,7 @@ if (typeof document !== 'undefined') {
       bindInput(false);
       try { run.src.stop(); } catch (e) {}
       run = null;
+      if (fpsEl) fpsEl.textContent = '';
     }
     async function loadAndPlay(entry) {
       if (loading) return;
@@ -907,6 +910,7 @@ if (typeof document !== 'undefined') {
         img.onerror = () => URL.revokeObjectURL(url); img.src = url;
       }).catch(() => {});
       trail = []; bursts = [];
+      fpsFrames = 0; fpsLast = performance.now();
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
       updateHud();
@@ -925,8 +929,22 @@ if (typeof document !== 'undefined') {
       updateSpinners(st);
       sweepMisses(st);
       render(st);
+      tickFps();
       if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
       run.rafId = requestAnimationFrame(loop);
+    }
+    // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
+    // this is the display's refresh rate (60 / 144 / 240… as fast as the monitor +
+    // render cost allow) — there's no artificial frame cap.
+    function tickFps() {
+      if (!fpsEl) return;
+      fpsFrames++;
+      const now = performance.now();
+      if (now - fpsLast >= 500) {
+        const fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
+        fpsFrames = 0; fpsLast = now;
+        fpsEl.textContent = (settings.showFps !== false) ? (fps + ' FPS') : '';
+      }
     }
 
     function sweepMisses(st) {
