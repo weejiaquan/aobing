@@ -356,6 +356,7 @@ if (typeof document !== 'undefined') {
     const accEl = document.getElementById('vsrg-acc');
     const judgeEl = document.getElementById('vsrg-judge');
     const infoEl = document.getElementById('vsrg-info');
+    const fpsEl = document.getElementById('vsrg-fps');
     const resultsBody = document.getElementById('vsrg-results-body');
     const retryBtn = document.getElementById('vsrg-retry');
     const backBtn = document.getElementById('vsrg-back');
@@ -367,6 +368,7 @@ if (typeof document !== 'undefined') {
     // ---- State -------------------------------------------------------------
     let audioCtx = null;
     let panelOpen = false;
+    let fpsFrames = 0, fpsLast = 0;   // FPS counter accumulators (loop is bare rAF = display refresh)
     let library = [];          // [{ id, source, title, artist, diffName, keyCount, od, hash, getOsuText, getAudio }]
     let localEntries = [];     // maps imported this session (webkitdirectory; not persisted)
     let keyFilter = 'all';
@@ -865,6 +867,7 @@ if (typeof document !== 'undefined') {
       bindInput(false);
       try { run.src.stop(); } catch (e) {}
       run = null;
+      if (fpsEl) fpsEl.textContent = '';
     }
 
     async function loadAndPlay(entry) {
@@ -952,6 +955,7 @@ if (typeof document !== 'undefined') {
       }
 
       src.onended = () => {};   // end is driven by song-time, not this event
+      fpsFrames = 0; fpsLast = performance.now();
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
       updateHud();
@@ -972,8 +976,22 @@ if (typeof document !== 'undefined') {
       const st = songTimeNow();
       sweepMisses(st);
       render(st);
+      tickFps();
       if (st > run.lastNoteTime + END_PAD_MS) { finishRun(); return; }
       run.rafId = requestAnimationFrame(loop);
+    }
+    // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
+    // this is the display's refresh rate (60 / 144 / 240… as fast as the monitor +
+    // render cost allow) — no artificial frame cap.
+    function tickFps() {
+      if (!fpsEl) return;
+      fpsFrames++;
+      const now = performance.now();
+      if (now - fpsLast >= 500) {
+        const fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
+        fpsFrames = 0; fpsLast = now;
+        fpsEl.textContent = (settings.showFps !== false) ? (fps + ' FPS') : '';
+      }
     }
 
     // Mark notes whose hit window has fully passed as misses.
