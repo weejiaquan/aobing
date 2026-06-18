@@ -2824,6 +2824,7 @@
           <button id="vsrg-calibrate" type="button">Calibrate</button>
         </div>
       </div>
+      <div class="import-hint" id="vsrg-import-hint"></div>
       <div id="vsrg-import-status"></div>
       <div id="vsrg-osz-status"></div>
       <canvas id="vsrg-speed-preview" width="132" height="220" class="vsrg-speed-preview"></canvas>
@@ -2979,6 +2980,11 @@
     #osu-keybinds button { padding: 5px 9px !important; text-transform: uppercase; min-width: 28px; }
     #osu-keybinds button.binding { background: #2b6cff !important; color: #fff !important; }
     .osu-sort-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9aa0ab; }
+    /* "where do I point this?" import path hints (shown under the import buttons) */
+    .import-hint { color: #8a93a3; font-size: 12.5px; line-height: 1.5; margin: 2px 0 4px; }
+    .import-hint b { color: #c8ccd4; font-weight: 600; }
+    .import-hint code { background: #20242c; color: #cfe3ff; border: 1px solid #333a46; border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-family: ui-monospace, Menlo, Consolas, monospace; user-select: all; white-space: nowrap; }
+    .import-hint .ih-line { display: block; margin: 1px 0; }
     #osu-sort { background: #2a2d36; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 5px 8px; font: inherit; }
     #osu-auto.on { background: #2b6cff !important; color: #fff !important; }
     .osu-group-star { margin-left: auto; color: #ffd166; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
@@ -3056,6 +3062,7 @@
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
       </div>
+      <div class="import-hint" id="osu-import-hint"></div>
       <div id="osu-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="osu-skin-status" style="color:#7d8a9a; font-size:12px; min-height:16px;"></div>
       <div class="osu-sort-row">
@@ -3130,6 +3137,7 @@
           <button id="divaft-exit" type="button" title="Exit Diva mode">✕ Exit</button>
         </div>
       </div>
+      <div class="import-hint" id="divaft-import-hint"></div>
       <div id="divaft-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="divaft-songlist"></div>
     </div>
@@ -3282,6 +3290,35 @@
 
   <!-- Link-Discord toast -->
   <div id="link-toast" role="status" aria-live="polite"></div>
+
+  <!-- Import path hints — tell the user WHERE to point each import (browsers can't read
+       arbitrary paths, so we show the common install locations for their OS). -->
+  <script>
+    (function () {
+      function fillImportHints() {
+        var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '';
+        var os = /mac|iphone|ipad/i.test(ua) ? 'mac' : /linux|x11|android|cros/i.test(ua) ? 'linux' : 'win';
+        var osuPath = { win: '%LocalAppData%\\osu!', mac: '~/Library/Application Support/osu!', linux: '~/.local/share/osu-wine/osu! (or ~/.local/share/osu!)' }[os];
+        var steamPath = {
+          win: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hatsune Miku Project DIVA Mega Mix Plus',
+          mac: '~/Library/Application Support/Steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus',
+          linux: '~/.steam/steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus'
+        }[os];
+        var osuHint = '<span class="ih-line">📁 Point at your <b>osu! folder</b> (or its <b>Songs</b> folder)' +
+          (os === 'win' ? ' — paste <code>%LocalAppData%\\osu!</code> into the file picker’s address bar' : ' — usually <code>' + osuPath + '</code>') +
+          '. A single <b>.osz</b> works too.</span>';
+        var divaHint =
+          '<span class="ih-line">📁 <b>Mods:</b> pick a mod folder that contains <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.</span>' +
+          '<span class="ih-line">💿 <b>Base game (.cpk):</b> select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive). Nothing is extracted &mdash; read locally.</span>';
+        var set = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
+        set('osu-import-hint', osuHint);
+        set('vsrg-import-hint', osuHint);
+        set('divaft-import-hint', divaHint);
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillImportHints);
+      else fillImportHints();
+    })();
+  </script>
 
   <!-- Lib + app loader — callable from web (immediate) or activity (after Discord flow) -->
   <script>
