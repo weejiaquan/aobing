@@ -418,6 +418,7 @@ if (typeof document !== 'undefined') {
     const hitsoundBtn = document.getElementById('osu-hitsound-btn');
     const hitsoundDoneBtn = document.getElementById('osu-hitsound-done');
     const hsControlsEl = document.getElementById('osu-hs-controls');
+    const autoBtn = document.getElementById('osu-auto');
     const visualBtn = document.getElementById('osu-visual-btn');
     const visualDoneBtn = document.getElementById('osu-visual-done');
     const cursorSizeEl = document.getElementById('osu-cursor-size');
@@ -447,6 +448,7 @@ if (typeof document !== 'undefined') {
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;   // FPS + frametime accumulators (rhythm runs as fast as rAF allows)
     let currentGroups = [], expandedKey = null;       // song-select accordion (one open group at a time)
+    let autoplay = false;                             // Auto preview mod: the map plays itself, no score saved
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
@@ -990,6 +992,7 @@ if (typeof document !== 'undefined') {
         errors: [],   // signed hit-timing errors (ms, +late/-early) for UR + the error bar
         // Skip target: jump to ~1.5s before the first object if the intro is long enough.
         firstTime: firstTime, skipTo: Math.max(0, firstTime - 1500), skipped: false,
+        auto: autoplay, waypoints: autoplay ? buildAutoWaypoints(chart) : null,
       };
       errTicks = [];
       if (entry.getArt) entry.getArt().then((b) => {
@@ -1019,6 +1022,11 @@ if (typeof document !== 'undefined') {
     function loop() {
       if (!run || run.finished) return;
       const st = songTimeNow();
+      if (run.auto) {   // preview: drive cursor (+ trail) + auto-hit
+        cursor = autoCursor(st);
+        trail.push({ x: cursor.x, y: cursor.y, t: performance.now() }); if (trail.length > 24) trail.shift();
+        autoTap(st);
+      }
       updateSliders(st);
       updateSpinners(st);
       sweepMisses(st);
@@ -1138,7 +1146,48 @@ if (typeof document !== 'undefined') {
       if ((span % 2) === 1) fr = 1 - fr;
       return pointAtFrac(o.path, fr);
     }
-    function heldAny() { return tapKeys().some((k) => run.pressed[k]) || !!run.pressed.m1 || !!run.pressed.m2; }
+    function heldAny() { return (run && run.auto) || tapKeys().some((k) => run.pressed[k]) || !!run.pressed.m1 || !!run.pressed.m2; }
+
+    // ---- Autoplay (preview): drive the cursor + auto-hit; no score saved -------
+    // Cursor anchor points to lerp between when no slider/spinner is active.
+    function buildAutoWaypoints(chart) {
+      const wp = [];
+      for (const o of chart.objects) {
+        if (o.kind === 'circle') wp.push({ t: o.time, x: o.x, y: o.y });
+        else if (o.kind === 'slider') { wp.push({ t: o.time, x: o.x, y: o.y }); const e = sliderBallPos(o, o.endTime); wp.push({ t: o.endTime, x: e.x, y: e.y }); }
+        else if (o.kind === 'spinner') { wp.push({ t: o.time, x: PLAY_W / 2, y: PLAY_H / 2 }); wp.push({ t: o.endTime, x: PLAY_W / 2, y: PLAY_H / 2 }); }
+      }
+      return wp;
+    }
+    function autoCursor(st) {
+      for (const s of run.objs) {                       // follow an active slider / spin an active spinner
+        const o = s.o;
+        if (o.kind === 'spinner' && st >= o.time && st <= o.endTime) {
+          const ang = (st / 1000) * Math.PI * 2 * 6;    // 6 rev/sec — comfortably clears any spinner
+          return { x: PLAY_W / 2 + Math.cos(ang) * 90, y: PLAY_H / 2 + Math.sin(ang) * 90 };
+        }
+        if (o.kind === 'slider' && st >= o.time && st <= o.endTime) return sliderBallPos(o, st);
+      }
+      const wp = run.waypoints; if (!wp || !wp.length) return { x: PLAY_W / 2, y: PLAY_H / 2 };
+      let prev = wp[0], next = null;
+      for (let i = 0; i < wp.length; i++) { if (wp[i].t <= st) prev = wp[i]; else { next = wp[i]; break; } }
+      if (!next) return { x: prev.x, y: prev.y };
+      const f = next.t > prev.t ? Math.max(0, Math.min(1, (st - prev.t) / (next.t - prev.t))) : 1;
+      return { x: prev.x + (next.x - prev.x) * f, y: prev.y + (next.y - prev.y) * f };
+    }
+    // Auto-hit each circle / slider-head exactly on time as a perfect 300.
+    function autoTap(st) {
+      for (const s of run.objs) {
+        const o = s.o;
+        if (o.kind === 'spinner') continue;
+        const headDone = o.kind === 'circle' ? s.judged : s.headJudged;
+        if (headDone) continue;
+        if (st < o.time) break;                          // this (and later) objects aren't due yet
+        recordError(0, 'h300'); playObjectSound(o);
+        if (o.kind === 'slider') { s.headJudged = true; s.headResult = 'h300'; }
+        else judgeResult(s, 'h300');
+      }
+    }
 
     function updateSliders(st) {
       const followR = run.radius * 2.4;
@@ -1195,7 +1244,7 @@ if (typeof document !== 'undefined') {
 
     // ---- Input ---------------------------------------------------------------
     function onTap(perfTs) {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.auto) return;   // autoplay drives hits itself
       const st = inputSongTime(perfTs);
       // earliest object whose head is still unhit, within the catchable window
       let best = null;
@@ -1485,12 +1534,18 @@ if (typeof document !== 'undefined') {
     // ---- Results / PB --------------------------------------------------------
     async function finishRun() {
       if (!run || run.finished) return;
+      const isAuto = run.auto;
       run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
       try { run.src.stop(); } catch (e) {}
-      const acc = accuracy(), hash = await sha256(await run.entry.getOsuText());
-      const prev = await idbGet('osu-pb', hash);
-      const improved = !prev || acc > prev.accuracy;
-      if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+      if (window.Hitsound && window.Hitsound.slide && audioCtx) window.Hitsound.slide(audioCtx, false);
+      const acc = accuracy();
+      let prev = null, improved = false;
+      if (!isAuto) {   // autoplay is a preview — never recorded as a personal best
+        const hash = await sha256(await run.entry.getOsuText());
+        prev = await idbGet('osu-pb', hash);
+        improved = !prev || acc > prev.accuracy;
+        if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+      }
       const c = run.counts;
       const total = c.h300 + c.h100 + c.h50 + c.miss;
       const grade = c.miss === 0 && acc === 100 ? 'SS' : acc >= 95 && c.miss === 0 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
@@ -1506,8 +1561,9 @@ if (typeof document !== 'undefined') {
           cell('50', c.h50, '#ffd166') + cell('Miss', c.miss, '#ff5470') +
         '</div>' +
         '<div class="osu-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects &nbsp;·&nbsp; UR ' + Math.round(unstableRate(run.errors)) + ' ' + fc + '</div>' +
-        (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
-              : '<div class="osu-res-pb">First clear — saved as your best.</div>');
+        (isAuto ? '<div class="osu-res-pb">Autoplay preview — not saved.</div>'
+                : (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
+                        : '<div class="osu-res-pb">First clear — saved as your best.</div>'));
       show('results');
     }
     function quitToSelect() { loadGen++; teardownRun(); if (deps.resumeBgm) deps.resumeBgm(); show('select'); renderSongList(); }
@@ -1633,6 +1689,7 @@ if (typeof document !== 'undefined') {
       sortEl.value = settings.osuSortBy || 'title';
       sortEl.addEventListener('change', () => { settings.osuSortBy = sortEl.value; if (deps.saveSettings) deps.saveSettings(); renderSongList(); });
     }
+    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.textContent = 'Auto: ' + (autoplay ? 'on' : 'off'); });
     if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     function syncVisualControls() {
