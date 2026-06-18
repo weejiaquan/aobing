@@ -32,7 +32,11 @@
   const OP = { END: 0x00, TIME: 0x01, TARGET: 0x06, BAR_TIME: 0x1C, FLY_TIME: 0x3A };
   const FACE = ['triangle', 'circle', 'cross', 'square'];
   const FIELD_W = 480000, FIELD_H = 270000, UNITS_PER_MS = 100;
+  // DSC version stamps seen in MM+ (it bundles charts re-exported from several PD-era
+  // games). All share this opcode table, so the version is informational — a chart is
+  // validated by walking cleanly to END (the `ended` flag), not by a fixed signature.
   const SIGNATURE = 0x14050921;
+  const KNOWN_SIGNATURES = [0x14050921, 0x14012316, 0x15021718];
 
   // Map a TARGET `type` field to a note button. Returns null for types we skip
   // (PV-event/effect targets that carry no playable note).
@@ -75,9 +79,8 @@
   // validates buttons, groups same-time doubles and estimates stars.
   function decode(arrayBuffer) {
     const dv = new DataView(arrayBuffer);
-    if (dv.byteLength < 4 || dv.getUint32(0, true) !== SIGNATURE) {
-      throw new Error('not an FT/MM+ .dsc (bad signature)');
-    }
+    if (dv.byteLength < 8) throw new Error('not a .dsc (too small)');
+    const signature = dv.getUint32(0, true);   // version stamp; validity comes from the walk below
     let off = 4, timer = 0, flyTime = 100000;        // flyTime default 1000ms (in units)
     const notes = [];
     let chainId = 0, chainActive = null;             // current slide-chain run (button or null)
@@ -106,10 +109,10 @@
       }
     }
     notes.sort((x, y) => x.time - y.time);
-    return { notes: notes, chanceTimes: [], ended: ended };
+    return { notes: notes, chanceTimes: [], ended: ended, signature: signature };
   }
 
-  const API = { decode: decode, _mapType: mapType, _mapTarget: mapTarget, PARAM_COUNTS: PARAM_COUNTS, SIGNATURE: SIGNATURE };
+  const API = { decode: decode, _mapType: mapType, _mapTarget: mapTarget, PARAM_COUNTS: PARAM_COUNTS, SIGNATURE: SIGNATURE, KNOWN_SIGNATURES: KNOWN_SIGNATURES };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.DivaDsc = API;
 })();

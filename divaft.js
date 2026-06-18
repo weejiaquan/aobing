@@ -199,6 +199,7 @@
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
     let cpkLive = [];   // in-memory base-game CPK song entries (decrypt-on-demand, this session)
     let cpkImportGen = 0;   // guards against overlapping CPK imports racing on cpkLive
+    let cpkSources = [];   // [{name, read, toc}] — all CPKs imported this session (main + region + dlc)
     let autoplay = false;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;
 
@@ -334,51 +335,94 @@
     }
 
     // ---- Base-game CPK import (live, decrypt-on-demand) -----------------------
-    // The base diva_main.cpk is ~24 GB and its content is AES-encrypted; we read the
-    // TOC, enumerate songs by filename convention (rom/script/pv_NNN_<diff>.dsc +
-    // sound/song/pv_NNN.ogg), and decrypt each chart/audio only when played. The File
-    // stays in memory for the session (no mass decrypt, no 1.5 GB IndexedDB blob).
-    const DIFF_STARS = { easy: 2, normal: 4, hard: 6, extreme: 8 };
-    async function importCpk(file) {
+    // The base diva_main.cpk is ~24 GB and AES-encrypted; we read its TOC and decrypt
+    // each chart/audio only when played (the File stays in memory for the session — no
+    // mass decrypt, no huge IndexedDB blob). Song NAMES live in the small region CPK's
+    // pv_db.txt (diva_main_region.cpk), so the user imports both; files are resolved
+    // across all imported CPKs. Without a pv_db we fall back to "PV NNN" titles.
+    const DIFF_STARS = { easy: 2, normal: 4, hard: 6, extreme: 8, encore: 9, extra: 9 };
+    // resolve a logical path (e.g. rom/script/pv_001_easy.dsc) across every imported CPK
+    function resolveCpk(path) {
+      for (const src of cpkSources) { const e = src.toc.find(path); if (e) return { read: src.read, entry: e }; }
+      return null;
+    }
+    function makeCpkEntry(pv, diff, title, stars, scriptPath, audioPath, bpm) {
+      const full = title + ' [' + diff + ']';
+      return {
+        id: 'cpk:' + pv + '_' + diff, title: full, artist: '', stars: stars || DIFF_STARS[diff.replace('+', '')] || 5,
+        getChart: async () => {
+          const r = resolveCpk(scriptPath); if (!r) throw new Error('chart not found: ' + scriptPath);
+          const bytes = await window.Cpk.readEntry(r.read, r.entry);
+          const dec = window.DivaDsc.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+          if (!dec.ended || !dec.notes.length) throw new Error('chart did not decode cleanly');
+          return assembleChart({ title: full, bpm: bpm || 0, audioFile: audioPath, notes: dec.notes, chanceTimes: dec.chanceTimes });
+        },
+        getAudio: async () => { const r = resolveCpk(audioPath); if (!r) throw new Error('audio not found: ' + audioPath); const b = await window.Cpk.readEntry(r.read, r.entry); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
+      };
+    }
+    async function importCpk(fileList) {
       if (!window.Cpk) { setImportStatus('CPK reader not loaded.'); return; }
-      const myGen = ++cpkImportGen;   // newest import wins; stale ones won't commit
-      setImportStatus('Reading ' + file.name + '…');
-      const read = window.Cpk.fileReader(file);
-      let toc;
-      try { toc = await window.Cpk.readToc(read); }
-      catch (e) { if (myGen === cpkImportGen) setImportStatus('Could not read ' + file.name + ' (not a readable CPK).'); return; }
-      const songs = {};   // pvId -> { id, diffs:{diff:entry}, audio:entry }
-      for (const e of toc.entries) {
-        const m = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
-        if (!m) continue;
-        const pv = 'pv_' + m[1], diff = m[2].toLowerCase() + (m[3] ? '+' : '');
-        (songs[pv] || (songs[pv] = { id: pv, num: m[1], diffs: {} })).diffs[diff] = e;
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const myGen = ++cpkImportGen;
+      setImportStatus('Reading ' + files.length + ' archive' + (files.length > 1 ? 's' : '') + '…');
+      for (const file of files) {
+        if (cpkSources.some((s) => s.name === file.name)) continue;
+        try { const read = window.Cpk.fileReader(file); const toc = await window.Cpk.readToc(read); cpkSources.push({ name: file.name, read: read, toc: toc }); }
+        catch (e) { try { console.error('[divaft] cpk ' + file.name, e); } catch (_) {} }
       }
-      const next = [];
-      let songCount = 0;
-      for (const pv in songs) {
-        const s = songs[pv];
-        const audio = toc.find('sound/song/' + pv + '.ogg');
-        if (!audio) continue;
-        songCount++;
-        for (const diff in s.diffs) {
-          const dscEntry = s.diffs[diff], baseDiff = diff.replace('+', '');
-          next.push({
-            id: 'cpk:' + file.name + ':' + pv + '_' + diff,
-            title: 'PV ' + s.num + ' [' + diff + ']', artist: '', stars: DIFF_STARS[baseDiff] || 5,
-            getChart: async () => {
-              const bytes = await window.Cpk.readEntry(read, dscEntry);
-              const dec = window.DivaDsc.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
-              if (!dec.ended || !dec.notes.length) throw new Error('chart did not decode cleanly');
-              return assembleChart({ title: 'PV ' + s.num + ' [' + diff + ']', bpm: 0, audioFile: pv + '.ogg', notes: dec.notes, chanceTimes: dec.chanceTimes });
-            },
-            getAudio: async () => { const b = await window.Cpk.readEntry(read, audio); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
-          });
+      if (myGen !== cpkImportGen) return;
+      if (!cpkSources.length) { setImportStatus('No readable CPK selected.'); return; }
+      await rebuildCpkLibrary(myGen);
+    }
+    async function rebuildCpkLibrary(myGen) {
+      // 1) collect song metadata (names, audio + .dsc paths) from any pv_db across sources
+      const meta = {};   // pv_id -> { title, audio, bpm, diffs:{diff:{script,stars}} }
+      let havePvdb = false;
+      for (const src of cpkSources) {
+        const dbEntry = src.toc.entries.find((e) => /(?:^|\/)(?:mod_)?pv_db\.txt$/i.test(e.name));
+        if (!dbEntry) continue;
+        let txt; try { txt = new TextDecoder().decode(await window.Cpk.readEntry(src.read, dbEntry)); } catch (e) { continue; }
+        if (myGen !== cpkImportGen) return;
+        havePvdb = true;
+        for (const song of window.DivaPvdb.parse(txt)) {
+          const m = meta[song.id] || (meta[song.id] = { title: '', audio: '', bpm: 0, diffs: {} });
+          if (song.title && !/^pv_\d/.test(song.title)) m.title = song.title;   // a real name, not the id fallback
+          if (song.audio) m.audio = song.audio;
+          if (song.bpm) m.bpm = song.bpm;
+          for (const d of window.DivaPvdb.playableDiffs(song)) if (/\.dsc$/i.test(song.diffs[d].script)) m.diffs[d] = song.diffs[d];
         }
       }
-      if (myGen !== cpkImportGen) return;   // a newer import superseded this one
+      const next = []; let songCount = 0;
+      if (havePvdb) {
+        for (const pv in meta) {
+          const s = meta[pv], diffs = Object.keys(s.diffs);
+          if (!diffs.length || !s.audio || !resolveCpk(s.audio)) continue;
+          const title = s.title || ('PV ' + pv.replace(/^pv_/, ''));
+          let any = false;
+          for (const diff of diffs) { if (!resolveCpk(s.diffs[diff].script)) continue; next.push(makeCpkEntry(pv, diff, title, s.diffs[diff].stars, s.diffs[diff].script, s.audio, s.bpm)); any = true; }
+          if (any) songCount++;
+        }
+      } else {
+        // convention fallback (no pv_db imported yet): enumerate by filename across sources
+        const songs = {};
+        for (const src of cpkSources) for (const e of src.toc.entries) {
+          const m = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
+          if (!m) continue;
+          const pv = 'pv_' + m[1], diff = m[2].toLowerCase() + (m[3] ? '+' : '');
+          (songs[pv] || (songs[pv] = { num: m[1], diffs: {} })).diffs[diff] = e.name;
+        }
+        for (const pv in songs) {
+          const s = songs[pv], audioPath = 'rom/sound/song/' + pv + '.ogg';
+          if (!resolveCpk(audioPath)) continue;
+          songCount++;
+          for (const diff in s.diffs) next.push(makeCpkEntry(pv, diff, 'PV ' + s.num, null, s.diffs[diff], audioPath, 0));
+        }
+      }
+      if (myGen !== cpkImportGen) return;
       cpkLive = next;
-      setImportStatus(songCount + ' base songs · ' + cpkLive.length + ' charts loaded from ' + file.name + ' (this session).');
+      setImportStatus(songCount + ' songs · ' + cpkLive.length + ' charts from ' + cpkSources.length + ' archive' + (cpkSources.length > 1 ? 's' : '') +
+        (havePvdb ? '' : ' — also import diva_main_region.cpk for song names'));
       await refreshLibrary();
     }
 
@@ -853,7 +897,7 @@
     const importCpkInput = document.getElementById('divaft-import-cpk-input');
     if (importCpkBtn && importCpkInput) {
       importCpkBtn.addEventListener('click', () => importCpkInput.click());
-      importCpkInput.addEventListener('change', () => { if (importCpkInput.files[0]) importCpk(importCpkInput.files[0]); importCpkInput.value = ''; });
+      importCpkInput.addEventListener('change', () => { if (importCpkInput.files.length) importCpk(importCpkInput.files); importCpkInput.value = ''; });
     }
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
