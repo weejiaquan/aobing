@@ -2812,7 +2812,7 @@
             <span>×</span>
             <button id="vsrg-speed-up" type="button" class="vsrg-step">+</button>
           </span>
-          <label style="display:inline-flex; align-items:center; gap:4px;" title="Hitsound volume">♪<input type="range" id="vsrg-hitsound-vol" min="0" max="100" step="5" style="width:72px;"></label>
+          <button id="vsrg-hitsound-btn" type="button">Hitsounds</button>
           <button id="vsrg-appearance-btn" type="button">Appearance</button>
           <button id="vsrg-calibrate" type="button">Calibrate</button>
         </div>
@@ -2847,6 +2847,12 @@
       <div id="vsrg-tap-result"></div>
       <label>Offset <input type="range" id="vsrg-calib-slider" min="-200" max="200" step="1"><b id="vsrg-calib-val">0 ms</b></label>
       <button id="vsrg-calib-done" type="button">Done</button>
+    </div>
+    <div id="vsrg-hitsound" class="vsrg-screen hs-screen" hidden>
+      <h2>Hitsounds</h2>
+      <p>Pick a preset or upload your own sound. Plays on every hit.</p>
+      <div id="vsrg-hs-controls" class="hs-controls"></div>
+      <button id="vsrg-hitsound-done" type="button">Done</button>
     </div>
     <div id="vsrg-appearance" class="vsrg-screen" hidden>
       <h2>Appearance</h2>
@@ -2924,6 +2930,18 @@
     #osu-calib { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
     #osu-calib label { display: inline-flex; align-items: center; gap: 8px; }
     #osu-tap-result { color: #ffd166; min-height: 20px; font-variant-numeric: tabular-nums; }
+    /* Hitsound customization screen (shared by both rhythm panels) */
+    .hs-screen { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+    .hs-controls { display: flex; flex-direction: column; gap: 12px; width: min(440px, 86vw); }
+    .hs-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+    .hs-row > span:first-child { color: #9aa0ab; font-size: 13px; min-width: 92px; text-align: left; }
+    .hs-row input[type=range] { flex: 1; }
+    .hs-pick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    .hs-preset { background: #23262e; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer; }
+    .hs-preset:hover { background: #343845; }
+    .hs-preset.sel { background: #2b6cff; border-color: #2b6cff; color: #fff; }
+    #osu-hitsound button, #vsrg-hitsound button, .hs-controls button { background: #2a2d36; color: #e8e8ec; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+    .hs-test { background: #2b6cff !important; color: #fff !important; }
     .osu-res-title { font-size: 16px; color: #c8ccd4; }
     .osu-res-grade { font-size: 72px; font-weight: 900; line-height: 1; }
     .osu-res-acc { font-size: 40px; font-weight: 800; color: #e8e8ec; font-variant-numeric: tabular-nums; }
@@ -2958,7 +2976,7 @@
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
-          <label style="display:inline-flex; align-items:center; gap:4px; font-size:13px; color:#c8ccd4;" title="Hitsound volume">♪<input type="range" id="osu-hitsound-vol" min="0" max="100" step="5" style="width:72px;"></label>
+          <button id="osu-hitsound-btn" type="button">Hitsounds</button>
           <button id="osu-calibrate" type="button">Calibrate</button>
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
@@ -2991,6 +3009,12 @@
       <div id="osu-tap-result"></div>
       <label>Offset <input type="range" id="osu-calib-slider" min="-200" max="200" step="1"><b id="osu-calib-val">0 ms</b></label>
       <button id="osu-calib-done" type="button">Done</button>
+    </div>
+    <div id="osu-hitsound" class="osu-screen hs-screen" hidden>
+      <h2>Hitsounds</h2>
+      <p>Pick a preset or upload your own sound. Plays on every hit.</p>
+      <div id="osu-hs-controls" class="hs-controls"></div>
+      <button id="osu-hitsound-done" type="button">Done</button>
     </div>
   </div>
 
@@ -3150,6 +3174,9 @@
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // hitsound.js (shared rhythm hitsound engine) loads after app.js and self-
+        // initialises from window.__hitsoundDeps; vsrg.js/osustd.js call window.Hitsound.
+        .then(function () { return loadScript('hitsound.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
