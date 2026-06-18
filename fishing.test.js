@@ -316,3 +316,54 @@ test('createBehaviorState is reproducible for a fixed seed sequence', () => {
   };
   assert.deepEqual(run(), run());
 });
+
+const { createBarState, stepBar, isCaught, isEscaped } = ENGINE;
+const BARFISH = { id: 'b', name: 'B', rarity: 1, behavior: 'drifter', family: 'test', sizeRange: [10, 20], coinBase: 10 };
+
+test('progress rises while the bar overlaps the fish', () => {
+  const st = createBarState(BARFISH);
+  const rng = mulberry32(1);
+  st.fish_.def.speedMul = 0; // freeze fish motion for the assertion
+  st.fish_.def.mods = {}; // disable modifiers to prevent easing
+  const before = st.progress;
+  for (let i = 0; i < 30; i++) { stepBar(st, 1 / 60, true, rng); st.bar.pos = st.fish_.pos; }
+  // keep bar glued to fish each frame
+  assert.ok(st.progress > before, `progress ${st.progress} should rise from ${before} while overlapping`);
+});
+
+test('progress drains when the bar is far from the fish', () => {
+  const st = createBarState(BARFISH);
+  const rng = mulberry32(1);
+  st.progress = 0.5;
+  st.fish_.pos = 0.9;
+  st.bar.pos = 0.0; // far apart, not holding -> bar falls further away
+  for (let i = 0; i < 60; i++) stepBar(st, 1 / 60, false, rng);
+  assert.ok(st.progress < 0.5, `progress ${st.progress} should drain below 0.5 when far apart`);
+});
+
+test('holding raises the bar, releasing drops it (gravity)', () => {
+  const st = createBarState(BARFISH);
+  const rng = mulberry32(1);
+  st.bar.pos = 0.5; st.bar.vel = 0;
+  for (let i = 0; i < 20; i++) stepBar(st, 1 / 60, true, rng);
+  const lifted = st.bar.pos;
+  for (let i = 0; i < 40; i++) stepBar(st, 1 / 60, false, rng);
+  assert.ok(lifted > 0.5, `holding should lift bar above 0.5, got ${lifted}`);
+  assert.ok(st.bar.pos < lifted, `releasing should drop the bar below ${lifted}, got ${st.bar.pos}`);
+});
+
+test('bar position clamps to [0, 1 - barSize]', () => {
+  const st = createBarState(BARFISH);
+  const rng = mulberry32(1);
+  for (let i = 0; i < 600; i++) stepBar(st, 1 / 60, true, rng); // mash up
+  const maxPos = 1 - st.tier.barSize;
+  assert.ok(st.bar.pos <= maxPos + 1e-9, `bar pos ${st.bar.pos} exceeded ${maxPos}`);
+  assert.ok(st.bar.pos >= 0, `bar pos ${st.bar.pos} below 0`);
+});
+
+test('isCaught true at progress>=1, isEscaped true at progress<=0', () => {
+  const st = createBarState(BARFISH);
+  st.progress = 1; assert.equal(isCaught(st), true); assert.equal(isEscaped(st), false);
+  st.progress = 0; assert.equal(isEscaped(st), true); assert.equal(isCaught(st), false);
+  st.progress = 0.5; assert.equal(isCaught(st), false); assert.equal(isEscaped(st), false);
+});

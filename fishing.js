@@ -245,7 +245,49 @@ function stepFish(s, dt, rng, progress = 0) {
   return pos;
 }
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish };
+// --- Bar-balance physics ---
+const GRAVITY = 1.8;  // track units / s^2 pulling the bar down
+const THRUST = 3.2;   // upward accel while holding
+
+function createBarState(fish) {
+  const tier = RARITY_TIERS[fish.rarity];
+  return {
+    fish,
+    tier,
+    bar: { pos: (1 - tier.barSize) / 2, vel: 0 },
+    fish_: createBehaviorState(fish),
+    progress: 0.35, // a small head start so a perfect catch is achievable
+  };
+}
+
+function stepBar(state, dt, holding, rng) {
+  const { tier, bar } = state;
+
+  // fish motion (before bar physics, so overlap check uses pre-physics bar position)
+  const fishPos = stepFish(state.fish_, dt, rng, state.progress);
+
+  // overlap test: fish center within the bar span (using current bar position)
+  const inside = fishPos >= bar.pos && fishPos <= bar.pos + tier.barSize;
+  state.progress += (inside ? tier.fillRate : -tier.drainRate) * dt;
+  if (state.progress > 1) state.progress = 1;
+  if (state.progress < 0) state.progress = 0;
+
+  // bar physics (after overlap check)
+  bar.vel += (holding ? THRUST : 0) * dt;
+  bar.vel -= GRAVITY * dt;
+  bar.vel *= 0.92; // damping for control
+  bar.pos += bar.vel * dt;
+  const maxPos = 1 - tier.barSize;
+  if (bar.pos < 0) { bar.pos = 0; bar.vel = 0; }
+  if (bar.pos > maxPos) { bar.pos = maxPos; bar.vel = 0; }
+
+  return state;
+}
+
+function isCaught(state) { return state.progress >= 1; }
+function isEscaped(state) { return state.progress <= 0; }
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish, createBarState, stepBar, isCaught, isEscaped, GRAVITY, THRUST };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;
