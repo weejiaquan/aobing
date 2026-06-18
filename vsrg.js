@@ -1040,8 +1040,25 @@ if (typeof document !== 'undefined') {
       const res = judge(best.time, st, run.windows);
       best.headJudged = true; best.headTier = res.tier;
       if (best.endTime != null && res.tier !== 'miss') best.holding = true;
-      if (res.tier !== 'miss') recordError(res.errorMs, res.tier);
+      if (res.tier !== 'miss') { recordError(res.errorMs, res.tier); playHitsound(); }
       applyTier(res.tier, lane, res.tier === 'miss');
+    }
+    // Synthesized hit tick (osu-ish): one short pitched blip via the audio clock,
+    // auto-disposed; silent at volume 0.
+    function playHitsound() {
+      const vol = Number(settings.hitsoundVol);
+      if (!audioCtx || !(vol > 0)) return;
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator(), gg = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(900, t);
+      o.frequency.exponentialRampToValueAtTime(260, t + 0.04);
+      const peak = Math.min(1, vol / 100) * 0.45;
+      gg.gain.setValueAtTime(0.0001, t);
+      gg.gain.exponentialRampToValueAtTime(peak, t + 0.002);
+      gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      o.connect(gg).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.08);
     }
 
     function onRelease(lane, perfTs) {
@@ -1582,6 +1599,11 @@ if (typeof document !== 'undefined') {
         x.classList.toggle('sel', x.getAttribute('data-keys') === keyFilter));
       renderSongList();
     });
+    const hitsoundSlider = document.getElementById('vsrg-hitsound-vol');
+    if (hitsoundSlider) {
+      hitsoundSlider.value = Number(settings.hitsoundVol) || 0;
+      hitsoundSlider.addEventListener('input', (e) => { settings.hitsoundVol = Number(e.target.value); if (deps.saveSettings) deps.saveSettings(); });
+    }
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     const exitBtn = document.getElementById('vsrg-exit');
     if (exitBtn) exitBtn.addEventListener('click', function () { close(); });
