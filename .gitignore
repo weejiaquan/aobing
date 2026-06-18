@@ -13,3 +13,4 @@ scripts/cpk-probe.js
 scripts/cpk-scan.js
 scripts/cpk-aes-check.js
 scripts/make-test-cpk.js
+scripts/make-test-ph.js

@@ -207,6 +207,9 @@
     let cpkLive = [];   // in-memory base-game CPK song entries (decrypt-on-demand, this session)
     let cpkImportGen = 0;   // guards against overlapping CPK imports racing on cpkLive
     let cpkSources = [];   // [{name, read, toc}] — all CPKs imported this session (main + region + dlc)
+    let phFiles = {};      // relpath(lower) -> File, accumulated across Project Heartbeat picks
+    let phAudioById = {};  // ORIGINAL-case .ogg stem -> File (YouTube ids are case-sensitive)
+    let phLive = [], phImportGen = 0;   // in-session PH song entries (parse-on-demand)
     let autoplay = false;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;
 
@@ -272,7 +275,7 @@
     async function refreshLibrary() {
       const bundled = await loadBundled();
       let cached = []; try { cached = await loadCachedCharts(); } catch (e) {}
-      library = bundled.concat(cached).concat(cpkLive);
+      library = bundled.concat(cached).concat(cpkLive).concat(phLive);
       renderSongList();
     }
     async function loadCachedCharts() {
@@ -289,7 +292,10 @@
     }
 
     // ---- Loose folder import (mod / rom directory) ---------------------------
-    function setImportStatus(msg) { const el = document.getElementById('divaft-import-status'); if (el) el.textContent = msg || ''; }
+    function setImportStatus(msg) {
+      const el = document.getElementById('divaft-import-status'); if (el) el.textContent = msg || '';
+      const sum = document.getElementById('divaft-import-summary'); if (sum) sum.textContent = msg || '';   // visible after the modal closes
+    }
     async function importFolder(fileList) {
       const files = Array.from(fileList || []);
       if (!files.length) return;
@@ -438,6 +444,62 @@
       cpkLive = next;
       setImportStatus(songCount + ' songs · ' + cpkLive.length + ' charts from ' + cpkSources.length + ' archive' + (cpkSources.length > 1 ? 's' : '') +
         (havePvdb ? '' : ' — also import diva_main_region.cpk for song names'));
+      await refreshLibrary();
+    }
+
+    // ---- Project Heartbeat import (folders accumulate; parse-on-demand) -------
+    // A PH song is a folder with song.json + per-difficulty chart JSON. Audio is either a
+    // local file (song.json "audio") or a YouTube id PH caches at youtube_dl/cache/<id>.ogg,
+    // so the user points at their songs (Workshop) AND their PH folder (for cached audio);
+    // both picks accumulate into phFiles and are resolved together.
+    async function importPh(fileList) {
+      if (!window.PhSong) { setImportStatus('PH parser not loaded.'); return; }
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const myGen = ++phImportGen;
+      setImportStatus('Reading Project Heartbeat files…');
+      for (const f of files) {
+        const rel = f.webkitRelativePath || f.name;
+        phFiles[rel.toLowerCase()] = f;                         // case-insensitive path resolution
+        if (/\.ogg$/i.test(rel)) { const stem = rel.split('/').pop().replace(/\.ogg$/i, ''); if (!(stem in phAudioById)) phAudioById[stem] = f; }  // case-SENSITIVE id
+      }
+      await rebuildPhLibrary(myGen);
+    }
+    async function rebuildPhLibrary(myGen) {
+      const paths = Object.keys(phFiles);
+      const songJsons = paths.filter((p) => /(?:^|\/)song\.json$/.test(p));
+      const next = []; let imported = 0, skipped = 0, noAudio = 0;
+      for (const sp of songJsons) {
+        const dir = sp.replace(/song\.json$/, '');     // trailing slash
+        let song; try { song = window.PhSong.parseSong(await phFiles[sp].text()); } catch (e) { skipped++; continue; }
+        if (myGen !== phImportGen) return;
+        const diffs = Object.keys(song.charts);
+        if (!diffs.length) { skipped++; continue; }
+        let audioFile = null;
+        if (song.audio && phFiles[(dir + song.audio).toLowerCase()]) audioFile = phFiles[(dir + song.audio).toLowerCase()];
+        else if (song.youtubeId && phAudioById[song.youtubeId]) audioFile = phAudioById[song.youtubeId];
+        if (!audioFile) { noAudio++; continue; }        // no local/cached audio → can't play
+        for (const diff of diffs) {
+          const chartFile = phFiles[(dir + song.charts[diff].file).toLowerCase()];
+          if (!chartFile) { skipped++; continue; }
+          const cf = chartFile, af = audioFile, title = song.title || 'PH song', bpm = song.bpm, artist = song.artist, audioName = song.audio || 'youtube';
+          next.push({
+            id: 'ph:' + dir + diff, title: title + ' [' + diff + ']', artist: artist || '', stars: song.charts[diff].stars || 5,
+            getChart: async () => {
+              const parsed = window.PhSong.parseChart(await cf.text(), bpm);
+              if (!parsed.notes.length) throw new Error('empty PH chart');
+              return assembleChart({ title: title + ' [' + diff + ']', artist: artist, bpm: bpm, audioFile: audioName, notes: parsed.notes, chanceTimes: parsed.chanceTimes });
+            },
+            getAudio: async () => { const buf = await af.arrayBuffer(); return buf; },
+          });
+          imported++;
+        }
+      }
+      if (myGen !== phImportGen) return;
+      phLive = next;
+      setImportStatus(imported + ' Project Heartbeat charts loaded' +
+        (noAudio ? ' · ' + noAudio + ' songs skipped (no local/cached audio — play them in PH once to cache it)' : '') +
+        (imported || noAudio ? '' : ' · no PH songs found in that folder'));
       await refreshLibrary();
     }
 
@@ -902,18 +964,23 @@
     // ---- Wiring --------------------------------------------------------------
     if (songlistEl) songlistEl.addEventListener('click', (e) => { const b = e.target.closest('.diva-song'); if (!b) return; const entry = library[Number(b.getAttribute('data-i'))]; if (entry) loadAndPlay(entry); });
     if (exitBtn) exitBtn.addEventListener('click', close);
-    const importBtn = document.getElementById('divaft-import');
+    // Import-source modal: one "Import songs" button opens it; each source has its own picker.
+    const importModal = document.getElementById('divaft-import-modal');
     const importInput = document.getElementById('divaft-import-input');
-    if (importBtn && importInput) {
-      importBtn.addEventListener('click', () => importInput.click());
-      importInput.addEventListener('change', () => { importFolder(importInput.files); importInput.value = ''; });
-    }
-    const importCpkBtn = document.getElementById('divaft-import-cpk');
     const importCpkInput = document.getElementById('divaft-import-cpk-input');
-    if (importCpkBtn && importCpkInput) {
-      importCpkBtn.addEventListener('click', () => importCpkInput.click());
-      importCpkInput.addEventListener('change', () => { if (importCpkInput.files.length) importCpk(importCpkInput.files); importCpkInput.value = ''; });
-    }
+    const importPhInput = document.getElementById('divaft-import-ph-input');
+    const openImport = (b) => { if (importModal) importModal.hidden = false; };
+    const closeImport = () => { if (importModal) importModal.hidden = true; };
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+    on('divaft-import-open', openImport);
+    on('divaft-import-close', closeImport);
+    on('divaft-import-done', closeImport);
+    on('divaft-pick-folder', () => importInput && importInput.click());
+    on('divaft-pick-cpk', () => importCpkInput && importCpkInput.click());
+    on('divaft-pick-ph', () => importPhInput && importPhInput.click());
+    if (importInput) importInput.addEventListener('change', () => { importFolder(importInput.files); importInput.value = ''; });
+    if (importCpkInput) importCpkInput.addEventListener('change', () => { if (importCpkInput.files.length) importCpk(importCpkInput.files); importCpkInput.value = ''; });
+    if (importPhInput) importPhInput.addEventListener('change', () => { if (importPhInput.files.length) importPh(importPhInput.files); importPhInput.value = ''; });
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
     if (skipBtn) skipBtn.addEventListener('click', doSkip);
