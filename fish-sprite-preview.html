@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Fish sprite preview</title>
+<style>body{background:#0e1620;margin:0;display:flex;flex-wrap:wrap;gap:8px;padding:12px}
+.cell{width:140px;color:#cbd5e1;font:11px system-ui;text-align:center}
+canvas{background:#13202e;border-radius:8px;display:block}</style>
+</head><body>
+<script src="fishing.js"></script>
+<script src="fish-data.js"></script>
+<script src="fish-sprite.js"></script>
+<script>
+const { FISH } = window.FishData;
+const { fishSpriteSpec, drawFish } = window.FishSprite;
+const sample = FISH.filter((_, i) => i % 6 === 0).slice(0, 24);
+const start = performance.now();
+const cells = sample.map(fish => {
+  const wrap = document.createElement('div'); wrap.className = 'cell';
+  const cv = document.createElement('canvas'); cv.width = 130; cv.height = 80;
+  const label = document.createElement('div');
+  const shiny = Math.random() < 0.25;
+  const float = Math.random();
+  label.textContent = `${fish.name} ${shiny ? '✨' : ''} f=${float.toFixed(2)}`;
+  wrap.appendChild(cv); wrap.appendChild(label); document.body.appendChild(wrap);
+  return { ctx: cv.getContext('2d'), spec: fishSpriteSpec(fish, { float, shiny }) };
+});
+function frame(now){ const t=(now-start)/1000; for(const c of cells) drawFish(c.ctx,c.spec,t); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+</script>
+</body></html>
