@@ -94,11 +94,18 @@
   // make a self-contained ArrayBuffer from a Uint8Array view
   function ab(u8) { return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength); }
 
+  const MAX_UTF = 64 * 1024 * 1024;   // index tables are small (real TOC ≈ 0.7 MB); cap to avoid OOM on junk input
+
   // Read a CRI sub-chunk (CPK /TOC /…): magic(4) + u32 + u64 utfSize + @UTF block at +0x10.
-  async function readChunk(read, pos) {
+  // Validates the chunk magic and bounds utfSize BEFORE reading the payload, so a
+  // non-CPK / malformed file fails fast instead of slicing a bogus (possibly huge) range.
+  async function readChunk(read, pos, expectMagic) {
     const head = await read(pos, 0x10);
+    const magic = String.fromCharCode(head[0], head[1], head[2], head[3]);
+    if (expectMagic && magic !== expectMagic) throw new Error('expected "' + expectMagic + '" chunk, got "' + magic + '" (not a readable CPK)');
     const hv = new DataView(ab(head));
     const utfSize = Number(hv.getBigUint64(8, true));     // little-endian size
+    if (!(utfSize > 0 && utfSize <= MAX_UTF)) throw new Error('implausible @UTF table size ' + utfSize + ' (not a readable CPK)');
     let block = await read(pos + 0x10, utfSize);
     if (!(block[0] === 0x40 && block[1] === 0x55 && block[2] === 0x54 && block[3] === 0x46)) block = criXor(block);
     return parseUtf(ab(block));
@@ -109,11 +116,11 @@
   // readToc(read) → { entries:[{name,offset,size,extractSize,compressed}], header, find(name) }.
   // `read(pos,len)` returns a Promise<Uint8Array> of that byte range (see fileReader).
   async function readToc(read) {
-    const header = (await readChunk(read, 0)).rows[0];
+    const header = (await readChunk(read, 0, 'CPK ')).rows[0];
     const tocOffset = header.TocOffset, contentOffset = header.ContentOffset, align = header.Align || 1;
     if (!tocOffset) throw new Error('CPK has no TOC (ITOC-only archives are not supported)');
     const baseOff = Math.min(contentOffset, tocOffset);
-    const rows = (await readChunk(read, tocOffset)).rows;
+    const rows = (await readChunk(read, tocOffset, 'TOC ')).rows;
     const entries = rows.map((r) => {
       const name = ((r.DirName ? r.DirName + '/' : '') + r.FileName).replace(/\\/g, '/');
       return { name: name, offset: alignUp(r.FileOffset + baseOff, align), size: r.FileSize, extractSize: r.ExtractSize, compressed: r.FileSize !== r.ExtractSize };

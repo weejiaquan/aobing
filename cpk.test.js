@@ -119,6 +119,16 @@ test('find matches by path suffix (rom_steam/… prefix)', async () => {
   assert.equal(P.parse(txt)[0].title, 'Hi');
 });
 
+test('readToc fails fast on a non-CPK file (no huge read)', async () => {
+  const junk = Buffer.alloc(64); junk.write('NOPE', 0); junk.writeBigUInt64LE(BigInt(0xffffffffff), 8);  // absurd utfSize
+  await assert.rejects(() => C.readToc(bufReader(junk)), /not a readable CPK/);
+});
+
+test('readToc rejects a CPK header with an implausible @UTF size', async () => {
+  const b = Buffer.alloc(64); b.write('CPK ', 0); b.writeBigUInt64LE(BigInt(500 * 1024 * 1024), 8);  // 500MB > cap
+  await assert.rejects(() => C.readToc(bufReader(b)), /implausible @UTF table size/);
+});
+
 // --- guarded: read the user's real diva_main.cpk if $DIVA_CPK is set ----------------
 const REAL = process.env.DIVA_CPK;
 test('real diva_main.cpk: TOC + decrypt a chart (skipped unless $DIVA_CPK)', { skip: REAL && fs.existsSync(REAL) ? false : 'set DIVA_CPK to run' }, async () => {

@@ -198,6 +198,7 @@
 
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
     let cpkLive = [];   // in-memory base-game CPK song entries (decrypt-on-demand, this session)
+    let cpkImportGen = 0;   // guards against overlapping CPK imports racing on cpkLive
     let autoplay = false;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;
 
@@ -340,11 +341,12 @@
     const DIFF_STARS = { easy: 2, normal: 4, hard: 6, extreme: 8 };
     async function importCpk(file) {
       if (!window.Cpk) { setImportStatus('CPK reader not loaded.'); return; }
+      const myGen = ++cpkImportGen;   // newest import wins; stale ones won't commit
       setImportStatus('Reading ' + file.name + '…');
       const read = window.Cpk.fileReader(file);
       let toc;
       try { toc = await window.Cpk.readToc(read); }
-      catch (e) { setImportStatus('Could not read ' + file.name + ' (not a readable CPK).'); return; }
+      catch (e) { if (myGen === cpkImportGen) setImportStatus('Could not read ' + file.name + ' (not a readable CPK).'); return; }
       const songs = {};   // pvId -> { id, diffs:{diff:entry}, audio:entry }
       for (const e of toc.entries) {
         const m = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
@@ -352,7 +354,7 @@
         const pv = 'pv_' + m[1], diff = m[2].toLowerCase() + (m[3] ? '+' : '');
         (songs[pv] || (songs[pv] = { id: pv, num: m[1], diffs: {} })).diffs[diff] = e;
       }
-      cpkLive = [];
+      const next = [];
       let songCount = 0;
       for (const pv in songs) {
         const s = songs[pv];
@@ -361,7 +363,7 @@
         songCount++;
         for (const diff in s.diffs) {
           const dscEntry = s.diffs[diff], baseDiff = diff.replace('+', '');
-          cpkLive.push({
+          next.push({
             id: 'cpk:' + file.name + ':' + pv + '_' + diff,
             title: 'PV ' + s.num + ' [' + diff + ']', artist: '', stars: DIFF_STARS[baseDiff] || 5,
             getChart: async () => {
@@ -374,6 +376,8 @@
           });
         }
       }
+      if (myGen !== cpkImportGen) return;   // a newer import superseded this one
+      cpkLive = next;
       setImportStatus(songCount + ' base songs · ' + cpkLive.length + ' charts loaded from ' + file.name + ' (this session).');
       await refreshLibrary();
     }
