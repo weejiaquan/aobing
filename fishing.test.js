@@ -245,3 +245,74 @@ test('dart retargets faster than drift (more movement over time)', () => {
   const dartTravel = travel('dart', { lo: 0.0, hi: 1.0, retarget: 0.8, ease: 7 });
   assert.ok(dartTravel > driftTravel, `dart travel ${dartTravel.toFixed(2)} should exceed drift ${driftTravel.toFixed(2)}`);
 });
+
+const { BEHAVIORS, resolveBehavior, createBehaviorState, stepFish } = ENGINE;
+
+function fishWith(behavior, rarity = 2) {
+  return { id: 'x', name: 'X', rarity, behavior, family: 'test', sizeRange: [10, 20], coinBase: 10 };
+}
+
+test('every BEHAVIORS entry references a real primitive', () => {
+  const valid = new Set(Object.keys(ENGINE.PRIMITIVES));
+  for (const [name, def] of Object.entries(BEHAVIORS)) {
+    assert.ok(valid.has(def.primitive), `behavior ${name} uses unknown primitive ${def.primitive}`);
+    if (def.mods && def.mods.phase) {
+      assert.ok(valid.has(def.mods.phase.alt), `behavior ${name} phase.alt ${def.mods.phase.alt} is not a primitive`);
+    }
+  }
+});
+
+test('the roster of named behaviors is at least 30', () => {
+  assert.ok(Object.keys(BEHAVIORS).length >= 30, `expected >=30 behaviors, got ${Object.keys(BEHAVIORS).length}`);
+});
+
+test('resolveBehavior folds rarity speed (legendary faster than common)', () => {
+  const slow = resolveBehavior(fishWith('darter', 1)).speedMul;
+  const fast = resolveBehavior(fishWith('darter', 5)).speedMul;
+  assert.ok(fast > slow, `legendary speedMul ${fast} should exceed common ${slow}`);
+});
+
+test('stepFish keeps position in [0,1] for all behaviors', () => {
+  for (const name of Object.keys(BEHAVIORS)) {
+    const s = createBehaviorState(fishWith(name, 3));
+    const rng = mulberry32(31);
+    for (let i = 0; i < 400; i++) {
+      const pos = stepFish(s, 1 / 60, rng, i / 400);
+      assert.ok(pos >= 0 && pos <= 1, `${name} produced ${pos} outside [0,1]`);
+    }
+  }
+});
+
+test('pause modifier produces zero-velocity windows', () => {
+  const s = createBehaviorState(fishWith('pausingBouncer', 3));
+  const rng = mulberry32(2);
+  let frozenFrames = 0, prev = s.pos;
+  for (let i = 0; i < 600; i++) {
+    const pos = stepFish(s, 1 / 60, rng, 0);
+    if (Math.abs(pos - prev) < 1e-6) frozenFrames++;
+    prev = pos;
+  }
+  assert.ok(frozenFrames > 20, `expected some frozen frames from pause, got ${frozenFrames}`);
+});
+
+test('crescendo speeds up as progress approaches 1', () => {
+  const travel = (progress) => {
+    const s = createBehaviorState(fishWith('tempest', 4));
+    const rng = mulberry32(5);
+    let d = 0, prev = s.pos;
+    for (let i = 0; i < 300; i++) { const pos = stepFish(s, 1 / 60, rng, progress); d += Math.abs(pos - prev); prev = pos; }
+    return d;
+  };
+  assert.ok(travel(0.95) > travel(0.05), 'crescendo behavior should move more at high progress');
+});
+
+test('createBehaviorState is reproducible for a fixed seed sequence', () => {
+  const run = () => {
+    const s = createBehaviorState(fishWith('trickster', 5));
+    const rng = mulberry32(9);
+    const trace = [];
+    for (let i = 0; i < 100; i++) trace.push(stepFish(s, 1 / 60, rng, 0.5));
+    return trace;
+  };
+  assert.deepEqual(run(), run());
+});

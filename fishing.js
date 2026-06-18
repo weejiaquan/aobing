@@ -139,7 +139,113 @@ const PRIMITIVES = {
   },
 };
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget };
+// --- Behavior composition (data: primitive + zone + modifiers) ---
+const ZONES = { top: [0.55, 0.95], bottom: [0.05, 0.45], mid: [0.2, 0.8], wide: [0.0, 1.0] };
+
+const BEHAVIORS = {
+  drifter:        { primitive: 'drift', params: { retarget: 2.5, ease: 2.5 } },
+  lazyDrifter:    { primitive: 'drift', params: { retarget: 3.5, ease: 1.5 } },
+  topDrifter:     { primitive: 'drift', zone: 'top', params: { retarget: 2.5, ease: 2.5 } },
+  bottomDrifter:  { primitive: 'drift', zone: 'bottom', params: { retarget: 2.5, ease: 2.5 } },
+  feintingDrifter:{ primitive: 'drift', params: { retarget: 2.5, ease: 2.5 }, mods: { feint: 0.25 } },
+  bouncer:        { primitive: 'oscillate', params: { omega: 1.6 } },
+  wideBouncer:    { primitive: 'oscillate', zone: 'wide', params: { omega: 1.3 } },
+  rampingBouncer: { primitive: 'oscillate', params: { omega: 1.4 }, mods: { speedRamp: 0.8 } },
+  pausingBouncer: { primitive: 'oscillate', params: { omega: 1.6 }, mods: { pause: { period: 1.8, hold: 0.5 } } },
+  darter:         { primitive: 'dart', zone: 'wide', params: { retarget: 0.8, ease: 7 } },
+  sprinter:       { primitive: 'dart', zone: 'wide', params: { retarget: 0.8, ease: 7 }, mods: { speedRamp: 1.0 } },
+  ambush:         { primitive: 'dart', zone: 'wide', params: { retarget: 0.8, ease: 9 }, mods: { pause: { period: 1.5, hold: 0.7 } } },
+  twitch:         { primitive: 'dart', zone: 'wide', params: { retarget: 0.7, ease: 7 }, mods: { jitter: 0.04 } },
+  floater:        { primitive: 'hold', zone: 'top', params: { stiffness: 2.2 } },
+  sinker:         { primitive: 'hold', zone: 'bottom', params: { stiffness: 2.2 } },
+  anchor:         { primitive: 'hold', zone: 'bottom', params: { stiffness: 3.4 } },
+  surfacer:       { primitive: 'hold', zone: 'top', params: { stiffness: 2.2 }, mods: { jitter: 0.05 } },
+  patroller:      { primitive: 'sweep', zone: 'wide', params: { speed: 0.35 } },
+  pendulum:       { primitive: 'sweep', zone: 'mid', params: { speed: 0.30 } },
+  pulsar:         { primitive: 'pulse', params: { interval: 1.4, hopEase: 8 } },
+  geyser:         { primitive: 'pulse', zone: 'top', params: { interval: 1.2, hopEase: 8 } },
+  hopper:         { primitive: 'pulse', params: { interval: 1.3, hopEase: 8 }, mods: { jitter: 0.03 } },
+  meanderer:      { primitive: 'walk', params: { step: 0.5 } },
+  nervous:        { primitive: 'walk', params: { step: 0.7 }, mods: { jitter: 0.03 } },
+  trickster:      { primitive: 'drift', params: { retarget: 2.5, ease: 2.5 }, mods: { phase: { alt: 'dart', period: 2.5, altParams: { retarget: 0.8, ease: 7 } } } },
+  tempest:        { primitive: 'oscillate', params: { omega: 1.6 }, mods: { phase: { alt: 'dart', period: 2.0, altParams: { retarget: 0.8, ease: 7 } }, crescendo: 0.8 } },
+  mirage:         { primitive: 'drift', params: { retarget: 2.5, ease: 2.5 }, mods: { mirror: 2.5 } },
+  tyrant:         { primitive: 'dart', zone: 'wide', params: { retarget: 0.8, ease: 8 }, mods: { phase: { alt: 'hold', period: 2.0, altParams: { stiffness: 3.0 } }, crescendo: 1.0 } },
+  glider:         { primitive: 'sweep', zone: 'wide', params: { speed: 0.5 }, mods: { speedRamp: 0.6 } },
+  flutter:        { primitive: 'oscillate', params: { omega: 2.4 }, mods: { jitter: 0.03 } },
+  ghost:          { primitive: 'drift', zone: 'wide', params: { retarget: 1.8, ease: 2.0 }, mods: { mirror: 3.0 } },
+};
+
+function resolveBehavior(fish) {
+  const def = BEHAVIORS[fish.behavior] || BEHAVIORS.drifter;
+  const zone = ZONES[def.zone || 'mid'];
+  const speedMul = RARITY_TIERS[fish.rarity].fishSpeed / RARITY_TIERS[1].fishSpeed; // 1.0 .. ~3.1
+  return {
+    primitive: def.primitive,
+    params: Object.assign({ lo: zone[0], hi: zone[1] }, def.params),
+    mods: def.mods || {},
+    speedMul,
+  };
+}
+
+function createBehaviorState(fish) {
+  const def = resolveBehavior(fish);
+  return { def, pos: 0.5, vel: 0, target: null, since: 0, t: 0, dir: 1, elapsed: 0 };
+}
+
+// Scale the time-derivative params that drive motion speed.
+function scaledParams(p, factor) {
+  const out = Object.assign({}, p);
+  if (out.ease != null) out.ease *= factor;
+  if (out.omega != null) out.omega *= factor;
+  if (out.speed != null) out.speed *= factor;
+  if (out.stiffness != null) out.stiffness *= factor;
+  if (out.hopEase != null) out.hopEase *= factor;
+  if (out.step != null) out.step *= factor;
+  if (out.retarget != null) out.retarget /= factor; // faster retarget when quicker
+  return out;
+}
+
+function stepFish(s, dt, rng, progress = 0) {
+  const def = s.def;
+  const mods = def.mods;
+  s.elapsed += dt;
+
+  // pause: freeze inside the hold window of each period.
+  if (mods.pause) {
+    const phase = s.elapsed % mods.pause.period;
+    if (phase < mods.pause.hold) { s.t += dt; return s.pos; }
+  }
+
+  // speed scaling from rarity + speedRamp + crescendo.
+  let factor = def.speedMul;
+  if (mods.speedRamp) factor *= 1 + mods.speedRamp * Math.min(1, s.elapsed / 12);
+  if (mods.crescendo) factor *= 1 + mods.crescendo * progress;
+
+  // phase: swap to the alternate primitive on a timer.
+  let primName = def.primitive;
+  let params = def.params;
+  if (mods.phase && Math.floor(s.elapsed / mods.phase.period) % 2 === 1) {
+    primName = mods.phase.alt;
+    params = Object.assign({ lo: def.params.lo, hi: def.params.hi }, mods.phase.altParams);
+  }
+
+  let pos = PRIMITIVES[primName](s, dt, rng, scaledParams(params, factor));
+
+  // feint: occasionally reflect the just-applied delta to fake a reversal.
+  if (mods.feint && rng() < mods.feint * dt) { pos = clamp01(s.pos - (s.target != null ? (s.target - s.pos) : 0) * 0.5); s.pos = pos; }
+
+  // jitter: additive noise.
+  if (mods.jitter) { pos = clamp01(pos + (rng() - 0.5) * mods.jitter); s.pos = pos; }
+
+  // mirror: reflect around center on a timer.
+  if (mods.mirror && Math.floor(s.elapsed / mods.mirror) % 2 === 1) { pos = clamp01(1 - pos); }
+
+  s.t += dt;
+  return pos;
+}
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;
