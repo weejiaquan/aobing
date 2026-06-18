@@ -2985,6 +2985,20 @@
     .import-hint b { color: #c8ccd4; font-weight: 600; }
     .import-hint code { background: #20242c; color: #cfe3ff; border: 1px solid #333a46; border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-family: ui-monospace, Menlo, Consolas, monospace; user-select: all; white-space: nowrap; }
     .import-hint .ih-line { display: block; margin: 1px 0; }
+    /* Diva import-source modal */
+    .diva-modal { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
+    .diva-modal[hidden] { display: none; }
+    .diva-modal-box { width: min(620px, 92vw); max-height: 86vh; overflow: auto; background: #15171d; border: 1px solid #2c313c; border-radius: 14px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+    .diva-modal-head { display: flex; align-items: center; justify-content: space-between; }
+    .diva-modal-head h3 { margin: 0; font-size: 18px; }
+    .diva-modal-x { background: transparent !important; color: #9aa0ab !important; font-size: 18px; padding: 4px 8px !important; }
+    .diva-modal-sub { color: #9aa0ab; font-size: 12.5px; margin: 4px 0 12px; }
+    .diva-src { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid #262b34; }
+    .diva-src-info { min-width: 0; }
+    .diva-src-info b { display: block; font-size: 14px; color: #e8e8ec; margin-bottom: 3px; }
+    .diva-src .import-hint { margin: 0; }
+    .diva-src > button { flex: none; background: #2b6cff !important; color: #fff !important; }
+    .diva-modal-done { margin-top: 14px; width: 100%; }
     #osu-sort { background: #2a2d36; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 5px 8px; font: inherit; }
     #osu-auto.on { background: #2b6cff !important; color: #fff !important; }
     .osu-group-star { margin-left: auto; color: #ffd166; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
@@ -3126,10 +3140,10 @@
       <div class="diva-select-head">
         <h2 data-i18n="mode.diva">Diva</h2>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="divaft-import" type="button" title="Import a Project Diva mod/rom folder (point at a folder containing pv_db.txt + rom/script + rom/sound)">Import Diva folder</button>
+          <button id="divaft-import-open" type="button" title="Import songs from Project Diva or Project Heartbeat">＋ Import songs</button>
           <input id="divaft-import-input" type="file" webkitdirectory directory multiple hidden>
-          <button id="divaft-import-cpk" type="button" title="Import base-game songs from your Mega Mix+ CPKs. Select BOTH diva_main.cpk (charts+audio) and diva_main_region.cpk (song names) — read directly, nothing is extracted.">Import .cpk</button>
           <input id="divaft-import-cpk-input" type="file" accept=".cpk" multiple hidden>
+          <input id="divaft-import-ph-input" type="file" webkitdirectory directory multiple hidden>
           <button id="divaft-auto" type="button" title="Autoplay preview — the chart plays itself (no score saved)">Auto: off</button>
           <button id="divaft-keys-btn" type="button">Keys</button>
           <button id="divaft-hitsound-btn" type="button">Hitsounds</button>
@@ -3137,8 +3151,7 @@
           <button id="divaft-exit" type="button" title="Exit Diva mode">✕ Exit</button>
         </div>
       </div>
-      <div class="import-hint" id="divaft-import-hint"></div>
-      <div id="divaft-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
+      <div id="divaft-import-summary" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="divaft-songlist"></div>
     </div>
     <div id="divaft-game" class="diva-screen" hidden>
@@ -3181,6 +3194,27 @@
       <p>Pick a preset or upload your own sound. Plays on every hit.</p>
       <div id="divaft-hs-controls" class="hs-controls"></div>
       <button id="divaft-hitsound-done" type="button">Done</button>
+    </div>
+    <!-- Import-source modal: pick Diva mods / Diva CPK / Project Heartbeat (one or several) -->
+    <div id="divaft-import-modal" class="diva-modal" hidden>
+      <div class="diva-modal-box">
+        <div class="diva-modal-head"><h3>Import songs</h3><button id="divaft-import-close" class="diva-modal-x" type="button" aria-label="Close">✕</button></div>
+        <p class="diva-modal-sub">Pick a source — you can import from several. Nothing is uploaded; files are read locally in your browser.</p>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Diva — mods / rom folder</b><span class="import-hint" id="divaft-hint-mods"></span></div>
+          <button id="divaft-pick-folder" type="button">Choose folder…</button>
+        </div>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Diva — base game (.cpk)</b><span class="import-hint" id="divaft-hint-cpk"></span></div>
+          <button id="divaft-pick-cpk" type="button">Choose .cpk…</button>
+        </div>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Heartbeat — songs + audio</b><span class="import-hint" id="divaft-hint-ph"></span></div>
+          <button id="divaft-pick-ph" type="button">Choose folder(s)…</button>
+        </div>
+        <div id="divaft-import-status" style="color:#c8ccd4; font-size:13px; min-height:18px; margin-top:4px;"></div>
+        <button id="divaft-import-done" type="button" class="diva-modal-done">Done</button>
+      </div>
     </div>
   </div>
 
@@ -3307,13 +3341,16 @@
         var osuHint = '<span class="ih-line">📁 Point at your <b>osu! folder</b> (or its <b>Songs</b> folder)' +
           (os === 'win' ? ' — paste <code>%LocalAppData%\\osu!</code> into the file picker’s address bar' : ' — usually <code>' + osuPath + '</code>') +
           '. A single <b>.osz</b> works too.</span>';
-        var divaHint =
-          '<span class="ih-line">📁 <b>Mods:</b> pick a mod folder that contains <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.</span>' +
-          '<span class="ih-line">💿 <b>Base game (.cpk):</b> select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive). Nothing is extracted &mdash; read locally.</span>';
+        var phData = { win: '%AppData%\\Project Heartbeat', mac: '~/Library/Application Support/Project Heartbeat', linux: '~/.local/share/Project Heartbeat' }[os];
+        var modsHint = 'A mod folder containing <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.';
+        var cpkHint = 'Select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive).';
+        var phHint = 'Point at your songs (Steam Workshop <code>…\\steamapps\\workshop\\content\\1216230</code>) <b>and</b> your PH folder <code>' + phData + '</code> for cached audio. Songs you’ve played in PH have audio.';
         var set = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
         set('osu-import-hint', osuHint);
         set('vsrg-import-hint', osuHint);
-        set('divaft-import-hint', divaHint);
+        set('divaft-hint-mods', modsHint);
+        set('divaft-hint-cpk', cpkHint);
+        set('divaft-hint-ph', phHint);
       }
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillImportHints);
       else fillImportHints();
@@ -3387,6 +3424,8 @@
         .then(function () { return loadScript('divapvdb.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // cpk.js (CRI CPK reader, AES content decrypt) lets divaft.js import base-game songs.
         .then(function () { return loadScript('cpk.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // phsong.js (Project Heartbeat song parser) feeds divaft.js's PH import.
+        .then(function () { return loadScript('phsong.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
