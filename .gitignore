@@ -4,3 +4,7 @@ Thumbs.db
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Project Diva real game data (copyrighted — local fixtures only, never commit)
+test/fixtures/divaft/
+scripts/dsc-probe.js
