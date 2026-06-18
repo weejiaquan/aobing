@@ -357,6 +357,7 @@ if (typeof document !== 'undefined') {
     const judgeEl = document.getElementById('vsrg-judge');
     const infoEl = document.getElementById('vsrg-info');
     const fpsEl = document.getElementById('vsrg-fps');
+    const skipBtn = document.getElementById('vsrg-skip');
     const resultsBody = document.getElementById('vsrg-results-body');
     const retryBtn = document.getElementById('vsrg-retry');
     const backBtn = document.getElementById('vsrg-back');
@@ -876,6 +877,7 @@ if (typeof document !== 'undefined') {
       try { run.src.stop(); } catch (e) {}
       run = null;
       if (fpsEl) fpsEl.textContent = '';
+      if (skipBtn) skipBtn.hidden = true;
     }
 
     async function loadAndPlay(entry) {
@@ -938,14 +940,18 @@ if (typeof document !== 'undefined') {
       const t0perf = performance.now();
       const t0ctx = ac.currentTime;
 
+      const firstNoteTime = notes.reduce((m, n) => Math.min(m, n.time), Infinity);
       run = {
-        entry, chart, notes, keys, keyCount, windows, src, gain,
+        entry, chart, notes, keys, keyCount, windows, src, gain, audioBuf,
         startCtx, t0perf, t0ctx, totalJudgements,
         approachMs: approachMs(),     // visual scroll speed, snapshot at run start
         state: createRunState({ notes: notes }),
         lastNoteTime: notes.reduce((m, n) => Math.max(m, n.endTime || n.time), 0),
         finished: false, rafId: 0, pressed: {},
         errors: [],                   // signed hit-timing errors (ms) for UR + the bar
+        // Skip target: jump to ~1.5s before the first note if the intro is long enough.
+        firstNoteTime: isFinite(firstNoteTime) ? firstNoteTime : 0,
+        skipTo: Math.max(0, (isFinite(firstNoteTime) ? firstNoteTime : 0) - 1500), skipped: false,
       };
       run.state.totalNotes = totalJudgements;
       errTicks = [];                 // clear the error bar for the new run
@@ -988,8 +994,30 @@ if (typeof document !== 'undefined') {
       sweepMisses(st);
       render(st);
       tickFps();
+      updateSkip(st);
       if (st > run.lastNoteTime + END_PAD_MS) { finishRun(); return; }
       run.rafId = requestAnimationFrame(loop);
+    }
+    // Skip button: offered during a long intro; fast-forwards the audio + clock to
+    // ~1.5s before the first note (like osu's Skip).
+    function updateSkip(st) {
+      if (!skipBtn) return;
+      const show = !run.skipped && run.skipTo > 800 && st < run.skipTo - 100;
+      if (skipBtn.hidden === show) skipBtn.hidden = !show;
+    }
+    function doSkip() {
+      if (!run || run.finished || run.skipped) return;
+      if (songTimeNow() >= run.skipTo - 50) return;
+      const ac = audioCtx, when = ac.currentTime;
+      try { run.src.stop(); } catch (e) {}
+      const src = ac.createBufferSource();
+      src.buffer = run.audioBuf; src.connect(run.gain);     // gain already wired to destination
+      src.start(when, run.skipTo / 1000);
+      run.src = src;
+      run.startCtx = when - run.skipTo / 1000;               // songTimeNow now reads ~skipTo
+      run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync input→ctx mapping
+      run.skipped = true;
+      skipBtn.hidden = true;
     }
     // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
     // this is the display's refresh rate (60 / 144 / 240… as fast as the monitor +
@@ -1105,6 +1133,7 @@ if (typeof document !== 'undefined') {
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
+      if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       if (handleControlKey(e.key)) { e.preventDefault(); return; }   // 1/2 speed, -/= offset
       const lane = run.keys.indexOf(e.key.toLowerCase());
       if (lane < 0 || run.pressed[lane]) return;     // ignore auto-repeat
@@ -1628,6 +1657,7 @@ if (typeof document !== 'undefined') {
     if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
+    if (skipBtn) skipBtn.addEventListener('click', doSkip);
     const exitBtn = document.getElementById('vsrg-exit');
     if (exitBtn) exitBtn.addEventListener('click', function () { close(); });
     // Panel-level Escape: back out of a sub-screen, or exit the mode entirely.

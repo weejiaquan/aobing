@@ -97,6 +97,29 @@
     src.buffer = buf; src.connect(g).connect(ctx.destination); src.start();
   }
 
+  // Continuous slider-slide loop (osu's sliderslide): a soft filtered tone that
+  // fades IN while the player follows a slider and OUT when they stop / it ends.
+  // One persistent (gain-gated) node per context — cheap, no restart clicks.
+  function slide(ctx, on) {
+    if (!ctx) return;
+    let s = ctx.__hsSlide;
+    const v = vol();
+    if (on && v > 0) {
+      if (!s) {
+        const osc = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+        osc.type = 'sawtooth'; osc.frequency.value = 200;
+        lp.type = 'lowpass'; lp.frequency.value = 720;
+        g.gain.value = 0.0001;
+        osc.connect(lp).connect(g).connect(ctx.destination);
+        try { osc.start(); } catch (e) {}
+        s = ctx.__hsSlide = { osc: osc, g: g };
+      }
+      s.g.gain.setTargetAtTime(Math.min(1, v / 100) * 0.10, ctx.currentTime, 0.02);   // subtle
+    } else if (s) {
+      s.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05);                         // fade to silence (node kept)
+    }
+  }
+
   function preview() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!previewCtx) previewCtx = new Ctx();
@@ -157,6 +180,6 @@
     el.querySelector('#hs-test').addEventListener('click', () => preview());
   }
 
-  window.Hitsound = { init: init, play: play, preview: preview, renderControls: renderControls };
+  window.Hitsound = { init: init, play: play, slide: slide, preview: preview, renderControls: renderControls };
   if (window.__hitsoundDeps) init(window.__hitsoundDeps);   // self-init (loaded after app.js sets deps)
 })();

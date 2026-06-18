@@ -905,6 +905,7 @@ if (typeof document !== 'undefined') {
       run = null;
       if (fpsEl) fpsEl.textContent = '';
       if (skipBtn) skipBtn.hidden = true;
+      if (window.Hitsound && window.Hitsound.slide && audioCtx) window.Hitsound.slide(audioCtx, false);   // stop the slide loop
     }
     async function loadAndPlay(entry) {
       if (loading) return;
@@ -1119,6 +1120,7 @@ if (typeof document !== 'undefined') {
 
     function updateSliders(st) {
       const followR = run.radius * 2.4;
+      let anyFollow = false;
       for (const s of run.objs) {
         if (s.o.kind !== 'slider' || s.judged) continue;
         const o = s.o;
@@ -1126,6 +1128,7 @@ if (typeof document !== 'undefined') {
         if (st >= o.time && st <= o.endTime + 30) {
           const ball = sliderBallPos(o, st);
           s.following = heldAny() && dist(cursor, ball) <= followR;
+          if (s.following) anyFollow = true;
           for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) {
             cp.ev = true; cp.hit = s.following;
             // hitsound on each slider event the player is following: ticks soft,
@@ -1138,6 +1141,7 @@ if (typeof document !== 'undefined') {
           finalizeSlider(s);
         }
       }
+      if (window.Hitsound && window.Hitsound.slide) window.Hitsound.slide(audioCtx, anyFollow);   // looped slide while following
     }
     function finalizeSlider(s) {
       const headOk = (s.headJudged && s.headResult !== 'miss') ? 1 : 0;
