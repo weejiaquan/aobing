@@ -97,8 +97,23 @@
     src.buffer = buf; src.connect(g).connect(ctx.destination); src.start();
   }
 
+  // Slider tick (osu's slidertick): a short bright blip, beat-synced by the caller.
+  // Distinct from the configured hit sound so the rhythm reads clearly over the slide.
+  function tick(ctx) {
+    const v = vol(); if (!ctx || !(v > 0)) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(1750, t);
+    const peak = Math.min(1, v / 100) * 0.32;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + 0.05);
+  }
+
   // Continuous slider-slide loop (osu's sliderslide): a soft filtered tone that
-  // fades IN while the player follows a slider and OUT when they stop / it ends.
+  // fades IN while the player follows a slider and OUT while they stop / it ends.
   // One persistent (gain-gated) node per context — cheap, no restart clicks.
   function slide(ctx, on) {
     if (!ctx) return;
@@ -114,7 +129,7 @@
         try { osc.start(); } catch (e) {}
         s = ctx.__hsSlide = { osc: osc, g: g };
       }
-      s.g.gain.setTargetAtTime(Math.min(1, v / 100) * 0.10, ctx.currentTime, 0.02);   // subtle
+      s.g.gain.setTargetAtTime(Math.min(1, v / 100) * 0.06, ctx.currentTime, 0.02);   // subtle bed under the beat-ticks
     } else if (s) {
       s.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05);                         // fade to silence (node kept)
     }
@@ -180,6 +195,6 @@
     el.querySelector('#hs-test').addEventListener('click', () => preview());
   }
 
-  window.Hitsound = { init: init, play: play, slide: slide, preview: preview, renderControls: renderControls };
+  window.Hitsound = { init: init, play: play, tick: tick, slide: slide, preview: preview, renderControls: renderControls };
   if (window.__hitsoundDeps) init(window.__hitsoundDeps);   // self-init (loaded after app.js sets deps)
 })();
