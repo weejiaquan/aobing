@@ -3119,6 +3119,8 @@
       <div class="diva-select-head">
         <h2 data-i18n="mode.diva">Diva</h2>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="divaft-import" type="button" title="Import a Project Diva mod/rom folder (point at a folder containing pv_db.txt + rom/script + rom/sound)">Import Diva folder</button>
+          <input id="divaft-import-input" type="file" webkitdirectory directory multiple hidden>
           <button id="divaft-auto" type="button" title="Autoplay preview — the chart plays itself (no score saved)">Auto: off</button>
           <button id="divaft-keys-btn" type="button">Keys</button>
           <button id="divaft-hitsound-btn" type="button">Hitsounds</button>
@@ -3126,6 +3128,7 @@
           <button id="divaft-exit" type="button" title="Exit Diva mode">✕ Exit</button>
         </div>
       </div>
+      <div id="divaft-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="divaft-songlist"></div>
     </div>
     <div id="divaft-game" class="diva-screen" hidden>
@@ -3339,6 +3342,10 @@
         // window.__osustdDeps. Inert until the mode is opened.
         .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
+        // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
+        // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.
+        .then(function () { return loadScript('divadsc.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('divapvdb.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.

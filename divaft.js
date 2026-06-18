@@ -266,12 +266,62 @@
       renderSongList();
     }
     async function loadCachedCharts() {
+      // Imported charts store the assembled chart inline and reference shared audio
+      // (one ogg per song, deduped across its difficulties) in the 'audio' store.
       const all = await idbGetAll('chart');
       return (all || []).map((s) => ({
         id: 'cache:' + s.id, title: s.title, artist: s.artist || '', stars: s.stars || 1,
-        getChart: () => Promise.resolve(assembleChart(s.chart || s)),
-        getAudio: () => Promise.resolve(s.audio.slice().buffer),
+        getChart: () => Promise.resolve(s.chart),
+        getAudio: () => idbGet('audio', s.audioKey).then((u8) => { if (!u8) throw new Error('audio missing for ' + s.id); return u8.slice().buffer; }),
       }));
+    }
+
+    // ---- Loose folder import (mod / rom directory) ---------------------------
+    function setImportStatus(msg) { const el = document.getElementById('divaft-import-status'); if (el) el.textContent = msg || ''; }
+    async function importFolder(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      if (!window.DivaPvdb || !window.DivaDsc) { setImportStatus('Decoder not loaded.'); return; }
+      setImportStatus('Reading folder…');
+      const relOf = (f) => (f.webkitRelativePath || f.name);
+      const dbFile = files.find((f) => /(?:^|\/)(?:mod_)?pv_db\.txt$/i.test(relOf(f)));
+      if (!dbFile) { setImportStatus('No pv_db.txt found in that folder.'); return; }
+      // pv_db paths (e.g. "rom/script/x.dsc") are mod-root-relative, but the pv_db file
+      // itself may live in rom/ or at the root depending on the pack — so resolve by
+      // matching the file whose full path ends with the pv_db-relative path.
+      const lc = files.map((f) => ({ f: f, p: relOf(f).toLowerCase() }));
+      const resolve = (rel) => {
+        const want = '/' + String(rel).toLowerCase().replace(/^[./]+/, '');
+        for (const e of lc) if (e.p === want.slice(1) || e.p.endsWith(want)) return e.f;
+        return null;
+      };
+      let songs;
+      try { songs = window.DivaPvdb.parse(await dbFile.text()); }
+      catch (e) { setImportStatus('Could not read pv_db.txt.'); return; }
+      let imported = 0, skipped = 0, songN = 0;
+      for (const song of songs) {
+        const diffs = window.DivaPvdb.playableDiffs(song);
+        const audioFile = song.audio ? resolve(song.audio) : null;
+        if (!diffs.length || !audioFile) { skipped += Math.max(1, diffs.length); continue; }
+        songN++; setImportStatus('Importing ' + songN + '/' + songs.length + '… (' + imported + ' charts)');
+        let audioStored = false;
+        for (const diff of diffs) {
+          const scriptFile = resolve(song.diffs[diff].script);
+          if (!scriptFile) { skipped++; continue; }
+          try {
+            const decoded = window.DivaDsc.decode(await scriptFile.arrayBuffer());
+            if (!decoded.notes.length) { skipped++; continue; }
+            const chart = assembleChart({ title: song.title + ' [' + diff + ']', artist: song.artist, bpm: song.bpm, audioFile: song.audio, notes: decoded.notes, chanceTimes: decoded.chanceTimes });
+            if (song.diffs[diff].stars) chart.stars = song.diffs[diff].stars;   // prefer the DB's official level
+            if (!audioStored) { await idbPut('audio', song.id, new Uint8Array(await audioFile.arrayBuffer())); audioStored = true; }
+            const id = song.id + '_' + diff;
+            await idbPut('chart', id, { id: id, title: chart.title, artist: chart.artist || '', stars: chart.stars, diff: diff, audioKey: song.id, chart: chart });
+            imported++;
+          } catch (e) { skipped++; try { console.error('[divaft] import ' + song.id + '/' + diff, e); } catch (_) {} }
+        }
+      }
+      setImportStatus('Imported ' + imported + ' charts · ' + skipped + ' skipped.');
+      await refreshLibrary();
     }
 
     // ---- Input maps ----------------------------------------------------------
@@ -735,6 +785,12 @@
     // ---- Wiring --------------------------------------------------------------
     if (songlistEl) songlistEl.addEventListener('click', (e) => { const b = e.target.closest('.diva-song'); if (!b) return; const entry = library[Number(b.getAttribute('data-i'))]; if (entry) loadAndPlay(entry); });
     if (exitBtn) exitBtn.addEventListener('click', close);
+    const importBtn = document.getElementById('divaft-import');
+    const importInput = document.getElementById('divaft-import-input');
+    if (importBtn && importInput) {
+      importBtn.addEventListener('click', () => importInput.click());
+      importInput.addEventListener('change', () => { importFolder(importInput.files); importInput.value = ''; });
+    }
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
     if (skipBtn) skipBtn.addEventListener('click', doSkip);
@@ -784,8 +840,8 @@
   function idb() {
     if (_db) return _db;
     _db = new Promise((res, rej) => {
-      const req = indexedDB.open('aobing-divaft', 1);
-      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('chart')) db.createObjectStore('chart'); if (!db.objectStoreNames.contains('diva-pb')) db.createObjectStore('diva-pb'); };
+      const req = indexedDB.open('aobing-divaft', 2);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('chart')) db.createObjectStore('chart'); if (!db.objectStoreNames.contains('diva-pb')) db.createObjectStore('diva-pb'); if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio'); };
       req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
     });
     return _db;
