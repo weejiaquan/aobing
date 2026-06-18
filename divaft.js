@@ -346,18 +346,19 @@
       for (const src of cpkSources) { const e = src.toc.find(path); if (e) return { read: src.read, entry: e }; }
       return null;
     }
-    function makeCpkEntry(pv, diff, title, stars, scriptPath, audioPath, bpm) {
+    // chartRef/audioRef are resolved {read, entry} pairs captured at build time, so the
+    // exact archive+entry chosen during the rebuild is what plays (no re-resolution).
+    function makeCpkEntry(pv, diff, title, stars, chartRef, audioRef, bpm, audioName) {
       const full = title + ' [' + diff + ']';
       return {
         id: 'cpk:' + pv + '_' + diff, title: full, artist: '', stars: stars || DIFF_STARS[diff.replace('+', '')] || 5,
         getChart: async () => {
-          const r = resolveCpk(scriptPath); if (!r) throw new Error('chart not found: ' + scriptPath);
-          const bytes = await window.Cpk.readEntry(r.read, r.entry);
+          const bytes = await window.Cpk.readEntry(chartRef.read, chartRef.entry);
           const dec = window.DivaDsc.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
           if (!dec.ended || !dec.notes.length) throw new Error('chart did not decode cleanly');
-          return assembleChart({ title: full, bpm: bpm || 0, audioFile: audioPath, notes: dec.notes, chanceTimes: dec.chanceTimes });
+          return assembleChart({ title: full, bpm: bpm || 0, audioFile: audioName || '', notes: dec.notes, chanceTimes: dec.chanceTimes });
         },
-        getAudio: async () => { const r = resolveCpk(audioPath); if (!r) throw new Error('audio not found: ' + audioPath); const b = await window.Cpk.readEntry(r.read, r.entry); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
+        getAudio: async () => { const b = await window.Cpk.readEntry(audioRef.read, audioRef.entry); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
       };
     }
     // sub-rom preference when the same pv/diff chart exists in several layers
@@ -411,14 +412,17 @@
       const next = []; let songCount = 0;
       for (const pv in songs) {
         const s = songs[pv], m = meta[pv] || {};
-        const audioPath = (m.audio && resolveCpk(m.audio)) ? m.audio : ('rom/sound/song/' + pv + '.ogg');
-        if (!resolveCpk(audioPath)) continue;
+        // resolve audio once: prefer the pv_db path, else the per-song convention path.
+        const audioName = m.audio || ('rom/sound/song/' + pv + '.ogg');
+        const audioRef = (m.audio && resolveCpk(m.audio)) || resolveCpk('rom/sound/song/' + pv + '.ogg');
+        if (!audioRef) continue;
         const title = m.title || ('PV ' + s.num);
         let any = false;
         for (const diff in s.diffs) {
-          if (!resolveCpk(s.diffs[diff])) continue;
+          const chartRef = resolveCpk(s.diffs[diff]);   // s.diffs[diff] is a full entry name → exact
+          if (!chartRef) continue;
           const stars = (m.stars && m.stars[diff.replace('+', '')]) || null;
-          next.push(makeCpkEntry(pv, diff, title, stars, s.diffs[diff], audioPath, m.bpm || 0));
+          next.push(makeCpkEntry(pv, diff, title, stars, chartRef, audioRef, m.bpm || 0, audioName));
           any = true;
         }
         if (any) songCount++;
