@@ -1128,7 +1128,7 @@ if (typeof document !== 'undefined') {
       if ((span % 2) === 1) fr = 1 - fr;
       return pointAtFrac(o.path, fr);
     }
-    function heldAny() { return !!(run.pressed.z || run.pressed.x || run.pressed.mouse); }
+    function heldAny() { return tapKeys().some((k) => run.pressed[k]) || !!run.pressed.m1 || !!run.pressed.m2; }
 
     function updateSliders(st) {
       const followR = run.radius * 2.4;
@@ -1143,9 +1143,12 @@ if (typeof document !== 'undefined') {
           if (s.following) anyFollow = true;
           for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) {
             cp.ev = true; cp.hit = s.following;
-            // hitsound on each slider event the player is following: ticks soft,
-            // reverse-arrows medium, the tail full — the "clicks" osu plays too.
-            if (cp.hit) playHitsound(cp.kind === 'tick' ? 0.4 : cp.kind === 'repeat' ? 0.85 : 1);
+            // sound each slider event the player is following: beat-synced ticks use
+            // the dedicated slidertick blip; reverse-arrows medium, the tail full.
+            if (cp.hit) {
+              if (cp.kind === 'tick') { if (window.Hitsound && window.Hitsound.tick && audioCtx) window.Hitsound.tick(audioCtx); }
+              else playHitsound(cp.kind === 'repeat' ? 0.85 : 1);
+            }
           }
         }
         if (st > o.endTime + 30) {
@@ -1215,20 +1218,23 @@ if (typeof document !== 'undefined') {
       window[fn]('keydown', onKeyDown);
     }
     function onPointerMove(e) { updateCursorFromEvent(e); }
-    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); if (run) run.pressed.mouse = true; pressKey('mouse', true); onTap(e.timeStamp); }
-    function onPointerUp(e) { if (run) run.pressed.mouse = false; pressKey('mouse', false); }
+    // Both mouse buttons tap (left = M1, right = M2, like osu); right-click's context
+    // menu is suppressed on the canvas so it can be used as a button.
+    function mouseBtn(e) { return e.button === 2 ? 'm2' : 'm1'; }
+    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); const b = mouseBtn(e); if (run) run.pressed[b] = true; pressKey(b, true); onTap(e.timeStamp); }
+    function onPointerUp(e) { if (run) { run.pressed.m1 = run.pressed.m2 = false; } pressKey('m1', false); pressKey('m2', false); }
     function tapKeys() {
       const k = settings.osuKeys;
       return (Array.isArray(k) && k.length) ? k.map((x) => String(x).toLowerCase()) : ['z', 'x'];
     }
-    // Key-press overlay (right side): a live box per tap key + M1, lit while held,
-    // with a running press count — like osu's key overlay.
+    // Key-press overlay (right side): a live box per tap key + M1/M2 (mouse), lit
+    // while held, with a running press count — like osu's key overlay.
     let keyBoxes = {}, keyCounts = {};
     function buildKeyOverlay() {
       if (!keysOverlayEl) return;
       keyBoxes = {}; keyCounts = {}; keysOverlayEl.innerHTML = '';
-      tapKeys().concat(['mouse']).forEach((k) => {
-        const label = k === 'mouse' ? 'M1' : (k === ' ' ? '␣' : k.toUpperCase());
+      tapKeys().concat(['m1', 'm2']).forEach((k) => {
+        const label = k === 'm1' ? 'M1' : k === 'm2' ? 'M2' : (k === ' ' ? '␣' : k.toUpperCase());
         const box = document.createElement('div'); box.className = 'osu-key';
         box.innerHTML = '<span class="osu-key-label">' + label + '</span><span class="osu-key-count">0</span>';
         keysOverlayEl.appendChild(box); keyBoxes[k] = box; keyCounts[k] = 0;
@@ -1646,7 +1652,7 @@ if (typeof document !== 'undefined') {
       close();
     });
     window.addEventListener('resize', () => { if (run && !run.finished) sizeCanvas(); });
-    if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; canvas.style.cursor = 'none'; }
+    if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; canvas.style.cursor = 'none'; canvas.addEventListener('contextmenu', (e) => e.preventDefault()); }
     if (panel) panel.addEventListener('pointerdown', grabFocus);
 
     api.open = open; api.close = close;
