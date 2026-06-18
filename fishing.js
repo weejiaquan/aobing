@@ -81,7 +81,19 @@ function createSpecimen(fish, rng) {
   return { species: fish.id, size, float, grade: floatToGrade(float), shiny };
 }
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE };
+// --- Coin payout ---
+function computeCoins(fish, size, float, shiny, isNew) {
+  const [lo, hi] = fish.sizeRange;
+  const norm = hi > lo ? (size - lo) / (hi - lo) : 0.5;
+  const sizeFactor = 0.75 + 0.5 * norm;        // 0.75 .. 1.25
+  const qualityMul = 1 + 1.5 * (1 - float);     // 1.0 .. 2.5 (lower float = better)
+  const shinyMul = shiny ? 5 : 1;
+  let coins = fish.coinBase * sizeFactor * qualityMul * shinyMul;
+  if (isNew) coins += RARITY_TIERS[fish.rarity].discoveryBonus;
+  return Math.round(coins);
+}
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;

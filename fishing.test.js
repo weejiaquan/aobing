@@ -160,3 +160,35 @@ test('createSpecimen is deterministic for a fixed seed', () => {
   const b = createSpecimen(FISH, mulberry32(1));
   assert.deepEqual(a, b);
 });
+
+const { computeCoins } = ENGINE;
+const COINFISH = { id: 'koi', name: 'Koi', rarity: 3, behavior: 'feintingDrifter', family: 'koi', sizeRange: [30, 70], coinBase: 150 };
+
+test('computeCoins returns an integer', () => {
+  const c = computeCoins(COINFISH, 50, 0.3, false, false);
+  assert.equal(Number.isInteger(c), true);
+});
+
+test('computeCoins rises with size', () => {
+  const small = computeCoins(COINFISH, 30, 0.3, false, false);
+  const big = computeCoins(COINFISH, 70, 0.3, false, false);
+  assert.ok(big > small, `bigger fish (${big}) should pay more than smaller (${small})`);
+});
+
+test('computeCoins rises as float improves (float -> 0)', () => {
+  const worn = computeCoins(COINFISH, 50, 0.9, false, false);
+  const prime = computeCoins(COINFISH, 50, 0.02, false, false);
+  assert.ok(prime > worn, `prime (${prime}) should beat worn (${worn})`);
+});
+
+test('computeCoins applies a large shiny bonus', () => {
+  const normal = computeCoins(COINFISH, 50, 0.3, false, false);
+  const shiny = computeCoins(COINFISH, 50, 0.3, true, false);
+  assert.ok(shiny >= normal * 4, `shiny (${shiny}) should be far above normal (${normal})`);
+});
+
+test('computeCoins adds the discovery bonus exactly once for new species', () => {
+  const repeat = computeCoins(COINFISH, 50, 0.3, false, false);
+  const discovered = computeCoins(COINFISH, 50, 0.3, false, true);
+  assert.equal(discovered - repeat, RARITY_TIERS[3].discoveryBonus, 'discovery delta must equal the tier bonus');
+});
