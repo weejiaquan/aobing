@@ -112,6 +112,37 @@
     o.start(t); o.stop(t + 0.05);
   }
 
+  // ---- Map-controlled additions (whistle / finish / clap) ------------------
+  // osu objects carry a hitsound bitmask (1 normal, 2 whistle, 4 finish, 8 clap);
+  // the normal always plays and the others layer on top. Synthesized here so a map
+  // gets "different sounds for different clicks" without per-skin samples.
+  function noiseBuf(ctx) {
+    if (ctx.__hsNoise) return ctx.__hsNoise;
+    const n = Math.floor(ctx.sampleRate * 0.3), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    ctx.__hsNoise = b; return b;
+  }
+  function blip(ctx, type, f0, f1, dur, peak) {
+    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur * 0.7);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noiseHit(ctx, hp, dur, peak) {
+    const t = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noiseBuf(ctx); f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(ctx.destination); src.start(t); src.stop(t + dur + 0.02);
+  }
+  function playAdditions(ctx, bits, scale) {
+    const v = vol() * (scale == null ? 1 : scale); if (!ctx || !(v > 0)) return;
+    const g = Math.min(1, v / 100);
+    blip(ctx, 'triangle', 360, 200, 0.06, g * 0.40);          // normal (always)
+    if (bits & 2) blip(ctx, 'sine', 1500, 1400, 0.08, g * 0.30);   // whistle
+    if (bits & 4) noiseHit(ctx, 3500, 0.20, g * 0.35);             // finish (cymbal)
+    if (bits & 8) noiseHit(ctx, 900, 0.05, g * 0.50);             // clap
+  }
+
   // Continuous slider-slide loop (osu's sliderslide): a soft filtered tone that
   // fades IN while the player follows a slider and OUT while they stop / it ends.
   // One persistent (gain-gated) node per context — cheap, no restart clicks.
@@ -173,9 +204,15 @@
         '<button type="button" id="hs-upload">Upload .wav / .mp3 / .ogg…</button>' +
         (customName ? '<button type="button" id="hs-clear">✕ remove</button>' : '') +
       '</div>' +
+      '<div class="hs-row"><span>Map hitsounds</span>' +
+        '<button type="button" id="hs-usemap" class="hs-preset' + (settings().hitsoundUseMap ? ' sel' : '') + '">' +
+          (settings().hitsoundUseMap ? 'On — use the map’s sounds' : 'Off — use the sound above') + '</button>' +
+      '</div>' +
       '<input type="file" id="hs-file" accept="audio/*" hidden>' +
       '<button type="button" id="hs-test" class="hs-test">▶ Test</button>';
 
+    const useMapBtn = el.querySelector('#hs-usemap');
+    if (useMapBtn) useMapBtn.addEventListener('click', () => { settings().hitsoundUseMap = !settings().hitsoundUseMap; deps.saveSettings(); renderControls(el); });
     el.querySelectorAll('[data-hk]').forEach((b) => b.addEventListener('click', () => {
       const hk = b.getAttribute('data-hk');
       if (hk === 'custom' && !customBytes) { el.querySelector('#hs-file').click(); return; }   // pick a file first
@@ -195,6 +232,6 @@
     el.querySelector('#hs-test').addEventListener('click', () => preview());
   }
 
-  window.Hitsound = { init: init, play: play, tick: tick, slide: slide, preview: preview, renderControls: renderControls };
+  window.Hitsound = { init: init, play: play, tick: tick, slide: slide, playAdditions: playAdditions, preview: preview, renderControls: renderControls };
   if (window.__hitsoundDeps) init(window.__hitsoundDeps);   // self-init (loaded after app.js sets deps)
 })();

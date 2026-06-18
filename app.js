@@ -1053,6 +1053,7 @@
       rhythmSubMode: 'standard',  // 'standard' (osu) | 'mania' (vsrg) — sub-toggle under the Rhythm mode
       hitsoundVol: 35,            // 0–100: hit sound volume for the rhythm modes (0 = off)
       hitsoundKind: 'soft',       // 'soft' | 'tick' | 'drum' | 'beep' (synth presets) | 'custom' (uploaded) — see hitsound.js
+      hitsoundUseMap: false,      // play the beatmap's per-note hitsounds (whistle/finish/clap) instead of the chosen sound
       typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
       vsrgCalibrationOffset: 0,   // ms applied to VSRG input->song-time mapping (vsrg.js)
       vsrgScrollSpeed: 1.0,       // VSRG note scroll-speed multiplier (higher = faster)
