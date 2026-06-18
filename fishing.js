@@ -24,7 +24,27 @@ const RARITY_TIERS = {
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 
-const API = { mulberry32, RARITY_TIERS, clamp01 };
+// --- Encounter + timing ---
+const CAST_WAIT_MIN = 1.5;
+const CAST_WAIT_MAX = 5.0;
+const HOOK_WINDOW_SECONDS = 1.0;
+
+function rollEncounter(table, rng) {
+  let total = 0;
+  for (const f of table) total += RARITY_TIERS[f.rarity].weight;
+  let r = rng() * total;
+  for (const f of table) {
+    r -= RARITY_TIERS[f.rarity].weight;
+    if (r < 0) return f;
+  }
+  return table[table.length - 1]; // float-rounding fallback
+}
+
+function rollCastWait(rng) {
+  return CAST_WAIT_MIN + rng() * (CAST_WAIT_MAX - CAST_WAIT_MIN);
+}
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;
