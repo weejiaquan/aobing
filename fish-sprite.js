@@ -15,7 +15,9 @@ const SHINY_PALETTES = [
   ['#e8e8f0', '#b8c0ff'], ['#ffd770', '#fff3c0'], ['#b0fff0', '#e8fffb'],
 ];
 const EYES = ['dot', 'ring', 'sleepy'];
-const ACCENTS = ['whiskers', 'spines', 'antenna', 'glow', 'sheen'];
+const BASE_ACCENTS = ['whiskers', 'spines', 'antenna'];
+const GATED_ACCENTS = ['glow', 'sheen'];
+const ACCENTS = [...BASE_ACCENTS, ...GATED_ACCENTS];
 
 function hashId(id) {
   let h = 2166136261 >>> 0;
@@ -38,7 +40,7 @@ function fishSpriteSpec(fish, opts) {
 
   // Accents: each rolled independently; "glow" gated to rarity >= 4.
   const accents = [];
-  if (rng() < 0.35) accents.push(pick(['whiskers', 'spines', 'antenna']));
+  if (rng() < 0.35) accents.push(pick(BASE_ACCENTS));
   if (fish.rarity >= 4 && rng() < 0.7) accents.push('glow');
   if (fish.rarity >= 3 && rng() < 0.4) accents.push('sheen');
 
