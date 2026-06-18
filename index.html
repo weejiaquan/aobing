@@ -2920,6 +2920,9 @@
     #osu-combo { position: absolute; bottom: 24px; left: 24px; font-size: 30px; font-weight: 800; }
     #osu-judge { position: absolute; top: 50%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 800; opacity: 0; }
     #osu-results { align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
+    #osu-calib { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+    #osu-calib label { display: inline-flex; align-items: center; gap: 8px; }
+    #osu-tap-result { color: #ffd166; min-height: 20px; font-variant-numeric: tabular-nums; }
     .osu-res-title { font-size: 16px; color: #c8ccd4; }
     .osu-res-grade { font-size: 72px; font-weight: 900; line-height: 1; }
     .osu-res-acc { font-size: 40px; font-weight: 800; color: #e8e8ec; font-variant-numeric: tabular-nums; }
@@ -2954,6 +2957,7 @@
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
+          <button id="osu-calibrate" type="button">Calibrate</button>
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
       </div>
@@ -2976,6 +2980,15 @@
         <button id="osu-retry" type="button">Retry</button>
         <button id="osu-back" type="button">Back to songs</button>
       </div>
+    </div>
+    <div id="osu-calib" class="osu-screen" hidden>
+      <h2>Calibration</h2>
+      <p>Tap the button (or press Space) in time with the beat — your offset is measured automatically.</p>
+      <canvas id="osu-calib-canvas" width="200" height="120"></canvas>
+      <button id="osu-tap" type="button" class="vsrg-tap-btn">Tap to the beat</button>
+      <div id="osu-tap-result"></div>
+      <label>Offset <input type="range" id="osu-calib-slider" min="-200" max="200" step="1"><b id="osu-calib-val">0 ms</b></label>
+      <button id="osu-calib-done" type="button">Done</button>
     </div>
   </div>
 

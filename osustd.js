@@ -375,9 +375,17 @@ if (typeof document !== 'undefined') {
       select:  document.getElementById('osu-select'),
       game:    document.getElementById('osu-game'),
       results: document.getElementById('osu-results'),
+      calib:   document.getElementById('osu-calib'),
     };
     const songlistEl = document.getElementById('osu-songlist');
     const keybindsEl = document.getElementById('osu-keybinds');
+    const calibrateBtn = document.getElementById('osu-calibrate');
+    const calibCanvas = document.getElementById('osu-calib-canvas');
+    const calibSlider = document.getElementById('osu-calib-slider');
+    const calibValEl = document.getElementById('osu-calib-val');
+    const calibDoneBtn = document.getElementById('osu-calib-done');
+    const tapBtn = document.getElementById('osu-tap');
+    const tapResultEl = document.getElementById('osu-tap-result');
     const exitBtn = document.getElementById('osu-exit');
     const canvas = document.getElementById('osu-canvas');
     const g = canvas.getContext('2d');
@@ -1324,6 +1332,85 @@ if (typeof document !== 'undefined') {
     }
     function quitToSelect() { loadGen++; teardownRun(); if (deps.resumeBgm) deps.resumeBgm(); show('select'); renderSongList(); }
 
+    // ---- Calibration (tap-to-the-beat metronome → osuCalibrationOffset) -------
+    let calibLoop = null, calibTiming = null, tapState = null;
+    function tapReset() {
+      tapState = null;
+      if (tapResultEl) tapResultEl.textContent = '';
+      if (tapBtn) tapBtn.textContent = 'Tap to the beat';
+    }
+    function registerTap(perfTs) {
+      if (!tapState) return;
+      const tapCtx = tapState.tc0 + (perfTs - tapState.tp0) / 1000;
+      const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
+      if (k < 0) return;                                   // before the first beat
+      const beat = tapState.baseTick + k * tapState.period;
+      const errMs = (tapCtx - beat) * 1000;
+      if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
+      tapState.errors.push(errMs);
+      const need = 12;
+      if (tapBtn) tapBtn.textContent = 'Tap! (' + tapState.errors.length + '/' + need + ')';
+      if (tapState.errors.length >= need) finishTapCalibration();
+    }
+    function finishTapCalibration() {
+      const e = tapState.errors.slice().sort((a, b) => a - b);
+      const trimmed = e.slice(1, e.length - 1);            // drop the worst outlier each side
+      const mean = trimmed.reduce((a, b) => a + b, 0) / (trimmed.length || 1);
+      const offset = Math.round(mean);
+      settings.osuCalibrationOffset = offset;
+      if (deps.saveSettings) deps.saveSettings();
+      if (calibSlider) calibSlider.value = offset;
+      if (calibValEl) calibValEl.textContent = offset + ' ms';
+      if (tapResultEl) tapResultEl.textContent = 'Your offset: ' + offset + ' ms (set). Tap again to redo.';
+      tapState = null;
+      if (tapBtn) tapBtn.textContent = 'Tap to the beat';
+    }
+    function onTapButton(perfTs) {
+      if (!calibTiming) return;
+      if (!tapState) tapState = { baseTick: calibTiming.baseTick, period: calibTiming.period, tc0: calibTiming.tc0, tp0: calibTiming.tp0, errors: [] };
+      registerTap(perfTs);
+    }
+    function openCalibration() {
+      show('calib'); tapReset();
+      if (calibSlider) { calibSlider.value = calOffset(); if (calibValEl) calibValEl.textContent = calOffset() + ' ms'; }
+      ensureCtx().then((ac) => {
+        const cctx = calibCanvas ? calibCanvas.getContext('2d') : null;
+        const period = 0.6;                       // 100 BPM metronome
+        const baseTick = ac.currentTime + 0.2;    // first beep; flash phase is anchored here
+        calibTiming = { baseTick: baseTick, period: period, tc0: ac.currentTime, tp0: performance.now() };
+        let nextTick = baseTick;
+        function tick() {
+          if (!calibTiming) return;               // closed mid-loop
+          while (nextTick < ac.currentTime + 0.1) {
+            const o = ac.createOscillator(), gg = ac.createGain();
+            o.frequency.value = 1200;
+            gg.gain.setValueAtTime(0.0001, nextTick);
+            gg.gain.exponentialRampToValueAtTime(0.4, nextTick + 0.001);
+            gg.gain.exponentialRampToValueAtTime(0.0001, nextTick + 0.05);
+            o.connect(gg).connect(ac.destination);
+            o.start(nextTick); o.stop(nextTick + 0.06);
+            nextTick += period;
+          }
+          if (cctx) {
+            // Phase from baseTick (when beeps fire), with calOffset applied — same sign
+            // as gameplay (inputSongTime subtracts calOffset); wrap negatives into [0,period).
+            const rel = ac.currentTime - baseTick - calOffset() / 1000;
+            const phase = (((rel % period) + period) % period) / period;
+            const flash = phase < 0.12 ? 1 : 0;
+            cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
+            cctx.fillStyle = flash ? '#39d98a' : '#1a1c22';
+            cctx.beginPath(); cctx.arc(calibCanvas.width / 2, calibCanvas.height / 2, 40, 0, Math.PI * 2); cctx.fill();
+          }
+          calibLoop = requestAnimationFrame(tick);
+        }
+        tick();
+      });
+    }
+    function closeCalibration() {
+      if (calibLoop) cancelAnimationFrame(calibLoop);
+      calibLoop = null; calibTiming = null; tapReset(); show('select');
+    }
+
     // ---- Open / close (called by app.js applyMode) ---------------------------
     function open() {
       panel.classList.add('open'); panelOpen = true;
@@ -1333,6 +1420,7 @@ if (typeof document !== 'undefined') {
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();
+      if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapState = null; }
       panel.classList.remove('open'); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
@@ -1359,9 +1447,19 @@ if (typeof document !== 'undefined') {
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
+    if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
+    if (calibDoneBtn) calibDoneBtn.addEventListener('click', closeCalibration);
+    if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
+    if (calibSlider) calibSlider.addEventListener('input', (e) => {
+      settings.osuCalibrationOffset = Number(e.target.value);
+      if (calibValEl) calibValEl.textContent = settings.osuCalibrationOffset + ' ms';
+      if (deps.saveSettings) deps.saveSettings();
+    });
     window.addEventListener('keydown', (e) => {
+      if (e.key === ' ' && panelOpen && screens.calib && !screens.calib.hidden) { e.preventDefault(); onTapButton(e.timeStamp); return; }
       if (e.key !== 'Escape' || !panelOpen) return;
       if (run && !run.finished) return;
+      if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; }
       if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
       close();
     });
