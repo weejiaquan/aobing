@@ -461,7 +461,9 @@
       for (const f of files) {
         const rel = f.webkitRelativePath || f.name;
         phFiles[rel.toLowerCase()] = f;                         // case-insensitive path resolution
-        if (/\.ogg$/i.test(rel)) { const stem = rel.split('/').pop().replace(/\.ogg$/i, ''); if (!(stem in phAudioById)) phAudioById[stem] = f; }  // case-SENSITIVE id
+        // index ONLY the youtube_dl cache by its case-sensitive video id; last write wins so a
+        // later pick refreshes it, and local song audio.ogg can't shadow a cache id.
+        if (/youtube_dl\/cache\/[^/]+\.ogg$/i.test(rel)) phAudioById[rel.split('/').pop().replace(/\.ogg$/i, '')] = f;
       }
       await rebuildPhLibrary(myGen);
     }
@@ -954,6 +956,7 @@
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();
+      const im = document.getElementById('divaft-import-modal'); if (im) im.hidden = true;   // don't leave the import modal open
       calibGen++; if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; }
       panel.classList.remove('open'); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
@@ -1017,7 +1020,7 @@
       else { const macros = (settings.divaMacros = divaMacros().slice()); while (macros.length <= rebind.i) macros.push({ key: '', buttons: [] }); macros[rebind.i].key = k; }
       if (deps.saveSettings) deps.saveSettings(); rebind = null; renderKeybinds();
     }, true);
-    window.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || !panelOpen) return; if (run && !run.finished) return; if (screens.keys && !screens.keys.hidden) { show('select'); return; } if (screens.hitsound && !screens.hitsound.hidden) { show('select'); return; } if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; } if (screens.results && !screens.results.hidden) { quitToSelect(); return; } close(); });
+    window.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || !panelOpen) return; if (run && !run.finished) return; if (importModal && !importModal.hidden) { closeImport(); return; } if (screens.keys && !screens.keys.hidden) { show('select'); return; } if (screens.hitsound && !screens.hitsound.hidden) { show('select'); return; } if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; } if (screens.results && !screens.results.hidden) { quitToSelect(); return; } close(); });
     window.addEventListener('resize', () => { if (run && !run.finished) sizeCanvas(); });
     if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; }
     if (panel) panel.addEventListener('pointerdown', grabFocus);
