@@ -53,7 +53,74 @@ function fishSpriteSpec(fish, opts) {
 }
 
 // --- Canvas renderer (visual; not unit-tested) — implemented in Task 10 ---
-function drawFish(ctx, spec, t) { /* Task 10 */ }
+function drawFish(ctx, spec, t) {
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  const cx = w / 2, cy = h / 2;
+  const bodyLen = w * 0.6, bodyH = h * 0.32;
+  const cond = spec.condition; // 1 pristine .. 0 scarred
+  const [dark, light] = spec.palette;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.globalAlpha = 0.55 + 0.45 * cond; // duller when worn
+
+  // tail (wiggles with t)
+  const wag = Math.sin(t * 6) * bodyH * 0.25;
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.moveTo(-bodyLen * 0.5, 0);
+  ctx.lineTo(-bodyLen * 0.75, -bodyH * 0.5 + wag);
+  ctx.lineTo(-bodyLen * 0.75, bodyH * 0.5 + wag);
+  ctx.closePath();
+  ctx.fill();
+
+  // body
+  const grad = ctx.createLinearGradient(0, -bodyH, 0, bodyH);
+  grad.addColorStop(0, light);
+  grad.addColorStop(1, dark);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  if (spec.bodyShape === 'round' || spec.bodyShape === 'blobby') {
+    ctx.ellipse(0, 0, bodyLen * 0.42, bodyH * 1.1, 0, 0, Math.PI * 2);
+  } else if (spec.bodyShape === 'eel') {
+    ctx.ellipse(0, 0, bodyLen * 0.5, bodyH * 0.5, 0, 0, Math.PI * 2);
+  } else {
+    ctx.ellipse(0, 0, bodyLen * 0.5, bodyH, 0, 0, Math.PI * 2);
+  }
+  ctx.fill();
+
+  // pattern
+  ctx.fillStyle = dark;
+  if (spec.pattern === 'stripes') {
+    for (let i = -2; i <= 2; i++) { ctx.fillRect(i * bodyLen * 0.12, -bodyH, bodyLen * 0.04, bodyH * 2); }
+  } else if (spec.pattern === 'spots') {
+    for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.arc(i * bodyLen * 0.12, (i % 2) * bodyH * 0.4, bodyH * 0.18, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  // eye
+  ctx.fillStyle = '#10141a';
+  ctx.beginPath();
+  ctx.arc(bodyLen * 0.32, -bodyH * 0.2, bodyH * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+
+  // accents
+  if (spec.accents.includes('glow')) {
+    ctx.globalAlpha = 0.4 * cond;
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, bodyLen * 0.62, bodyH * 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (spec.shiny) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(-bodyLen * 0.1, -bodyH * 0.4, bodyLen * 0.18, bodyH * 0.25, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
 
 const API = {
   hashId, fishSpriteSpec, drawFish,
