@@ -358,6 +358,7 @@ if (typeof document !== 'undefined') {
     const infoEl = document.getElementById('vsrg-info');
     const fpsEl = document.getElementById('vsrg-fps');
     const skipBtn = document.getElementById('vsrg-skip');
+    const autoBtn = document.getElementById('vsrg-auto');
     const resultsBody = document.getElementById('vsrg-results-body');
     const retryBtn = document.getElementById('vsrg-retry');
     const backBtn = document.getElementById('vsrg-back');
@@ -370,6 +371,7 @@ if (typeof document !== 'undefined') {
     let audioCtx = null;
     let panelOpen = false;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;   // FPS + frametime accumulators (loop is bare rAF = display refresh)
+    let autoplay = false;                             // Auto preview mod: the chart plays itself, no score saved
     let library = [];          // [{ id, source, title, artist, diffName, keyCount, od, hash, getOsuText, getAudio }]
     let localEntries = [];     // maps imported this session (webkitdirectory; not persisted)
     let keyFilter = 'all';
@@ -949,6 +951,7 @@ if (typeof document !== 'undefined') {
         lastNoteTime: notes.reduce((m, n) => Math.max(m, n.endTime || n.time), 0),
         finished: false, rafId: 0, pressed: {},
         errors: [],                   // signed hit-timing errors (ms) for UR + the bar
+        auto: autoplay,
         // Skip target: jump to ~1.5s before the first note if the intro is long enough.
         firstNoteTime: isFinite(firstNoteTime) ? firstNoteTime : 0,
         skipTo: Math.max(0, (isFinite(firstNoteTime) ? firstNoteTime : 0) - 1500), skipped: false,
@@ -991,6 +994,7 @@ if (typeof document !== 'undefined') {
     function loop() {
       if (!run || run.finished) return;
       const st = songTimeNow();
+      if (run.auto) autoPlay(st);   // preview: hit each note on time, hold through tails
       sweepMisses(st);
       render(st);
       tickFps();
@@ -1091,9 +1095,27 @@ if (typeof document !== 'undefined') {
       return Math.sqrt(v) * 10;
     }
 
+    // ---- Autoplay (preview): hit every note perfectly, no score saved --------
+    function autoPlay(st) {
+      for (const n of run.notes) {
+        if (!n.headJudged && st >= n.time) {           // tap / hold head — perfect on time
+          n.headJudged = true; n.headTier = 'marvelous';
+          recordError(0, 'marvelous'); playHitsound();
+          if (n.endTime != null) { n.holding = true; run.pressed[n.lane] = true; }   // light the lane for the hold's duration
+          pushFx(n.lane, 'press', '#ffffff');
+          applyTier('marvelous', n.lane, false);
+        }
+        if (n.endTime != null && n.holding && !n.tailJudged && st >= n.endTime) {   // release the hold on time
+          n.holding = false; n.tailJudged = true; run.pressed[n.lane] = false;
+          recordError(0, 'marvelous');
+          applyTier('marvelous', n.lane, false);
+        }
+      }
+    }
+
     // ---- Input -------------------------------------------------------------
     function onHit(lane, perfTs) {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.auto) return;   // autoplay drives hits itself
       const st = inputSongTime(perfTs);
       // nearest unhit head in this lane within the bad window
       let best = null, bestErr = Infinity;
@@ -1112,7 +1134,7 @@ if (typeof document !== 'undefined') {
     function playHitsound() { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx); }   // shared engine (hitsound.js)
 
     function onRelease(lane, perfTs) {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.auto) return;
       const st = inputSongTime(perfTs);
       // find a hold currently being held in this lane
       const n = run.notes.find((x) => x.lane === lane && x.holding && !x.tailJudged);
@@ -1403,7 +1425,8 @@ if (typeof document !== 'undefined') {
       bindInput(false);
       try { run.src.stop(); } catch (e) {}
       const acc = accuracy(run.state.counts);
-      const pb = await savePersonalBest(run.entry.hash, {
+      // Autoplay is a preview — never recorded as a personal best.
+      const pb = run.auto ? null : await savePersonalBest(run.entry.hash, {
         accuracy: acc, maxCombo: run.state.maxCombo,
         counts: run.state.counts, title: run.entry.title, diffName: run.entry.diffName,
       });
@@ -1421,9 +1444,10 @@ if (typeof document !== 'undefined') {
           'Marv ' + c.marvelous + ' · Perf ' + c.perfect + ' · Great ' + c.great +
           ' · Good ' + c.good + ' · Bad ' + c.bad + ' · Miss ' + c.miss +
         '</div>' +
-        (pb && pb.prev ? '<div class="vsrg-res-pb">Previous best: ' + pb.prev.accuracy.toFixed(2) + '%' +
-          (pb.improved ? ' — new best!' : '') + '</div>'
-          : '<div class="vsrg-res-pb">First clear — saved as your best.</div>');
+        (r.auto ? '<div class="vsrg-res-pb">Autoplay preview — not saved.</div>'
+          : (pb && pb.prev ? '<div class="vsrg-res-pb">Previous best: ' + pb.prev.accuracy.toFixed(2) + '%' +
+            (pb.improved ? ' — new best!' : '') + '</div>'
+            : '<div class="vsrg-res-pb">First clear — saved as your best.</div>'));
     }
 
     function quitToSelect() {
@@ -1658,6 +1682,7 @@ if (typeof document !== 'undefined') {
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     if (skipBtn) skipBtn.addEventListener('click', doSkip);
+    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.textContent = 'Auto: ' + (autoplay ? 'on' : 'off'); });
     const exitBtn = document.getElementById('vsrg-exit');
     if (exitBtn) exitBtn.addEventListener('click', function () { close(); });
     // Panel-level Escape: back out of a sub-screen, or exit the mode entirely.
