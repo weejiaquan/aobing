@@ -192,3 +192,56 @@ test('computeCoins adds the discovery bonus exactly once for new species', () =>
   const discovered = computeCoins(COINFISH, 50, 0.3, false, true);
   assert.equal(discovered - repeat, RARITY_TIERS[3].discoveryBonus, 'discovery delta must equal the tier bonus');
 });
+
+const { PRIMITIVES } = ENGINE;
+
+function freshState() { return { pos: 0.5, vel: 0, target: null, since: 0, t: 0, dir: 1 }; }
+function runPrimitive(name, p, steps, seed) {
+  const s = freshState();
+  const rng = mulberry32(seed);
+  const trace = [];
+  for (let i = 0; i < steps; i++) trace.push(PRIMITIVES[name](s, 1 / 60, rng, p));
+  return trace;
+}
+
+test('every primitive keeps the marker inside [0,1]', () => {
+  const cfgs = {
+    drift: { lo: 0.2, hi: 0.8, retarget: 2.5, ease: 2.5 },
+    dart: { lo: 0.0, hi: 1.0, retarget: 0.8, ease: 7 },
+    oscillate: { lo: 0.1, hi: 0.9, omega: 1.6 },
+    hold: { lo: 0.6, hi: 0.95, stiffness: 2.2 },
+    sweep: { lo: 0.05, hi: 0.95, speed: 0.35 },
+    pulse: { lo: 0.1, hi: 0.9, interval: 1.2, hopEase: 8 },
+    walk: { lo: 0, hi: 1, step: 0.6 },
+  };
+  for (const [name, p] of Object.entries(cfgs)) {
+    for (const pos of runPrimitive(name, p, 600, 13)) {
+      assert.ok(pos >= 0 && pos <= 1, `${name} produced ${pos} outside [0,1]`);
+    }
+  }
+});
+
+test('hold stays near its zone center', () => {
+  const trace = runPrimitive('hold', { lo: 0.6, hi: 0.95, stiffness: 2.5 }, 600, 4);
+  const tail = trace.slice(300);
+  const avg = tail.reduce((a, b) => a + b, 0) / tail.length;
+  assert.ok(avg > 0.7, `hold-top average ${avg.toFixed(3)} should settle high`);
+});
+
+test('oscillate is periodic (revisits its mid level)', () => {
+  const trace = runPrimitive('oscillate', { lo: 0.2, hi: 0.8, omega: 2.0 }, 600, 1);
+  const max = Math.max(...trace), min = Math.min(...trace);
+  assert.ok(max - min > 0.4, `oscillate should sweep a wide range, got span ${(max - min).toFixed(3)}`);
+});
+
+test('dart retargets faster than drift (more movement over time)', () => {
+  const travel = (name, p) => {
+    const t = runPrimitive(name, p, 600, 77);
+    let d = 0;
+    for (let i = 1; i < t.length; i++) d += Math.abs(t[i] - t[i - 1]);
+    return d;
+  };
+  const driftTravel = travel('drift', { lo: 0.2, hi: 0.8, retarget: 2.5, ease: 2.5 });
+  const dartTravel = travel('dart', { lo: 0.0, hi: 1.0, retarget: 0.8, ease: 7 });
+  assert.ok(dartTravel > driftTravel, `dart travel ${dartTravel.toFixed(2)} should exceed drift ${driftTravel.toFixed(2)}`);
+});

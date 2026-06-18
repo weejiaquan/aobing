@@ -92,7 +92,54 @@ function computeCoins(fish, size, float, shiny, isNew) {
   return base + (isNew ? RARITY_TIERS[fish.rarity].discoveryBonus : 0);
 }
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins };
+// --- Motion primitives (each returns pos in [0,1] and mutates state) ---
+function sampleTarget(rng, p) {
+  const lo = p.lo != null ? p.lo : 0;
+  const hi = p.hi != null ? p.hi : 1;
+  return lo + rng() * (hi - lo);
+}
+
+function seek(s, dt, rng, p) {
+  s.since += dt;
+  if (s.target == null || s.since >= p.retarget) { s.target = sampleTarget(rng, p); s.since = 0; }
+  s.pos += (s.target - s.pos) * Math.min(1, p.ease * dt);
+  return (s.pos = clamp01(s.pos));
+}
+
+const PRIMITIVES = {
+  drift: seek,
+  dart: seek,
+  oscillate(s, dt, rng, p) {
+    s.t += dt;
+    const mid = ((p.lo != null ? p.lo : 0) + (p.hi != null ? p.hi : 1)) / 2;
+    const amp = ((p.hi != null ? p.hi : 1) - (p.lo != null ? p.lo : 0)) / 2;
+    return (s.pos = clamp01(mid + amp * Math.sin(s.t * p.omega)));
+  },
+  hold(s, dt, rng, p) {
+    const center = ((p.lo != null ? p.lo : 0) + (p.hi != null ? p.hi : 1)) / 2;
+    s.pos += (center - s.pos) * Math.min(1, p.stiffness * dt);
+    return (s.pos = clamp01(s.pos));
+  },
+  sweep(s, dt, rng, p) {
+    if (s.dir == null) s.dir = 1;
+    s.pos += s.dir * p.speed * dt;
+    if (s.pos >= p.hi) { s.pos = p.hi; s.dir = -1; }
+    if (s.pos <= p.lo) { s.pos = p.lo; s.dir = 1; }
+    return (s.pos = clamp01(s.pos));
+  },
+  pulse(s, dt, rng, p) {
+    s.since += dt;
+    if (s.target == null || s.since >= p.interval) { s.target = sampleTarget(rng, p); s.since = 0; }
+    s.pos += (s.target - s.pos) * Math.min(1, p.hopEase * dt);
+    return (s.pos = clamp01(s.pos));
+  },
+  walk(s, dt, rng, p) {
+    s.pos += (rng() - 0.5) * p.step * dt * 60 / 60; // step is per-second amplitude
+    return (s.pos = clamp01(s.pos));
+  },
+};
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;
