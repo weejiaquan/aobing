@@ -121,9 +121,24 @@ test('decode: a chart with no END opcode reports ended=false (so the importer sk
   assert.equal(r.ended, false);       // but it never terminated cleanly
 });
 
-test('decode: rejects a non-dsc buffer', () => {
-  const bad = new ArrayBuffer(8); new DataView(bad).setUint32(0, 0xdeadbeef, true);
-  assert.throws(() => D.decode(bad), /bad signature/);
+test('decode: accepts any DSC version stamp (MM+ bundles several; validity is the clean walk)', () => {
+  const buf = buildDsc([TIME(0), FLY(500), TARGET(0, 0, 0, 0, 1, 0, 0), END]);
+  new DataView(buf).setUint32(0, 0x14012316, true);   // re-stamp with a different version
+  const r = D.decode(buf);
+  assert.equal(r.ended, true);
+  assert.equal(r.notes.length, 1);
+  assert.equal(r.signature, 0x14012316);
+});
+
+test('decode: a non-dsc buffer produces no usable chart (the ended+notes gate rejects it)', () => {
+  const bad = new ArrayBuffer(16); const dv = new DataView(bad);
+  dv.setUint32(0, 0xdeadbeef, true); dv.setInt32(4, 0x7fffffff, true);   // invalid opcode id
+  const r = D.decode(bad);
+  assert.ok(!(r.ended && r.notes.length), 'not a valid chart');
+});
+
+test('decode: throws only when the buffer is too small', () => {
+  assert.throws(() => D.decode(new ArrayBuffer(4)), /too small/);
 });
 
 test('decode: stops cleanly at END even with trailing bytes', () => {
