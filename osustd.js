@@ -393,11 +393,25 @@ if (typeof document !== 'undefined') {
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
+    let errTicks = [];                                // recent signed hit errors for the live error bar
     let localEntries = [];                            // maps imported this session (folder; not persisted)
     let skin = null;                                  // active custom osu! skin (null = built-in look)
     const tintCache = new Map();                      // memoised combo-colour-tinted sprites
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
+    // Unstable rate = stdev of signed hit errors × 10 (osu definition); the error
+    // bar + UR readout mirror osu!mania's. recordError feeds both.
+    function unstableRate(errs) {
+      if (!errs || errs.length < 2) return 0;
+      const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
+      const v = errs.reduce((s, e) => s + (e - mean) * (e - mean), 0) / errs.length;
+      return Math.sqrt(v) * 10;
+    }
+    function recordError(errMs, result) {
+      if (run) run.errors.push(errMs);
+      errTicks.push({ err: errMs, result: result, t: performance.now() });
+      if (errTicks.length > 64) errTicks.shift();
+    }
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
@@ -840,7 +854,9 @@ if (typeof document !== 'undefined') {
         preempt: preempt, fadeIn: fadeIn, radius: radius, windows: windows,
         counts: { h300: 0, h100: 0, h50: 0, miss: 0 }, combo: 0, maxCombo: 0,
         lastTime: lastTime, finished: false, rafId: 0, artImg: null, pressed: {},
+        errors: [],   // signed hit-timing errors (ms, +late/-early) for UR + the error bar
       };
+      errTicks = [];
       if (entry.getArt) entry.getArt().then((b) => {
         if (!b || !run || run.entry !== entry) return;
         const url = URL.createObjectURL(b), img = new Image();
@@ -1000,9 +1016,11 @@ if (typeof document !== 'undefined') {
       if (!best) return;
       // cursor must be over the head
       if (dist(cursor, { x: best.o.x, y: best.o.y }) > run.radius) return;   // missed aim
-      const err = Math.abs(st - best.o.time);
+      const signed = st - best.o.time;                     // +late / -early
+      const err = Math.abs(signed);
       const w = run.windows;
       const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
+      recordError(signed, result);                         // feeds the UR + error bar (heads only, like osu)
       if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; }  // body/tail scored later
       else judgeResult(best, result);
     }
@@ -1199,6 +1217,35 @@ if (typeof document !== 'undefined') {
         g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr, 0, Math.PI * 2); g.stroke();
         g.restore();
       }
+      drawErrorBar(W, H, dpr);
+    }
+
+    // Hit-error bar near the bottom: ticks left of centre = early, right = late.
+    // Background zones show the 300/100/50 windows; a marker tracks the running
+    // mean. Ticks fade over ~2.5s. Mirrors osu!mania's bar.
+    function drawErrorBar(W, H, dpr) {
+      const w = run.windows;
+      const cx = W / 2, y = H - 30 * dpr, half = W * 0.22;
+      const pxPerMs = half / (w.h50 || 100);            // full bar = ±50 (widest) window
+      const zone = (ms, color) => { g.fillStyle = color; g.fillRect(cx - ms * pxPerMs, y - 5 * dpr, ms * pxPerMs * 2, 10 * dpr); };
+      zone(w.h50, 'rgba(255,209,102,0.20)');
+      zone(w.h100, 'rgba(57,217,138,0.24)');
+      zone(w.h300, 'rgba(86,160,255,0.30)');
+      g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(cx - dpr, y - 9 * dpr, 2 * dpr, 18 * dpr);   // centre line
+      const nowP = performance.now();
+      for (let i = errTicks.length - 1; i >= 0; i--) {
+        const e = errTicks[i], age = nowP - e.t;
+        if (age > 2500) { errTicks.splice(i, 1); continue; }
+        const x = cx + Math.max(-half, Math.min(half, e.err * pxPerMs));
+        g.globalAlpha = 1 - age / 2500; g.fillStyle = JUDGE_COLORS[e.result] || '#fff';
+        g.fillRect(x - dpr, y - 8 * dpr, 2 * dpr, 16 * dpr); g.globalAlpha = 1;
+      }
+      if (run.errors.length >= 3) {                     // running-mean marker (small triangle under the bar)
+        const mean = run.errors.reduce((a, b) => a + b, 0) / run.errors.length;
+        const mx = cx + Math.max(-half, Math.min(half, mean * pxPerMs));
+        g.fillStyle = '#9be7ff';
+        g.beginPath(); g.moveTo(mx, y + 9 * dpr); g.lineTo(mx - 4 * dpr, y + 15 * dpr); g.lineTo(mx + 4 * dpr, y + 15 * dpr); g.closePath(); g.fill();
+      }
     }
 
     const JUDGE_LABELS = { h300: '300', h100: '100', h50: '50', miss: 'MISS' };
@@ -1211,7 +1258,10 @@ if (typeof document !== 'undefined') {
     }
     function updateHud() {
       if (comboEl) comboEl.textContent = run.combo > 1 ? run.combo + 'x' : '';
-      if (accEl) accEl.textContent = accuracy().toFixed(2) + '%';
+      if (accEl) {
+        const ur = unstableRate(run.errors);
+        accEl.textContent = accuracy().toFixed(2) + '%' + (ur ? '  ·  UR ' + Math.round(ur) : '');
+      }
     }
 
     // ---- Results / PB --------------------------------------------------------
@@ -1237,7 +1287,7 @@ if (typeof document !== 'undefined') {
           cell('300', c.h300, '#56a0ff') + cell('100', c.h100, '#39d98a') +
           cell('50', c.h50, '#ffd166') + cell('Miss', c.miss, '#ff5470') +
         '</div>' +
-        '<div class="osu-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects ' + fc + '</div>' +
+        '<div class="osu-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects &nbsp;·&nbsp; UR ' + Math.round(unstableRate(run.errors)) + ' ' + fc + '</div>' +
         (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
               : '<div class="osu-res-pb">First clear — saved as your best.</div>');
       show('results');
