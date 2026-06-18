@@ -402,7 +402,7 @@ if (typeof document !== 'undefined') {
     const backBtn = document.getElementById('osu-back');
 
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
-    let fpsFrames = 0, fpsLast = 0;                    // FPS counter accumulators (rhythm runs as fast as rAF allows)
+    let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;   // FPS + frametime accumulators (rhythm runs as fast as rAF allows)
     let currentGroups = [], expandedKey = null;       // song-select accordion (one open group at a time)
     let cursor = { x: PLAY_W / 2, y: PLAY_H / 2 };   // in osu!px
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
@@ -923,7 +923,7 @@ if (typeof document !== 'undefined') {
         img.onerror = () => URL.revokeObjectURL(url); img.src = url;
       }).catch(() => {});
       trail = []; bursts = [];
-      fpsFrames = 0; fpsLast = performance.now();
+      fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
       updateHud();
@@ -955,12 +955,17 @@ if (typeof document !== 'undefined') {
     // render cost allow) — there's no artificial frame cap.
     function tickFps() {
       if (!fpsEl) return;
-      fpsFrames++;
       const now = performance.now();
-      if (now - fpsLast >= 500) {
-        const fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
-        fpsFrames = 0; fpsLast = now;
-        fpsEl.textContent = (settings.showFps !== false) ? (fps + ' FPS') : '';
+      if (fpsPrev) { const dt = now - fpsPrev; if (dt > fpsMaxDt) fpsMaxDt = dt; }   // worst frame this window
+      fpsPrev = now;
+      fpsFrames++;
+      const elapsed = now - fpsLast;
+      if (elapsed >= 500) {
+        const fps = Math.round(fpsFrames * 1000 / elapsed);
+        const avgMs = elapsed / fpsFrames;                                            // average frametime
+        fpsEl.textContent = (settings.showFps !== false)
+          ? (fps + ' FPS · ' + avgMs.toFixed(1) + ' ms · max ' + Math.round(fpsMaxDt) + ' ms') : '';
+        fpsFrames = 0; fpsLast = now; fpsMaxDt = 0;
       }
     }
 

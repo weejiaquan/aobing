@@ -368,7 +368,7 @@ if (typeof document !== 'undefined') {
     // ---- State -------------------------------------------------------------
     let audioCtx = null;
     let panelOpen = false;
-    let fpsFrames = 0, fpsLast = 0;   // FPS counter accumulators (loop is bare rAF = display refresh)
+    let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;   // FPS + frametime accumulators (loop is bare rAF = display refresh)
     let library = [];          // [{ id, source, title, artist, diffName, keyCount, od, hash, getOsuText, getAudio }]
     let localEntries = [];     // maps imported this session (webkitdirectory; not persisted)
     let keyFilter = 'all';
@@ -963,7 +963,7 @@ if (typeof document !== 'undefined') {
       }
 
       src.onended = () => {};   // end is driven by song-time, not this event
-      fpsFrames = 0; fpsLast = performance.now();
+      fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
       updateHud();
@@ -996,12 +996,17 @@ if (typeof document !== 'undefined') {
     // render cost allow) — no artificial frame cap.
     function tickFps() {
       if (!fpsEl) return;
-      fpsFrames++;
       const now = performance.now();
-      if (now - fpsLast >= 500) {
-        const fps = Math.round(fpsFrames * 1000 / (now - fpsLast));
-        fpsFrames = 0; fpsLast = now;
-        fpsEl.textContent = (settings.showFps !== false) ? (fps + ' FPS') : '';
+      if (fpsPrev) { const dt = now - fpsPrev; if (dt > fpsMaxDt) fpsMaxDt = dt; }   // worst frame this window
+      fpsPrev = now;
+      fpsFrames++;
+      const elapsed = now - fpsLast;
+      if (elapsed >= 500) {
+        const fps = Math.round(fpsFrames * 1000 / elapsed);
+        const avgMs = elapsed / fpsFrames;                                            // average frametime
+        fpsEl.textContent = (settings.showFps !== false)
+          ? (fps + ' FPS · ' + avgMs.toFixed(1) + ' ms · max ' + Math.round(fpsMaxDt) + ' ms') : '';
+        fpsFrames = 0; fpsLast = now; fpsMaxDt = 0;
       }
     }
 
