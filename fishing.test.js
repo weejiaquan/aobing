@@ -83,3 +83,79 @@ test('rollCastWait stays within the configured bounds', () => {
 test('HOOK_WINDOW_SECONDS is a positive constant', () => {
   assert.ok(HOOK_WINDOW_SECONDS > 0, 'hook window must be positive');
 });
+
+const { rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE } = ENGINE;
+
+const FISH = { id: 'trout', name: 'Trout', rarity: 2, behavior: 'drifter', family: 'trout', sizeRange: [18, 42], coinBase: 32 };
+const CAPPED = { ...FISH, id: 'pristine-only', floatRange: [0.0, 0.1] };
+
+test('rollSize stays within sizeRange', () => {
+  const rng = mulberry32(5);
+  for (let i = 0; i < 1000; i++) {
+    const s = rollSize(FISH, rng);
+    assert.ok(s >= 18 && s <= 42, `size ${s} out of [18,42]`);
+  }
+});
+
+test('rollFloat stays in [0,1] and respects per-species cap', () => {
+  const rng = mulberry32(8);
+  for (let i = 0; i < 1000; i++) {
+    assert.ok(rollFloat(FISH, rng) >= 0 && rollFloat(FISH, rng) <= 1);
+    const capped = rollFloat(CAPPED, rng);
+    assert.ok(capped >= 0 && capped <= 0.1, `capped float ${capped} exceeded [0,0.1]`);
+  }
+});
+
+test('rollFloat skews toward mid-condition (tails are rarer)', () => {
+  const rng = mulberry32(11);
+  let mid = 0, ends = 0;
+  const N = 20000;
+  for (let i = 0; i < N; i++) {
+    const f = rollFloat(FISH, rng);
+    if (f > 0.4 && f < 0.6) mid++;
+    if (f < 0.1 || f > 0.9) ends++;
+  }
+  assert.ok(mid > ends, `mid band (${mid}) should beat the extreme tails (${ends})`);
+});
+
+test('floatToGrade maps bucket boundaries exactly', () => {
+  assert.equal(floatToGrade(0.00), 'Prime');
+  assert.equal(floatToGrade(0.069), 'Prime');
+  assert.equal(floatToGrade(0.07), 'Vivid');
+  assert.equal(floatToGrade(0.149), 'Vivid');
+  assert.equal(floatToGrade(0.15), 'Healthy');
+  assert.equal(floatToGrade(0.379), 'Healthy');
+  assert.equal(floatToGrade(0.38), 'Faded');
+  assert.equal(floatToGrade(0.449), 'Faded');
+  assert.equal(floatToGrade(0.45), 'Scarred');
+  assert.equal(floatToGrade(1.00), 'Scarred');
+});
+
+test('rollShiny triggers near the configured rate and is boolean', () => {
+  const rng = mulberry32(42);
+  let hits = 0;
+  const N = 200000;
+  for (let i = 0; i < N; i++) {
+    const s = rollShiny(rng);
+    assert.equal(typeof s, 'boolean');
+    if (s) hits++;
+  }
+  const rate = hits / N;
+  assert.ok(rate > SHINY_RATE * 0.6 && rate < SHINY_RATE * 1.6, `shiny rate ${rate} should be near ${SHINY_RATE}`);
+});
+
+test('createSpecimen returns a valid specimen with matching grade', () => {
+  const rng = mulberry32(21);
+  const sp = createSpecimen(FISH, rng);
+  assert.equal(sp.species, 'trout');
+  assert.ok(sp.size >= 18 && sp.size <= 42);
+  assert.ok(sp.float >= 0 && sp.float <= 1);
+  assert.equal(sp.grade, floatToGrade(sp.float), 'grade must agree with floatToGrade');
+  assert.equal(typeof sp.shiny, 'boolean');
+});
+
+test('createSpecimen is deterministic for a fixed seed', () => {
+  const a = createSpecimen(FISH, mulberry32(1));
+  const b = createSpecimen(FISH, mulberry32(1));
+  assert.deepEqual(a, b);
+});

@@ -44,7 +44,44 @@ function rollCastWait(rng) {
   return CAST_WAIT_MIN + rng() * (CAST_WAIT_MAX - CAST_WAIT_MIN);
 }
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS };
+// --- Specimen rolls ---
+const SHINY_RATE = 1 / 256;
+const GRADE_BANDS = [
+  [0.07, 'Prime'],
+  [0.15, 'Vivid'],
+  [0.38, 'Healthy'],
+  [0.45, 'Faded'],
+  [Infinity, 'Scarred'],
+];
+
+function rollSize(fish, rng) {
+  const [lo, hi] = fish.sizeRange;
+  return lo + rng() * (hi - lo);
+}
+
+function rollFloat(fish, rng) {
+  const [lo, hi] = fish.floatRange || [0, 1];
+  const base = (rng() + rng()) / 2; // triangular, peak at 0.5 → mid-condition skew
+  return clamp01(lo + base * (hi - lo));
+}
+
+function floatToGrade(f) {
+  for (const [hi, name] of GRADE_BANDS) if (f < hi) return name;
+  return 'Scarred';
+}
+
+function rollShiny(rng, rate = SHINY_RATE) {
+  return rng() < rate;
+}
+
+function createSpecimen(fish, rng) {
+  const size = rollSize(fish, rng);
+  const float = rollFloat(fish, rng);
+  const shiny = rollShiny(rng);
+  return { species: fish.id, size, float, grade: floatToGrade(float), shiny };
+}
+
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FishingEngine = API;
