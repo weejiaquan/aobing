@@ -77,6 +77,18 @@ test('parseHitObjects: circle / slider / spinner', () => {
   assert.equal(objs[2].endTime, 6000);
 });
 
+test('parseHitObjects: hitSound bitmask + slider edgeSounds are read', () => {
+  const objs = E.parseHitObjects([
+    '256,192,1000,1,2,0:0:0:0:',                          // circle, hitSound 2 (whistle)
+    '100,100,2000,2,8,L|300:100,1,200,2|0,0:0|0:0',       // slider, hitSound 8 (clap), edgeSounds 2|0
+    '256,192,4000,12,4,6000',                             // spinner, hitSound 4 (finish)
+  ].join('\n'));
+  assert.equal(objs[0].hitSound, 2);
+  assert.equal(objs[1].hitSound, 8);
+  assert.deepEqual(objs[1].edgeSounds, [2, 0]);
+  assert.equal(objs[2].hitSound, 4);
+});
+
 test('parseHitObjects: NewCombo flag (type bit 2) is read', () => {
   const objs = E.parseHitObjects([
     '256,192,1000,1,0,0:0:0:0:',     // circle, type 1 -> no new combo

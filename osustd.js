@@ -126,8 +126,9 @@ function parseHitObjects(text) {
     if (p.length < 4) continue;
     const x = parseFloat(p[0]), y = parseFloat(p[1]), time = parseInt(p[2], 10), type = parseInt(p[3], 10);
     const newCombo = !!(type & 4);   // bit 2 = start of a new combo (number resets, colour cycles)
+    const hitSound = parseInt(p[4], 10) || 0;   // additions bitmask: 1 normal, 2 whistle, 4 finish, 8 clap
     if (type & 1) {
-      out.push({ kind: 'circle', x: x, y: y, time: time, newCombo: newCombo });
+      out.push({ kind: 'circle', x: x, y: y, time: time, newCombo: newCombo, hitSound: hitSound });
     } else if (type & 2) {
       const seg = String(p[5] || '').split('|');
       const curveType = seg[0] || 'L';
@@ -136,13 +137,15 @@ function parseHitObjects(text) {
         const xy = seg[i].split(':');
         points.push({ x: parseFloat(xy[0]), y: parseFloat(xy[1]) });
       }
+      // edgeSounds (p[8]) = additions per edge (head, repeats…, tail); fall back to the base hitSound.
+      const edgeSounds = String(p[8] || '').split('|').filter((s) => s !== '').map((s) => parseInt(s, 10) || 0);
       out.push({
-        kind: 'slider', x: x, y: y, time: time, newCombo: newCombo,
-        curveType: curveType, points: points,
+        kind: 'slider', x: x, y: y, time: time, newCombo: newCombo, hitSound: hitSound,
+        curveType: curveType, points: points, edgeSounds: edgeSounds,
         slides: parseInt(p[6], 10) || 1, length: parseFloat(p[7]) || 0,
       });
     } else if (type & 8) {
-      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10), newCombo: newCombo });
+      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10), newCombo: newCombo, hitSound: hitSound });
     }
   }
   out.sort((a, b) => a.time - b.time);
@@ -469,6 +472,13 @@ if (typeof document !== 'undefined') {
       if (errTicks.length > 64) errTicks.shift();
     }
     function playHitsound(scale) { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx, scale); }   // shared engine (hitsound.js)
+    // Sound for a hit object: the map's per-note additions (whistle/finish/clap) when
+    // 'Use map hitsounds' is on, otherwise the player's chosen preset/custom sound.
+    function playObjectSound(obj, scale) {
+      if (settings.hitsoundUseMap && window.Hitsound && window.Hitsound.playAdditions && audioCtx) {
+        window.Hitsound.playAdditions(audioCtx, (obj && obj.hitSound) || 0, scale);
+      } else playHitsound(scale);
+    }
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
@@ -1090,7 +1100,7 @@ if (typeof document !== 'undefined') {
           if (result === 'miss') { c.miss++; run.combo = 0; }
           else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
           bursts.push({ x: PLAY_W / 2, y: PLAY_H / 2, result: result, t: performance.now() });
-          if (result !== 'miss') playHitsound();   // spinner clear
+          if (result !== 'miss') playObjectSound(s.o);   // spinner clear
           flashJudge(result); updateHud();
         }
       }
@@ -1147,7 +1157,7 @@ if (typeof document !== 'undefined') {
             // the dedicated slidertick blip; reverse-arrows medium, the tail full.
             if (cp.hit) {
               if (cp.kind === 'tick') { if (window.Hitsound && window.Hitsound.tick && audioCtx) window.Hitsound.tick(audioCtx); }
-              else playHitsound(cp.kind === 'repeat' ? 0.85 : 1);
+              else playObjectSound(o, cp.kind === 'repeat' ? 0.85 : 1);
             }
           }
         }
@@ -1205,7 +1215,7 @@ if (typeof document !== 'undefined') {
       const w = run.windows;
       const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
       recordError(signed, result);                         // feeds the UR + error bar (heads only, like osu)
-      playHitsound();
+      playObjectSound(best.o);
       if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; }  // body/tail scored later
       else judgeResult(best, result);
     }
