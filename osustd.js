@@ -438,16 +438,29 @@ if (typeof document !== 'undefined') {
       if (audioCtx.state !== 'running') return audioCtx.resume().then(() => audioCtx);
       return Promise.resolve(audioCtx);
     }
+    // Audio output latency (seconds): how long after currentTime the sound is
+    // actually HEARD. Varies a lot by device (Bluetooth, HDMI, onboard buffers),
+    // which is why uncompensated timing "feels weird" on some machines but not
+    // others. outputLatency is the full path; baseLatency is just the context buffer.
+    function audioLatency() {
+      if (!audioCtx) return 0;
+      const l = (typeof audioCtx.outputLatency === 'number' && audioCtx.outputLatency) || audioCtx.baseLatency || 0;
+      return Math.min(l || 0, 0.4);   // clamp pathological values (e.g. very high BT reports)
+    }
 
     // ---- Playfield transform (osu 512x384 letterboxed into the canvas) -------
     function sizeCanvas() {
       // Size the backing store from the canvas's OWN rendered size (it fills the
-      // game screen via CSS). Using a separate dpr assumption breaks the inverse
-      // mapping when the rendered size differs from CSS*dpr.
+      // game screen via CSS). Cap the resolution: high-DPR / 4K screens otherwise
+      // fill 2–4× the pixels every frame, which is what makes weaker GPUs lag. The
+      // cursor/transform math uses canvas.width/rect.width, so a capped backing
+      // store stays pixel-accurate — just slightly softer.
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      const MAX_W = 2200;                                  // cap longest backing dimension
+      const scale = Math.min(dpr, 1.5, MAX_W / Math.max(rect.width, rect.height, 1));
+      canvas.width = Math.max(1, Math.round(rect.width * Math.max(0.75, scale)));
+      canvas.height = Math.max(1, Math.round(rect.height * Math.max(0.75, scale)));
     }
     function transform() {
       const W = canvas.width, H = canvas.height;
@@ -916,10 +929,14 @@ if (typeof document !== 'undefined') {
       updateHud();
     }
 
-    function songTimeNow() { return (audioCtx.currentTime - run.startCtx) * 1000; }
+    // Both the rendered song time and the judged tap time are measured against the
+    // audio the user actually HEARS, i.e. shifted back by the output latency. This
+    // makes the default feel right across devices; calOffset is then a small
+    // personal fine-tune rather than a per-device latency band-aid.
+    function songTimeNow() { return (audioCtx.currentTime - run.startCtx - audioLatency()) * 1000; }
     function inputSongTime(perfTs) {
       const ctxAtInput = run.t0ctx + (perfTs - run.t0perf) / 1000;
-      return (ctxAtInput - run.startCtx) * 1000 - calOffset();
+      return (ctxAtInput - run.startCtx - audioLatency()) * 1000 - calOffset();
     }
 
     function loop() {
@@ -1369,7 +1386,7 @@ if (typeof document !== 'undefined') {
       const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
       if (k < 0) return;                                   // before the first beat
       const beat = tapState.baseTick + k * tapState.period;
-      const errMs = (tapCtx - beat) * 1000;
+      const errMs = (tapCtx - beat - audioLatency()) * 1000;       // vs the HEARD beep (same shift as gameplay)
       if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
       tapState.errors.push(errMs);
       const need = 12;
@@ -1416,9 +1433,9 @@ if (typeof document !== 'undefined') {
             nextTick += period;
           }
           if (cctx) {
-            // Phase from baseTick (when beeps fire), with calOffset applied — same sign
-            // as gameplay (inputSongTime subtracts calOffset); wrap negatives into [0,period).
-            const rel = ac.currentTime - baseTick - calOffset() / 1000;
+            // Phase from the HEARD beep (baseTick + output latency), with calOffset
+            // applied — same shift as gameplay; wrap negatives into [0,period).
+            const rel = ac.currentTime - baseTick - audioLatency() - calOffset() / 1000;
             const phase = (((rel % period) + period) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);

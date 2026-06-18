@@ -497,6 +497,14 @@ if (typeof document !== 'undefined') {
       if (audioCtx.state !== 'running') return audioCtx.resume().then(() => audioCtx);
       return Promise.resolve(audioCtx);
     }
+    // Audio output latency (seconds) — how long after currentTime the sound is
+    // actually HEARD. Device-dependent (Bluetooth/HDMI/onboard buffers); osu
+    // compensates for it, so we do too, otherwise taps feel late by this amount.
+    function audioLatency() {
+      if (!audioCtx) return 0;
+      const l = (typeof audioCtx.outputLatency === 'number' && audioCtx.outputLatency) || audioCtx.baseLatency || 0;
+      return Math.min(l || 0, 0.4);
+    }
 
     // ---- Library / song select --------------------------------------------
     async function loadBundled() {
@@ -837,7 +845,7 @@ if (typeof document !== 'undefined') {
       const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
       const beat = tapState.baseTick + k * tapState.period;
       if (k < 0) return;                                  // before the first beat
-      const errMs = (tapCtx - beat) * 1000;
+      const errMs = (tapCtx - beat - audioLatency()) * 1000;       // vs the HEARD beep (same shift as gameplay)
       if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
       tapState.errors.push(errMs);
       const need = 12;
@@ -962,13 +970,16 @@ if (typeof document !== 'undefined') {
     }
 
     // Current song time in ms from live audio clock.
+    // Measured against the audio the user actually HEARS (shifted back by output
+    // latency) so the default timing matches osu across devices; calOffset is then
+    // a small personal fine-tune, not a per-device latency band-aid.
     function songTimeNow() {
-      return (audioCtx.currentTime - run.startCtx) * 1000;
+      return (audioCtx.currentTime - run.startCtx - audioLatency()) * 1000;
     }
     // Map an input performance.now() timestamp to song time (with calibration).
     function inputSongTime(perfTs) {
       const ctxAtInput = run.t0ctx + (perfTs - run.t0perf) / 1000;
-      return (ctxAtInput - run.startCtx) * 1000 - calOffset();
+      return (ctxAtInput - run.startCtx - audioLatency()) * 1000 - calOffset();
     }
 
     function loop() {
@@ -1132,8 +1143,12 @@ if (typeof document !== 'undefined') {
     function sizeCanvas() {
       const r = panel.getBoundingClientRect();
       const w = Math.min(560, r.width);
-      canvas.width = w * (window.devicePixelRatio || 1);
-      canvas.height = (r.height - 0) * (window.devicePixelRatio || 1);
+      // Cap backing-store resolution (≤1.5×) so high-DPR / 4K screens don't fill 2–4×
+      // the pixels each frame — the usual cause of lag on weaker GPUs. CSS size is
+      // unchanged, so layout/aim are unaffected; the canvas is just slightly softer.
+      const scale = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round((r.height - 0) * scale);
       canvas.style.width = w + 'px';
       canvas.style.height = (r.height) + 'px';
     }
@@ -1440,7 +1455,7 @@ if (typeof document !== 'undefined') {
             // Phase is measured from baseTick (when beeps actually fire), not the raw
             // ctx epoch, so flash and beep share a timeline. Same sign as gameplay
             // (inputSongTime subtracts calOffset), and we wrap negatives into [0,period).
-            const rel = ac.currentTime - baseTick - calOffset() / 1000;
+            const rel = ac.currentTime - baseTick - audioLatency() - calOffset() / 1000;
             const phase = (((rel % period) + period) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
