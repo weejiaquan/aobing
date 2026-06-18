@@ -334,7 +334,7 @@
         entry: entry, chart: chart, objs: objs, src: src, gain: gain, startCtx: startCtx,
         t0perf: performance.now(), t0ctx: ac.currentTime, audioBuf: audioBuf,
         counts: { cool: 0, fine: 0, safe: 0, sad: 0, worst: 0 }, combo: 0, maxCombo: 0,
-        errors: [], bursts: [], pressed: {}, lastTime: lastTime, finished: false, rafId: 0,
+        errors: [], bursts: [], pressed: {}, groupFirst: {}, lastTime: lastTime, finished: false, rafId: 0,
         auto: autoplay, firstTime: firstTime, skipTo: Math.max(0, firstTime - 1500), skipped: false,
       };
       errTicks = [];
@@ -363,6 +363,7 @@
 
     // ---- Judgement -----------------------------------------------------------
     const TIER_LABEL = { cool: 'COOL', fine: 'FINE', safe: 'SAFE', sad: 'SAD', worst: 'WORST' };
+    const TIER_ORDER = { cool: 0, fine: 1, safe: 2, sad: 3, worst: 4 };
     const TIER_COLOR = { cool: '#39d98a', fine: '#56a0ff', safe: '#ffd166', sad: '#ff9f43', worst: '#ff5470' };
     function credit(tier, n) {
       run.counts[tier]++;
@@ -381,15 +382,24 @@
       if (i < 0) return;
       const o = run.objs[i];
       const err = st - o.n.time;
-      const tier = tierFor(Math.abs(err));
+      let tier = tierFor(Math.abs(err));
+      // Chord coupling: members of a multi must be struck together. The first member
+      // anchors the group; later members struck more than DOUBLE_WINDOW apart are
+      // capped at 'safe' (sloppy chords lose the top tiers). Macros/autoplay fire all
+      // members at the same timestamp, so they never trip the penalty.
+      const gid = o.n.groupId;
+      if (gid != null) {
+        if (run.groupFirst[gid] == null) run.groupFirst[gid] = st;
+        else if (Math.abs(st - run.groupFirst[gid]) > DOUBLE_WINDOW && TIER_ORDER[tier] < TIER_ORDER.safe) tier = 'safe';
+      }
       o.headJudged = true; o.tier = tier;
       if (tier !== 'worst') { run.errors.push(err); recordErrTick(err, tier); playHit(); }
       if (o.n.holdEnd != null && tier !== 'worst') { o.holding = true; run.pressed[button] = (run.pressed[button] || 0) + 1; }
       credit(tier, o.n);
     }
-    function release(button) {
+    function release(button, perfTs) {
       if (!run || run.finished || run.auto) return;
-      const st = songTimeNow();
+      const st = inputSongTime(perfTs);   // same mapping as press(): honours latency + calibration
       for (const o of run.objs) {
         if (o.n.button === button && o.holding && !o.tailJudged) {
           o.holding = false; o.tailJudged = true;
@@ -448,6 +458,23 @@
       g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
       g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = 1 * dpr; g.strokeRect(f.x, f.y, f.w, f.h);
       const R = Math.max(10, f.h * 0.045);   // target radius
+      // Faint connectors linking multi-note groups and slide chains (Diva's visual cue
+      // that these notes belong together). Only upcoming, unjudged members are linked.
+      const links = {};
+      for (let i = 0; i < run.objs.length; i++) {
+        const o = run.objs[i], n = o.n;
+        if (o.headJudged || st < n.time - n.flyTime) continue;
+        const key = n.groupId != null ? 'g' + n.groupId : (n.slideChain != null ? 's' + n.slideChain : null);
+        if (key == null) continue;
+        (links[key] || (links[key] = [])).push(toScreen(n.x, n.y, f));
+      }
+      g.lineWidth = 2 * dpr; g.strokeStyle = 'rgba(255,255,255,0.18)';
+      for (const k in links) {
+        const pts = links[k]; if (pts.length < 2) continue;
+        g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+        for (let j = 1; j < pts.length; j++) g.lineTo(pts[j].x, pts[j].y);
+        g.stroke();
+      }
       // notes newest-first so upcoming sit on top
       for (let i = run.objs.length - 1; i >= 0; i--) {
         const o = run.objs[i], n = o.n;
@@ -578,7 +605,7 @@
       if (!run) return;
       const k = e.key.toLowerCase();
       if (run.heldKeys) run.heldKeys[k] = false;
-      for (const b of buttonsForKey(k)) release(b);
+      for (const b of buttonsForKey(k)) release(b, e.timeStamp);
     }
 
     // ---- Results / PB --------------------------------------------------------
@@ -590,11 +617,14 @@
       const acc = accuracy(run.counts), c = run.counts;
       const rank = clearRank(acc, c.worst);
       const rankColor = { PERFECT: '#ffd166', EXCELLENT: '#39d98a', GREAT: '#56a0ff', STANDARD: '#b06bff' }[rank];
-      let prev = null, improved = false;
+      let prev = null, improved = false, pbFailed = false;
       if (!isAuto) {
-        prev = await idbGet('diva-pb', run.entry.id);
-        improved = !prev || acc > prev.accuracy;
-        if (improved) await idbPut('diva-pb', run.entry.id, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+        // Never let a storage error swallow the results screen — degrade to "not saved".
+        try {
+          prev = await idbGet('diva-pb', run.entry.id);
+          improved = !prev || acc > prev.accuracy;
+          if (improved) await idbPut('diva-pb', run.entry.id, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+        } catch (e) { pbFailed = true; prev = null; improved = false; try { console.error('[divaft] PB store', e); } catch (_) {} }
       }
       const cell = (label, val, col) => '<div class="diva-res-cell"><div class="diva-res-cn" style="color:' + col + '">' + val + '</div><div class="diva-res-cl">' + label + '</div></div>';
       resultsBody.innerHTML =
@@ -604,6 +634,7 @@
         '<div class="diva-res-grid">' + cell('COOL', c.cool, '#39d98a') + cell('FINE', c.fine, '#56a0ff') + cell('SAFE', c.safe, '#ffd166') + cell('SAD', c.sad, '#ff9f43') + cell('WORST', c.worst, '#ff5470') + '</div>' +
         '<div class="diva-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; UR ' + Math.round(unstableRate(run.errors)) + '</div>' +
         (isAuto ? '<div class="diva-res-pb">Autoplay preview — not saved.</div>'
+                : pbFailed ? '<div class="diva-res-pb">Score couldn\'t be saved (storage unavailable).</div>'
                 : (prev ? '<div class="diva-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
                         : '<div class="diva-res-pb">First clear — saved as your best.</div>'));
       show('results');
@@ -635,7 +666,7 @@
     }
 
     // ---- Calibration (port of osu/vsrg) --------------------------------------
-    let calibLoop = null, calibTiming = null, tapState = null;
+    let calibLoop = null, calibTiming = null, tapState = null, calibGen = 0;
     function tapReset() { tapState = null; if (tapResultEl) tapResultEl.textContent = ''; if (tapBtn) tapBtn.textContent = 'Tap to the beat'; }
     function registerTap(perfTs) {
       if (!tapState) return;
@@ -659,8 +690,10 @@
     function onTapButton(perfTs) { if (!calibTiming) return; if (!tapState) tapState = { baseTick: calibTiming.baseTick, period: calibTiming.period, tc0: calibTiming.tc0, tp0: calibTiming.tp0, errors: [] }; registerTap(perfTs); }
     function openCalibration() {
       show('calib'); tapReset();
+      const myGen = ++calibGen;   // invalidate any pending start if the screen is left before audio resolves
       if (calibSlider) { calibSlider.value = calOffset(); if (calibValEl) calibValEl.textContent = calOffset() + ' ms'; }
       ensureCtx().then((ac) => {
+        if (myGen !== calibGen) return;   // panel/screen was closed while ensureCtx() was pending
         const cctx = calibCanvas ? calibCanvas.getContext('2d') : null;
         const period = 0.6, baseTick = ac.currentTime + 0.2;
         calibTiming = { baseTick: baseTick, period: period, tc0: ac.currentTime, tp0: performance.now() };
@@ -682,7 +715,7 @@
         })();
       });
     }
-    function closeCalibration() { if (calibLoop) cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapReset(); show('select'); }
+    function closeCalibration() { calibGen++; if (calibLoop) cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapReset(); show('select'); }
 
     // ---- Open / close --------------------------------------------------------
     function open() {
@@ -692,7 +725,7 @@
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();
-      if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; }
+      calibGen++; if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; }
       panel.classList.remove('open'); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
