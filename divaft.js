@@ -28,9 +28,11 @@
     slideL: '#ff5470', slideR: '#39d98a', star: '#b06bff',
   };
 
-  // Timing windows (± ms around the note time) and accuracy weights. Tunable.
-  const WINDOWS = { cool: 30, fine: 70, safe: 100, sad: 130 };
-  const WEIGHTS = { cool: 100, fine: 80, safe: 50, sad: 30, worst: 0 };
+  // Timing windows (± ms) and note weights — matched to Project Heartbeat's Future Tone
+  // judge (HBJudge.RATING_WINDOWS) and scoring (HBBaseNote.NOTE_SCORES, which are
+  // COOL 1000 / FINE 800 / SAFE 500 / SAD 100 / WORST 0 → /10 for a 0–100 % attainment).
+  const WINDOWS = { cool: 32, fine: 64, safe: 96, sad: 128 };
+  const WEIGHTS = { cool: 100, fine: 80, safe: 50, sad: 10, worst: 0 };
   const DOUBLE_WINDOW = 40;   // ms tolerance for "simultaneous" presses of a multi note
 
   // Map an absolute timing error (ms) to a judgement tier.
@@ -42,19 +44,24 @@
     return 'worst';
   }
 
-  // Weighted accuracy % over a tier-count object.
+  // Attainment % over a tier-count object — PH's percentage = note-score-sum / max_score
+  // (each note's max is COOL). Equivalent to the weighted average of NOTE_SCORES.
   function accuracy(c) {
     const total = c.cool + c.fine + c.safe + c.sad + c.worst;
     if (!total) return 100;
-    return Math.round(((c.cool * 100 + c.fine * 80 + c.safe * 50 + c.sad * 30) / total) * 100) / 100;
+    return Math.round(((c.cool * WEIGHTS.cool + c.fine * WEIGHTS.fine + c.safe * WEIGHTS.safe + c.sad * WEIGHTS.sad) / total) * 100) / 100;
   }
 
-  // Diva clear rank from final accuracy + miss count (no-fail: always clears).
-  function clearRank(acc, miss) {
-    if (acc >= 100 && miss === 0) return 'PERFECT';
-    if (acc >= 95 && miss === 0) return 'EXCELLENT';
-    if (acc >= 80) return 'GREAT';
-    return 'STANDARD';
+  // Clear rank — PH's get_result_rating (no-fail): PERFECT when there are no SAFE/SAD/
+  // WORST (only COOL/FINE), otherwise by attainment %: EXCELLENT ≥95, GREAT ≥90,
+  // STANDARD ≥75, else CHEAP.
+  function clearRank(acc, counts) {
+    const failure = (counts.safe || 0) + (counts.sad || 0) + (counts.worst || 0);
+    if (failure === 0) return 'PERFECT';
+    if (acc >= 95) return 'EXCELLENT';
+    if (acc >= 90) return 'GREAT';
+    if (acc >= 75) return 'STANDARD';
+    return 'CHEAP';
   }
 
   // Faithful sine fly-in: the icon travels from an entry point (target offset by
@@ -524,7 +531,7 @@
     // ---- Judgement -----------------------------------------------------------
     const TIER_LABEL = { cool: 'COOL', fine: 'FINE', safe: 'SAFE', sad: 'SAD', worst: 'WORST' };
     const TIER_ORDER = { cool: 0, fine: 1, safe: 2, sad: 3, worst: 4 };
-    const TIER_COLOR = { cool: '#39d98a', fine: '#56a0ff', safe: '#ffd166', sad: '#ff9f43', worst: '#ff5470' };
+    const TIER_COLOR = { cool: '#ffd022', fine: '#4ebeff', safe: '#00a13c', sad: '#57a9ff', worst: '#e470ff' };   // PH Future Tone rating colours
     function credit(tier, n) {
       run.counts[tier]++;
       if (tier === 'worst') run.combo = 0;
@@ -775,8 +782,8 @@
       run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
       try { run.src.stop(); } catch (e) {}
       const acc = accuracy(run.counts), c = run.counts;
-      const rank = clearRank(acc, c.worst);
-      const rankColor = { PERFECT: '#ffd166', EXCELLENT: '#39d98a', GREAT: '#56a0ff', STANDARD: '#b06bff' }[rank];
+      const rank = clearRank(acc, c);
+      const rankColor = { PERFECT: '#ffd022', EXCELLENT: '#39d98a', GREAT: '#4ebeff', STANDARD: '#b06bff', CHEAP: '#ff5470' }[rank];
       let prev = null, improved = false, pbFailed = false;
       if (!isAuto) {
         // Never let a storage error swallow the results screen — degrade to "not saved".
@@ -791,7 +798,7 @@
         '<div class="diva-res-title">' + escapeH(run.entry.title) + '</div>' +
         '<div class="diva-res-rank" style="color:' + rankColor + '">' + rank + '</div>' +
         '<div class="diva-res-acc">' + acc.toFixed(2) + '%</div>' +
-        '<div class="diva-res-grid">' + cell('COOL', c.cool, '#39d98a') + cell('FINE', c.fine, '#56a0ff') + cell('SAFE', c.safe, '#ffd166') + cell('SAD', c.sad, '#ff9f43') + cell('WORST', c.worst, '#ff5470') + '</div>' +
+        '<div class="diva-res-grid">' + cell('COOL', c.cool, '#ffd022') + cell('FINE', c.fine, '#4ebeff') + cell('SAFE', c.safe, '#00a13c') + cell('SAD', c.sad, '#57a9ff') + cell('WORST', c.worst, '#e470ff') + '</div>' +
         '<div class="diva-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; UR ' + Math.round(unstableRate(run.errors)) + '</div>' +
         (isAuto ? '<div class="diva-res-pb">Autoplay preview — not saved.</div>'
                 : pbFailed ? '<div class="diva-res-pb">Score couldn\'t be saved (storage unavailable).</div>'
