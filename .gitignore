@@ -8,3 +8,8 @@ Thumbs.db
 # Project Diva real game data (copyrighted — local fixtures only, never commit)
 test/fixtures/divaft/
 scripts/dsc-probe.js
+_localmod/
+scripts/cpk-probe.js
+scripts/cpk-scan.js
+scripts/cpk-aes-check.js
+scripts/make-test-cpk.js

@@ -3121,6 +3121,8 @@
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button id="divaft-import" type="button" title="Import a Project Diva mod/rom folder (point at a folder containing pv_db.txt + rom/script + rom/sound)">Import Diva folder</button>
           <input id="divaft-import-input" type="file" webkitdirectory directory multiple hidden>
+          <button id="divaft-import-cpk" type="button" title="Import base-game songs from a Mega Mix+ diva_main.cpk / diva_dlc00.cpk (your own copy; read directly, nothing is extracted)">Import .cpk</button>
+          <input id="divaft-import-cpk-input" type="file" accept=".cpk" hidden>
           <button id="divaft-auto" type="button" title="Autoplay preview — the chart plays itself (no score saved)">Auto: off</button>
           <button id="divaft-keys-btn" type="button">Keys</button>
           <button id="divaft-hitsound-btn" type="button">Hitsounds</button>
@@ -3346,6 +3348,8 @@
         // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.
         .then(function () { return loadScript('divadsc.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('divapvdb.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // cpk.js (CRI CPK reader, AES content decrypt) lets divaft.js import base-game songs.
+        .then(function () { return loadScript('cpk.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.

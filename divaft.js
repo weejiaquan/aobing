@@ -197,6 +197,8 @@
     const tapResultEl = document.getElementById('divaft-tap-result');
 
     let audioCtx = null, panelOpen = false, library = [], run = null, loading = false, loadGen = 0;
+    let cpkLive = [];   // in-memory base-game CPK song entries (decrypt-on-demand, this session)
+    let cpkImportGen = 0;   // guards against overlapping CPK imports racing on cpkLive
     let autoplay = false;
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;
 
@@ -262,7 +264,7 @@
     async function refreshLibrary() {
       const bundled = await loadBundled();
       let cached = []; try { cached = await loadCachedCharts(); } catch (e) {}
-      library = bundled.concat(cached);
+      library = bundled.concat(cached).concat(cpkLive);
       renderSongList();
     }
     async function loadCachedCharts() {
@@ -328,6 +330,55 @@
         }
       }
       setImportStatus('Imported ' + imported + ' charts · ' + skipped + ' skipped.');
+      await refreshLibrary();
+    }
+
+    // ---- Base-game CPK import (live, decrypt-on-demand) -----------------------
+    // The base diva_main.cpk is ~24 GB and its content is AES-encrypted; we read the
+    // TOC, enumerate songs by filename convention (rom/script/pv_NNN_<diff>.dsc +
+    // sound/song/pv_NNN.ogg), and decrypt each chart/audio only when played. The File
+    // stays in memory for the session (no mass decrypt, no 1.5 GB IndexedDB blob).
+    const DIFF_STARS = { easy: 2, normal: 4, hard: 6, extreme: 8 };
+    async function importCpk(file) {
+      if (!window.Cpk) { setImportStatus('CPK reader not loaded.'); return; }
+      const myGen = ++cpkImportGen;   // newest import wins; stale ones won't commit
+      setImportStatus('Reading ' + file.name + '…');
+      const read = window.Cpk.fileReader(file);
+      let toc;
+      try { toc = await window.Cpk.readToc(read); }
+      catch (e) { if (myGen === cpkImportGen) setImportStatus('Could not read ' + file.name + ' (not a readable CPK).'); return; }
+      const songs = {};   // pvId -> { id, diffs:{diff:entry}, audio:entry }
+      for (const e of toc.entries) {
+        const m = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
+        if (!m) continue;
+        const pv = 'pv_' + m[1], diff = m[2].toLowerCase() + (m[3] ? '+' : '');
+        (songs[pv] || (songs[pv] = { id: pv, num: m[1], diffs: {} })).diffs[diff] = e;
+      }
+      const next = [];
+      let songCount = 0;
+      for (const pv in songs) {
+        const s = songs[pv];
+        const audio = toc.find('sound/song/' + pv + '.ogg');
+        if (!audio) continue;
+        songCount++;
+        for (const diff in s.diffs) {
+          const dscEntry = s.diffs[diff], baseDiff = diff.replace('+', '');
+          next.push({
+            id: 'cpk:' + file.name + ':' + pv + '_' + diff,
+            title: 'PV ' + s.num + ' [' + diff + ']', artist: '', stars: DIFF_STARS[baseDiff] || 5,
+            getChart: async () => {
+              const bytes = await window.Cpk.readEntry(read, dscEntry);
+              const dec = window.DivaDsc.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+              if (!dec.ended || !dec.notes.length) throw new Error('chart did not decode cleanly');
+              return assembleChart({ title: 'PV ' + s.num + ' [' + diff + ']', bpm: 0, audioFile: pv + '.ogg', notes: dec.notes, chanceTimes: dec.chanceTimes });
+            },
+            getAudio: async () => { const b = await window.Cpk.readEntry(read, audio); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
+          });
+        }
+      }
+      if (myGen !== cpkImportGen) return;   // a newer import superseded this one
+      cpkLive = next;
+      setImportStatus(songCount + ' base songs · ' + cpkLive.length + ' charts loaded from ' + file.name + ' (this session).');
       await refreshLibrary();
     }
 
@@ -797,6 +848,12 @@
     if (importBtn && importInput) {
       importBtn.addEventListener('click', () => importInput.click());
       importInput.addEventListener('change', () => { importFolder(importInput.files); importInput.value = ''; });
+    }
+    const importCpkBtn = document.getElementById('divaft-import-cpk');
+    const importCpkInput = document.getElementById('divaft-import-cpk-input');
+    if (importCpkBtn && importCpkInput) {
+      importCpkBtn.addEventListener('click', () => importCpkInput.click());
+      importCpkInput.addEventListener('change', () => { if (importCpkInput.files[0]) importCpk(importCpkInput.files[0]); importCpkInput.value = ''; });
     }
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
