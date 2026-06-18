@@ -1,0 +1,1822 @@
+'use strict';
+// Auto-scaffolded by scripts/gen-fish-data.js, then hand-tuned. 151 species.
+const FISH = [
+  {
+    "id": "shadow-jellyfish",
+    "name": "Shadow Jellyfish",
+    "rarity": 1,
+    "behavior": "pulsar",
+    "family": "Jellyfish",
+    "sizeRange": [
+      15,
+      23
+    ],
+    "coinBase": 13
+  },
+  {
+    "id": "azure-ray",
+    "name": "Azure Ray",
+    "rarity": 1,
+    "behavior": "patroller",
+    "family": "Rays",
+    "sizeRange": [
+      9,
+      18
+    ],
+    "coinBase": 14
+  },
+  {
+    "id": "storm-marlin",
+    "name": "Storm Marlin",
+    "rarity": 1,
+    "behavior": "sprinter",
+    "family": "Marlin",
+    "sizeRange": [
+      9,
+      14
+    ],
+    "coinBase": 8
+  },
+  {
+    "id": "lake-trout",
+    "name": "Lake Trout",
+    "rarity": 1,
+    "behavior": "lazyDrifter",
+    "family": "Trout",
+    "sizeRange": [
+      12,
+      19
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "river-eel",
+    "name": "River Eel",
+    "rarity": 1,
+    "behavior": "nervous",
+    "family": "Eels",
+    "sizeRange": [
+      8,
+      16
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "river-eel-1",
+    "name": "River Eel",
+    "rarity": 1,
+    "behavior": "nervous",
+    "family": "Eels",
+    "sizeRange": [
+      9,
+      18
+    ],
+    "coinBase": 18
+  },
+  {
+    "id": "frost-catfish",
+    "name": "Frost Catfish",
+    "rarity": 1,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      11,
+      15
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "coral-crustacean",
+    "name": "Coral Crustacean",
+    "rarity": 1,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      6,
+      18
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "crimson-jellyfish",
+    "name": "Crimson Jellyfish",
+    "rarity": 1,
+    "behavior": "hopper",
+    "family": "Jellyfish",
+    "sizeRange": [
+      14,
+      18
+    ],
+    "coinBase": 17
+  },
+  {
+    "id": "storm-koi",
+    "name": "Storm Koi",
+    "rarity": 1,
+    "behavior": "drifter",
+    "family": "Koi",
+    "sizeRange": [
+      9,
+      19
+    ],
+    "coinBase": 18
+  },
+  {
+    "id": "crimson-koi",
+    "name": "Crimson Koi",
+    "rarity": 1,
+    "behavior": "mirage",
+    "family": "Koi",
+    "sizeRange": [
+      6,
+      14
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "azure-tropical",
+    "name": "Azure Tropical",
+    "rarity": 1,
+    "behavior": "flutter",
+    "family": "Tropical",
+    "sizeRange": [
+      12,
+      18
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "jade-lanternfish",
+    "name": "Jade Lanternfish",
+    "rarity": 1,
+    "behavior": "geyser",
+    "family": "Lanternfish",
+    "sizeRange": [
+      9,
+      18
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "coral-eel",
+    "name": "Coral Eel",
+    "rarity": 1,
+    "behavior": "meanderer",
+    "family": "Eels",
+    "sizeRange": [
+      16,
+      24
+    ],
+    "coinBase": 17
+  },
+  {
+    "id": "frost-jellyfish",
+    "name": "Frost Jellyfish",
+    "rarity": 1,
+    "behavior": "geyser",
+    "family": "Jellyfish",
+    "sizeRange": [
+      15,
+      20
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "shadow-seahorse",
+    "name": "Shadow Seahorse",
+    "rarity": 1,
+    "behavior": "floater",
+    "family": "Seahorses",
+    "sizeRange": [
+      13,
+      24
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "jade-trout",
+    "name": "Jade Trout",
+    "rarity": 1,
+    "behavior": "lazyDrifter",
+    "family": "Trout",
+    "sizeRange": [
+      9,
+      17
+    ],
+    "coinBase": 8
+  },
+  {
+    "id": "lake-deepsea",
+    "name": "Lake Deepsea",
+    "rarity": 1,
+    "behavior": "surfacer",
+    "family": "Deepsea",
+    "sizeRange": [
+      7,
+      15
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "azure-marlin",
+    "name": "Azure Marlin",
+    "rarity": 1,
+    "behavior": "sprinter",
+    "family": "Marlin",
+    "sizeRange": [
+      7,
+      15
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "ember-seahorse",
+    "name": "Ember Seahorse",
+    "rarity": 1,
+    "behavior": "surfacer",
+    "family": "Seahorses",
+    "sizeRange": [
+      9,
+      13
+    ],
+    "coinBase": 17
+  },
+  {
+    "id": "frost-deepsea",
+    "name": "Frost Deepsea",
+    "rarity": 1,
+    "behavior": "anchor",
+    "family": "Deepsea",
+    "sizeRange": [
+      12,
+      21
+    ],
+    "coinBase": 8
+  },
+  {
+    "id": "frost-crustacean",
+    "name": "Frost Crustacean",
+    "rarity": 1,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      10,
+      15
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "coral-seahorse-1",
+    "name": "Coral Seahorse",
+    "rarity": 1,
+    "behavior": "floater",
+    "family": "Seahorses",
+    "sizeRange": [
+      8,
+      14
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "lake-jellyfish",
+    "name": "Lake Jellyfish",
+    "rarity": 1,
+    "behavior": "geyser",
+    "family": "Jellyfish",
+    "sizeRange": [
+      13,
+      20
+    ],
+    "coinBase": 9
+  },
+  {
+    "id": "coral-catfish",
+    "name": "Coral Catfish",
+    "rarity": 1,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      18,
+      28
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "lake-seahorse",
+    "name": "Lake Seahorse",
+    "rarity": 1,
+    "behavior": "floater",
+    "family": "Seahorses",
+    "sizeRange": [
+      7,
+      15
+    ],
+    "coinBase": 9
+  },
+  {
+    "id": "ember-minnow",
+    "name": "Ember Minnow",
+    "rarity": 1,
+    "behavior": "meanderer",
+    "family": "Minnows",
+    "sizeRange": [
+      18,
+      25
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "shadow-squid",
+    "name": "Shadow Squid",
+    "rarity": 1,
+    "behavior": "hopper",
+    "family": "Squid",
+    "sizeRange": [
+      15,
+      21
+    ],
+    "coinBase": 18
+  },
+  {
+    "id": "ember-lanternfish",
+    "name": "Ember Lanternfish",
+    "rarity": 1,
+    "behavior": "geyser",
+    "family": "Lanternfish",
+    "sizeRange": [
+      13,
+      20
+    ],
+    "coinBase": 18
+  },
+  {
+    "id": "jade-sunfish",
+    "name": "Jade Sunfish",
+    "rarity": 1,
+    "behavior": "drifter",
+    "family": "Sunfish",
+    "sizeRange": [
+      14,
+      19
+    ],
+    "coinBase": 10
+  },
+  {
+    "id": "storm-minnow",
+    "name": "Storm Minnow",
+    "rarity": 1,
+    "behavior": "bouncer",
+    "family": "Minnows",
+    "sizeRange": [
+      8,
+      17
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "frost-ray",
+    "name": "Frost Ray",
+    "rarity": 1,
+    "behavior": "patroller",
+    "family": "Rays",
+    "sizeRange": [
+      10,
+      16
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "river-koi",
+    "name": "River Koi",
+    "rarity": 1,
+    "behavior": "mirage",
+    "family": "Koi",
+    "sizeRange": [
+      18,
+      29
+    ],
+    "coinBase": 9
+  },
+  {
+    "id": "river-minnow",
+    "name": "River Minnow",
+    "rarity": 1,
+    "behavior": "drifter",
+    "family": "Minnows",
+    "sizeRange": [
+      6,
+      11
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "frost-bas",
+    "name": "Frost Bas",
+    "rarity": 1,
+    "behavior": "bouncer",
+    "family": "Bass",
+    "sizeRange": [
+      11,
+      18
+    ],
+    "coinBase": 16
+  },
+  {
+    "id": "river-pufferfish",
+    "name": "River Pufferfish",
+    "rarity": 1,
+    "behavior": "pausingBouncer",
+    "family": "Pufferfish",
+    "sizeRange": [
+      10,
+      16
+    ],
+    "coinBase": 15
+  },
+  {
+    "id": "jade-shark",
+    "name": "Jade Shark",
+    "rarity": 1,
+    "behavior": "darter",
+    "family": "Sharks",
+    "sizeRange": [
+      10,
+      20
+    ],
+    "coinBase": 18
+  },
+  {
+    "id": "ember-deepsea",
+    "name": "Ember Deepsea",
+    "rarity": 1,
+    "behavior": "surfacer",
+    "family": "Deepsea",
+    "sizeRange": [
+      8,
+      18
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "silver-pufferfish",
+    "name": "Silver Pufferfish",
+    "rarity": 1,
+    "behavior": "floater",
+    "family": "Pufferfish",
+    "sizeRange": [
+      14,
+      20
+    ],
+    "coinBase": 9
+  },
+  {
+    "id": "ember-bas-1",
+    "name": "Ember Bas",
+    "rarity": 1,
+    "behavior": "bouncer",
+    "family": "Bass",
+    "sizeRange": [
+      11,
+      20
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "silver-shark",
+    "name": "Silver Shark",
+    "rarity": 1,
+    "behavior": "tyrant",
+    "family": "Sharks",
+    "sizeRange": [
+      9,
+      19
+    ],
+    "coinBase": 14
+  },
+  {
+    "id": "shadow-trout",
+    "name": "Shadow Trout",
+    "rarity": 1,
+    "behavior": "drifter",
+    "family": "Trout",
+    "sizeRange": [
+      13,
+      21
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "ember-crustacean",
+    "name": "Ember Crustacean",
+    "rarity": 1,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      15,
+      20
+    ],
+    "coinBase": 9
+  },
+  {
+    "id": "shadow-lanternfish",
+    "name": "Shadow Lanternfish",
+    "rarity": 1,
+    "behavior": "geyser",
+    "family": "Lanternfish",
+    "sizeRange": [
+      18,
+      22
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "frost-eel",
+    "name": "Frost Eel",
+    "rarity": 1,
+    "behavior": "nervous",
+    "family": "Eels",
+    "sizeRange": [
+      12,
+      23
+    ],
+    "coinBase": 11
+  },
+  {
+    "id": "silver-trout",
+    "name": "Silver Trout",
+    "rarity": 1,
+    "behavior": "lazyDrifter",
+    "family": "Trout",
+    "sizeRange": [
+      14,
+      20
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "lake-crustacean",
+    "name": "Lake Crustacean",
+    "rarity": 1,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      15,
+      21
+    ],
+    "coinBase": 13
+  },
+  {
+    "id": "frost-squid",
+    "name": "Frost Squid",
+    "rarity": 1,
+    "behavior": "twitch",
+    "family": "Squid",
+    "sizeRange": [
+      15,
+      23
+    ],
+    "coinBase": 17
+  },
+  {
+    "id": "lake-squid",
+    "name": "Lake Squid",
+    "rarity": 1,
+    "behavior": "twitch",
+    "family": "Squid",
+    "sizeRange": [
+      7,
+      16
+    ],
+    "coinBase": 12
+  },
+  {
+    "id": "shadow-catfish",
+    "name": "Shadow Catfish",
+    "rarity": 1,
+    "behavior": "anchor",
+    "family": "Catfish",
+    "sizeRange": [
+      12,
+      17
+    ],
+    "coinBase": 13
+  },
+  {
+    "id": "coral-deepsea-1",
+    "name": "Coral Deepsea",
+    "rarity": 2,
+    "behavior": "anchor",
+    "family": "Deepsea",
+    "sizeRange": [
+      33,
+      56
+    ],
+    "coinBase": 48
+  },
+  {
+    "id": "golden-koi",
+    "name": "Golden Koi",
+    "rarity": 2,
+    "behavior": "feintingDrifter",
+    "family": "Koi",
+    "sizeRange": [
+      37,
+      70
+    ],
+    "coinBase": 30
+  },
+  {
+    "id": "frost-lanternfish-1",
+    "name": "Frost Lanternfish",
+    "rarity": 2,
+    "behavior": "pulsar",
+    "family": "Lanternfish",
+    "sizeRange": [
+      20,
+      43
+    ],
+    "coinBase": 55
+  },
+  {
+    "id": "golden-koi-1",
+    "name": "Golden Koi",
+    "rarity": 2,
+    "behavior": "drifter",
+    "family": "Koi",
+    "sizeRange": [
+      40,
+      60
+    ],
+    "coinBase": 46
+  },
+  {
+    "id": "coral-marlin",
+    "name": "Coral Marlin",
+    "rarity": 2,
+    "behavior": "sprinter",
+    "family": "Marlin",
+    "sizeRange": [
+      25,
+      55
+    ],
+    "coinBase": 30
+  },
+  {
+    "id": "golden-lanternfish",
+    "name": "Golden Lanternfish",
+    "rarity": 2,
+    "behavior": "flutter",
+    "family": "Lanternfish",
+    "sizeRange": [
+      42,
+      70
+    ],
+    "coinBase": 45
+  },
+  {
+    "id": "river-trout",
+    "name": "River Trout",
+    "rarity": 2,
+    "behavior": "glider",
+    "family": "Trout",
+    "sizeRange": [
+      22,
+      50
+    ],
+    "coinBase": 39
+  },
+  {
+    "id": "river-tropical",
+    "name": "River Tropical",
+    "rarity": 2,
+    "behavior": "darter",
+    "family": "Tropical",
+    "sizeRange": [
+      31,
+      46
+    ],
+    "coinBase": 32
+  },
+  {
+    "id": "river-shark",
+    "name": "River Shark",
+    "rarity": 2,
+    "behavior": "tyrant",
+    "family": "Sharks",
+    "sizeRange": [
+      18,
+      47
+    ],
+    "coinBase": 39
+  },
+  {
+    "id": "shadow-koi",
+    "name": "Shadow Koi",
+    "rarity": 2,
+    "behavior": "feintingDrifter",
+    "family": "Koi",
+    "sizeRange": [
+      36,
+      65
+    ],
+    "coinBase": 43
+  },
+  {
+    "id": "crimson-crustacean",
+    "name": "Crimson Crustacean",
+    "rarity": 2,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      53,
+      65
+    ],
+    "coinBase": 44
+  },
+  {
+    "id": "jade-koi-1",
+    "name": "Jade Koi",
+    "rarity": 2,
+    "behavior": "mirage",
+    "family": "Koi",
+    "sizeRange": [
+      26,
+      62
+    ],
+    "coinBase": 55
+  },
+  {
+    "id": "azure-crustacean-1",
+    "name": "Azure Crustacean",
+    "rarity": 2,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      39,
+      54
+    ],
+    "coinBase": 32
+  },
+  {
+    "id": "crimson-pufferfish",
+    "name": "Crimson Pufferfish",
+    "rarity": 2,
+    "behavior": "pausingBouncer",
+    "family": "Pufferfish",
+    "sizeRange": [
+      49,
+      61
+    ],
+    "coinBase": 36
+  },
+  {
+    "id": "jade-minnow-1",
+    "name": "Jade Minnow",
+    "rarity": 2,
+    "behavior": "meanderer",
+    "family": "Minnows",
+    "sizeRange": [
+      46,
+      59
+    ],
+    "coinBase": 34
+  },
+  {
+    "id": "crimson-lanternfish-1",
+    "name": "Crimson Lanternfish",
+    "rarity": 2,
+    "behavior": "geyser",
+    "family": "Lanternfish",
+    "sizeRange": [
+      30,
+      54
+    ],
+    "coinBase": 36
+  },
+  {
+    "id": "azure-trout",
+    "name": "Azure Trout",
+    "rarity": 2,
+    "behavior": "pendulum",
+    "family": "Trout",
+    "sizeRange": [
+      29,
+      63
+    ],
+    "coinBase": 34
+  },
+  {
+    "id": "golden-seahorse",
+    "name": "Golden Seahorse",
+    "rarity": 2,
+    "behavior": "hopper",
+    "family": "Seahorses",
+    "sizeRange": [
+      28,
+      56
+    ],
+    "coinBase": 40
+  },
+  {
+    "id": "azure-shark-1",
+    "name": "Azure Shark",
+    "rarity": 2,
+    "behavior": "tyrant",
+    "family": "Sharks",
+    "sizeRange": [
+      51,
+      74
+    ],
+    "coinBase": 42
+  },
+  {
+    "id": "ember-ray",
+    "name": "Ember Ray",
+    "rarity": 2,
+    "behavior": "pendulum",
+    "family": "Rays",
+    "sizeRange": [
+      41,
+      55
+    ],
+    "coinBase": 41
+  },
+  {
+    "id": "lake-bas",
+    "name": "Lake Bas",
+    "rarity": 2,
+    "behavior": "wideBouncer",
+    "family": "Bass",
+    "sizeRange": [
+      33,
+      54
+    ],
+    "coinBase": 44
+  },
+  {
+    "id": "jade-koi",
+    "name": "Jade Koi",
+    "rarity": 2,
+    "behavior": "mirage",
+    "family": "Koi",
+    "sizeRange": [
+      26,
+      62
+    ],
+    "coinBase": 40
+  },
+  {
+    "id": "golden-bas",
+    "name": "Golden Bas",
+    "rarity": 2,
+    "behavior": "rampingBouncer",
+    "family": "Bass",
+    "sizeRange": [
+      35,
+      67
+    ],
+    "coinBase": 37
+  },
+  {
+    "id": "frost-jellyfish-1",
+    "name": "Frost Jellyfish",
+    "rarity": 2,
+    "behavior": "pulsar",
+    "family": "Jellyfish",
+    "sizeRange": [
+      44,
+      73
+    ],
+    "coinBase": 38
+  },
+  {
+    "id": "silver-koi",
+    "name": "Silver Koi",
+    "rarity": 2,
+    "behavior": "mirage",
+    "family": "Koi",
+    "sizeRange": [
+      26,
+      48
+    ],
+    "coinBase": 44
+  },
+  {
+    "id": "ember-tropical",
+    "name": "Ember Tropical",
+    "rarity": 2,
+    "behavior": "darter",
+    "family": "Tropical",
+    "sizeRange": [
+      34,
+      47
+    ],
+    "coinBase": 53
+  },
+  {
+    "id": "shadow-seahorse-1",
+    "name": "Shadow Seahorse",
+    "rarity": 2,
+    "behavior": "floater",
+    "family": "Seahorses",
+    "sizeRange": [
+      35,
+      52
+    ],
+    "coinBase": 38
+  },
+  {
+    "id": "jade-crustacean",
+    "name": "Jade Crustacean",
+    "rarity": 2,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      44,
+      60
+    ],
+    "coinBase": 37
+  },
+  {
+    "id": "crimson-trout-1",
+    "name": "Crimson Trout",
+    "rarity": 2,
+    "behavior": "drifter",
+    "family": "Trout",
+    "sizeRange": [
+      44,
+      58
+    ],
+    "coinBase": 44
+  },
+  {
+    "id": "golden-eel",
+    "name": "Golden Eel",
+    "rarity": 2,
+    "behavior": "nervous",
+    "family": "Eels",
+    "sizeRange": [
+      35,
+      69
+    ],
+    "coinBase": 45
+  },
+  {
+    "id": "river-squid",
+    "name": "River Squid",
+    "rarity": 2,
+    "behavior": "darter",
+    "family": "Squid",
+    "sizeRange": [
+      32,
+      66
+    ],
+    "coinBase": 36
+  },
+  {
+    "id": "golden-crustacean-1",
+    "name": "Golden Crustacean",
+    "rarity": 2,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      51,
+      86
+    ],
+    "coinBase": 43
+  },
+  {
+    "id": "golden-catfish-1",
+    "name": "Golden Catfish",
+    "rarity": 2,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      29,
+      46
+    ],
+    "coinBase": 36
+  },
+  {
+    "id": "river-crustacean",
+    "name": "River Crustacean",
+    "rarity": 2,
+    "behavior": "sinker",
+    "family": "Crustaceans",
+    "sizeRange": [
+      21,
+      56
+    ],
+    "coinBase": 43
+  },
+  {
+    "id": "silver-eel",
+    "name": "Silver Eel",
+    "rarity": 2,
+    "behavior": "ambush",
+    "family": "Eels",
+    "sizeRange": [
+      32,
+      63
+    ],
+    "coinBase": 51
+  },
+  {
+    "id": "crimson-crustacean-1",
+    "name": "Crimson Crustacean",
+    "rarity": 2,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      22,
+      38
+    ],
+    "coinBase": 49
+  },
+  {
+    "id": "ember-catfish",
+    "name": "Ember Catfish",
+    "rarity": 2,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      46,
+      59
+    ],
+    "coinBase": 47
+  },
+  {
+    "id": "crimson-tropical",
+    "name": "Crimson Tropical",
+    "rarity": 2,
+    "behavior": "darter",
+    "family": "Tropical",
+    "sizeRange": [
+      48,
+      75
+    ],
+    "coinBase": 50
+  },
+  {
+    "id": "silver-jellyfish-1",
+    "name": "Silver Jellyfish",
+    "rarity": 2,
+    "behavior": "pulsar",
+    "family": "Jellyfish",
+    "sizeRange": [
+      21,
+      57
+    ],
+    "coinBase": 39
+  },
+  {
+    "id": "golden-eel-1",
+    "name": "Golden Eel",
+    "rarity": 2,
+    "behavior": "nervous",
+    "family": "Eels",
+    "sizeRange": [
+      25,
+      42
+    ],
+    "coinBase": 30
+  },
+  {
+    "id": "shadow-trout-1",
+    "name": "Shadow Trout",
+    "rarity": 2,
+    "behavior": "glider",
+    "family": "Trout",
+    "sizeRange": [
+      20,
+      39
+    ],
+    "coinBase": 52
+  },
+  {
+    "id": "silver-jellyfish",
+    "name": "Silver Jellyfish",
+    "rarity": 2,
+    "behavior": "hopper",
+    "family": "Jellyfish",
+    "sizeRange": [
+      38,
+      61
+    ],
+    "coinBase": 44
+  },
+  {
+    "id": "storm-squid",
+    "name": "Storm Squid",
+    "rarity": 2,
+    "behavior": "hopper",
+    "family": "Squid",
+    "sizeRange": [
+      36,
+      68
+    ],
+    "coinBase": 32
+  },
+  {
+    "id": "lake-tropical",
+    "name": "Lake Tropical",
+    "rarity": 2,
+    "behavior": "bouncer",
+    "family": "Tropical",
+    "sizeRange": [
+      40,
+      75
+    ],
+    "coinBase": 38
+  },
+  {
+    "id": "azure-sunfish",
+    "name": "Azure Sunfish",
+    "rarity": 2,
+    "behavior": "topDrifter",
+    "family": "Sunfish",
+    "sizeRange": [
+      41,
+      59
+    ],
+    "coinBase": 49
+  },
+  {
+    "id": "coral-ray",
+    "name": "Coral Ray",
+    "rarity": 3,
+    "behavior": "patroller",
+    "family": "Rays",
+    "sizeRange": [
+      44,
+      61
+    ],
+    "coinBase": 142
+  },
+  {
+    "id": "silver-crustacean",
+    "name": "Silver Crustacean",
+    "rarity": 3,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      40,
+      70
+    ],
+    "coinBase": 110
+  },
+  {
+    "id": "jade-seahorse",
+    "name": "Jade Seahorse",
+    "rarity": 3,
+    "behavior": "floater",
+    "family": "Seahorses",
+    "sizeRange": [
+      26,
+      54
+    ],
+    "coinBase": 150
+  },
+  {
+    "id": "storm-trout",
+    "name": "Storm Trout",
+    "rarity": 3,
+    "behavior": "drifter",
+    "family": "Trout",
+    "sizeRange": [
+      44,
+      68
+    ],
+    "coinBase": 136
+  },
+  {
+    "id": "frost-pufferfish",
+    "name": "Frost Pufferfish",
+    "rarity": 3,
+    "behavior": "pausingBouncer",
+    "family": "Pufferfish",
+    "sizeRange": [
+      36,
+      48
+    ],
+    "coinBase": 87
+  },
+  {
+    "id": "coral-deepsea",
+    "name": "Coral Deepsea",
+    "rarity": 3,
+    "behavior": "surfacer",
+    "family": "Deepsea",
+    "sizeRange": [
+      20,
+      45
+    ],
+    "coinBase": 133
+  },
+  {
+    "id": "azure-squid-1",
+    "name": "Azure Squid",
+    "rarity": 3,
+    "behavior": "hopper",
+    "family": "Squid",
+    "sizeRange": [
+      32,
+      61
+    ],
+    "coinBase": 116
+  },
+  {
+    "id": "coral-shark-1",
+    "name": "Coral Shark",
+    "rarity": 3,
+    "behavior": "tyrant",
+    "family": "Sharks",
+    "sizeRange": [
+      39,
+      55
+    ],
+    "coinBase": 128
+  },
+  {
+    "id": "storm-catfish",
+    "name": "Storm Catfish",
+    "rarity": 3,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      40,
+      58
+    ],
+    "coinBase": 136
+  },
+  {
+    "id": "silver-bas",
+    "name": "Silver Bas",
+    "rarity": 3,
+    "behavior": "bouncer",
+    "family": "Bass",
+    "sizeRange": [
+      27,
+      41
+    ],
+    "coinBase": 126
+  },
+  {
+    "id": "shadow-bas",
+    "name": "Shadow Bas",
+    "rarity": 3,
+    "behavior": "rampingBouncer",
+    "family": "Bass",
+    "sizeRange": [
+      46,
+      62
+    ],
+    "coinBase": 139
+  },
+  {
+    "id": "azure-lanternfish",
+    "name": "Azure Lanternfish",
+    "rarity": 3,
+    "behavior": "flutter",
+    "family": "Lanternfish",
+    "sizeRange": [
+      45,
+      61
+    ],
+    "coinBase": 88
+  },
+  {
+    "id": "ember-trout",
+    "name": "Ember Trout",
+    "rarity": 3,
+    "behavior": "pendulum",
+    "family": "Trout",
+    "sizeRange": [
+      47,
+      63
+    ],
+    "coinBase": 98
+  },
+  {
+    "id": "river-deepsea-2",
+    "name": "River Deepsea",
+    "rarity": 3,
+    "behavior": "ambush",
+    "family": "Deepsea",
+    "sizeRange": [
+      27,
+      60
+    ],
+    "coinBase": 80
+  },
+  {
+    "id": "ember-squid",
+    "name": "Ember Squid",
+    "rarity": 3,
+    "behavior": "twitch",
+    "family": "Squid",
+    "sizeRange": [
+      17,
+      49
+    ],
+    "coinBase": 150
+  },
+  {
+    "id": "crimson-catfish",
+    "name": "Crimson Catfish",
+    "rarity": 3,
+    "behavior": "bottomDrifter",
+    "family": "Catfish",
+    "sizeRange": [
+      43,
+      65
+    ],
+    "coinBase": 79
+  },
+  {
+    "id": "river-seahorse",
+    "name": "River Seahorse",
+    "rarity": 3,
+    "behavior": "surfacer",
+    "family": "Seahorses",
+    "sizeRange": [
+      15,
+      43
+    ],
+    "coinBase": 96
+  },
+  {
+    "id": "shadow-koi-1",
+    "name": "Shadow Koi",
+    "rarity": 3,
+    "behavior": "drifter",
+    "family": "Koi",
+    "sizeRange": [
+      19,
+      31
+    ],
+    "coinBase": 83
+  },
+  {
+    "id": "lake-bas-1",
+    "name": "Lake Bas",
+    "rarity": 3,
+    "behavior": "bouncer",
+    "family": "Bass",
+    "sizeRange": [
+      46,
+      74
+    ],
+    "coinBase": 140
+  },
+  {
+    "id": "river-catfish",
+    "name": "River Catfish",
+    "rarity": 3,
+    "behavior": "anchor",
+    "family": "Catfish",
+    "sizeRange": [
+      30,
+      50
+    ],
+    "coinBase": 101
+  },
+  {
+    "id": "lake-pufferfish-1",
+    "name": "Lake Pufferfish",
+    "rarity": 3,
+    "behavior": "pausingBouncer",
+    "family": "Pufferfish",
+    "sizeRange": [
+      38,
+      74
+    ],
+    "coinBase": 110
+  },
+  {
+    "id": "lake-squid-1",
+    "name": "Lake Squid",
+    "rarity": 3,
+    "behavior": "darter",
+    "family": "Squid",
+    "sizeRange": [
+      29,
+      42
+    ],
+    "coinBase": 88
+  },
+  {
+    "id": "golden-deepsea",
+    "name": "Golden Deepsea",
+    "rarity": 3,
+    "behavior": "surfacer",
+    "family": "Deepsea",
+    "sizeRange": [
+      19,
+      32
+    ],
+    "coinBase": 144
+  },
+  {
+    "id": "river-jellyfish",
+    "name": "River Jellyfish",
+    "rarity": 3,
+    "behavior": "hopper",
+    "family": "Jellyfish",
+    "sizeRange": [
+      51,
+      69
+    ],
+    "coinBase": 123
+  },
+  {
+    "id": "golden-tropical",
+    "name": "Golden Tropical",
+    "rarity": 3,
+    "behavior": "bouncer",
+    "family": "Tropical",
+    "sizeRange": [
+      15,
+      30
+    ],
+    "coinBase": 148
+  },
+  {
+    "id": "jade-squid",
+    "name": "Jade Squid",
+    "rarity": 3,
+    "behavior": "darter",
+    "family": "Squid",
+    "sizeRange": [
+      18,
+      44
+    ],
+    "coinBase": 115
+  },
+  {
+    "id": "crimson-eel",
+    "name": "Crimson Eel",
+    "rarity": 3,
+    "behavior": "meanderer",
+    "family": "Eels",
+    "sizeRange": [
+      29,
+      56
+    ],
+    "coinBase": 131
+  },
+  {
+    "id": "frost-koi-1",
+    "name": "Frost Koi",
+    "rarity": 3,
+    "behavior": "drifter",
+    "family": "Koi",
+    "sizeRange": [
+      46,
+      78
+    ],
+    "coinBase": 77
+  },
+  {
+    "id": "frost-tropical",
+    "name": "Frost Tropical",
+    "rarity": 3,
+    "behavior": "bouncer",
+    "family": "Tropical",
+    "sizeRange": [
+      43,
+      56
+    ],
+    "coinBase": 115
+  },
+  {
+    "id": "storm-lanternfish-1",
+    "name": "Storm Lanternfish",
+    "rarity": 3,
+    "behavior": "pulsar",
+    "family": "Lanternfish",
+    "sizeRange": [
+      41,
+      56
+    ],
+    "coinBase": 94
+  },
+  {
+    "id": "crimson-ray",
+    "name": "Crimson Ray",
+    "rarity": 3,
+    "behavior": "patroller",
+    "family": "Rays",
+    "sizeRange": [
+      31,
+      54
+    ],
+    "coinBase": 88
+  },
+  {
+    "id": "river-deepsea",
+    "name": "River Deepsea",
+    "rarity": 3,
+    "behavior": "ambush",
+    "family": "Deepsea",
+    "sizeRange": [
+      44,
+      64
+    ],
+    "coinBase": 131
+  },
+  {
+    "id": "storm-ray",
+    "name": "Storm Ray",
+    "rarity": 3,
+    "behavior": "wideBouncer",
+    "family": "Rays",
+    "sizeRange": [
+      42,
+      59
+    ],
+    "coinBase": 93
+  },
+  {
+    "id": "jade-sunfish-1",
+    "name": "Jade Sunfish",
+    "rarity": 3,
+    "behavior": "drifter",
+    "family": "Sunfish",
+    "sizeRange": [
+      46,
+      82
+    ],
+    "coinBase": 85
+  },
+  {
+    "id": "azure-eel",
+    "name": "Azure Eel",
+    "rarity": 3,
+    "behavior": "ambush",
+    "family": "Eels",
+    "sizeRange": [
+      50,
+      71
+    ],
+    "coinBase": 101
+  },
+  {
+    "id": "crimson-seahorse",
+    "name": "Crimson Seahorse",
+    "rarity": 4,
+    "behavior": "surfacer",
+    "family": "Seahorses",
+    "sizeRange": [
+      109,
+      186
+    ],
+    "coinBase": 376
+  },
+  {
+    "id": "coral-trout",
+    "name": "Coral Trout",
+    "rarity": 4,
+    "behavior": "glider",
+    "family": "Trout",
+    "sizeRange": [
+      87,
+      186
+    ],
+    "coinBase": 390
+  },
+  {
+    "id": "azure-crustacean",
+    "name": "Azure Crustacean",
+    "rarity": 4,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      83,
+      236
+    ],
+    "coinBase": 375
+  },
+  {
+    "id": "shadow-crustacean-2",
+    "name": "Shadow Crustacean",
+    "rarity": 4,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      74,
+      135
+    ],
+    "coinBase": 432
+  },
+  {
+    "id": "silver-squid-1",
+    "name": "Silver Squid",
+    "rarity": 4,
+    "behavior": "darter",
+    "family": "Squid",
+    "sizeRange": [
+      90,
+      206
+    ],
+    "coinBase": 385
+  },
+  {
+    "id": "jade-lanternfish-1",
+    "name": "Jade Lanternfish",
+    "rarity": 4,
+    "behavior": "pulsar",
+    "family": "Lanternfish",
+    "sizeRange": [
+      160,
+      223
+    ],
+    "coinBase": 344
+  },
+  {
+    "id": "river-crustacean-1",
+    "name": "River Crustacean",
+    "rarity": 4,
+    "behavior": "meanderer",
+    "family": "Crustaceans",
+    "sizeRange": [
+      201,
+      325
+    ],
+    "coinBase": 479
+  },
+  {
+    "id": "coral-bas",
+    "name": "Coral Bas",
+    "rarity": 4,
+    "behavior": "bouncer",
+    "family": "Bass",
+    "sizeRange": [
+      63,
+      235
+    ],
+    "coinBase": 472
+  },
+  {
+    "id": "coral-shark",
+    "name": "Coral Shark",
+    "rarity": 4,
+    "behavior": "sprinter",
+    "family": "Sharks",
+    "sizeRange": [
+      95,
+      189
+    ],
+    "coinBase": 455
+  },
+  {
+    "id": "storm-crustacean-1",
+    "name": "Storm Crustacean",
+    "rarity": 4,
+    "behavior": "sinker",
+    "family": "Crustaceans",
+    "sizeRange": [
+      151,
+      214
+    ],
+    "coinBase": 295
+  },
+  {
+    "id": "lake-eel",
+    "name": "Lake Eel",
+    "rarity": 4,
+    "behavior": "ambush",
+    "family": "Eels",
+    "sizeRange": [
+      81,
+      170
+    ],
+    "coinBase": 476
+  },
+  {
+    "id": "frost-crustacean-1",
+    "name": "Frost Crustacean",
+    "rarity": 4,
+    "behavior": "anchor",
+    "family": "Crustaceans",
+    "sizeRange": [
+      219,
+      353
+    ],
+    "coinBase": 405
+  },
+  {
+    "id": "river-trout-1",
+    "name": "River Trout",
+    "rarity": 4,
+    "behavior": "pendulum",
+    "family": "Trout",
+    "sizeRange": [
+      70,
+      182
+    ],
+    "coinBase": 364
+  },
+  {
+    "id": "jade-jellyfish",
+    "name": "Jade Jellyfish",
+    "rarity": 4,
+    "behavior": "pulsar",
+    "family": "Jellyfish",
+    "sizeRange": [
+      141,
+      256
+    ],
+    "coinBase": 400
+  },
+  {
+    "id": "coral-marlin-1",
+    "name": "Coral Marlin",
+    "rarity": 4,
+    "behavior": "sprinter",
+    "family": "Marlin",
+    "sizeRange": [
+      175,
+      278
+    ],
+    "coinBase": 456
+  },
+  {
+    "id": "golden-marlin",
+    "name": "Golden Marlin",
+    "rarity": 4,
+    "behavior": "darter",
+    "family": "Marlin",
+    "sizeRange": [
+      102,
+      251
+    ],
+    "coinBase": 351
+  },
+  {
+    "id": "lake-mythic",
+    "name": "Lake Mythic",
+    "rarity": 5,
+    "behavior": "tyrant",
+    "family": "Mythic",
+    "sizeRange": [
+      243,
+      530
+    ],
+    "coinBase": 1497
+  },
+  {
+    "id": "jade-mythic",
+    "name": "Jade Mythic",
+    "rarity": 5,
+    "behavior": "tyrant",
+    "family": "Mythic",
+    "sizeRange": [
+      182,
+      491
+    ],
+    "coinBase": 1427
+  },
+  {
+    "id": "river-mythic",
+    "name": "River Mythic",
+    "rarity": 5,
+    "behavior": "trickster",
+    "family": "Mythic",
+    "sizeRange": [
+      337,
+      643
+    ],
+    "coinBase": 1268
+  },
+  {
+    "id": "frost-mythic",
+    "name": "Frost Mythic",
+    "rarity": 5,
+    "behavior": "tempest",
+    "family": "Mythic",
+    "sizeRange": [
+      341,
+      602
+    ],
+    "coinBase": 907
+  },
+  {
+    "id": "silver-mythic",
+    "name": "Silver Mythic",
+    "rarity": 5,
+    "behavior": "trickster",
+    "family": "Mythic",
+    "sizeRange": [
+      260,
+      524
+    ],
+    "coinBase": 1415
+  }
+];
+const FISH_BY_ID = {};
+for (const f of FISH) FISH_BY_ID[f.id] = f;
+const FAMILIES = ["Jellyfish","Rays","Marlin","Trout","Eels","Catfish","Crustaceans","Koi","Tropical","Lanternfish","Seahorses","Deepsea","Minnows","Squid","Sunfish","Bass","Pufferfish","Sharks","Mythic"];
+const API = { FISH, FISH_BY_ID, FAMILIES };
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
+if (typeof window !== 'undefined') window.FishData = API;

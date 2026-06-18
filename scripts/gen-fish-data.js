@@ -1,0 +1,80 @@
+'use strict';
+// One-shot scaffolder for fish-data.js. Deterministic (seeded) so re-runs are stable.
+// Usage: node scripts/gen-fish-data.js > fish-data.js   (then hand-tune names)
+const { mulberry32, BEHAVIORS } = require('../fishing.js');
+
+const COUNTS = { 1: 50, 2: 45, 3: 35, 4: 16, 5: 5 };
+const COIN = { 1: [8, 18], 2: [28, 55], 3: [75, 160], 4: [260, 480], 5: [800, 1500] };
+const SIZE = { 1: [6, 30], 2: [18, 90], 3: [15, 90], 4: [40, 400], 5: [60, 800] };
+
+// Families and which behaviors fit them; spread across tiers for variety.
+const FAMILIES = {
+  Minnows: ['drifter', 'meanderer', 'bouncer', 'nervous'],
+  Trout: ['drifter', 'pendulum', 'lazyDrifter', 'glider'],
+  Bass: ['bouncer', 'rampingBouncer', 'wideBouncer'],
+  Catfish: ['sinker', 'anchor', 'bottomDrifter'],
+  Koi: ['feintingDrifter', 'drifter', 'mirage'],
+  Eels: ['meanderer', 'ambush', 'nervous'],
+  Pufferfish: ['floater', 'geyser', 'pausingBouncer'],
+  Rays: ['wideBouncer', 'patroller', 'pendulum'],
+  Sharks: ['sprinter', 'darter', 'tyrant'],
+  Squid: ['twitch', 'darter', 'hopper'],
+  Jellyfish: ['pulsar', 'geyser', 'hopper'],
+  Crustaceans: ['sinker', 'walk' in BEHAVIORS ? 'meanderer' : 'meanderer', 'anchor'],
+  Deepsea: ['anchor', 'ambush', 'surfacer'],
+  Tropical: ['darter', 'flutter', 'bouncer'],
+  Seahorses: ['floater', 'surfacer', 'hopper'],
+  Lanternfish: ['geyser', 'pulsar', 'flutter'],
+  Sunfish: ['floater', 'topDrifter', 'drifter'],
+  Marlin: ['sprinter', 'glider', 'darter'],
+  Mythic: ['trickster', 'tempest', 'tyrant'],
+};
+
+const NAMES = { /* short adjective pool for scaffolded names */
+  pre: ['River', 'Lake', 'Coral', 'Shadow', 'Golden', 'Azure', 'Crimson', 'Frost', 'Ember', 'Jade', 'Silver', 'Storm'],
+};
+
+function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+function rint(rng, [lo, hi]) { return Math.round(lo + rng() * (hi - lo)); }
+
+const famNames = Object.keys(FAMILIES);
+// Mythic is legendary-only; reserve all 5 legendaries for it.
+function familyForTier(rng, rarity) {
+  if (rarity === 5) return 'Mythic';
+  const pool = famNames.filter(f => f !== 'Mythic');
+  return pick(rng, pool);
+}
+
+const rng = mulberry32(20260618);
+const rows = [];
+const usedNames = new Set();
+let n = 0;
+for (const rarity of [1, 2, 3, 4, 5]) {
+  for (let i = 0; i < COUNTS[rarity]; i++) {
+    const family = familyForTier(rng, rarity);
+    const behavior = pick(rng, FAMILIES[family]);
+    let name, id, guard = 0;
+    do {
+      name = `${pick(rng, NAMES.pre)} ${family.replace(/s$/, '')}`;
+      id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + (guard ? '-' + guard : '');
+      guard++;
+    } while (usedNames.has(id) && guard < 50);
+    usedNames.add(id);
+    const [sl, sh] = SIZE[rarity];
+    const lo = rint(rng, [sl, Math.floor((sl + sh) / 2)]);
+    const hi = lo + rint(rng, [Math.max(4, Math.floor((sh - sl) / 6)), Math.floor((sh - sl) / 2)]);
+    rows.push({ id, name, rarity, behavior, family, sizeRange: [lo, hi], coinBase: rint(rng, COIN[rarity]) });
+    n++;
+  }
+}
+
+const families = [...new Set(rows.map(r => r.family))];
+process.stdout.write(
+  "'use strict';\n// Auto-scaffolded by scripts/gen-fish-data.js, then hand-tuned. 151 species.\n" +
+  'const FISH = ' + JSON.stringify(rows, null, 2) + ';\n' +
+  'const FISH_BY_ID = {};\nfor (const f of FISH) FISH_BY_ID[f.id] = f;\n' +
+  'const FAMILIES = ' + JSON.stringify(families) + ';\n' +
+  'const API = { FISH, FISH_BY_ID, FAMILIES };\n' +
+  "if (typeof module !== 'undefined' && module.exports) module.exports = API;\n" +
+  "if (typeof window !== 'undefined') window.FishData = API;\n"
+);
