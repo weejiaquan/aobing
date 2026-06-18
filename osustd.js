@@ -428,6 +428,7 @@ if (typeof document !== 'undefined') {
     const accEl = document.getElementById('osu-acc');
     const judgeEl = document.getElementById('osu-judge');
     const fpsEl = document.getElementById('osu-fps');
+    const skipBtn = document.getElementById('osu-skip');
     const resultsBody = document.getElementById('osu-results-body');
     const retryBtn = document.getElementById('osu-retry');
     const backBtn = document.getElementById('osu-back');
@@ -457,7 +458,7 @@ if (typeof document !== 'undefined') {
       errTicks.push({ err: errMs, result: result, t: performance.now() });
       if (errTicks.length > 64) errTicks.shift();
     }
-    function playHitsound() { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx); }   // shared engine (hitsound.js)
+    function playHitsound(scale) { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx, scale); }   // shared engine (hitsound.js)
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
@@ -903,6 +904,7 @@ if (typeof document !== 'undefined') {
       try { run.src.stop(); } catch (e) {}
       run = null;
       if (fpsEl) fpsEl.textContent = '';
+      if (skipBtn) skipBtn.hidden = true;
     }
     async function loadAndPlay(entry) {
       if (loading) return;
@@ -956,13 +958,16 @@ if (typeof document !== 'undefined') {
       gain.gain.value = Math.max(0, Math.min(1, (Number(settings.musicVol) || 0) / 100)) || 0.6;
       src.buffer = audioBuf; src.connect(gain).connect(ac.destination); src.start(startCtx);
       const lastTime = chart.objects.reduce((m, o) => Math.max(m, o.endTime || o.time), 0);
+      const firstTime = chart.objects.length ? chart.objects[0].time : 0;
       run = {
         entry: entry, chart: chart, objs: objs, src: src, gain: gain, startCtx: startCtx,
-        t0perf: performance.now(), t0ctx: ac.currentTime,
+        t0perf: performance.now(), t0ctx: ac.currentTime, audioBuf: audioBuf,
         preempt: preempt, fadeIn: fadeIn, radius: radius, windows: windows,
         counts: { h300: 0, h100: 0, h50: 0, miss: 0 }, combo: 0, maxCombo: 0,
         lastTime: lastTime, finished: false, rafId: 0, artImg: null, pressed: {},
         errors: [],   // signed hit-timing errors (ms, +late/-early) for UR + the error bar
+        // Skip target: jump to ~1.5s before the first object if the intro is long enough.
+        firstTime: firstTime, skipTo: Math.max(0, firstTime - 1500), skipped: false,
       };
       errTicks = [];
       if (entry.getArt) entry.getArt().then((b) => {
@@ -996,8 +1001,30 @@ if (typeof document !== 'undefined') {
       sweepMisses(st);
       render(st);
       tickFps();
+      updateSkip(st);
       if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
       run.rafId = requestAnimationFrame(loop);
+    }
+    // Skip button: offered during a long intro; fast-forwards the audio + clock to
+    // ~1.5s before the first object (like osu's Skip).
+    function updateSkip(st) {
+      if (!skipBtn) return;
+      const show = !run.skipped && run.skipTo > 800 && st < run.skipTo - 100;
+      if (skipBtn.hidden === show) skipBtn.hidden = !show;
+    }
+    function doSkip() {
+      if (!run || run.finished || run.skipped) return;
+      if (songTimeNow() >= run.skipTo - 50) return;
+      const ac = audioCtx, when = ac.currentTime;
+      try { run.src.stop(); } catch (e) {}
+      const src = ac.createBufferSource();
+      src.buffer = run.audioBuf; src.connect(run.gain);     // gain is already wired to destination
+      src.start(when, run.skipTo / 1000);                    // play from the skip offset
+      run.src = src;
+      run.startCtx = when - run.skipTo / 1000;               // songTimeNow now reads ~skipTo
+      run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync the input→ctx mapping
+      run.skipped = true;
+      if (skipBtn) skipBtn.hidden = true;
     }
     // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
     // this is the display's refresh rate (60 / 144 / 240… as fast as the monitor +
@@ -1050,6 +1077,7 @@ if (typeof document !== 'undefined') {
           if (result === 'miss') { c.miss++; run.combo = 0; }
           else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
           bursts.push({ x: PLAY_W / 2, y: PLAY_H / 2, result: result, t: performance.now() });
+          if (result !== 'miss') playHitsound();   // spinner clear
           flashJudge(result); updateHud();
         }
       }
@@ -1098,7 +1126,12 @@ if (typeof document !== 'undefined') {
         if (st >= o.time && st <= o.endTime + 30) {
           const ball = sliderBallPos(o, st);
           s.following = heldAny() && dist(cursor, ball) <= followR;
-          for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) { cp.ev = true; cp.hit = s.following; }
+          for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) {
+            cp.ev = true; cp.hit = s.following;
+            // hitsound on each slider event the player is following: ticks soft,
+            // reverse-arrows medium, the tail full — the "clicks" osu plays too.
+            if (cp.hit) playHitsound(cp.kind === 'tick' ? 0.4 : cp.kind === 'repeat' ? 0.85 : 1);
+          }
         }
         if (st > o.endTime + 30) {
           for (const cp of s.checkpoints) if (!cp.ev) { cp.ev = true; cp.hit = false; }
@@ -1201,6 +1234,7 @@ if (typeof document !== 'undefined') {
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === 'Escape') { quitToSelect(); return; }
+      if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       const k = e.key.toLowerCase();
       if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; e.preventDefault(); onTap(e.timeStamp); }
     }
@@ -1535,6 +1569,7 @@ if (typeof document !== 'undefined') {
     if (exitBtn) exitBtn.addEventListener('click', () => close());
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
+    if (skipBtn) skipBtn.addEventListener('click', doSkip);
     if (importBtn) importBtn.addEventListener('click', () => importFolder());
     if (importInput) importInput.addEventListener('change', () => handleImportFiles(importInput.files));
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });

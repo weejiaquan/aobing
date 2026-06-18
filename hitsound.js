@@ -59,8 +59,9 @@
   function init(d) { if (d) deps = d; loadCustom(); }
 
   // ---- Playback ------------------------------------------------------------
-  function play(ctx) {
-    const v = vol(); if (!ctx || !(v > 0)) return;
+  // scale (default 1) attenuates volume for softer events (e.g. slider ticks).
+  function play(ctx, scale) {
+    const v = vol() * (scale == null ? 1 : scale); if (!ctx || !(v > 0)) return;
     if (kind() === 'custom' && customBytes) { playCustom(ctx, v); return; }
     playPreset(ctx, PRESETS[kind()] || PRESETS[DEFAULT_KIND], v);
   }
