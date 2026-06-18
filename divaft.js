@@ -360,24 +360,28 @@
         getAudio: async () => { const r = resolveCpk(audioPath); if (!r) throw new Error('audio not found: ' + audioPath); const b = await window.Cpk.readEntry(r.read, r.entry); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); },
       };
     }
+    // sub-rom preference when the same pv/diff chart exists in several layers
+    function subromRank(name) { const t = name.split('/')[0]; return t === 'rom' ? 0 : t === 'rom_steam' ? 1 : t === 'rom_steam_dlc' ? 2 : /ps4/.test(t) ? 3 : t === 'rom_switch' ? 4 : 5; }
     async function importCpk(fileList) {
       if (!window.Cpk) { setImportStatus('CPK reader not loaded.'); return; }
       const files = Array.from(fileList || []);
       if (!files.length) return;
       const myGen = ++cpkImportGen;
       setImportStatus('Reading ' + files.length + ' archive' + (files.length > 1 ? 's' : '') + '…');
+      const staged = [];   // read into a local batch; only commit if we're still the winning import
       for (const file of files) {
-        if (cpkSources.some((s) => s.name === file.name)) continue;
-        try { const read = window.Cpk.fileReader(file); const toc = await window.Cpk.readToc(read); cpkSources.push({ name: file.name, read: read, toc: toc }); }
+        if (cpkSources.some((s) => s.name === file.name) || staged.some((s) => s.name === file.name)) continue;
+        try { const read = window.Cpk.fileReader(file); const toc = await window.Cpk.readToc(read); staged.push({ name: file.name, read: read, toc: toc }); }
         catch (e) { try { console.error('[divaft] cpk ' + file.name, e); } catch (_) {} }
       }
       if (myGen !== cpkImportGen) return;
+      cpkSources = cpkSources.concat(staged);
       if (!cpkSources.length) { setImportStatus('No readable CPK selected.'); return; }
       await rebuildCpkLibrary(myGen);
     }
     async function rebuildCpkLibrary(myGen) {
-      // 1) collect song metadata (names, audio + .dsc paths) from any pv_db across sources
-      const meta = {};   // pv_id -> { title, audio, bpm, diffs:{diff:{script,stars}} }
+      // 1) overlay metadata (names, stars, audio, bpm) from any pv_db (the region CPK)
+      const meta = {};   // pv_id -> { title, audio, bpm, stars:{diff:n} }
       let havePvdb = false;
       for (const src of cpkSources) {
         const dbEntry = src.toc.entries.find((e) => /(?:^|\/)(?:mod_)?pv_db\.txt$/i.test(e.name));
@@ -386,38 +390,38 @@
         if (myGen !== cpkImportGen) return;
         havePvdb = true;
         for (const song of window.DivaPvdb.parse(txt)) {
-          const m = meta[song.id] || (meta[song.id] = { title: '', audio: '', bpm: 0, diffs: {} });
+          const m = meta[song.id] || (meta[song.id] = { title: '', audio: '', bpm: 0, stars: {} });
           if (song.title && !/^pv_\d/.test(song.title)) m.title = song.title;   // a real name, not the id fallback
           if (song.audio) m.audio = song.audio;
           if (song.bpm) m.bpm = song.bpm;
-          for (const d of window.DivaPvdb.playableDiffs(song)) if (/\.dsc$/i.test(song.diffs[d].script)) m.diffs[d] = song.diffs[d];
+          for (const d of window.DivaPvdb.playableDiffs(song)) if (song.diffs[d].stars != null) m.stars[d] = song.diffs[d].stars;
         }
       }
+      // 2) enumerate ALL charts by filename across every CPK (the playable set), preferring
+      //    the rom/rom_steam layer; pv_db is only an overlay so nothing gets dropped.
+      const songs = {};   // pv_id -> { num, diffs:{diff:scriptPath}, rank:{diff:n} }
+      for (const src of cpkSources) for (const e of src.toc.entries) {
+        const mm = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
+        if (!mm) continue;
+        const pv = 'pv_' + mm[1], diff = mm[2].toLowerCase() + (mm[3] ? '+' : '');
+        const s = songs[pv] || (songs[pv] = { num: mm[1], diffs: {}, rank: {} });
+        const r = subromRank(e.name);
+        if (s.diffs[diff] === undefined || r < s.rank[diff]) { s.diffs[diff] = e.name; s.rank[diff] = r; }
+      }
       const next = []; let songCount = 0;
-      if (havePvdb) {
-        for (const pv in meta) {
-          const s = meta[pv], diffs = Object.keys(s.diffs);
-          if (!diffs.length || !s.audio || !resolveCpk(s.audio)) continue;
-          const title = s.title || ('PV ' + pv.replace(/^pv_/, ''));
-          let any = false;
-          for (const diff of diffs) { if (!resolveCpk(s.diffs[diff].script)) continue; next.push(makeCpkEntry(pv, diff, title, s.diffs[diff].stars, s.diffs[diff].script, s.audio, s.bpm)); any = true; }
-          if (any) songCount++;
+      for (const pv in songs) {
+        const s = songs[pv], m = meta[pv] || {};
+        const audioPath = (m.audio && resolveCpk(m.audio)) ? m.audio : ('rom/sound/song/' + pv + '.ogg');
+        if (!resolveCpk(audioPath)) continue;
+        const title = m.title || ('PV ' + s.num);
+        let any = false;
+        for (const diff in s.diffs) {
+          if (!resolveCpk(s.diffs[diff])) continue;
+          const stars = (m.stars && m.stars[diff.replace('+', '')]) || null;
+          next.push(makeCpkEntry(pv, diff, title, stars, s.diffs[diff], audioPath, m.bpm || 0));
+          any = true;
         }
-      } else {
-        // convention fallback (no pv_db imported yet): enumerate by filename across sources
-        const songs = {};
-        for (const src of cpkSources) for (const e of src.toc.entries) {
-          const m = /(?:^|\/)script\/pv_(\d+)_([a-z]+)(_\d+)?\.dsc$/i.exec(e.name);
-          if (!m) continue;
-          const pv = 'pv_' + m[1], diff = m[2].toLowerCase() + (m[3] ? '+' : '');
-          (songs[pv] || (songs[pv] = { num: m[1], diffs: {} })).diffs[diff] = e.name;
-        }
-        for (const pv in songs) {
-          const s = songs[pv], audioPath = 'rom/sound/song/' + pv + '.ogg';
-          if (!resolveCpk(audioPath)) continue;
-          songCount++;
-          for (const diff in s.diffs) next.push(makeCpkEntry(pv, diff, 'PV ' + s.num, null, s.diffs[diff], audioPath, 0));
-        }
+        if (any) songCount++;
       }
       if (myGen !== cpkImportGen) return;
       cpkLive = next;
