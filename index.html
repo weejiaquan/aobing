@@ -2934,6 +2934,13 @@
     .rhythm-skip { position: absolute; bottom: 26px; right: 26px; pointer-events: auto; background: rgba(43,108,255,0.9); color: #fff; border: 0; border-radius: 10px; padding: 11px 20px; font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.4); z-index: 5; }
     .rhythm-skip:hover { background: #2b6cff; }
     .rhythm-skip[hidden] { display: none; }
+    /* osu key-press overlay (live reference of how you're tapping) */
+    #osu-keys-overlay { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+    .osu-key { width: 48px; min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 2px solid rgba(255,255,255,.25); border-radius: 8px; background: rgba(20,22,28,.55); color: #c8ccd4; transition: background .04s, border-color .04s, transform .04s; }
+    .osu-key.active { background: #2b6cff; border-color: #9fc0ff; color: #fff; transform: scale(1.08); }
+    .osu-key-label { font-weight: 800; font-size: 14px; }
+    .osu-key-count { font-size: 11px; color: #9aa0ab; font-variant-numeric: tabular-nums; }
+    .osu-key.active .osu-key-count { color: #dce6ff; }
     #osu-combo { position: absolute; bottom: 24px; left: 24px; font-size: 30px; font-weight: 800; }
     #osu-judge { position: absolute; top: 50%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 800; opacity: 0; }
     #osu-results { align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
@@ -2991,6 +2998,7 @@
             <span id="osu-keybinds"></span>
           </span>
           <button id="osu-hitsound-btn" type="button">Hitsounds</button>
+          <button id="osu-visual-btn" type="button">Visual</button>
           <button id="osu-calibrate" type="button">Calibrate</button>
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
@@ -3015,6 +3023,7 @@
         <div id="osu-combo"></div>
         <div id="osu-judge"></div>
         <div id="osu-fps" class="rhythm-fps"></div>
+        <div id="osu-keys-overlay"></div>
         <button id="osu-skip" type="button" class="rhythm-skip" hidden>Skip intro ⏭</button>
       </div>
     </div>
@@ -3040,6 +3049,14 @@
       <p>Pick a preset or upload your own sound. Plays on every hit.</p>
       <div id="osu-hs-controls" class="hs-controls"></div>
       <button id="osu-hitsound-done" type="button">Done</button>
+    </div>
+    <div id="osu-visual" class="osu-screen hs-screen" hidden>
+      <h2>Visual</h2>
+      <div class="hs-controls">
+        <div class="hs-row"><span>Cursor size</span><input type="range" id="osu-cursor-size" min="0.5" max="2" step="0.1"><b id="osu-cursor-size-val">1.0×</b></div>
+        <div class="hs-row"><span>Background dim</span><input type="range" id="osu-bg-dim" min="0" max="100" step="5"><b id="osu-bg-dim-val">80%</b></div>
+      </div>
+      <button id="osu-visual-done" type="button">Done</button>
     </div>
   </div>
 
