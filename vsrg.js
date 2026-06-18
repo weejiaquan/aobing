@@ -328,6 +328,8 @@ if (typeof document !== 'undefined') {
     const oszBtn = document.getElementById('vsrg-import-osz');
     const oszInput = document.getElementById('vsrg-osz-input');
     const oszStatusEl = document.getElementById('vsrg-osz-status');
+    const skinBtn = document.getElementById('vsrg-import-skin');
+    const skinOskInput = document.getElementById('vsrg-skin-osk-input');
     const speedDownBtn = document.getElementById('vsrg-speed-down');
     const speedUpBtn = document.getElementById('vsrg-speed-up');
     const speedValEl = document.getElementById('vsrg-speed-val');
@@ -575,17 +577,25 @@ if (typeof document !== 'undefined') {
           setImportStatus('Scanning… ' + n + ' .osu files seen');
         });
         localEntries = res.entries;
+        const std = await routeForeign(res.foreign);   // standard charts → the Standard library
+        let skinName = null;                            // a skin folder in the tree → Standard's skin
+        if (window.OsuStdGame && window.OsuStdGame.importSkinFromFolder) {
+          try { skinName = await window.OsuStdGame.importSkinFromFolder(fileList); } catch (e) {}
+        }
         await refreshLibrary();
         const s = res.stats;
+        const stdNote = (std ? ' · ' + std + ' standard → Standard' : '') + (skinName ? ' · skin “' + skinName + '” → Standard' : '');
         if (res.entries.length === 0) {
           setImportStatus(
-            'No playable maps found in ' + s.scanned + ' .osu file(s): ' +
+            (std ? std + ' standard map(s) routed to Standard. ' : '') +
+            (skinName ? 'Skin “' + skinName + '” → Standard. ' : '') +
+            'No osu!mania maps in ' + s.scanned + ' .osu file(s): ' +
             s.skippedNonMania + ' not osu!mania, ' + s.skippedKeys + ' unsupported key count, ' +
-            s.skippedNoAudio + ' missing audio. This mode only plays osu!mania (4–7K) charts.'
+            s.skippedNoAudio + ' missing audio.'
           );
         } else {
-          setImportStatus('Imported ' + res.entries.length + ' playable map(s) from ' + s.scanned +
-            ' .osu file(s). They stay for this session — re-import after reloading the page.');
+          setImportStatus('Imported ' + res.entries.length + ' mania map(s)' + stdNote + ' from ' + s.scanned +
+            ' .osu file(s). Mania maps stay for this session — re-import after reloading.');
         }
       } catch (e) {
         setImportStatus('Import failed: ' + ((e && e.message) || e));
@@ -610,9 +620,10 @@ if (typeof document !== 'undefined') {
         if (!m) { m = new Map(); byDir.set(dir, m); }
         m.set(f.name.toLowerCase(), f);   // lower-cased for case-insensitive audio match
       }
-      const out = [];
+      const out = [], foreign = [];
       const stats = { scanned: 0, skippedNonMania: 0, skippedKeys: 0, skippedNoAudio: 0 };
       for (const files of byDir.values()) {
+        const getU8 = async (nm) => { const ff = files.get(nm); return ff ? new Uint8Array(await ff.arrayBuffer()) : null; };
         for (const [name, f] of files) {
           if (!name.endsWith('.osu')) continue;
           stats.scanned++;
@@ -620,7 +631,12 @@ if (typeof document !== 'undefined') {
           let osuText;
           try { osuText = await f.text(); } catch (e) { continue; }
           let chart;
-          try { chart = parseOsu(osuText); } catch (e) { stats.skippedNonMania++; continue; }
+          try { chart = parseOsu(osuText); }
+          catch (e) {   // not osu!mania — collect for standard routing instead of dropping it
+            stats.skippedNonMania++;
+            try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+            continue;
+          }
           if (!KEY_MAPS[chart.keyCount]) { stats.skippedKeys++; continue; }
           const audio = files.get(String(chart.audioFile).toLowerCase()) || null;
           if (!audio) { stats.skippedNoAudio++; continue; }
@@ -638,7 +654,22 @@ if (typeof document !== 'undefined') {
           });
         }
       }
-      return { entries: out, stats: stats };
+      return { entries: out, stats: stats, foreign: foreign };
+    }
+    // Build a portable record of a chart this mode can't play, so the OTHER mode
+    // (osu!standard) can store it — getU8(name) returns the file's bytes (Uint8Array).
+    async function buildForeign(osuText, getU8) {
+      const meta = parseMeta(osuText);
+      const audio = await getU8(String(meta.audioFile).toLowerCase());
+      if (!audio) return null;
+      const bg = parseBackground((splitSections(osuText).Events || []).join('\n'));
+      const art = bg ? await getU8(bg.toLowerCase()) : null;
+      return { osuText: osuText, audio: audio, art: art || null };
+    }
+    // Hand collected non-mania charts to osu!standard; returns how many it accepted.
+    async function routeForeign(list) {
+      if (!list.length || !window.OsuStdGame || !window.OsuStdGame.importForeignCharts) return 0;
+      try { return (await window.OsuStdGame.importForeignCharts(list)) || 0; } catch (e) { return 0; }
     }
 
     // ---- .osz import (unzip in-browser, cache so it persists) ----------------
@@ -646,7 +677,7 @@ if (typeof document !== 'undefined') {
 
     async function handleOszFiles(fileList) {
       if (!fileList || !fileList.length) return;
-      let imported = 0, scanned = 0, skipped = 0, failed = 0;
+      let imported = 0, scanned = 0, skipped = 0, failed = 0; const foreign = [];
       try {
         for (const file of fileList) {
           setOszStatus('Reading ' + file.name + '…');
@@ -656,12 +687,17 @@ if (typeof document !== 'undefined') {
           // index entry files by base filename (lower-cased) for sibling lookup
           const byName = new Map();
           for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          const getU8 = (nm) => byName.get(nm) || null;
           for (const [nm, bytes] of entries) {
             if (!nm.toLowerCase().endsWith('.osu')) continue;
             scanned++;
             const osuText = new TextDecoder().decode(bytes);
             let chart;
-            try { chart = parseOsu(osuText); } catch (e) { skipped++; continue; }
+            try { chart = parseOsu(osuText); }
+            catch (e) {   // not osu!mania — collect for standard routing instead of counting it skipped
+              try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+              continue;
+            }
             if (!KEY_MAPS[chart.keyCount]) { skipped++; continue; }
             const audio = byName.get(String(chart.audioFile).toLowerCase());
             if (!audio) { skipped++; continue; }
@@ -676,9 +712,12 @@ if (typeof document !== 'undefined') {
             imported++;
           }
         }
+        const std = await routeForeign(foreign);   // standard charts in the .osz → the Standard library
+        skipped += (foreign.length - std);          // non-mania charts standard couldn't take either
         await refreshLibrary();
-        setOszStatus('Imported ' + imported + ' map(s)' +
-          (skipped ? ' · ' + skipped + ' skipped (non-mania / unsupported / no audio)' : '') +
+        setOszStatus('Imported ' + imported + ' mania map(s)' +
+          (std ? ' · ' + std + ' standard → Standard' : '') +
+          (skipped ? ' · ' + skipped + ' skipped (unsupported / no audio)' : '') +
           (failed ? ' · ' + failed + ' file(s) unreadable' : '') + '. Saved — they persist across reloads.');
       } catch (e) {
         setOszStatus('Import failed: ' + ((e && e.message) || e));
@@ -1570,6 +1609,15 @@ if (typeof document !== 'undefined') {
     // .osz import
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
+    // Skin (.osk): skins are an osu!standard feature, so hand the file to that mode.
+    if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
+    if (skinOskInput) skinOskInput.addEventListener('change', async () => {
+      const file = skinOskInput.files[0]; if (!file) return;
+      if (window.OsuStdGame && window.OsuStdGame.importSkinFile) {
+        try { await window.OsuStdGame.importSkinFile(file); setImportStatus('Skin “' + file.name.replace(/\.(osk|zip)$/i, '') + '” loaded — it applies in Standard mode.'); }
+        catch (e) { setImportStatus('Skin load failed: ' + ((e && e.message) || e)); }
+      } else { setImportStatus('Skin loading needs Standard mode (unavailable).'); }
+    });
     // Scroll-speed stepper (uncapped). The previews read scrollSpeed() live.
     if (speedDownBtn) speedDownBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() - 0.5));
     if (speedUpBtn) speedUpBtn.addEventListener('click', () => setScrollSpeed(scrollSpeed() + 0.5));
@@ -1633,6 +1681,25 @@ if (typeof document !== 'undefined') {
     api.close = close;
     api.importFolder = importFolder;
     api.setKeyFilter = function (k) { keyFilter = k; renderSongList(); };
+    // Cross-mode hook (called by osustd.js when a standard-side import finds mania
+    // charts): store the playable Mode-3 ones here so they land in the Mania library.
+    api.importForeignCharts = async function (records) {
+      if (!records || !records.length) return 0;
+      let n = 0;
+      for (const r of records) {
+        let chart; try { chart = parseOsu(r.osuText); } catch (e) { continue; }   // accept osu!mania only
+        if (!KEY_MAPS[chart.keyCount]) continue;
+        const hash = await sha256(r.osuText);
+        await idbPut('osz', hash, {
+          title: chart.title, artist: chart.artist, diffName: chart.diffName,
+          keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
+          stars: difficultyStars(chart), osuText: r.osuText, audio: r.audio, art: r.art || null,
+        });
+        n++;
+      }
+      if (n && panelOpen) await refreshLibrary();
+      return n;
+    };
   }
 
   // ---- SHA-256 chart identity (WebCrypto; replaces osu's MD5 for local use) -

@@ -542,10 +542,12 @@ if (typeof document !== 'undefined') {
         setImportStatus('Scanning…');
         const res = await scanFileList(fileList, (n) => setImportStatus('Scanning… ' + n + ' .osu seen'));
         localEntries = res.entries;
+        const mania = await routeForeign(res.foreign);   // mania charts → the Mania library
         await refreshLibrary();
+        const maniaNote = mania ? ' · ' + mania + ' mania → Mania' : '';
         setImportStatus(res.entries.length
-          ? ('Imported ' + res.entries.length + ' map(s) from ' + res.scanned + ' .osu scanned (re-import after reload).')
-          : ('No osu!standard maps in ' + res.scanned + ' .osu (this mode plays Mode 0 only).'));
+          ? ('Imported ' + res.entries.length + ' standard map(s)' + maniaNote + ' from ' + res.scanned + ' .osu scanned (re-import after reload).')
+          : ((mania ? mania + ' mania map(s) → Mania' : 'No osu! maps') + ' in ' + res.scanned + ' .osu scanned.'));
         // The same folder may also contain skins (e.g. an osu! install's Skins/).
         // Auto-load the most complete one; note any others.
         const skinDirs = findSkinDirs(fileList);
@@ -580,6 +582,21 @@ if (typeof document !== 'undefined') {
       for (const [name, f] of d.files) if (skinFileWanted(name)) map.set(name, new Uint8Array(await f.arrayBuffer()));
       await importSkinMap(d.name, map);
     }
+    // Build a portable record of a chart this mode can't play, so the OTHER mode
+    // (mania) can store it — getU8(name) returns the file's bytes as a Uint8Array.
+    async function buildForeign(osuText, getU8) {
+      const meta = parseStdMeta(osuText);
+      const audio = await getU8(String(meta.audioFile).toLowerCase());
+      if (!audio) return null;
+      const bg = parseBackground((splitSections(osuText).Events || []).join('\n'));
+      const art = bg ? await getU8(bg.toLowerCase()) : null;
+      return { osuText: osuText, audio: audio, art: art || null };
+    }
+    // Hand collected non-standard charts to mania; returns how many it accepted.
+    async function routeForeign(list) {
+      if (!list.length || !window.VsrgGame || !window.VsrgGame.importForeignCharts) return 0;
+      try { return (await window.VsrgGame.importForeignCharts(list)) || 0; } catch (e) { return 0; }
+    }
     // Group webkitdirectory files by folder so each .osu resolves its audio/bg.
     async function scanFileList(fileList, onProgress) {
       const byDir = new Map();
@@ -590,19 +607,25 @@ if (typeof document !== 'undefined') {
         let m = byDir.get(dir); if (!m) { m = new Map(); byDir.set(dir, m); }
         m.set(f.name.toLowerCase(), f);
       }
-      const out = []; let scanned = 0;
+      const out = [], foreign = []; let scanned = 0;
       for (const files of byDir.values()) {
+        const getU8 = async (nm) => { const f = files.get(nm); return f ? new Uint8Array(await f.arrayBuffer()) : null; };
         for (const [name, f] of files) {
           if (!name.endsWith('.osu')) continue;
           scanned++; if (onProgress && scanned % 40 === 0) onProgress(scanned);
-          let osuText, chart;
-          try { osuText = await f.text(); chart = assembleChart(osuText); } catch (e) { continue; }  // skips non-std
+          let osuText; try { osuText = await f.text(); } catch (e) { continue; }
+          let chart;
+          try { chart = assembleChart(osuText); }
+          catch (e) {   // not osu!standard — collect for mania routing instead of dropping it
+            try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+            continue;
+          }
           const audio = files.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
           const art = chart.backgroundFile ? (files.get(chart.backgroundFile.toLowerCase()) || null) : null;
           out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => Promise.resolve(art)));
         }
       }
-      return { entries: out, scanned: scanned };
+      return { entries: out, scanned: scanned, foreign: foreign };
     }
     function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt) {
       return { id: source + ':' + chart.title + ':' + chart.diffName, source: source,
@@ -612,18 +635,23 @@ if (typeof document !== 'undefined') {
 
     async function handleOszFiles(fileList) {
       if (!fileList || !fileList.length) return;
-      let imported = 0, scanned = 0;
+      let imported = 0, scanned = 0; const foreign = [];
       try {
         for (const file of fileList) {
           setImportStatus('Reading ' + file.name + '…');
           let entries; try { entries = await unzip(await file.arrayBuffer()); } catch (e) { continue; }
           const byName = new Map();
           for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          const getU8 = (nm) => byName.get(nm) || null;
           for (const [nm, bytes] of entries) {
             if (!nm.toLowerCase().endsWith('.osu')) continue;
             scanned++;
             const osuText = new TextDecoder().decode(bytes); let chart;
-            try { chart = assembleChart(osuText); } catch (e) { continue; }
+            try { chart = assembleChart(osuText); }
+            catch (e) {   // not osu!standard — collect for mania routing instead of dropping it
+              try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+              continue;
+            }
             const audio = byName.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
             const art = chart.backgroundFile ? (byName.get(chart.backgroundFile.toLowerCase()) || null) : null;
             const hash = await sha256(osuText);
@@ -631,8 +659,10 @@ if (typeof document !== 'undefined') {
             imported++;
           }
         }
+        const mania = await routeForeign(foreign);   // mania charts in the .osz → the Mania library
         await refreshLibrary();
-        setImportStatus('Imported ' + imported + ' map(s) from ' + scanned + ' .osu — saved, persist across reloads.');
+        setImportStatus('Imported ' + imported + ' standard map(s)' + (mania ? ' · ' + mania + ' mania → Mania' : '') +
+          ' from ' + scanned + ' .osu — saved, persist across reloads.');
       } catch (e) { setImportStatus('Import failed: ' + ((e && e.message) || e)); }
     }
     async function loadCachedOsz() {
@@ -1340,6 +1370,27 @@ if (typeof document !== 'undefined') {
     if (panel) panel.addEventListener('pointerdown', grabFocus);
 
     api.open = open; api.close = close;
+    // Cross-mode hooks (called by vsrg.js when a mania-side import finds standard
+    // charts, or a skin to apply): store Mode-0 charts / load a .osk skin here.
+    api.importForeignCharts = async function (records) {
+      if (!records || !records.length) return 0;
+      let n = 0;
+      for (const r of records) {
+        let chart; try { chart = assembleChart(r.osuText); } catch (e) { continue; }   // accept Mode-0 only
+        const hash = await sha256(r.osuText);
+        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null });
+        n++;
+      }
+      if (n && panelOpen) await refreshLibrary();
+      return n;
+    };
+    api.importSkinFile = function (file) { return handleSkinOsk(file); };
+    api.importSkinFromFolder = async function (fileList) {   // auto-load a skin from a picked folder
+      const dirs = findSkinDirs(fileList);
+      if (!dirs.length) return null;
+      await loadSkinDir(dirs[0]);
+      return skin ? skin.name : null;
+    };
   }
 
   // ---- Minimal IndexedDB (osu!standard personal bests) ----------------------
