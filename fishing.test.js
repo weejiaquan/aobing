@@ -100,7 +100,8 @@ test('rollSize stays within sizeRange', () => {
 test('rollFloat stays in [0,1] and respects per-species cap', () => {
   const rng = mulberry32(8);
   for (let i = 0; i < 1000; i++) {
-    assert.ok(rollFloat(FISH, rng) >= 0 && rollFloat(FISH, rng) <= 1);
+    const f = rollFloat(FISH, rng);
+    assert.ok(f >= 0 && f <= 1, `float ${f} out of [0,1]`);
     const capped = rollFloat(CAPPED, rng);
     assert.ok(capped >= 0 && capped <= 0.1, `capped float ${capped} exceeded [0,0.1]`);
   }
