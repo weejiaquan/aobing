@@ -1064,6 +1064,8 @@
       vsrgKeybinds: {},           // keyCount -> [keys] overriding the default lane keys (vsrg.js)
       osuKeys: ['z', 'x'],        // osu!standard tap keys (osustd.js)
       osuSortBy: 'title',         // song-select sort: 'title' | 'artist' | 'stars' | 'length' (osustd.js)
+      osuCursorScale: 1,          // osu!standard cursor size multiplier (0.5–2)
+      osuBgDim: 80,               // osu!standard background dim % (higher = darker; 80 ≈ the classic faint art)
     };
 
     // --- Admin gating -----------------------------------------------------------

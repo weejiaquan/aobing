@@ -408,12 +408,19 @@ if (typeof document !== 'undefined') {
       results: document.getElementById('osu-results'),
       calib:   document.getElementById('osu-calib'),
       hitsound: document.getElementById('osu-hitsound'),
+      visual:  document.getElementById('osu-visual'),
     };
     const songlistEl = document.getElementById('osu-songlist');
     const keybindsEl = document.getElementById('osu-keybinds');
     const hitsoundBtn = document.getElementById('osu-hitsound-btn');
     const hitsoundDoneBtn = document.getElementById('osu-hitsound-done');
     const hsControlsEl = document.getElementById('osu-hs-controls');
+    const visualBtn = document.getElementById('osu-visual-btn');
+    const visualDoneBtn = document.getElementById('osu-visual-done');
+    const cursorSizeEl = document.getElementById('osu-cursor-size');
+    const cursorSizeVal = document.getElementById('osu-cursor-size-val');
+    const bgDimEl = document.getElementById('osu-bg-dim');
+    const bgDimVal = document.getElementById('osu-bg-dim-val');
     const calibrateBtn = document.getElementById('osu-calibrate');
     const calibCanvas = document.getElementById('osu-calib-canvas');
     const calibSlider = document.getElementById('osu-calib-slider');
@@ -429,6 +436,7 @@ if (typeof document !== 'undefined') {
     const judgeEl = document.getElementById('osu-judge');
     const fpsEl = document.getElementById('osu-fps');
     const skipBtn = document.getElementById('osu-skip');
+    const keysOverlayEl = document.getElementById('osu-keys-overlay');
     const resultsBody = document.getElementById('osu-results-body');
     const retryBtn = document.getElementById('osu-retry');
     const backBtn = document.getElementById('osu-back');
@@ -445,6 +453,8 @@ if (typeof document !== 'undefined') {
     const tintCache = new Map();                      // memoised combo-colour-tinted sprites
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
+    function cursorScale() { const s = Number(settings.osuCursorScale); return (s >= 0.5 && s <= 2) ? s : 1; }
+    function bgBrightness() { const d = Number(settings.osuBgDim); return (1 - (isNaN(d) ? 80 : d) / 100); }   // 0 = black, 1 = full art
     // Unstable rate = stdev of signed hit errors × 10 (osu definition); the error
     // bar + UR readout mirror osu!mania's. recordError feeds both.
     function unstableRate(errs) {
@@ -905,6 +915,7 @@ if (typeof document !== 'undefined') {
       run = null;
       if (fpsEl) fpsEl.textContent = '';
       if (skipBtn) skipBtn.hidden = true;
+      if (keysOverlayEl) { keysOverlayEl.innerHTML = ''; keyBoxes = {}; }
       if (window.Hitsound && window.Hitsound.slide && audioCtx) window.Hitsound.slide(audioCtx, false);   // stop the slide loop
     }
     async function loadAndPlay(entry) {
@@ -979,6 +990,7 @@ if (typeof document !== 'undefined') {
       }).catch(() => {});
       trail = []; bursts = [];
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
+      buildKeyOverlay();
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
       updateHud();
@@ -1203,11 +1215,29 @@ if (typeof document !== 'undefined') {
       window[fn]('keydown', onKeyDown);
     }
     function onPointerMove(e) { updateCursorFromEvent(e); }
-    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); if (run) run.pressed.mouse = true; onTap(e.timeStamp); }
-    function onPointerUp(e) { if (run) run.pressed.mouse = false; }
+    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); if (run) run.pressed.mouse = true; pressKey('mouse', true); onTap(e.timeStamp); }
+    function onPointerUp(e) { if (run) run.pressed.mouse = false; pressKey('mouse', false); }
     function tapKeys() {
       const k = settings.osuKeys;
       return (Array.isArray(k) && k.length) ? k.map((x) => String(x).toLowerCase()) : ['z', 'x'];
+    }
+    // Key-press overlay (right side): a live box per tap key + M1, lit while held,
+    // with a running press count — like osu's key overlay.
+    let keyBoxes = {}, keyCounts = {};
+    function buildKeyOverlay() {
+      if (!keysOverlayEl) return;
+      keyBoxes = {}; keyCounts = {}; keysOverlayEl.innerHTML = '';
+      tapKeys().concat(['mouse']).forEach((k) => {
+        const label = k === 'mouse' ? 'M1' : (k === ' ' ? '␣' : k.toUpperCase());
+        const box = document.createElement('div'); box.className = 'osu-key';
+        box.innerHTML = '<span class="osu-key-label">' + label + '</span><span class="osu-key-count">0</span>';
+        keysOverlayEl.appendChild(box); keyBoxes[k] = box; keyCounts[k] = 0;
+      });
+    }
+    function pressKey(k, on) {
+      const box = keyBoxes[k]; if (!box) return;
+      box.classList.toggle('active', on);
+      if (on) { keyCounts[k] = (keyCounts[k] || 0) + 1; box.querySelector('.osu-key-count').textContent = keyCounts[k]; }
     }
     // Tap-key rebinding (song-select): click a key slot, then press the new key.
     let rebindIdx = null, rebindBtn = null;
@@ -1240,9 +1270,9 @@ if (typeof document !== 'undefined') {
       if (e.key === 'Escape') { quitToSelect(); return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       const k = e.key.toLowerCase();
-      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; e.preventDefault(); onTap(e.timeStamp); }
+      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true); e.preventDefault(); onTap(e.timeStamp); }
     }
-    window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (run) run.pressed[k] = false; });
+    window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); } });
 
     // ---- Render --------------------------------------------------------------
     function accuracy() {
@@ -1256,7 +1286,7 @@ if (typeof document !== 'undefined') {
       g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
       if (run.artImg) {
         const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
-        if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = 0.18; g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
+        if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = bgBrightness(); g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
       }
       // playfield border
       const p0 = osuToScreen(0, 0, tf), p1 = osuToScreen(PLAY_W, PLAY_H, tf);
@@ -1375,17 +1405,18 @@ if (typeof document !== 'undefined') {
         }
       }
       g.globalAlpha = 1;
-      // cursor — skin sprite if provided, else the built-in glowing dot
+      // cursor — skin sprite if provided, else the built-in glowing dot (× user size)
       const cs = osuToScreen(cursor.x, cursor.y, tf);
+      const cScale = cursorScale();
       if (skin && skin.images.cursor) {
-        const im = skin.images.cursor, csz = (44 * dpr) / Math.max(im.width, im.height), cw = im.width * csz, ch = im.height * csz;
+        const im = skin.images.cursor, csz = (44 * dpr * cScale) / Math.max(im.width, im.height), cw = im.width * csz, ch = im.height * csz;
         g.drawImage(im, cs.x - cw / 2, cs.y - ch / 2, cw, ch);
       } else {
         g.save();
         g.shadowColor = '#2b6cff'; g.shadowBlur = 14 * dpr;
-        g.fillStyle = '#fff'; g.beginPath(); g.arc(cs.x, cs.y, 8 * dpr, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#fff'; g.beginPath(); g.arc(cs.x, cs.y, 8 * dpr * cScale, 0, Math.PI * 2); g.fill();
         g.shadowBlur = 0; g.strokeStyle = '#2b6cff'; g.lineWidth = 3 * dpr;
-        g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr, 0, Math.PI * 2); g.stroke();
+        g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr * cScale, 0, Math.PI * 2); g.stroke();
         g.restore();
       }
       drawErrorBar(W, H, dpr);
@@ -1588,6 +1619,14 @@ if (typeof document !== 'undefined') {
     }
     if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
+    function syncVisualControls() {
+      if (cursorSizeEl) { cursorSizeEl.value = cursorScale(); if (cursorSizeVal) cursorSizeVal.textContent = cursorScale().toFixed(1) + '×'; }
+      if (bgDimEl) { const d = isNaN(Number(settings.osuBgDim)) ? 80 : Number(settings.osuBgDim); bgDimEl.value = d; if (bgDimVal) bgDimVal.textContent = d + '%'; }
+    }
+    if (visualBtn) visualBtn.addEventListener('click', () => { syncVisualControls(); show('visual'); });
+    if (visualDoneBtn) visualDoneBtn.addEventListener('click', () => show('select'));
+    if (cursorSizeEl) cursorSizeEl.addEventListener('input', (e) => { settings.osuCursorScale = Number(e.target.value); if (cursorSizeVal) cursorSizeVal.textContent = Number(e.target.value).toFixed(1) + '×'; if (deps.saveSettings) deps.saveSettings(); });
+    if (bgDimEl) bgDimEl.addEventListener('input', (e) => { settings.osuBgDim = Number(e.target.value); if (bgDimVal) bgDimVal.textContent = e.target.value + '%'; if (deps.saveSettings) deps.saveSettings(); });
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     if (calibDoneBtn) calibDoneBtn.addEventListener('click', closeCalibration);
     if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
@@ -1602,6 +1641,7 @@ if (typeof document !== 'undefined') {
       if (run && !run.finished) return;
       if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; }
       if (screens.hitsound && !screens.hitsound.hidden) { show('select'); return; }
+      if (screens.visual && !screens.visual.hidden) { show('select'); return; }
       if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
       close();
     });
