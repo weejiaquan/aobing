@@ -95,3 +95,17 @@ test('inChanceTime', () => {
   assert.equal(E.inChanceTime(ct, 1600), true);
   assert.equal(E.inChanceTime(ct, 1400), false);
 });
+
+// ---- bundled sample exercises every mechanic -----------------------------
+test('bundled sample chart: assembles + has every mechanic', () => {
+  const raw = require('./assets/divaft/test/sample.json');
+  const ch = E.assembleChart(raw);
+  assert.ok(ch.notes.length >= 15);
+  assert.ok(ch.notes.every((n, i, a) => i === 0 || n.time >= a[i - 1].time), 'sorted by time');
+  assert.ok(ch.notes.some((n) => n.holdEnd != null), 'has a hold');
+  assert.ok(ch.notes.some((n) => n.button === 'slideL') && ch.notes.some((n) => n.button === 'slideR'), 'has slides');
+  assert.ok(ch.notes.some((n) => n.slideChain != null), 'has a slide chain');
+  assert.ok(ch.notes.some((n) => n.groupId != null), 'has a double/multi');
+  assert.ok(ch.chanceTimes.length >= 1, 'has chance time');
+  for (const b of E.FACE) assert.ok(ch.notes.some((n) => n.button === b), 'has a ' + b);
+});
