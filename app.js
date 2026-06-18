@@ -1050,7 +1050,8 @@
       gameMode: 'clicker',        // 'clicker' | 'typing' | 'vsrg' | 'osu' — left mode menu top level
       typingSubMode: 'casual',    // 'casual' | 'ranked' — only meaningful in typing mode
       rhythmSubMode: 'standard',  // 'standard' (osu) | 'mania' (vsrg) — sub-toggle under the Rhythm mode
-      hitsoundVol: 35,            // 0–100: synthesized hit tick volume for the rhythm modes (0 = off)
+      hitsoundVol: 35,            // 0–100: hit sound volume for the rhythm modes (0 = off)
+      hitsoundKind: 'soft',       // 'soft' | 'tick' | 'drum' | 'beep' (synth presets) | 'custom' (uploaded) — see hitsound.js
       typingCaretFollow: false,   // false = scroll (active word pinned left); true = typewriter (caret follows, returns to start)
       vsrgCalibrationOffset: 0,   // ms applied to VSRG input->song-time mapping (vsrg.js)
       vsrgScrollSpeed: 1.0,       // VSRG note scroll-speed multiplier (higher = faster)
@@ -5252,6 +5253,10 @@
 
     // --- VSRG (Rhythm) game wiring ---------------------------------------------
     // Same seam as typing.js: vsrg.js self-initialises from these host deps and
+    // Shared hitsound engine (hitsound.js) — both rhythm modes call window.Hitsound.
+    window.__hitsoundDeps = { settings: settings, saveSettings: function () { saveSettings(settings); } };
+    if (window.Hitsound && typeof window.Hitsound.init === 'function') window.Hitsound.init(window.__hitsoundDeps);
+
     // never reaches into app.js's scope. BGM is paused for the duration of a run
     // (it would compete with the chart's music) and restored on exit.
     window.__vsrgDeps = {

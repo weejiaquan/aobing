@@ -376,9 +376,13 @@ if (typeof document !== 'undefined') {
       game:    document.getElementById('osu-game'),
       results: document.getElementById('osu-results'),
       calib:   document.getElementById('osu-calib'),
+      hitsound: document.getElementById('osu-hitsound'),
     };
     const songlistEl = document.getElementById('osu-songlist');
     const keybindsEl = document.getElementById('osu-keybinds');
+    const hitsoundBtn = document.getElementById('osu-hitsound-btn');
+    const hitsoundDoneBtn = document.getElementById('osu-hitsound-done');
+    const hsControlsEl = document.getElementById('osu-hs-controls');
     const calibrateBtn = document.getElementById('osu-calibrate');
     const calibCanvas = document.getElementById('osu-calib-canvas');
     const calibSlider = document.getElementById('osu-calib-slider');
@@ -420,23 +424,7 @@ if (typeof document !== 'undefined') {
       errTicks.push({ err: errMs, result: result, t: performance.now() });
       if (errTicks.length > 64) errTicks.shift();
     }
-    // Synthesized hit tick (osu-ish): a short pitched blip via the audio clock.
-    // Cheap (one short oscillator per hit, auto-disposed); silent at volume 0.
-    function playHitsound() {
-      const vol = Number(settings.hitsoundVol);
-      if (!audioCtx || !(vol > 0)) return;
-      const t = audioCtx.currentTime;
-      const o = audioCtx.createOscillator(), gg = audioCtx.createGain();
-      o.type = 'triangle';
-      o.frequency.setValueAtTime(900, t);
-      o.frequency.exponentialRampToValueAtTime(260, t + 0.04);
-      const peak = Math.min(1, vol / 100) * 0.45;
-      gg.gain.setValueAtTime(0.0001, t);
-      gg.gain.exponentialRampToValueAtTime(peak, t + 0.002);
-      gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-      o.connect(gg).connect(audioCtx.destination);
-      o.start(t); o.stop(t + 0.08);
-    }
+    function playHitsound() { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx); }   // shared engine (hitsound.js)
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
@@ -1465,11 +1453,8 @@ if (typeof document !== 'undefined') {
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
-    const hitsoundSlider = document.getElementById('osu-hitsound-vol');
-    if (hitsoundSlider) {
-      hitsoundSlider.value = Number(settings.hitsoundVol) || 0;
-      hitsoundSlider.addEventListener('input', (e) => { settings.hitsoundVol = Number(e.target.value); if (deps.saveSettings) deps.saveSettings(); });
-    }
+    if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
+    if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     if (calibDoneBtn) calibDoneBtn.addEventListener('click', closeCalibration);
     if (tapBtn) tapBtn.addEventListener('click', (e) => onTapButton(e.timeStamp));
@@ -1483,6 +1468,7 @@ if (typeof document !== 'undefined') {
       if (e.key !== 'Escape' || !panelOpen) return;
       if (run && !run.finished) return;
       if (screens.calib && !screens.calib.hidden) { closeCalibration(); return; }
+      if (screens.hitsound && !screens.hitsound.hidden) { show('select'); return; }
       if (screens.results && !screens.results.hidden) { quitToSelect(); return; }
       close();
     });
