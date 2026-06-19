@@ -134,7 +134,7 @@ const PRIMITIVES = {
     return (s.pos = clamp01(s.pos));
   },
   walk(s, dt, rng, p) {
-    s.pos += (rng() - 0.5) * p.step * dt * 60 / 60; // step is per-second amplitude
+    s.pos += (rng() - 0.5) * p.step * dt; // step = per-second amplitude
     return (s.pos = clamp01(s.pos));
   },
 };
@@ -190,7 +190,7 @@ function resolveBehavior(fish) {
 
 function createBehaviorState(fish) {
   const def = resolveBehavior(fish);
-  return { def, pos: 0.5, vel: 0, target: null, since: 0, t: 0, dir: 1, elapsed: 0 };
+  return { def, pos: 0.5, target: null, since: 0, t: 0, dir: 1, elapsed: 0 };
 }
 
 // Scale the time-derivative params that drive motion speed.
@@ -230,6 +230,15 @@ function stepFish(s, dt, rng, progress = 0) {
     params = Object.assign({ lo: def.params.lo, hi: def.params.hi }, mods.phase.altParams);
   }
 
+  // mirror: on alternating periods, seek the vertically-reflected band so motion
+  // stays continuous (no teleport). Reflect the band, not the output.
+  if (mods.mirror) {
+    const mirrored = Math.floor(s.elapsed / mods.mirror) % 2 === 1;
+    if (mirrored) {
+      params = Object.assign({}, params, { lo: 1 - params.hi, hi: 1 - params.lo });
+    }
+  }
+
   let pos = PRIMITIVES[primName](s, dt, rng, scaledParams(params, factor));
 
   // feint: occasionally reflect the just-applied delta to fake a reversal.
@@ -237,9 +246,6 @@ function stepFish(s, dt, rng, progress = 0) {
 
   // jitter: additive noise.
   if (mods.jitter) { pos = clamp01(pos + (rng() - 0.5) * mods.jitter); s.pos = pos; }
-
-  // mirror: reflect around center on a timer.
-  if (mods.mirror && Math.floor(s.elapsed / mods.mirror) % 2 === 1) { pos = clamp01(1 - pos); }
 
   s.t += dt;
   return pos;

@@ -283,6 +283,22 @@ test('stepFish keeps position in [0,1] for all behaviors', () => {
   }
 });
 
+test('mirror behaviors move continuously (no teleport at period boundaries)', () => {
+  // mirage uses the mirror modifier (period 2.5s). Step across several periods
+  // and assert no single frame jumps more than a generous speed-based bound.
+  const fish = { id: 'm', name: 'M', rarity: 3, behavior: 'mirage', family: 'test', sizeRange: [10, 20], coinBase: 10 };
+  const s = createBehaviorState(fish);
+  const rng = mulberry32(17);
+  let prev = stepFish(s, 1 / 60, rng, 0.5);
+  let maxJump = 0;
+  for (let i = 0; i < 1200; i++) { // 20 seconds, crosses 8 mirror periods
+    const pos = stepFish(s, 1 / 60, rng, 0.5);
+    maxJump = Math.max(maxJump, Math.abs(pos - prev));
+    prev = pos;
+  }
+  assert.ok(maxJump < 0.25, `mirror motion should be continuous; max single-frame jump was ${maxJump.toFixed(3)}`);
+});
+
 test('pause modifier produces zero-velocity windows', () => {
   const s = createBehaviorState(fishWith('pausingBouncer', 3));
   const rng = mulberry32(2);
