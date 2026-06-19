@@ -81,13 +81,15 @@
     cell.className = 'fdex-cell' + (e.caught ? '' : ' uncaught');
     var spec = window.FishSprite.fishSpriteSpec(e.fish, { float: e.bestFloat, shiny: e.shiny });
     cell.appendChild(makeCanvas(spec, 104, 64));
+    var info = document.createElement('div');
     if (e.caught) {
-      cell.innerHTML += '<div class="fdex-name">' + h(e.fish.name) + (e.shiny ? ' <span class="fdex-shiny">✨</span>' : '') + '</div>' +
+      info.innerHTML = '<div class="fdex-name">' + h(e.fish.name) + (e.shiny ? ' <span class="fdex-shiny">✨</span>' : '') + '</div>' +
         '<div class="fdex-sub">' + stars(e.fish.rarity) + '</div>' +
         '<div class="fdex-sub">×' + e.count + ' · ' + e.maxSize.toFixed(0) + 'cm · ' + h(e.grade) + '</div>';
     } else {
-      cell.innerHTML += '<div class="fdex-name">???</div><div class="fdex-sub">' + stars(e.fish.rarity) + '</div>';
+      info.innerHTML = '<div class="fdex-name">???</div><div class="fdex-sub">' + stars(e.fish.rarity) + '</div>';
     }
+    cell.appendChild(info);
     return cell;
   }
 
@@ -110,18 +112,20 @@
     el('fdex-count').textContent = list.length + ' shown';
     els.body.innerHTML = '';
     var grid = document.createElement('div'); grid.className = 'fdex-grid';
-    list.forEach(function (sp) { grid.appendChild(invCell(window.FishingDex.specimenView(sp, FISH_BY_ID), sp)); });
+    list.forEach(function (sp) { grid.appendChild(invCell(window.FishingDex.specimenView(sp, FISH_BY_ID))); });
     els.body.appendChild(grid);
   }
 
-  function invCell(v, raw) {
+  function invCell(v) {
     var h = deps.escapeHtml;
     var fish = window.FishData.FISH_BY_ID[v.species];
     var cell = document.createElement('div'); cell.className = 'fdex-cell inv';
     var spec = window.FishSprite.fishSpriteSpec(fish, { float: v.float, shiny: v.shiny });
     cell.appendChild(makeCanvas(spec, 104, 64));
-    cell.innerHTML += '<div class="fdex-name">' + h(v.name) + (v.shiny ? ' <span class="fdex-shiny">✨</span>' : '') + '</div>' +
+    var info = document.createElement('div');
+    info.innerHTML = '<div class="fdex-name">' + h(v.name) + (v.shiny ? ' <span class="fdex-shiny">✨</span>' : '') + '</div>' +
       '<div class="fdex-sub">' + v.size.toFixed(1) + 'cm · ' + h(v.grade) + '</div>';
+    cell.appendChild(info);
     cell.addEventListener('click', function () { showInspect(v); });
     return cell;
   }
