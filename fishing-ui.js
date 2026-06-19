@@ -44,7 +44,7 @@
   }
 
   // A "cast press" is the discrete action used to cast, hook, and dismiss.
-  function onCastPress() { input.cast = true; }
+  function onCastPress() { if (!open) return; input.cast = true; }
 
   function onKeyDown(e) {
     if (!open) return;
@@ -54,8 +54,8 @@
     if (!open) return;
     if (e.code === 'Space') { e.preventDefault(); input.holding = false; }
   }
-  function onPointerDown(e) { input.holding = true; input.cast = true; }
-  function onPointerUp(e) { input.holding = false; }
+  function onPointerDown(e) { if (!open) return; input.holding = true; input.cast = true; }
+  function onPointerUp(e) { if (!open) return; input.holding = false; }
 
   function ctx() {
     return { table: window.FishData.FISH, hasCaught: function (id) { return !!deps.getFishdex()[id]; } };
@@ -95,17 +95,24 @@
     } else {
       var s = ev.specimen, f = ev.fish;
       els.result.innerHTML =
+        '<canvas id="fishing-result-sprite" width="130" height="84" style="display:block;margin:0 auto 8px"></canvas>' +
         '<div style="font-size:18px">' + h(f.name) + (s.shiny ? ' <span class="fr-new">✨ SHINY</span>' : '') + '</div>' +
         '<div>' + s.size.toFixed(1) + ' cm · ' + h(s.grade) + ' (float ' + s.float.toFixed(3) + ')</div>' +
         '<div class="fr-coins">+' + ev.coins + ' 🪙</div>' +
         (ev.isNew ? '<div class="fr-new">NEW! added to your Fishdex</div>' : '');
+      var cv = document.getElementById('fishing-result-sprite');
+      if (cv && window.FishSprite && window.FishSprite.drawFish) {
+        try { window.FishSprite.drawFish(cv.getContext('2d'), spriteFor(f, s.float, s.shiny), 0); } catch (e) {}
+      }
     }
     els.result.classList.add('show');
   }
   function hideResult() { els.result.classList.remove('show'); }
 
   function spriteFor(fish, float, shiny) {
-    return window.FishSprite.fishSpriteSpec(fish, { float: float, shiny: shiny });
+    var key = fish.id + '|' + float.toFixed(3) + '|' + (shiny ? 1 : 0);
+    if (!sprites[key]) sprites[key] = window.FishSprite.fishSpriteSpec(fish, { float: float, shiny: shiny });
+    return sprites[key];
   }
 
   function render(now) {
@@ -179,6 +186,7 @@
   }
 
   function doOpen() {
+    if (open) return;
     open = true;
     els.panel.classList.add('open');
     document.body.classList.add('music-mode');
