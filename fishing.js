@@ -16,11 +16,11 @@ function mulberry32(seed) {
 
 // --- Rarity → difficulty tiers (positions/fractions of the track per second) ---
 const RARITY_TIERS = {
-  1: { fishSpeed: 0.30, barSize: 0.28, fillRate: 0.55, drainRate: 0.30, weight: 100, discoveryBonus: 25 },
-  2: { fishSpeed: 0.42, barSize: 0.24, fillRate: 0.50, drainRate: 0.38, weight: 38, discoveryBonus: 80 },
-  3: { fishSpeed: 0.56, barSize: 0.20, fillRate: 0.45, drainRate: 0.46, weight: 12, discoveryBonus: 220 },
-  4: { fishSpeed: 0.74, barSize: 0.16, fillRate: 0.42, drainRate: 0.55, weight: 3, discoveryBonus: 650 },
-  5: { fishSpeed: 0.94, barSize: 0.13, fillRate: 0.40, drainRate: 0.66, weight: 0.6, discoveryBonus: 2500 },
+  1: { fishSpeed: 0.30, barSize: 0.28, fillRate: 0.33, drainRate: 0.18, weight: 100, discoveryBonus: 25 },
+  2: { fishSpeed: 0.42, barSize: 0.24, fillRate: 0.30, drainRate: 0.23, weight: 38, discoveryBonus: 80 },
+  3: { fishSpeed: 0.56, barSize: 0.20, fillRate: 0.27, drainRate: 0.28, weight: 12, discoveryBonus: 220 },
+  4: { fishSpeed: 0.74, barSize: 0.16, fillRate: 0.25, drainRate: 0.33, weight: 3, discoveryBonus: 650 },
+  5: { fishSpeed: 0.94, barSize: 0.13, fillRate: 0.24, drainRate: 0.40, weight: 0.6, discoveryBonus: 2500 },
 };
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
@@ -253,8 +253,8 @@ function stepFish(s, dt, rng, progress = 0) {
 }
 
 // --- Bar-balance physics ---
-const GRAVITY = 2.8;  // track units / s^2 pulling the bar down
-const THRUST = 5.0;   // upward accel while holding
+const GRAVITY = 4.0;  // track units / s^2 pulling the bar down
+const THRUST = 7.0;   // upward accel while holding
 
 function createBarState(fish) {
   const tier = RARITY_TIERS[fish.rarity];
@@ -263,7 +263,7 @@ function createBarState(fish) {
     tier,
     bar: { pos: (1 - tier.barSize) / 2, vel: 0 },
     fish_: createBehaviorState(fish),
-    progress: 0.35, // a small head start so a perfect catch is achievable
+    progress: 0.12, // a small head start so a perfect catch is achievable
   };
 }
 
@@ -282,7 +282,7 @@ function stepBar(state, dt, holding, rng) {
   // bar physics (after overlap check)
   bar.vel += (holding ? THRUST : 0) * dt;
   bar.vel -= GRAVITY * dt;
-  bar.vel *= 0.92; // damping for control
+  bar.vel *= 0.96; // damping for control (higher = snappier, less floaty)
   bar.pos += bar.vel * dt;
   const maxPos = 1 - tier.barSize;
   if (bar.pos < 0) { bar.pos = 0; bar.vel = 0; }

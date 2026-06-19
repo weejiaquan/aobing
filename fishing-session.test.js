@@ -73,10 +73,12 @@ test('hooking enters balancing; holding to fill yields a caught event with speci
   assert.equal(r.state.phase, 'balancing');
   assert.ok(r.events.some(e => e.type === 'hooked'));
   state = r.state;
-  // hold continuously; a rarity-1 drifter is easy, so progress should reach 1.0
+  // play realistically: track the fish — hold to rise when the bar sits below it.
   let caught = null;
   for (let i = 0; i < 60 * 30 && state.phase === 'balancing'; i++) {
-    const rr = step(state, 1 / 60, { cast: false, holding: true }, rng, NEW_CTX);
+    const b = state.bar;
+    const holding = (b.bar.pos + b.tier.barSize / 2) < b.fish_.pos;
+    const rr = step(state, 1 / 60, { cast: false, holding: holding }, rng, NEW_CTX);
     state = rr.state;
     const c = rr.events.find(e => e.type === 'caught');
     if (c) caught = c;
@@ -98,7 +100,9 @@ test('isNew is false when ctx.hasCaught reports the species already caught', () 
   state = step(state, 1 / 60, CAST, rng, ctx).state; // hook
   let caught = null;
   for (let i = 0; i < 60 * 30 && state.phase === 'balancing'; i++) {
-    const rr = step(state, 1 / 60, { cast: false, holding: true }, rng, ctx);
+    const b = state.bar;
+    const holding = (b.bar.pos + b.tier.barSize / 2) < b.fish_.pos;
+    const rr = step(state, 1 / 60, { cast: false, holding: holding }, rng, ctx);
     state = rr.state;
     caught = rr.events.find(e => e.type === 'caught') || caught;
   }
