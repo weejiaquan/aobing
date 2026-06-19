@@ -133,6 +133,24 @@
             "$mode": {
               ".validate": "($mode === 's15' || $mode === 's30' || $mode === 's60') && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000"
             }
+          },
+          "fishdex": {
+            "$species": {
+              ".validate": "$species.length <= 40 && newData.hasChildren(['count']) && newData.child('count').isNumber() && newData.child('count').val() >= (data.exists() ? data.child('count').val() : 0) && newData.child('count').val() <= (data.exists() ? data.child('count').val() : 0) + 100000",
+              "count":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
+              "maxSize": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "bestFloat": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" },
+              "shinyCaught": { ".validate": "newData.isBoolean()" },
+              "$other": { ".validate": false }
+            }
+          }
+        },
+        "aquarium": {
+          "specimens": {
+            "$specId": {
+              ".validate": "$specId.length >= 8 && newData.hasChildren(['species','size','float','shiny','caughtAt']) && newData.child('species').isString() && newData.child('species').val().length <= 40 && newData.child('size').isNumber() && newData.child('float').isNumber() && newData.child('float').val() >= 0 && newData.child('float').val() <= 1 && newData.child('shiny').isBoolean() && newData.child('caughtAt').isNumber()",
+              "$other": { ".validate": false }
+            }
           }
         },
         "shop": {
