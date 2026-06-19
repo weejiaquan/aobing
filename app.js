@@ -4324,6 +4324,7 @@
         typingWords:  Math.min(pending.typingWords, CHUNK_CAP),
         typingBestWpm: takeBest(pending.typingBestWpm),
         typingBestScore: takeBest(pending.typingBestScore),
+        // fishdex values are additive count deltas; takeBest is reused only for drain-all + retry-restore semantics, not max() idempotency
         fishdex: takeBest(pending.fishdex),   // take all, clear pending; restore on failure
         specimens: pending.specimens.splice(0), // drain array; restore on failure
       };
@@ -4782,7 +4783,7 @@
       }
 
       // 5. persist + flush
-      saveLocalUserData();       // guests (and a local backup for signed-in)
+      saveLocalUserData();       // guests persist here; signed-in users rely on the Firebase flush
       savePendingDeferred();
       scheduleFlush();
     }
