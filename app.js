@@ -2417,6 +2417,7 @@
     function saveLocalUserData() {
       if (currentUser) return;  // only persist while in guest mode
       try {
+        // fishdex and aquariumSpecimens ride along on userStats automatically.
         localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({ stats: userStats, shop: userShop }));
       } catch {}
     }
@@ -3133,6 +3134,8 @@
         // Guest mode: hydrate stats/shop from localStorage.
         const local = loadLocalUserData();
         userStats   = Object.assign({ totalClicks: 0, coinBalance: 0 }, local.stats);
+        if (!userStats.fishdex) userStats.fishdex = {};
+        if (!Array.isArray(userStats.aquariumSpecimens)) userStats.aquariumSpecimens = [];
         userProfile = null;
         userShop    = local.shop || {};
         renderSenseiBar();
@@ -3159,6 +3162,8 @@
           }
         }
         userStats = next;
+        if (!userStats.fishdex) userStats.fishdex = {};
+        if (!Array.isArray(userStats.aquariumSpecimens)) userStats.aquariumSpecimens = [];
         renderSenseiBar();
         if (typeof updateVariantLevels === 'function') updateVariantLevels();
         if (typeof renderSkinBar       === 'function') renderSkinBar();
@@ -3957,6 +3962,31 @@
         }
       }
 
+      // fishdex aggregate (additive count; max size; min float; OR shiny)
+      const gFishdex = (stats.fishdex) || {};
+      for (const sp in gFishdex) {
+        const a = gFishdex[sp];
+        if (a && a.count > 0) {
+          const u = {};
+          u[`users/${uid}/stats/fishdex/${sp}/count`] = firebase.database.ServerValue.increment(a.count);
+          await db.ref().update(u);
+          // maxSize/bestFloat/shinyCaught: read-modify-merge (small, one species at a time)
+          const ref = db.ref(`users/${uid}/stats/fishdex/${sp}`);
+          const snap = await ref.once('value');
+          const cur = snap.val() || {};
+          await ref.update({
+            maxSize: Math.max(cur.maxSize || 0, a.maxSize || 0),
+            bestFloat: Math.min(cur.bestFloat == null ? 1 : cur.bestFloat, a.bestFloat == null ? 1 : a.bestFloat),
+            shinyCaught: !!(cur.shinyCaught || a.shinyCaught),
+          });
+        }
+      }
+      // specimens: append each guest instance under a fresh push id
+      const gSpecimens = (stats.aquariumSpecimens) || [];
+      for (const inst of gSpecimens) {
+        await db.ref(`users/${uid}/aquarium/specimens`).push().set(inst);
+      }
+
       clearLocalUserData();
       return true;
     }
@@ -4054,6 +4084,8 @@
       typingWords: 0,    // additive — users/{uid}/stats/typingWords (typing-game completed words)
       typingBestWpm: {}, // best-of per mode { s15,s30,s60 } — users/{uid}/stats/typingBestWpm/{mode}
       typingBestScore: {}, // best-of per mode — users/{uid}/stats/typingBestScore/{mode}
+      fishdex: {},       // species → count delta (additive) — users/{uid}/stats/fishdex/{species}/count
+      specimens: [],     // specimen instances to push — users/{uid}/aquarium/specimens/{id}
     };
     let flushDebounceTimer = null;
     let flushHeartbeatTimer = null;
@@ -4250,7 +4282,8 @@
     async function flushPending() {
       if (isFlushing) return;
       if (pending.userCoins === 0 && pending.userClicks === 0 && pending.global === 0
-          && pending.typingWords === 0 && Object.keys(pending.typingBestWpm).length === 0 && Object.keys(pending.typingBestScore).length === 0) return;
+          && pending.typingWords === 0 && Object.keys(pending.typingBestWpm).length === 0 && Object.keys(pending.typingBestScore).length === 0
+          && Object.keys(pending.fishdex).length === 0 && pending.specimens.length === 0) return;
       isFlushing = true;
       // Chunked snapshot: move at most CHUNK_CAP per capped path into `batch`,
       // leaving any remainder in `pending` to drain on follow-up flushes. The
@@ -4291,6 +4324,8 @@
         typingWords:  Math.min(pending.typingWords, CHUNK_CAP),
         typingBestWpm: takeBest(pending.typingBestWpm),
         typingBestScore: takeBest(pending.typingBestScore),
+        fishdex: takeBest(pending.fishdex),   // take all, clear pending; restore on failure
+        specimens: pending.specimens.splice(0), // drain array; restore on failure
       };
       pending.userCoins  -= batch.userCoins;
       pending.userClicks -= batch.userClicks;
@@ -4328,7 +4363,9 @@
       const hasCoinChange    = batch.userCoins !== 0;
       const hasTypingWords   = batch.typingWords > 0;
       const hasTypingWpm     = Object.keys(batch.typingBestWpm).length > 0;
-      if (currentUser && (hasClickActivity || hasCoinChange || hasTypingWords)) {
+      const hasFishdex       = Object.keys(batch.fishdex).length > 0;
+      const hasSpecimens     = batch.specimens.length > 0;
+      if (currentUser && (hasClickActivity || hasCoinChange || hasTypingWords || hasFishdex || hasSpecimens)) {
         const uid = currentUser.uid;
         const update = {};
         if (batch.userClicks > 0) {
@@ -4352,6 +4389,27 @@
         }
         if (hasClickActivity) {
           update[`users/${uid}/stats/lastClickAt`] = firebase.database.ServerValue.TIMESTAMP;
+        }
+        // fishdex aggregate: increment count, max size, min float, OR shiny
+        for (const sp in batch.fishdex) {
+          const inc = batch.fishdex[sp];
+          if (inc > 0) {
+            update[`users/${uid}/stats/fishdex/${sp}/count`] = firebase.database.ServerValue.increment(inc);
+          }
+        }
+        // per-species maxSize/bestFloat/shinyCaught reflect the current in-memory aggregate
+        for (const sp in batch.fishdex) {
+          const agg = userStats.fishdex[sp];
+          if (agg) {
+            update[`users/${uid}/stats/fishdex/${sp}/maxSize`] = agg.maxSize;
+            update[`users/${uid}/stats/fishdex/${sp}/bestFloat`] = agg.bestFloat;
+            update[`users/${uid}/stats/fishdex/${sp}/shinyCaught`] = agg.shinyCaught;
+          }
+        }
+        // specimen instances: push each under a fresh id
+        for (const inst of batch.specimens) {
+          const id = db.ref(`users/${uid}/aquarium/specimens`).push().key;
+          update[`users/${uid}/aquarium/specimens/${id}`] = inst;
         }
         tasks.push(db.ref().update(update));
       } else if (!currentUser && (hasClickActivity || hasCoinChange || hasTypingWords || hasTypingWpm)) {
@@ -4446,6 +4504,8 @@
         pending.typingWords += batch.typingWords;
         for (const k in batch.typingBestWpm) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, batch.typingBestWpm[k]);
         for (const k in batch.typingBestScore) pending.typingBestScore[k] = Math.max(pending.typingBestScore[k] || 0, batch.typingBestScore[k]);
+        for (const k in batch.fishdex) pending.fishdex[k] = (pending.fishdex[k] || 0) + batch.fishdex[k];
+        for (const inst of batch.specimens) pending.specimens.push(inst);
         // Also roll back the inFlight bumps from the snapshot — the data is
         // back in pending now and will be re-sent on the next flush attempt.
         inFlightGlobal     = wasInFlightGlobal;
@@ -4692,6 +4752,41 @@
       scheduleFlush();
       if (typeof scheduleOptimisticRender === 'function') scheduleOptimisticRender();
     }
+
+    // Record one caught specimen: credit coins, update the in-memory aggregate +
+    // specimen list (guests persist via saveLocalUserData), and queue Firebase writes.
+    function recordCatch(specimen, coins, isNew) {
+      // 1. coins through the standard batched path
+      if (coins > 0) { pending.userCoins += Math.floor(coins); }
+
+      // 2. fishdex aggregate (in-memory; mirrors the Firebase shape)
+      const sp = specimen.species;
+      const agg = userStats.fishdex[sp] || { count: 0, maxSize: 0, bestFloat: 1, shinyCaught: false };
+      agg.count += 1;
+      agg.maxSize = Math.max(agg.maxSize, specimen.size);
+      agg.bestFloat = Math.min(agg.bestFloat, specimen.float); // lower float is better
+      agg.shinyCaught = agg.shinyCaught || !!specimen.shiny;
+      userStats.fishdex[sp] = agg;
+
+      // 3. specimen instance (in-memory list; unbounded keep-all)
+      const inst = {
+        species: sp, size: specimen.size, float: specimen.float,
+        shiny: !!specimen.shiny, caughtAt: Date.now(),
+      };
+      userStats.aquariumSpecimens.push(inst);
+
+      // 4. queue Firebase writes for signed-in users
+      if (currentUser) {
+        pending.fishdex[sp] = (pending.fishdex[sp] || 0) + 1;
+        pending.specimens.push(inst);
+      }
+
+      // 5. persist + flush
+      saveLocalUserData();       // guests (and a local backup for signed-in)
+      savePendingDeferred();
+      scheduleFlush();
+    }
+
     function recordTypingDaily(wpm, score) {
       const day = todayKey();
       if (wpm > 0) {
