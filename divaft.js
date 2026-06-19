@@ -135,6 +135,37 @@
     return best;
   }
 
+  // Earliest unhit slide-chain link of `button` that has fallen due (time passed,
+  // still inside the bad window) — drives "hold the direction to clear the chain"
+  // input. Single slides (slideChain == null) are excluded so they stay discrete
+  // taps; links later than badWindow are left to the miss-sweep. -1 if none.
+  function dueSlideChain(objs, button, st, badWindow) {
+    let best = -1, bestT = Infinity;
+    for (let i = 0; i < objs.length; i++) {
+      const o = objs[i];
+      if (o.headJudged || o.n.slideChain == null) continue;
+      if (o.n.button !== button) continue;
+      if (st < o.n.time || st - o.n.time > badWindow) continue;
+      if (o.n.time < bestT) { bestT = o.n.time; best = i; }
+    }
+    return best;
+  }
+
+  // Canonical token for a key event. Left/right modifiers (Shift/Control/Alt/Meta)
+  // are distinguished by location (1=left, 2=right) so e.g. LShift and RShift can be
+  // bound separately; every other key is just its lowercased name.
+  function keyToken(key, location) {
+    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+      return (location === 2 ? 'r' : 'l') + key.toLowerCase();
+    }
+    return String(key).toLowerCase();
+  }
+  // A token may be bound to a button/macro if it's a single character, the spacebar,
+  // or a sided modifier (lshift/rcontrol/…). Bare 'shift' etc. are never produced.
+  function isBindableToken(k) {
+    return k.length === 1 || k === ' ' || /^[lr](shift|control|alt|meta)$/.test(k);
+  }
+
   function inChanceTime(chanceTimes, st) {
     for (const r of (chanceTimes || [])) if (st >= r.start && st <= r.end) return true;
     return false;
@@ -147,7 +178,8 @@
     tierFor: tierFor, accuracy: accuracy, clearRank: clearRank,
     trailPoint: trailPoint, estimateStars: estimateStars,
     groupDoubles: groupDoubles, assembleChart: assembleChart,
-    matchNote: matchNote, inChanceTime: inChanceTime,
+    matchNote: matchNote, dueSlideChain: dueSlideChain, inChanceTime: inChanceTime,
+    keyToken: keyToken, isBindableToken: isBindableToken,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
@@ -508,7 +540,7 @@
     // ---- Input maps ----------------------------------------------------------
     function divaKeys() {
       const d = settings.divaKeys;
-      return (d && typeof d === 'object') ? d : { triangle: ['w', 'i'], circle: ['d', 'l'], cross: ['s', 'k'], square: ['a', 'j'], slideL: ['q', 'z'], slideR: ['e', 'c'] };
+      return (d && typeof d === 'object') ? d : { triangle: ['w', 'i'], circle: ['d', 'l'], cross: ['s', 'k'], square: ['a', 'j'], slideL: ['q', 'u'], slideR: ['e', 'o'] };
     }
     function divaMacros() { return Array.isArray(settings.divaMacros) ? settings.divaMacros : []; }
     // key (lowercase) -> array of buttons it triggers (normal binds + macros).
@@ -531,6 +563,7 @@
     function teardownRun() {
       if (!run) return;
       run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
+      if (run.restartTimer) clearTimeout(run.restartTimer);
       try { run.src.stop(); } catch (e) {}
       run = null;
       if (fpsEl) fpsEl.textContent = '';
@@ -583,7 +616,7 @@
     function loop() {
       if (!run || run.finished) return;
       const st = songTimeNow();
-      if (run.auto) autoPlay(st);
+      if (run.auto) autoPlay(st); else holdSlides(st);
       sweepMisses(st);
       render(st);
       tickFps();
@@ -648,6 +681,26 @@
         }
       }
     }
+    // Hold-to-clear slide chains: while a slide key is held down, its chain links
+    // (DSC held-slide chains) auto-register as they fall due — you hold the direction
+    // instead of spamming it. Single slides stay discrete taps (see dueSlideChain).
+    function holdSlides(st) {
+      if (!run.heldKeys) return;
+      const t = st - calOffset();   // match press()'s input-time mapping
+      for (const k in run.heldKeys) {
+        if (!run.heldKeys[k]) continue;
+        for (const b of buttonsForKey(k)) {
+          if (b !== 'slideL' && b !== 'slideR') continue;
+          let i;
+          while ((i = dueSlideChain(run.objs, b, t, WINDOWS.sad)) >= 0) {
+            const o = run.objs[i], err = t - o.n.time, tier = tierFor(Math.abs(err));
+            o.headJudged = true; o.tier = tier;
+            run.errors.push(err); recordErrTick(err, tier); playHit();
+            flashKey(b); credit(tier, o.n);
+          }
+        }
+      }
+    }
     // Autoplay: hit every note perfectly on time, hold through tails.
     function autoPlay(st) {
       for (const o of run.objs) {
@@ -681,7 +734,7 @@
       else if (btn === 'cross') { const s = r * 0.7; gg.moveTo(x - s, y - s); gg.lineTo(x + s, y + s); gg.moveTo(x + s, y - s); gg.lineTo(x - s, y + s); }
       else if (btn === 'square') { gg.rect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6); }
       else if (btn === 'star') { for (let k = 0; k < 5; k++) { const oa = -Math.PI / 2 + k * 2 * Math.PI / 5, ia = oa + Math.PI / 5; const ox = x + Math.cos(oa) * r, oy = y + Math.sin(oa) * r, ix = x + Math.cos(ia) * r * 0.45, iy = y + Math.sin(ia) * r * 0.45; if (k === 0) gg.moveTo(ox, oy); else gg.lineTo(ox, oy); gg.lineTo(ix, iy); } gg.closePath(); }
-      else { /* slideL/slideR → arrow */ const d = btn === 'slideL' ? -1 : 1; gg.moveTo(x - r * d, y); gg.lineTo(x + r * 0.2 * d, y - r * 0.7); gg.lineTo(x + r * 0.2 * d, y - r * 0.25); gg.lineTo(x + r * d, y - r * 0.25); gg.lineTo(x + r * d, y + r * 0.25); gg.lineTo(x + r * 0.2 * d, y + r * 0.25); gg.lineTo(x + r * 0.2 * d, y + r * 0.7); gg.closePath(); }
+      else { /* slideL → ◄ (apex left), slideR → ► (apex right) */ const d = btn === 'slideL' ? 1 : -1; gg.moveTo(x - r * d, y); gg.lineTo(x + r * 0.2 * d, y - r * 0.7); gg.lineTo(x + r * 0.2 * d, y - r * 0.25); gg.lineTo(x + r * d, y - r * 0.25); gg.lineTo(x + r * d, y + r * 0.25); gg.lineTo(x + r * 0.2 * d, y + r * 0.25); gg.lineTo(x + r * 0.2 * d, y + r * 0.7); gg.closePath(); }
     }
     function render(st) {
       const W = canvas.width, H = canvas.height, dpr = window.devicePixelRatio || 1;
@@ -699,7 +752,7 @@
         if (key == null) continue;
         (links[key] || (links[key] = [])).push(toScreen(n.x, n.y, f));
       }
-      g.lineWidth = 2 * dpr; g.strokeStyle = 'rgba(255,255,255,0.18)';
+      g.lineWidth = 4 * dpr; g.strokeStyle = 'rgba(255,255,255,0.28)';
       for (const k in links) {
         const pts = links[k]; if (pts.length < 2) continue;
         g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
@@ -720,9 +773,13 @@
           // target ghost
           g.globalAlpha = 0.5; g.strokeStyle = col; g.lineWidth = 3 * dpr;
           buttonPath(g, n.button, t.x, t.y, R); g.stroke();
-          // shrink ring (press cue)
-          g.globalAlpha = 0.8 * (1 - p) + 0.2; g.strokeStyle = '#fff'; g.lineWidth = 2 * dpr;
-          g.beginPath(); g.arc(t.x, t.y, R * (1 + (1 - p) * 2.6), 0, Math.PI * 2); g.stroke();
+          // clock-dial press cue: a single hand sweeps clockwise from 12 o'clock and
+          // completes a full turn at the hit instant — no ring/arc, just the hand. p drives it.
+          const dialR = R * 1.35, end = -Math.PI / 2 + p * Math.PI * 2;
+          const hx = t.x + Math.cos(end) * dialR, hy = t.y + Math.sin(end) * dialR;
+          g.globalAlpha = 0.95; g.strokeStyle = col; g.lineWidth = 3 * dpr;
+          g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(hx, hy); g.stroke();                     // sweeping hand
+          g.fillStyle = col; g.beginPath(); g.arc(hx, hy, 3 * dpr, 0, Math.PI * 2); g.fill();  // hand tip
           // flying icon
           g.globalAlpha = 1; g.fillStyle = col;
           if (n.button === 'cross') { g.strokeStyle = col; g.lineWidth = 5 * dpr; buttonPath(g, n.button, sc.x, sc.y, R); g.stroke(); }
@@ -820,11 +877,17 @@
       window[fn]('keydown', onKeyDown);
       window[fn]('keyup', onKeyUp);
     }
+    function armQuickRestart() {
+      if (!run || run.finished || run.restartTimer) return;   // run.restartTimer also guards key auto-repeat
+      run.restartTimer = setTimeout(() => { if (run) run.restartTimer = null; if (run && run.entry) loadAndPlay(run.entry); }, 1500);
+    }
+    function disarmQuickRestart() { if (run && run.restartTimer) { clearTimeout(run.restartTimer); run.restartTimer = null; } }
     function onKeyDown(e) {
       if (!run || run.finished) return;
+      if (e.key === '`' || e.code === 'Backquote') { e.preventDefault(); armQuickRestart(); return; }   // hold ~1.5s → quick restart
       if (e.key === 'Escape') { quitToSelect(); return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
-      const k = e.key.toLowerCase();
+      const k = keyToken(e.key, e.location);
       const btns = buttonsForKey(k);
       if (!btns.length) return;
       if (run.heldKeys && run.heldKeys[k]) return;   // ignore auto-repeat
@@ -834,7 +897,8 @@
     }
     function onKeyUp(e) {
       if (!run) return;
-      const k = e.key.toLowerCase();
+      if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; }
+      const k = keyToken(e.key, e.location);
       if (run.heldKeys) run.heldKeys[k] = false;
       for (const b of buttonsForKey(k)) release(b, e.timeStamp);
     }
@@ -874,12 +938,14 @@
 
     // ---- Keybind / macro UI --------------------------------------------------
     let rebind = null;   // { kind:'button'|'macro', target, slot }
+    const KEY_LABEL = { ' ': '␣', lshift: '⇧L', rshift: '⇧R', lcontrol: '⌃L', rcontrol: '⌃R', lalt: '⌥L', ralt: '⌥R', lmeta: '◆L', rmeta: '◆R' };
+    function keyLabel(k) { return k ? (KEY_LABEL[k] || k.toUpperCase()) : '—'; }
     function renderKeybinds() {
       if (keybindsEl) {
         const map = divaKeys();
         keybindsEl.innerHTML = BUTTONS.slice(0, 6).map((b) => {
           const lbl = { triangle: '△ Triangle', circle: '○ Circle', cross: '✕ Cross', square: '□ Square', slideL: '◄ Slide L', slideR: '► Slide R' }[b];
-          const keys = (map[b] || []).map((k, s) => '<button class="diva-kb" data-b="' + b + '" data-s="' + s + '">' + (k === ' ' ? '␣' : (k || '—').toUpperCase()) + '</button>').join('');
+          const keys = (map[b] || []).map((k, s) => '<button class="diva-kb" data-b="' + b + '" data-s="' + s + '">' + keyLabel(k) + '</button>').join('');
           return '<div class="diva-kb-row"><span>' + lbl + '</span>' + keys + '</div>';
         }).join('');
       }
@@ -888,7 +954,7 @@
         let html = '';
         for (let i = 0; i < 4; i++) {
           const m = macros[i] || { key: '', buttons: [] };
-          const keyBtn = '<button class="diva-kb" data-mac="' + i + '">' + (m.key ? m.key.toUpperCase() : '+ key') + '</button>';
+          const keyBtn = '<button class="diva-kb" data-mac="' + i + '">' + (m.key ? keyLabel(m.key) : '+ key') + '</button>';
           const toggles = FACE.map((b) => '<button class="diva-mac-tog' + (m.buttons.indexOf(b) >= 0 ? ' on' : '') + '" data-mact="' + i + '" data-b="' + b + '">' + ({ triangle: '△', circle: '○', cross: '✕', square: '□' }[b]) + '</button>').join('');
           html += '<div class="diva-kb-row"><span>Macro ' + (i + 1) + '</span>' + keyBtn + toggles + '</div>';
         }
@@ -1015,7 +1081,7 @@
       if (!panelOpen || screens.keys.hidden) { rebind = null; return; }
       e.preventDefault(); e.stopImmediatePropagation();
       if (e.key === 'Escape') { rebind = null; renderKeybinds(); return; }
-      const k = e.key.toLowerCase(); if (k.length !== 1 && k !== ' ') return;
+      const k = keyToken(e.key, e.location); if (!isBindableToken(k)) return;
       if (rebind.kind === 'button') { const map = (settings.divaKeys = JSON.parse(JSON.stringify(divaKeys()))); map[rebind.b][rebind.s] = k; }
       else { const macros = (settings.divaMacros = divaMacros().slice()); while (macros.length <= rebind.i) macros.push({ key: '', buttons: [] }); macros[rebind.i].key = k; }
       if (deps.saveSettings) deps.saveSettings(); rebind = null; renderKeybinds();

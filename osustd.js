@@ -366,6 +366,20 @@ function assembleChart(text) {
   };
 }
 
+// Collapse library entries that point at the same song-difficulty so a map already
+// present (bundled, cached, or imported this session) never shows up twice when the
+// user imports again. Identity = title + artist + difficulty; first occurrence wins,
+// so the bundled/persisted copy is kept over a duplicate re-import.
+function dedupeLibrary(entries) {
+  const seen = new Set(), out = [];
+  for (const e of (entries || [])) {
+    const key = String(e.title) + ' ' + String(e.artist) + ' ' + String(e.diffName);
+    if (seen.has(key)) continue;
+    seen.add(key); out.push(e);
+  }
+  return out;
+}
+
 // =========================================================================
 // Exports
 // =========================================================================
@@ -385,6 +399,7 @@ const ENGINE = {
   sliderSpanDuration: sliderSpanDuration,
   samplePath: samplePath,
   assembleChart: assembleChart,
+  dedupeLibrary: dedupeLibrary,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
@@ -454,8 +469,11 @@ if (typeof document !== 'undefined') {
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
     let errTicks = [];                                // recent signed hit errors for the live error bar
     let localEntries = [];                            // maps imported this session (folder; not persisted)
+    let availableSkins = [];                          // skin folders found in the last import/sync (selectable)
     let skin = null;                                  // active custom osu! skin (null = built-in look)
     const tintCache = new Map();                      // memoised combo-colour-tinted sprites
+    const thumbUrls = new Map();                      // entry.id -> object URL for its song-list thumbnail
+    let thumbObserver = null;                         // lazy-loads thumbnails as rows scroll into view
 
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
     function cursorScale() { const s = Number(settings.osuCursorScale); return (s >= 0.5 && s <= 2) ? s : 1; }
@@ -596,6 +614,7 @@ if (typeof document !== 'undefined') {
         const head =
           '<button class="osu-group' + (open ? ' open' : '') + '" data-g="' + gi + '">' +
             '<span class="osu-group-caret">' + caret + '</span>' +
+            '<span class="osu-group-thumb" data-thumb-g="' + gi + '"></span>' +
             '<span class="osu-group-info"><span class="osu-song-title">' + escapeH(g.title) + '</span>' +
             '<span class="osu-song-meta">' + escapeH(g.artist || '(unknown)') + ' · ' +
               g.items.length + ' ' + (single ? 'difficulty' : 'difficulties') + '</span></span>' +
@@ -609,14 +628,76 @@ if (typeof document !== 'undefined') {
           : '';
         return '<div class="osu-group-wrap">' + head + diffs + '</div>';
       }).join('');
+      loadThumbs();
+    }
+    // Lazy song-list thumbnails (each group's background art), loaded as rows scroll in.
+    // URLs are cached per entry id for the session and revoked when the panel closes.
+    function paintThumb(el) {
+      const g = currentGroups[Number(el.getAttribute('data-thumb-g'))];
+      const entry = g && g.items[0] && g.items[0].entry;
+      if (!entry || !entry.getArt) return;
+      const id = entry.id;
+      if (thumbUrls.has(id)) { el.style.backgroundImage = 'url(' + thumbUrls.get(id) + ')'; el.classList.add('has-thumb'); return; }
+      entry.getArt().then((b) => {
+        if (!b) return;
+        const url = URL.createObjectURL(b); thumbUrls.set(id, url);
+        el.style.backgroundImage = 'url(' + url + ')'; el.classList.add('has-thumb');
+      }).catch(() => {});
+    }
+    function loadThumbs() {
+      if (!songlistEl) return;
+      if (thumbObserver) thumbObserver.disconnect();
+      const io = ('IntersectionObserver' in window)
+        ? new IntersectionObserver((ents) => { for (const e of ents) if (e.isIntersecting) { io.unobserve(e.target); paintThumb(e.target); } }, { root: songlistEl, rootMargin: '300px' })
+        : null;
+      thumbObserver = io;
+      songlistEl.querySelectorAll('.osu-group-thumb').forEach((el) => { if (io) io.observe(el); else paintThumb(el); });
+    }
+    function revokeThumbs() {
+      if (thumbObserver) { thumbObserver.disconnect(); thumbObserver = null; }
+      thumbUrls.forEach((u) => URL.revokeObjectURL(u)); thumbUrls.clear();
     }
     async function refreshLibrary() {
       const bundled = await loadBundled();
       let cached = [];
       try { cached = await loadCachedOsz(); } catch (e) {}
-      library = bundled.concat(cached).concat(localEntries);
+      library = dedupeLibrary(bundled.concat(cached).concat(localEntries));
       renderSongList();
     }
+
+    // ---- Folder access: File System Access API (persistent, 1-click re-sync) with
+    // a <input webkitdirectory> fallback (Discord-Activity iframe / other browsers) --
+    // Usable only with showDirectoryPicker AND a same-origin top-level context; reading
+    // window.top throws in the cross-origin Activity iframe, which we treat as "no".
+    function canFsAccess() {
+      if (typeof window.showDirectoryPicker !== 'function') return false;
+      try { return window.self === window.top; } catch (e) { return false; }
+    }
+    // Wrap a FileSystemFileHandle as a lazy File-like the scanners understand (they read
+    // .webkitRelativePath / .name and call .text() / .arrayBuffer()); bytes load on demand.
+    function handleFile(fh, rel) {
+      return { name: fh.name, webkitRelativePath: rel,
+        text: async () => (await fh.getFile()).text(),
+        arrayBuffer: async () => (await fh.getFile()).arrayBuffer() };
+    }
+    async function walkDirHandle(dir, prefix, out) {
+      out = out || [];
+      for await (const [name, h] of dir.entries()) {
+        const rel = prefix + name;
+        if (h.kind === 'file') out.push(handleFile(h, rel));
+        else if (h.kind === 'directory') await walkDirHandle(h, rel + '/', out);
+      }
+      return out;
+    }
+    async function ensurePermission(handle, prompt) {
+      try {
+        if ((await handle.queryPermission({ mode: 'read' })) === 'granted') return true;
+        return prompt ? (await handle.requestPermission({ mode: 'read' })) === 'granted' : false;
+      } catch (e) { return false; }
+    }
+    // getArt must resolve to a real Blob (consumers call URL.createObjectURL): normalise
+    // a File (webkitdirectory) or a lazy handle-file (FS Access) into one.
+    function artBlob(a) { return a ? Promise.resolve(a.arrayBuffer()).then((b) => new Blob([b])) : Promise.resolve(null); }
 
     // ---- Import (Mode-0 maps from a folder or .osz) --------------------------
     const importBtn = document.getElementById('osu-import');
@@ -631,30 +712,64 @@ if (typeof document !== 'undefined') {
     function setImportStatus(m) { if (importStatusEl) importStatusEl.textContent = m; }
     function setSkinStatus(m) { if (skinStatusEl) skinStatusEl.textContent = m; }
 
-    function importFolder() {
-      if (!importInput) { setImportStatus('Folder import unavailable in this browser.'); return; }
-      importInput.value = ''; importInput.click();
-    }
-    async function handleImportFiles(fileList) {
-      if (!fileList || !fileList.length) return;
+    // Webkitdirectory fallback entry point (input change handler).
+    function handleImportFiles(fileList) { return ingest(fileList, false); }
+    // Shared import: scan a (root) folder's files for standard maps (mania → VSRG) and
+    // skins. isSync=true reports how many maps are newly added vs the current session.
+    async function ingest(fileList, isSync) {
+      const list = Array.from(fileList || []);
+      if (!list.length) return;
       try {
-        setImportStatus('Scanning…');
-        const res = await scanFileList(fileList, (n) => setImportStatus('Scanning… ' + n + ' .osu seen'));
+        const verb = isSync ? 'Syncing' : 'Scanning';
+        setImportStatus(verb + '…');
+        const res = await scanFileList(list, (n) => setImportStatus(verb + '… ' + n + ' .osu seen'));
+        const prevIds = new Set(localEntries.map((e) => e.id));
+        const added = res.entries.filter((e) => !prevIds.has(e.id)).length;
         localEntries = res.entries;
         const mania = await routeForeign(res.foreign);   // mania charts → the Mania library
+        // Skins under the folder (e.g. an osu! install's Skins/): keep them all for the
+        // picker; auto-apply the most complete only when no skin is active yet.
+        availableSkins = findSkinDirs(list);
+        if (!isSync && availableSkins.length && !skin) await loadSkinDir(availableSkins[0]);   // auto-apply best only on a fresh import
+        renderSkinPicker();
         await refreshLibrary();
         const maniaNote = mania ? ' · ' + mania + ' mania → Mania' : '';
+        const skinNote = availableSkins.length ? ' · ' + availableSkins.length + ' skin' + (availableSkins.length > 1 ? 's' : '') : '';
         setImportStatus(res.entries.length
-          ? ('Imported ' + res.entries.length + ' standard map(s)' + maniaNote + ' from ' + res.scanned + ' .osu scanned (re-import after reload).')
-          : ((mania ? mania + ' mania map(s) → Mania' : 'No osu! maps') + ' in ' + res.scanned + ' .osu scanned.'));
-        // The same folder may also contain skins (e.g. an osu! install's Skins/).
-        // Auto-load the most complete one; note any others.
-        const skinDirs = findSkinDirs(fileList);
-        if (skinDirs.length) {
-          await loadSkinDir(skinDirs[0]);
-          if (skin && skinDirs.length > 1 && skinStatusEl) setSkinStatus(skinStatusEl.textContent + ' (+' + (skinDirs.length - 1) + ' more skin folder(s) found)');
-        }
+          ? ((isSync ? (added + ' new · ' + res.entries.length + ' total standard map(s)') : ('Imported ' + res.entries.length + ' standard map(s)')) + maniaNote + skinNote)
+          : ((mania ? mania + ' mania map(s) → Mania' : 'No osu! maps') + ' found' + skinNote + '.'));
       } catch (e) { setImportStatus('Import failed: ' + ((e && e.message) || e)); }
+    }
+    // "Import osu! folder": pick the install root. FS Access path remembers the handle
+    // (for 1-click sync); otherwise the webkitdirectory input fires handleImportFiles.
+    async function importOsuFolder() {
+      if (canFsAccess()) {
+        let handle;
+        try { handle = await window.showDirectoryPicker({ id: 'osu-root', mode: 'read' }); }
+        catch (e) { return; }   // user dismissed the picker
+        try { await idbPut('fs', 'osuFolder', handle); } catch (e) {}
+        await ingest(await walkDirHandle(handle, ''), false);
+      } else if (importInput) {
+        importInput.value = ''; importInput.click();
+      } else { setImportStatus('Folder import unavailable in this browser.'); }
+    }
+    // "Sync new songs": re-walk the remembered folder (1 click) when possible, else re-pick.
+    async function syncSongs() {
+      let handle = null; try { handle = await idbGet('fs', 'osuFolder'); } catch (e) {}
+      if (handle && canFsAccess() && await ensurePermission(handle, true)) {
+        setImportStatus('Syncing…');
+        await ingest(await walkDirHandle(handle, ''), true);
+      } else {
+        importOsuFolder();   // no remembered folder (or iframe/unsupported) → re-pick
+      }
+    }
+    // On open: if a folder handle is remembered and still permitted (no prompt), re-walk
+    // it so the imported library survives reloads (standalone Chrome/Edge only).
+    async function restoreFolder() {
+      if (!canFsAccess() || localEntries.length) return;   // once per session; skip if already imported
+      let handle = null; try { handle = await idbGet('fs', 'osuFolder'); } catch (e) {}
+      if (!handle || !(await ensurePermission(handle, false))) return;
+      try { await ingest(await walkDirHandle(handle, ''), true); } catch (e) {}
     }
     // Find directories that look like a skin (skin sprites/ini, no .osu), best first.
     function findSkinDirs(fileList) {
@@ -721,7 +836,7 @@ if (typeof document !== 'undefined') {
           }
           const audio = files.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
           const art = chart.backgroundFile ? (files.get(chart.backgroundFile.toLowerCase()) || null) : null;
-          out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => Promise.resolve(art)));
+          out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => artBlob(art)));
         }
       }
       return { entries: out, scanned: scanned, foreign: foreign };
@@ -841,7 +956,7 @@ if (typeof document !== 'undefined') {
     function applySkin(s) {
       skin = (s && (s.colors.length || s.images.hitcircle || s.images.cursor || s.images.digits.length)) ? s : null;
       tintCache.clear();
-      renderSkinStatus();
+      renderSkinStatus(); renderSkinPicker();
     }
     function renderSkinStatus() {
       if (skinClearBtn) skinClearBtn.hidden = !skin;
@@ -852,6 +967,14 @@ if (typeof document !== 'undefined') {
       if (skin.images.cursor) has.push('cursor');
       if (skin.colors.length) has.push(skin.colors.length + ' combo colours');
       setSkinStatus('Skin: ' + skin.name + (has.length ? ' — ' + has.join(', ') : ' (no usable sprites found)'));
+    }
+    // Picker of skin folders discovered in the imported osu! folder — click to apply.
+    function renderSkinPicker() {
+      const el = document.getElementById('osu-skin-picker'); if (!el) return;
+      if (!availableSkins.length) { el.innerHTML = ''; el.hidden = true; return; }
+      el.hidden = false;
+      el.innerHTML = '<span class="osu-skin-pick-lbl">Skins:</span>' + availableSkins.map((d, i) =>
+        '<button class="osu-skin-pick' + (skin && skin.name === d.name ? ' on' : '') + '" data-si="' + i + '">' + escapeH(d.name) + '</button>').join('');
     }
     // Keep only the sprite/ini bytes so the cached skin stays small.
     function trimSkinFiles(map) {
@@ -939,7 +1062,6 @@ if (typeof document !== 'undefined') {
       if (fpsEl) fpsEl.textContent = '';
       if (skipBtn) skipBtn.hidden = true;
       if (keysOverlayEl) { keysOverlayEl.innerHTML = ''; keyBoxes = {}; }
-      if (window.Hitsound && window.Hitsound.slide && audioCtx) window.Hitsound.slide(audioCtx, false);   // stop the slide loop
     }
     async function loadAndPlay(entry) {
       if (loading) return;
@@ -1202,7 +1324,6 @@ if (typeof document !== 'undefined') {
 
     function updateSliders(st) {
       const followR = run.radius * 2.4;
-      let anyFollow = false;
       for (const s of run.objs) {
         if (s.o.kind !== 'slider' || s.judged) continue;
         const o = s.o;
@@ -1210,7 +1331,6 @@ if (typeof document !== 'undefined') {
         if (st >= o.time && st <= o.endTime + 30) {
           const ball = sliderBallPos(o, st);
           s.following = heldAny() && dist(cursor, ball) <= followR;
-          if (s.following) anyFollow = true;
           for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) {
             cp.ev = true; cp.hit = s.following;
             // sound each slider event the player is following: beat-synced ticks use
@@ -1226,7 +1346,6 @@ if (typeof document !== 'undefined') {
           finalizeSlider(s);
         }
       }
-      if (window.Hitsound && window.Hitsound.slide) window.Hitsound.slide(audioCtx, anyFollow);   // looped slide while following
     }
     function finalizeSlider(s) {
       const headOk = (s.headJudged && s.headResult !== 'miss') ? 1 : 0;
@@ -1341,14 +1460,20 @@ if (typeof document !== 'undefined') {
       if (e.key === 'Escape') { if (rebindBtn) rebindBtn.classList.remove('binding'); rebindIdx = null; rebindBtn = null; renderKeybinds(); return; }
       if (e.key.length === 1 || e.key === ' ') applyRebind(e.key.toLowerCase());
     }, true);
+    function armQuickRestart() {
+      if (!run || run.finished || run.restartTimer) return;   // run.restartTimer also guards key auto-repeat
+      run.restartTimer = setTimeout(() => { if (run) run.restartTimer = null; if (run && run.entry) loadAndPlay(run.entry); }, 1500);
+    }
+    function disarmQuickRestart() { if (run && run.restartTimer) { clearTimeout(run.restartTimer); run.restartTimer = null; } }
     function onKeyDown(e) {
       if (!run || run.finished) return;
+      if (e.key === '`' || e.code === 'Backquote') { e.preventDefault(); armQuickRestart(); return; }   // hold ~1.5s → quick restart
       if (e.key === 'Escape') { quitToSelect(); return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       const k = e.key.toLowerCase();
       if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true); e.preventDefault(); onTap(e.timeStamp); }
     }
-    window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); } });
+    window.addEventListener('keyup', (e) => { if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; } const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); } });
 
     // ---- Render --------------------------------------------------------------
     function accuracy() {
@@ -1548,7 +1673,6 @@ if (typeof document !== 'undefined') {
       const isAuto = run.auto;
       run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
       try { run.src.stop(); } catch (e) {}
-      if (window.Hitsound && window.Hitsound.slide && audioCtx) window.Hitsound.slide(audioCtx, false);
       const acc = accuracy();
       let prev = null, improved = false;
       if (!isAuto) {   // autoplay is a preview — never recorded as a personal best
@@ -1662,12 +1786,14 @@ if (typeof document !== 'undefined') {
     function open() {
       panel.classList.add('open'); panelOpen = true;
       if (deps.captureKeyboard) deps.captureKeyboard(true);
-      show('select'); refreshLibrary(); renderKeybinds();
+      show('select'); refreshLibrary(); renderKeybinds(); renderSkinPicker();
       if (!skin) loadCachedSkin(); else renderSkinStatus();
+      restoreFolder();   // re-walk a remembered osu! folder so the library survives reloads (standalone)
     }
     function close() {
       loadGen++; if (run && !run.finished) quitToSelect();
       if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapState = null; }
+      revokeThumbs();
       panel.classList.remove('open'); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
@@ -1688,8 +1814,15 @@ if (typeof document !== 'undefined') {
     if (retryBtn) retryBtn.addEventListener('click', () => { if (run && run.entry) loadAndPlay(run.entry); else if (library[0]) loadAndPlay(library[0]); });
     if (backBtn) backBtn.addEventListener('click', quitToSelect);
     if (skipBtn) skipBtn.addEventListener('click', doSkip);
-    if (importBtn) importBtn.addEventListener('click', () => importFolder());
+    if (importBtn) importBtn.addEventListener('click', () => importOsuFolder());
     if (importInput) importInput.addEventListener('change', () => handleImportFiles(importInput.files));
+    const syncBtn = document.getElementById('osu-sync');
+    if (syncBtn) syncBtn.addEventListener('click', () => syncSongs());
+    const skinPickerEl = document.getElementById('osu-skin-picker');
+    if (skinPickerEl) skinPickerEl.addEventListener('click', (e) => {
+      const b = e.target.closest('.osu-skin-pick'); if (!b) return;
+      const d = availableSkins[Number(b.getAttribute('data-si'))]; if (d) loadSkinDir(d);
+    });
     if (oszBtn) oszBtn.addEventListener('click', () => { if (oszInput) { oszInput.value = ''; oszInput.click(); } });
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
@@ -1768,12 +1901,13 @@ if (typeof document !== 'undefined') {
   function idb() {
     if (_db) return _db;
     _db = new Promise((res, rej) => {
-      const req = indexedDB.open('aobing-osustd', 3);
+      const req = indexedDB.open('aobing-osustd', 4);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains('osu-pb')) db.createObjectStore('osu-pb');   // personal bests
         if (!db.objectStoreNames.contains('osz')) db.createObjectStore('osz');          // imported .osz maps
         if (!db.objectStoreNames.contains('skin')) db.createObjectStore('skin');        // active custom skin
+        if (!db.objectStoreNames.contains('fs')) db.createObjectStore('fs');            // persisted osu! folder handle (FS Access API)
       };
       req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
     });

@@ -11,6 +11,25 @@ test('osustd.js exports an engine object', () => {
   assert.equal(E.OSUSTD_ENGINE, true);
 });
 
+test('dedupeLibrary: collapses same song-difficulty across sources, first wins', () => {
+  const e = (title, artist, diffName, source) => ({ title: title, artist: artist, diffName: diffName, source: source });
+  const lib = [
+    e('Freedom Dive', 'xi', 'FOUR DIMENSIONS', 'bundled'),
+    e('Freedom Dive', 'xi', 'FOUR DIMENSIONS', 'osz'),    // same map re-imported as .osz → drop
+    e('Freedom Dive', 'xi', 'Another', 'local'),          // different difficulty → keep
+    e('Blue Zenith', 'xi', 'FOUR DIMENSIONS', 'local'),   // different title, same diff name → keep
+  ];
+  const out = E.dedupeLibrary(lib);
+  assert.equal(out.length, 3);
+  assert.equal(out[0].source, 'bundled');                 // first occurrence wins (persisted/bundled kept)
+  assert.deepEqual(out.map((x) => x.diffName), ['FOUR DIMENSIONS', 'Another', 'FOUR DIMENSIONS']);
+});
+
+test('dedupeLibrary: handles empty/undefined input', () => {
+  assert.deepEqual(E.dedupeLibrary([]), []);
+  assert.deepEqual(E.dedupeLibrary(undefined), []);
+});
+
 // =========================================================================
 // Geometry
 // =========================================================================

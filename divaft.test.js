@@ -96,6 +96,49 @@ test('matchNote: nearest unhit matching-button note in window', () => {
   assert.equal(E.matchNote(objs, 'triangle', 1040, 5), -1);    // out of window
 });
 
+test('dueSlideChain: earliest unhit chain link of button that has fallen due', () => {
+  const objs = [
+    { n: { time: 1000, button: 'slideR', slideChain: 1 }, headJudged: false },
+    { n: { time: 1100, button: 'slideR', slideChain: 1 }, headJudged: false },
+    { n: { time: 1050, button: 'slideL', slideChain: 2 }, headJudged: false },
+    { n: { time: 1080, button: 'slideR', slideChain: null }, headJudged: false }, // single slide, not a chain
+  ];
+  assert.equal(E.dueSlideChain(objs, 'slideR', 1120, E.WINDOWS.sad), 0);   // 1000 is earliest due slideR chain link
+  assert.equal(E.dueSlideChain(objs, 'slideL', 1120, E.WINDOWS.sad), 2);
+  assert.equal(E.dueSlideChain(objs, 'slideR', 1040, E.WINDOWS.sad), 0);   // 1000 due, 1100 not yet
+  assert.equal(E.dueSlideChain(objs, 'slideR', 999, E.WINDOWS.sad), -1);   // nothing due yet
+  objs[0].headJudged = true;
+  assert.equal(E.dueSlideChain(objs, 'slideR', 1120, E.WINDOWS.sad), 1);   // 1000 cleared → 1100 now
+  assert.equal(E.dueSlideChain(objs, 'slideR', 1300, E.WINDOWS.sad), -1);  // 1100 is now >sad-window late → leave to miss-sweep
+});
+
+test('dueSlideChain: ignores single (non-chain) slides — those stay discrete taps', () => {
+  const objs = [{ n: { time: 1000, button: 'slideL', slideChain: null }, headJudged: false }];
+  assert.equal(E.dueSlideChain(objs, 'slideL', 1000, E.WINDOWS.sad), -1);
+});
+
+test('keyToken: sided modifiers distinguished by location; others lowercased', () => {
+  assert.equal(E.keyToken('Shift', 1), 'lshift');     // location 1 = left
+  assert.equal(E.keyToken('Shift', 2), 'rshift');     // location 2 = right
+  assert.equal(E.keyToken('Shift', 0), 'lshift');     // unknown location → default left
+  assert.equal(E.keyToken('Control', 2), 'rcontrol');
+  assert.equal(E.keyToken('Alt', 1), 'lalt');
+  assert.equal(E.keyToken('a', 0), 'a');
+  assert.equal(E.keyToken('A', 0), 'a');              // shifted letter normalises to lowercase
+  assert.equal(E.keyToken(' ', 0), ' ');
+});
+
+test('isBindableToken: single chars, space, and sided modifiers only', () => {
+  assert.equal(E.isBindableToken('a'), true);
+  assert.equal(E.isBindableToken(' '), true);
+  assert.equal(E.isBindableToken('lshift'), true);
+  assert.equal(E.isBindableToken('rshift'), true);
+  assert.equal(E.isBindableToken('rcontrol'), true);
+  assert.equal(E.isBindableToken('shift'), false);    // unsided → not bindable (we only ever produce sided)
+  assert.equal(E.isBindableToken('escape'), false);
+  assert.equal(E.isBindableToken('ab'), false);
+});
+
 test('inChanceTime', () => {
   const ct = [{ start: 1500, end: 1900 }];
   assert.equal(E.inChanceTime(ct, 1600), true);

@@ -2980,6 +2980,13 @@
     .osu-group:hover { background: #343845 !important; }
     .osu-group.open { background: #30343f !important; }
     .osu-group-caret { color: #9aa0ab; font-size: 11px; width: 12px; flex: none; }
+    .osu-group-thumb { width: 64px; height: 36px; flex: none; border-radius: 5px; background: #14161c center/cover no-repeat; border: 1px solid #2c3038; }
+    .osu-group-thumb.has-thumb { border-color: #3a4150; }
+    .osu-skin-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 4px; }
+    .osu-skin-pick-lbl { color: #9aa0ab; font-size: 12px; }
+    .osu-skin-pick { background: #2a2d36; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    .osu-skin-pick:hover { background: #343845; }
+    .osu-skin-pick.on { background: #3a4d6b; border-color: #5b7bb0; }
     .osu-group-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .osu-group-info .osu-song-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     .osu-group-diffs { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 10px 32px; }
@@ -3112,8 +3119,9 @@
       <div class="osu-select-head">
         <h2 data-i18n="mode.osu">Standard</h2>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="osu-import" type="button" title="Import beatmaps AND a skin from an osu! folder (point at your osu! install, or its Songs / Skins folder)">Import osu! folder</button>
+          <button id="osu-import" type="button" title="Import beatmaps AND skins from an osu! folder (point at your osu! install, or its Songs / Skins folder)">Import osu! folder</button>
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
+          <button id="osu-sync" type="button" title="Re-scan your osu! folder for newly installed songs (only new ones are added)">Sync new songs</button>
           <button id="osu-import-osz" type="button">Import .osz</button>
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <span id="osu-skin-wrap" style="display:inline-flex; align-items:center; gap:4px;">
@@ -3136,6 +3144,7 @@
       <div class="import-hint" id="osu-import-hint"></div>
       <div id="osu-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="osu-skin-status" style="color:#7d8a9a; font-size:12px; min-height:16px;"></div>
+      <div id="osu-skin-picker" class="osu-skin-picker" hidden></div>
       <div class="osu-sort-row">
         <span>Sort by</span>
         <select id="osu-sort">
