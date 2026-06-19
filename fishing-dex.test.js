@@ -58,12 +58,12 @@ test('sortSpecimens orders correctly and does not mutate input', () => {
   const specs = [
     { species: 'a', size: 10, float: 0.5, caughtAt: 100 },
     { species: 'b', size: 30, float: 0.1, caughtAt: 300 },
-    { species: 'c', size: 20, float: 0.2, caughtAt: 200 },
+    { species: 'c', size: 20, float: 0.9, caughtAt: 200 },
   ];
   const frozen = JSON.stringify(specs);
   assert.deepEqual(sortSpecimens(specs, 'recent').map(s => s.species), ['b', 'c', 'a']);
   assert.deepEqual(sortSpecimens(specs, 'size').map(s => s.species), ['b', 'c', 'a']);
-  assert.deepEqual(sortSpecimens(specs, 'float').map(s => s.species), ['b', 'c', 'a']); // best (low) first
+  assert.deepEqual(sortSpecimens(specs, 'float').map(s => s.species), ['b', 'a', 'c']); // float ASC: 0.1 < 0.5 < 0.9
   assert.equal(JSON.stringify(specs), frozen, 'input array must not be mutated');
 });
 

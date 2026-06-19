@@ -14,7 +14,7 @@
           grade: floatToGrade(a.bestFloat == null ? 1 : a.bestFloat), shiny: !!a.shinyCaught,
         };
       }
-      return { fish: fish, caught: false, count: 0, maxSize: 0, bestFloat: 1, grade: null, shiny: false };
+      return { fish: fish, caught: false, count: 0, maxSize: 0, bestFloat: 1, grade: null, shiny: false };  // uncaught: no specimen, so no grade
     });
   }
 
