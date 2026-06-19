@@ -2393,6 +2393,7 @@
         <button class="mp-opt" type="button" data-mode="clicker"><span data-i18n="mode.clicker">Clicker</span></button>
         <button class="mp-opt" type="button" data-mode="typing"><span data-i18n="mode.typing">Typing</span></button>
         <button class="mp-opt" type="button" data-mode="rhythm"><span data-i18n="mode.rhythm">Rhythm</span></button>
+        <button class="mp-opt" type="button" data-mode="fishing"><span data-i18n="mode.fishing">Fishing</span></button>
       </div>
       <div class="mp-submode" id="mp-submode" hidden>
         <button type="button" data-submode="casual" data-i18n="mode.casual">Casual</button>
@@ -2793,7 +2794,23 @@
     .vsrg-results-actions { display: flex; gap: 10px; }
     #vsrg-retry { background: #2b6cff; color: #fff; }
     #vsrg-calib label { display: inline-flex; align-items: center; gap: 8px; }
+    #fishing-panel { position: fixed; inset: 0; z-index: 240; display: none; background: #08131c; color: #e8f4ff; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+    #fishing-panel.open { display: flex; }
+    #fishing-canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+    #fishing-cast-btn { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); padding: 12px 28px; font-size: 18px; border-radius: 999px; border: 0; background: #2b86c5; color: #fff; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+    #fishing-cast-btn:active { transform: translateX(-50%) scale(.97); }
+    #fishing-exit { position: absolute; top: 14px; right: 16px; background: rgba(0,0,0,.35); color: #fff; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+    #fishing-result { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); min-width: 240px; padding: 18px 22px; border-radius: 14px; background: rgba(8,19,28,.92); border: 1px solid rgba(120,200,255,.4); text-align: center; display: none; }
+    #fishing-result.show { display: block; }
+    #fishing-result .fr-coins { color: #ffd770; font-weight: 700; }
+    #fishing-result .fr-new { color: #7CFC9B; font-weight: 700; }
   </style>
+  <div id="fishing-panel">
+    <canvas id="fishing-canvas"></canvas>
+    <button id="fishing-exit" type="button" data-i18n="fishing.exit">Exit</button>
+    <button id="fishing-cast-btn" type="button" data-i18n="fishing.cast">Cast</button>
+    <div id="fishing-result"></div>
+  </div>
   <div id="vsrg-panel">
     <div id="vsrg-select" class="vsrg-screen">
       <div class="vsrg-select-head">
@@ -3217,6 +3234,14 @@
           if (!IN_ACTIVITY) mods.push(loadScript(FB + 'firebase-analytics-compat.js'));
           return Promise.all(mods);
         })
+        // Fishing mode engine + session + controller load before app.js so the globals
+        // (FishingEngine, FishData, FishSprite, FishingSession, FishingGame) exist when
+        // app.js injects its deps into window.__fishingDeps.
+        .then(function () { return loadScript('fishing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fish-data.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fish-sprite.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-session.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-ui.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
