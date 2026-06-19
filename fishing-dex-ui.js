@@ -1,7 +1,7 @@
 'use strict';
 // DOM/canvas renderer for the Fishdex + Inventory browsing panel. window.FishingDexUI.
 (function () {
-  var deps = null, els = {}, tab = 'fishdex', sortKey = 'recent', filterShiny = false, filterSpecies = '';
+  var deps = null, els = {}, tab = 'fishdex', sortKey = 'recent', filterShiny = false;
   var io = null; // IntersectionObserver for lazy sprite draws
 
   function el(id) { return document.getElementById(id); }
@@ -106,8 +106,9 @@
     el('fdex-sort').addEventListener('change', function (e) { sortKey = e.target.value; renderInventory(); });
     el('fdex-shiny').addEventListener('change', function (e) { filterShiny = e.target.checked; renderInventory(); });
 
-    var list = window.FishingDex.filterSpecimens(all, { species: filterSpecies || undefined, shinyOnly: filterShiny });
+    var list = window.FishingDex.filterSpecimens(all, { shinyOnly: filterShiny });
     list = window.FishingDex.sortSpecimens(list, sortKey);
+    list = list.filter(function (sp) { return !!window.FishData.FISH_BY_ID[sp.species]; });
     els.progress.textContent = 'Specimens ' + all.length;
     el('fdex-count').textContent = list.length + ' shown';
     els.body.innerHTML = '';
