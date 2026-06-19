@@ -57,7 +57,7 @@
   function onPointerDown(e) { if (!open) return; input.holding = true; input.cast = true; }
   function onPointerUp(e) { if (!open) return; input.holding = false; }
 
-  function ctx() {
+  function sessionCtx() {
     return { table: window.FishData.FISH, hasCaught: function (id) { return !!deps.getFishdex()[id]; } };
   }
 
@@ -65,7 +65,7 @@
     if (!open) return;
     var dt = Math.min(0.05, (now - lastT) / 1000) || 0;
     lastT = now;
-    var r = window.FishingSession.step(session, dt, input, rng, ctx());
+    var r = window.FishingSession.step(session, dt, input, rng, sessionCtx());
     session = r.state;
     for (var i = 0; i < r.events.length; i++) handleEvent(r.events[i]);
     input.cast = false; // consume the discrete press each frame
@@ -111,7 +111,10 @@
 
   function spriteFor(fish, float, shiny) {
     var key = fish.id + '|' + float.toFixed(3) + '|' + (shiny ? 1 : 0);
-    if (!sprites[key]) sprites[key] = window.FishSprite.fishSpriteSpec(fish, { float: float, shiny: shiny });
+    if (!sprites[key]) {
+      if (Object.keys(sprites).length > 64) sprites = {};
+      sprites[key] = window.FishSprite.fishSpriteSpec(fish, { float: float, shiny: shiny });
+    }
     return sprites[key];
   }
 
@@ -137,7 +140,7 @@
     }
     // bar-balance HUD while balancing
     if (phase === 'balancing' && session.bar) {
-      drawBar(c, W, H, session.bar, now);
+      drawBar(c, W, H, session.bar);
     }
     // cast button visibility: only actionable in idle/result
     els.cast.style.display = (phase === 'idle' || phase === 'result') ? '' : 'none';
@@ -165,7 +168,7 @@
     if (biting) { c.fillStyle = '#ff5a5a'; c.font = '20px system-ui'; c.fillText('!', x + 14, y - 10); }
   }
 
-  function drawBar(c, W, H, bar, now) {
+  function drawBar(c, W, H, bar) {
     // vertical track on the right
     var trackX = W - 70, trackY = H * 0.18, trackH = H * 0.64, trackW = 26;
     c.fillStyle = 'rgba(255,255,255,.10)'; c.fillRect(trackX, trackY, trackW, trackH);

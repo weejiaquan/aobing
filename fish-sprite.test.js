@@ -20,7 +20,9 @@ test('every chosen trait comes from its pool', () => {
   const spec = fishSpriteSpec(COMMON, { float: 0.2, shiny: false });
   assert.ok(BODY_SHAPES.includes(spec.bodyShape));
   assert.ok(PATTERNS.includes(spec.pattern));
-  assert.ok(PALETTES.includes(spec.palette) || SHINY_PALETTES.includes(spec.palette));
+  const palInPool = (pal, pool) => pool.some(p => p.length === pal.length && p.every((c, i) => c === pal[i]));
+  assert.ok(palInPool(spec.palette, PALETTES) || palInPool(spec.palette, SHINY_PALETTES),
+    'palette must be value-equal to a pool entry');
   for (const a of spec.accents) assert.ok(ACCENTS.includes(a));
 });
 

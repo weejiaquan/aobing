@@ -104,6 +104,9 @@ test('isNew is false when ctx.hasCaught reports the species already caught', () 
   }
   assert.ok(caught);
   assert.equal(caught.isNew, false);
+  assert.equal(caught.specimen.species, 'trout');
+  assert.ok(caught.coins > 0, 'caught event must carry positive coins');
+  assert.equal(state.phase, 'result');
 });
 
 test('cast from result returns to idle (dismiss)', () => {

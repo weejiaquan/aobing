@@ -41,10 +41,16 @@ test('every fish has a sane sizeRange and positive coinBase', () => {
   }
 });
 
-test('legendaries are concentrated in boss-class behaviors', () => {
-  const boss = new Set(['trickster', 'tempest', 'tyrant']);
+test('legendaries use boss-class behaviors (phase/crescendo modifiers)', () => {
+  const isBoss = (name) => {
+    const def = BEHAVIORS[name];
+    return !!(def && def.mods && (def.mods.phase || def.mods.crescendo));
+  };
   const legends = FISH.filter(f => f.rarity === 5);
-  assert.ok(legends.every(f => boss.has(f.behavior)), 'all legendaries should use boss behaviors');
+  assert.ok(legends.length > 0, 'there should be legendary fish');
+  for (const f of legends) {
+    assert.ok(isBoss(f.behavior), `legendary ${f.id} uses non-boss behavior ${f.behavior}`);
+  }
 });
 
 test('behavior variety: at least 12 distinct behaviors used across the roster', () => {
