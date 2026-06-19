@@ -25,6 +25,11 @@
     els.ctx = els.canvas.getContext('2d');
     session = window.FishingSession.createSession();
     bindEvents();
+    if (window.FishingDexUI && window.FishingDexUI.init) window.FishingDexUI.init(d);
+    var dexBtn = document.getElementById('fishing-dex-btn');
+    if (dexBtn) dexBtn.addEventListener('click', function () {
+      if (window.FishingDexUI && window.FishingDexUI.open) window.FishingDexUI.open();
+    });
   }
 
   function bindEvents() {
@@ -210,6 +215,7 @@
     deps.captureKeyboard(false);
     deps.resumeBgm();
     input.cast = false; input.holding = false;
+    if (window.FishingDexUI && window.FishingDexUI.close) window.FishingDexUI.close();
   }
 
   window.FishingGame = { init: init, open: doOpen, close: doClose };
