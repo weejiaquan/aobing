@@ -2402,6 +2402,7 @@
       <div class="mp-submode" id="mp-rhythm-submode" hidden>
         <button type="button" data-rhythm="standard" data-i18n="mode.osu">Standard</button>
         <button type="button" data-rhythm="mania" data-i18n="mode.mania">Mania</button>
+        <button type="button" data-rhythm="diva" data-i18n="mode.diva">Diva</button>
       </div>
       <div class="mp-section" id="mp-clicker"></div>
       <div class="mp-section" id="mp-typing" hidden>
@@ -2840,6 +2841,7 @@
           <button id="vsrg-calibrate" type="button">Calibrate</button>
         </div>
       </div>
+      <div class="import-hint" id="vsrg-import-hint"></div>
       <div id="vsrg-import-status"></div>
       <div id="vsrg-osz-status"></div>
       <canvas id="vsrg-speed-preview" width="132" height="220" class="vsrg-speed-preview"></canvas>
@@ -2995,10 +2997,77 @@
     #osu-keybinds button { padding: 5px 9px !important; text-transform: uppercase; min-width: 28px; }
     #osu-keybinds button.binding { background: #2b6cff !important; color: #fff !important; }
     .osu-sort-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9aa0ab; }
+    /* "where do I point this?" import path hints (shown under the import buttons) */
+    .import-hint { color: #8a93a3; font-size: 12.5px; line-height: 1.5; margin: 2px 0 4px; }
+    .import-hint b { color: #c8ccd4; font-weight: 600; }
+    .import-hint code { background: #20242c; color: #cfe3ff; border: 1px solid #333a46; border-radius: 5px; padding: 1px 6px; font-size: 11.5px; font-family: ui-monospace, Menlo, Consolas, monospace; user-select: all; white-space: nowrap; }
+    .import-hint .ih-line { display: block; margin: 1px 0; }
+    /* Diva import-source modal */
+    .diva-modal { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
+    .diva-modal[hidden] { display: none; }
+    .diva-modal-box { width: min(620px, 92vw); max-height: 86vh; overflow: auto; background: #15171d; border: 1px solid #2c313c; border-radius: 14px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+    .diva-modal-head { display: flex; align-items: center; justify-content: space-between; }
+    .diva-modal-head h3 { margin: 0; font-size: 18px; }
+    .diva-modal-x { background: transparent !important; color: #9aa0ab !important; font-size: 18px; padding: 4px 8px !important; }
+    .diva-modal-sub { color: #9aa0ab; font-size: 12.5px; margin: 4px 0 12px; }
+    .diva-src { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid #262b34; }
+    .diva-src-info { min-width: 0; }
+    .diva-src-info b { display: block; font-size: 14px; color: #e8e8ec; margin-bottom: 3px; }
+    .diva-src .import-hint { margin: 0; }
+    .diva-src > button { flex: none; background: #2b6cff !important; color: #fff !important; }
+    .diva-modal-done { margin-top: 14px; width: 100%; }
     #osu-sort { background: #2a2d36; color: #e8e8ec; border: 1px solid #3a3f4b; border-radius: 8px; padding: 5px 8px; font: inherit; }
     #osu-auto.on { background: #2b6cff !important; color: #fff !important; }
     .osu-group-star { margin-left: auto; color: #ffd166; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
     .osu-diff-star { margin-left: auto; color: #ffd166; font-size: 12px; font-variant-numeric: tabular-nums; }
+    /* Project Diva panel (Future Tone style) */
+    #divaft-panel { position: fixed; inset: 0; z-index: 240; display: none; background: #0b0c10; color: #e8e8ec; flex-direction: column; }
+    #divaft-panel.open { display: flex; }
+    .diva-screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .diva-screen[hidden] { display: none; }
+    #divaft-select { padding: 22px; gap: 12px; }
+    .diva-select-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .diva-select-head h2 { margin: 0; font-size: 20px; }
+    #divaft-panel button { background: #2a2d36; color: #e8e8ec; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+    #divaft-auto.on { background: #b06bff !important; color: #fff !important; }
+    #divaft-exit { background: #2a2d36; }
+    #divaft-songlist { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .diva-song { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 12px 14px !important; }
+    .diva-song:hover { background: #343845 !important; }
+    .diva-song-title { font-weight: 700; }
+    .diva-song-meta { font-size: 12px; color: #9aa0ab; }
+    .diva-empty { color: #9aa0ab; padding: 24px 4px; }
+    #divaft-game { align-items: center; justify-content: center; }
+    #divaft-canvas { touch-action: none; display: block; width: 100%; height: 100%; }
+    #divaft-hud { position: absolute; inset: 0; pointer-events: none; }
+    #divaft-acc { position: absolute; top: 16px; right: 20px; font-size: 18px; font-variant-numeric: tabular-nums; }
+    #divaft-combo { position: absolute; bottom: 24px; left: 24px; font-size: 30px; font-weight: 800; }
+    #divaft-judge { position: absolute; top: 42%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 800; opacity: 0; }
+    #divaft-keys-overlay { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+    .diva-key { width: 48px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 2px solid rgba(255,255,255,.22); border-radius: 8px; background: rgba(20,22,28,.55); color: #c8ccd4; transition: background .04s, border-color .04s, transform .04s; }
+    .diva-key.active { background: #b06bff; border-color: #d8b6ff; color: #fff; transform: scale(1.08); }
+    .diva-key-label { font-weight: 800; font-size: 18px; line-height: 1; }
+    .diva-key-count { font-size: 11px; color: #9aa0ab; font-variant-numeric: tabular-nums; }
+    #divaft-results { align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 24px; }
+    .diva-res-title { font-size: 16px; color: #c8ccd4; }
+    .diva-res-rank { font-size: 56px; font-weight: 900; line-height: 1; }
+    .diva-res-acc { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .diva-res-grid { display: flex; gap: 18px; margin: 4px 0; }
+    .diva-res-cn { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .diva-res-cl { font-size: 11px; color: #9aa0ab; text-transform: uppercase; letter-spacing: .05em; }
+    .diva-res-combo { font-size: 15px; color: #c8ccd4; }
+    .diva-res-pb { color: #ffd166; font-size: 14px; }
+    .diva-results-actions { display: flex; gap: 10px; margin-top: 6px; }
+    #divaft-retry { background: #b06bff !important; color: #fff !important; }
+    #divaft-calib { align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+    #divaft-calib label { display: inline-flex; align-items: center; gap: 8px; }
+    #divaft-tap-result { color: #ffd166; min-height: 20px; font-variant-numeric: tabular-nums; }
+    .diva-kb-list { display: flex; flex-direction: column; gap: 8px; width: min(520px, 90vw); }
+    .diva-kb-row { display: flex; align-items: center; gap: 8px; }
+    .diva-kb-row > span:first-child { min-width: 92px; text-align: left; color: #c8ccd4; font-size: 13px; }
+    .diva-kb { padding: 6px 10px !important; text-transform: uppercase; min-width: 30px; }
+    .diva-mac-tog { padding: 6px 9px !important; font-size: 15px; background: #23262e !important; }
+    .diva-mac-tog.on { background: #b06bff !important; color: #fff !important; }
   </style>
   <div id="osu-panel">
     <div id="osu-select" class="osu-screen">
@@ -3011,9 +3080,11 @@
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <span id="osu-skin-wrap" style="display:inline-flex; align-items:center; gap:4px;">
             <button id="osu-import-skin" type="button" title="Load a custom osu! skin from a .osk file">Skin (.osk)</button>
+            <button id="osu-import-skin-dir" type="button" title="Load a custom osu! skin from an extracted skin folder (e.g. %LocalAppData%\osu!\Skins\&lt;SkinName&gt;)">Skin folder</button>
             <button id="osu-skin-clear" type="button" title="Use the built-in look" hidden>✕</button>
           </span>
           <input id="osu-skin-osk-input" type="file" accept=".osk,.zip" hidden>
+          <input id="osu-skin-dir-input" type="file" webkitdirectory directory multiple hidden>
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
@@ -3024,6 +3095,7 @@
           <button id="osu-exit" type="button" title="Exit standard mode">✕ Exit</button>
         </div>
       </div>
+      <div class="import-hint" id="osu-import-hint"></div>
       <div id="osu-import-status" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
       <div id="osu-skin-status" style="color:#7d8a9a; font-size:12px; min-height:16px;"></div>
       <div class="osu-sort-row">
@@ -3078,6 +3150,90 @@
         <div class="hs-row"><span>Background dim</span><input type="range" id="osu-bg-dim" min="0" max="100" step="5"><b id="osu-bg-dim-val">80%</b></div>
       </div>
       <button id="osu-visual-done" type="button">Done</button>
+    </div>
+  </div>
+
+  <!-- Project Diva (Future Tone style) performance panel -->
+  <div id="divaft-panel">
+    <div id="divaft-select" class="diva-screen">
+      <div class="diva-select-head">
+        <h2 data-i18n="mode.diva">Diva</h2>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="divaft-import-open" type="button" title="Import songs from Project Diva or Project Heartbeat">＋ Import songs</button>
+          <input id="divaft-import-input" type="file" webkitdirectory directory multiple hidden>
+          <input id="divaft-import-cpk-input" type="file" accept=".cpk" multiple hidden>
+          <input id="divaft-import-ph-input" type="file" webkitdirectory directory multiple hidden>
+          <button id="divaft-auto" type="button" title="Autoplay preview — the chart plays itself (no score saved)">Auto: off</button>
+          <button id="divaft-keys-btn" type="button">Keys</button>
+          <button id="divaft-hitsound-btn" type="button">Hitsounds</button>
+          <button id="divaft-calibrate" type="button">Calibrate</button>
+          <button id="divaft-exit" type="button" title="Exit Diva mode">✕ Exit</button>
+        </div>
+      </div>
+      <div id="divaft-import-summary" style="color:#9aa0ab; font-size:13px; min-height:18px;"></div>
+      <div id="divaft-songlist"></div>
+    </div>
+    <div id="divaft-game" class="diva-screen" hidden>
+      <canvas id="divaft-canvas"></canvas>
+      <div id="divaft-hud">
+        <div id="divaft-acc"></div>
+        <div id="divaft-combo"></div>
+        <div id="divaft-judge"></div>
+        <div id="divaft-fps" class="rhythm-fps"></div>
+        <div id="divaft-keys-overlay"></div>
+        <button id="divaft-skip" type="button" class="rhythm-skip" hidden>Skip intro ⏭</button>
+      </div>
+    </div>
+    <div id="divaft-results" class="diva-screen" hidden>
+      <div id="divaft-results-body"></div>
+      <div class="diva-results-actions">
+        <button id="divaft-retry" type="button">Retry</button>
+        <button id="divaft-back" type="button">Back to songs</button>
+      </div>
+    </div>
+    <div id="divaft-keys" class="diva-screen hs-screen" hidden>
+      <h2>Key bindings</h2>
+      <p>Click a key box, then press a new key. △○✕□ are the face buttons; ◄► are slides. Macros fire several face buttons from one key — handy for multi-notes.</p>
+      <div id="divaft-keybinds" class="diva-kb-list"></div>
+      <h3 style="margin:8px 0 0; font-size:15px;">Macros</h3>
+      <div id="divaft-macros" class="diva-kb-list"></div>
+      <button id="divaft-keys-done" type="button">Done</button>
+    </div>
+    <div id="divaft-calib" class="diva-screen" hidden>
+      <h2>Calibration</h2>
+      <p>Tap the button in time with the beat — your offset is measured automatically.</p>
+      <canvas id="divaft-calib-canvas" width="200" height="120"></canvas>
+      <button id="divaft-tap" type="button" class="vsrg-tap-btn">Tap to the beat</button>
+      <div id="divaft-tap-result"></div>
+      <label>Offset <input type="range" id="divaft-calib-slider" min="-200" max="200" step="1"><b id="divaft-calib-val">0 ms</b></label>
+      <button id="divaft-calib-done" type="button">Done</button>
+    </div>
+    <div id="divaft-hitsound" class="diva-screen hs-screen" hidden>
+      <h2>Hitsounds</h2>
+      <p>Pick a preset or upload your own sound. Plays on every hit.</p>
+      <div id="divaft-hs-controls" class="hs-controls"></div>
+      <button id="divaft-hitsound-done" type="button">Done</button>
+    </div>
+    <!-- Import-source modal: pick Diva mods / Diva CPK / Project Heartbeat (one or several) -->
+    <div id="divaft-import-modal" class="diva-modal" hidden>
+      <div class="diva-modal-box">
+        <div class="diva-modal-head"><h3>Import songs</h3><button id="divaft-import-close" class="diva-modal-x" type="button" aria-label="Close">✕</button></div>
+        <p class="diva-modal-sub">Pick a source — you can import from several. Nothing is uploaded; files are read locally in your browser.</p>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Diva — mods / rom folder</b><span class="import-hint" id="divaft-hint-mods"></span></div>
+          <button id="divaft-pick-folder" type="button">Choose folder…</button>
+        </div>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Diva — base game (.cpk)</b><span class="import-hint" id="divaft-hint-cpk"></span></div>
+          <button id="divaft-pick-cpk" type="button">Choose .cpk…</button>
+        </div>
+        <div class="diva-src">
+          <div class="diva-src-info"><b>Project Heartbeat — songs + audio</b><span class="import-hint" id="divaft-hint-ph"></span></div>
+          <button id="divaft-pick-ph" type="button">Choose folder(s)…</button>
+        </div>
+        <div id="divaft-import-status" style="color:#c8ccd4; font-size:13px; min-height:18px; margin-top:4px;"></div>
+        <button id="divaft-import-done" type="button" class="diva-modal-done">Done</button>
+      </div>
     </div>
   </div>
 
@@ -3188,6 +3344,41 @@
   <!-- Link-Discord toast -->
   <div id="link-toast" role="status" aria-live="polite"></div>
 
+  <!-- Import path hints — tell the user WHERE to point each import (browsers can't read
+       arbitrary paths, so we show the common install locations for their OS). -->
+  <script>
+    (function () {
+      function fillImportHints() {
+        var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '';
+        var os = /mac|iphone|ipad/i.test(ua) ? 'mac' : /linux|x11|android|cros/i.test(ua) ? 'linux' : 'win';
+        var osuPath = { win: '%LocalAppData%\\osu!', mac: '~/Library/Application Support/osu!', linux: '~/.local/share/osu-wine/osu! (or ~/.local/share/osu!)' }[os];
+        var steamPath = {
+          win: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hatsune Miku Project DIVA Mega Mix Plus',
+          mac: '~/Library/Application Support/Steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus',
+          linux: '~/.steam/steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus'
+        }[os];
+        var skinPath = (os === 'win' ? '%LocalAppData%\\osu!\\Skins\\&lt;SkinName&gt;' : (osuPath + '/Skins/&lt;SkinName&gt;'));
+        var osuHint =
+          '<span class="ih-line">📁 <b>Beatmaps:</b> your <b>osu! folder</b> or its <b>Songs</b> folder' +
+          (os === 'win' ? ' — paste <code>%LocalAppData%\\osu!</code> into the file picker’s address bar' : ' — usually <code>' + osuPath + '</code>') +
+          '. A single <b>.osz</b> works too.</span>' +
+          '<span class="ih-line">🎨 <b>Skin:</b> a <b>.osk</b> file or an extracted <b>skin folder</b> &mdash; skins live in <code>' + skinPath + '</code>. (Importing the osu! folder also loads its skins.)</span>';
+        var phData = { win: '%AppData%\\Project Heartbeat', mac: '~/Library/Application Support/Project Heartbeat', linux: '~/.local/share/Project Heartbeat' }[os];
+        var modsHint = 'A mod folder containing <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.';
+        var cpkHint = 'Select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive).';
+        var phHint = 'Point at your songs (Steam Workshop <code>…\\steamapps\\workshop\\content\\1216230</code>) <b>and</b> your PH folder <code>' + phData + '</code> for cached audio. Songs you’ve played in PH have audio.';
+        var set = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
+        set('osu-import-hint', osuHint);
+        set('vsrg-import-hint', osuHint);
+        set('divaft-hint-mods', modsHint);
+        set('divaft-hint-cpk', cpkHint);
+        set('divaft-hint-ph', phHint);
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillImportHints);
+      else fillImportHints();
+    })();
+  </script>
+
   <!-- Lib + app loader — callable from web (immediate) or activity (after Discord flow) -->
   <script>
     window.__loadLibsAndApp = function () {
@@ -3256,6 +3447,16 @@
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
         .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
+        // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
+        // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.
+        .then(function () { return loadScript('divadsc.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('divapvdb.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // cpk.js (CRI CPK reader, AES content decrypt) lets divaft.js import base-game songs.
+        .then(function () { return loadScript('cpk.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        // phsong.js (Project Heartbeat song parser) feeds divaft.js's PH import.
+        .then(function () { return loadScript('phsong.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })

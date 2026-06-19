@@ -428,6 +428,7 @@
           'mode.rhythm':'Rhythm',
           'mode.osu':'Standard',
           'mode.mania':'Mania',
+          'mode.diva':'Diva',
           'mode.casual':'Casual',
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
@@ -1070,6 +1071,9 @@
       osuSortBy: 'title',         // song-select sort: 'title' | 'artist' | 'stars' | 'length' (osustd.js)
       osuCursorScale: 1,          // osu!standard cursor size multiplier (0.5–2)
       osuBgDim: 80,               // osu!standard background dim % (higher = darker; 80 ≈ the classic faint art)
+      divaKeys: { triangle: ['w', 'i'], circle: ['d', 'l'], cross: ['s', 'k'], square: ['a', 'j'], slideL: ['q', 'z'], slideR: ['e', 'c'] }, // Project Diva button binds (divaft.js)
+      divaMacros: [],             // [{key, buttons:[face...]}] macro binds firing several face buttons from one key (divaft.js)
+      divaCalibrationOffset: 0,   // ms applied to Diva input->song-time mapping (divaft.js)
     };
 
     // --- Admin gating -----------------------------------------------------------
@@ -5432,6 +5436,22 @@
       window.FishingGame.init(window.__fishingDeps);
     }
 
+    // --- Project Diva wiring (same seam; reuses the rhythm deps shape) ----------
+    window.__divaftDeps = {
+      settings:    settings,
+      saveSettings: function () { saveSettings(settings); },
+      captureKeyboard: function (on) { setTypingActive(!!on); },
+      pauseBgm:    function () { try { bgm.pause(); bgmPlaying = false; } catch (e) {} },
+      resumeBgm:   function () {
+        try { if ((settings.musicVol || 0) > 0) { bgm.play().then(function(){ bgmPlaying = true; }).catch(function(){}); } } catch (e) {}
+      },
+      t:           function (k, p) { return I18N.t(k, p); },
+      escapeHtml:  escapeHtml,
+    };
+    if (window.DivaGame && typeof window.DivaGame.init === 'function') {
+      window.DivaGame.init(window.__divaftDeps);
+    }
+
     // --- Left mode menu (one button + dropdown: mode switch + options inside) -
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
@@ -5443,6 +5463,7 @@
       if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
       if (mode === 'vsrg') return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.mania');
       if (mode === 'osu')  return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.osu');
+      if (mode === 'diva') return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.diva');
       return I18N.t('mode.clicker');
     }
     const mpSubmodeEl = document.getElementById('mp-submode');
@@ -5450,7 +5471,7 @@
     function renderModeMenu() {
       const mode = settings.gameMode || 'clicker';
       const sub  = settings.typingSubMode || 'casual';
-      const isRhythm = (mode === 'vsrg' || mode === 'osu');
+      const isRhythm = (mode === 'vsrg' || mode === 'osu' || mode === 'diva');
       if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
       if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
         const dm = b.getAttribute('data-mode');
@@ -5463,7 +5484,7 @@
       }
       if (mpRhythmSubEl) {
         mpRhythmSubEl.hidden = !isRhythm;
-        const activeRhythm = (mode === 'vsrg') ? 'mania' : 'standard';
+        const activeRhythm = (mode === 'vsrg') ? 'mania' : (mode === 'diva') ? 'diva' : 'standard';
         mpRhythmSubEl.querySelectorAll('button[data-rhythm]').forEach((b) =>
           b.classList.toggle('sel', b.getAttribute('data-rhythm') === activeRhythm));
       }
@@ -5476,10 +5497,11 @@
       // 'rhythm' is an umbrella over the two rhythm sub-modes (osu standard / vsrg
       // mania); resolve it to the concrete gameMode the panels understand. A direct
       // 'vsrg'/'osu' selection also records which rhythm sub-mode is active.
-      if (mode === 'rhythm') mode = (settings.rhythmSubMode === 'mania') ? 'vsrg' : 'osu';
+      if (mode === 'rhythm') mode = (settings.rhythmSubMode === 'mania') ? 'vsrg' : (settings.rhythmSubMode === 'diva') ? 'diva' : 'osu';
       else if (mode === 'vsrg') settings.rhythmSubMode = 'mania';
       else if (mode === 'osu') settings.rhythmSubMode = 'standard';
-      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'fishing') ? mode : 'clicker';
+      else if (mode === 'diva') settings.rhythmSubMode = 'diva';
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'diva' || mode === 'fishing') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
       // keeps these from stomping the new selection.
@@ -5487,6 +5509,7 @@
       if (settings.gameMode !== 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
       if (settings.gameMode !== 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
       if (settings.gameMode !== 'fishing' && window.FishingGame && window.FishingGame.close) window.FishingGame.close();
+      if (settings.gameMode !== 'diva' && window.DivaGame && window.DivaGame.close) window.DivaGame.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
@@ -5501,6 +5524,9 @@
       } else if (settings.gameMode === 'fishing') {
         saveSettings(settings);
         if (window.FishingGame && window.FishingGame.open) window.FishingGame.open();
+      } else if (settings.gameMode === 'diva') {
+        saveSettings(settings);
+        if (window.DivaGame && window.DivaGame.open) window.DivaGame.open();
       } else {
         saveSettings(settings);
       }
