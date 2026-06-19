@@ -4107,7 +4107,8 @@
         || Object.keys(pending.userBySource).length  > 0
         || pending.typingWords > 0
         || Object.keys(pending.typingBestWpm).length > 0
-        || Object.keys(pending.typingBestScore).length > 0;
+        || Object.keys(pending.typingBestScore).length > 0
+        || Object.keys(pending.fishdex || {}).length > 0 || (pending.specimens || []).length > 0;
     }
 
     // Immediate localStorage write — use this after flushPending zeros the
@@ -4152,6 +4153,8 @@
         if (typeof saved.typingWords === 'number') pending.typingWords += saved.typingWords;
         for (const k in saved.typingBestWpm || {}) pending.typingBestWpm[k] = Math.max(pending.typingBestWpm[k] || 0, saved.typingBestWpm[k]);
         for (const k in saved.typingBestScore || {}) pending.typingBestScore[k] = Math.max(pending.typingBestScore[k] || 0, saved.typingBestScore[k]);
+        if (saved.fishdex) { for (const k in saved.fishdex) pending.fishdex[k] = (pending.fishdex[k] || 0) + saved.fishdex[k]; }
+        if (Array.isArray(saved.specimens)) pending.specimens.push.apply(pending.specimens, saved.specimens);
       } catch {}
     }
     loadPending();
@@ -4535,7 +4538,7 @@
     // If we recovered a pending batch from localStorage on startup, kick a
     // flush after auth resolves.
     authReady.then(() => {
-      if (pending.userCoins !== 0 || pending.userClicks > 0 || pending.global > 0) scheduleFlush();
+      if (hasPendingBacklog()) scheduleFlush();
     });
 
     // System time pill — updates every minute, aligned to the next minute boundary
