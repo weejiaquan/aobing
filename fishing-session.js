@@ -56,7 +56,13 @@ function step(state, dt, input, rng, ctx) {
       break;
     }
     case 'balancing': {
-      s.bar = stepBar(s.bar, dt, input.holding, rng);
+      // clone the bar substate so stepBar's in-place mutations don't touch the
+      // caller's previous state snapshot (keeps this reducer pure).
+      const barCopy = Object.assign({}, s.bar, {
+        bar: Object.assign({}, s.bar.bar),
+        fish_: Object.assign({}, s.bar.fish_),
+      });
+      s.bar = stepBar(barCopy, dt, input.holding, rng);
       if (isCaught(s.bar)) {
         const specimen = createSpecimen(s.fish, rng);
         const isNew = !ctx.hasCaught(s.fish.id);
