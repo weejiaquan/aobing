@@ -3063,9 +3063,11 @@
           <input id="osu-osz-input" type="file" accept=".osz,.zip" multiple hidden>
           <span id="osu-skin-wrap" style="display:inline-flex; align-items:center; gap:4px;">
             <button id="osu-import-skin" type="button" title="Load a custom osu! skin from a .osk file">Skin (.osk)</button>
+            <button id="osu-import-skin-dir" type="button" title="Load a custom osu! skin from an extracted skin folder (e.g. %LocalAppData%\osu!\Skins\&lt;SkinName&gt;)">Skin folder</button>
             <button id="osu-skin-clear" type="button" title="Use the built-in look" hidden>✕</button>
           </span>
           <input id="osu-skin-osk-input" type="file" accept=".osk,.zip" hidden>
+          <input id="osu-skin-dir-input" type="file" webkitdirectory directory multiple hidden>
           <span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#c8ccd4;">Keys
             <span id="osu-keybinds"></span>
           </span>
@@ -3338,9 +3340,12 @@
           mac: '~/Library/Application Support/Steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus',
           linux: '~/.steam/steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus'
         }[os];
-        var osuHint = '<span class="ih-line">📁 Point at your <b>osu! folder</b> (or its <b>Songs</b> folder)' +
+        var skinPath = (os === 'win' ? '%LocalAppData%\\osu!\\Skins\\&lt;SkinName&gt;' : (osuPath + '/Skins/&lt;SkinName&gt;'));
+        var osuHint =
+          '<span class="ih-line">📁 <b>Beatmaps:</b> your <b>osu! folder</b> or its <b>Songs</b> folder' +
           (os === 'win' ? ' — paste <code>%LocalAppData%\\osu!</code> into the file picker’s address bar' : ' — usually <code>' + osuPath + '</code>') +
-          '. A single <b>.osz</b> works too.</span>';
+          '. A single <b>.osz</b> works too.</span>' +
+          '<span class="ih-line">🎨 <b>Skin:</b> a <b>.osk</b> file or an extracted <b>skin folder</b> &mdash; skins live in <code>' + skinPath + '</code>. (Importing the osu! folder also loads its skins.)</span>';
         var phData = { win: '%AppData%\\Project Heartbeat', mac: '~/Library/Application Support/Project Heartbeat', linux: '~/.local/share/Project Heartbeat' }[os];
         var modsHint = 'A mod folder containing <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.';
         var cpkHint = 'Select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive).';

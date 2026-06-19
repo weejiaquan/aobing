@@ -878,6 +878,17 @@ if (typeof document !== 'undefined') {
         await importSkinMap(file.name.replace(/\.(osk|zip)$/i, ''), entries);
       } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
     }
+    // Load a skin from an extracted folder (some users keep skins unzipped). Reuses the
+    // same skin-folder detection as the osu! folder import.
+    async function handleSkinDir(fileList) {
+      if (!fileList || !fileList.length) return;
+      try {
+        setSkinStatus('Reading skin folder…');
+        const dirs = findSkinDirs(fileList);
+        if (!dirs.length) { setSkinStatus('No skin files found there (need skin.ini / hitcircle / numbers / etc.).'); return; }
+        await loadSkinDir(dirs[0]);
+      } catch (e) { setSkinStatus('Skin load failed: ' + ((e && e.message) || e)); }
+    }
     async function clearSkin() {
       applySkin(null);
       try { await idbDelete('skin', 'current'); } catch (e) {}
@@ -1683,6 +1694,12 @@ if (typeof document !== 'undefined') {
     if (oszInput) oszInput.addEventListener('change', () => handleOszFiles(oszInput.files));
     if (skinBtn) skinBtn.addEventListener('click', () => { if (skinOskInput) { skinOskInput.value = ''; skinOskInput.click(); } });
     if (skinOskInput) skinOskInput.addEventListener('change', () => handleSkinOsk(skinOskInput.files[0]));
+    const skinDirBtn = document.getElementById('osu-import-skin-dir');
+    const skinDirInput = document.getElementById('osu-skin-dir-input');
+    if (skinDirBtn && skinDirInput) {
+      skinDirBtn.addEventListener('click', () => { skinDirInput.value = ''; skinDirInput.click(); });
+      skinDirInput.addEventListener('change', () => handleSkinDir(skinDirInput.files));
+    }
     if (skinClearBtn) skinClearBtn.addEventListener('click', () => clearSkin());
     const sortEl = document.getElementById('osu-sort');
     if (sortEl) {
