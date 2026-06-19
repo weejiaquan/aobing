@@ -432,6 +432,9 @@
           'mode.ranked':'Ranked',
           'mode.keyboard':'Keyboard',
           'mode.settings':'Settings',
+          'mode.fishing':'Fishing',
+          'fishing.cast':'Cast',
+          'fishing.exit':'Exit',
           'typing.times_up':"Time's up!",
           'typing.restart_hint':'Press Enter or Restart to go again.',
           'typing.restart':'Restart',
@@ -5407,6 +5410,25 @@
       window.OsuStdGame.init(window.__osustdDeps);
     }
 
+    // --- Fishing mode wiring ------------------------------------------------
+    window.__fishingDeps = {
+      settings: settings,
+      saveSettings: function () { saveSettings(settings); },
+      t: function (k, p) { return I18N.t(k, p); },
+      escapeHtml: escapeHtml,
+      captureKeyboard: function (on) { setTypingActive(!!on); },
+      pauseBgm: function () { try { bgm.pause(); } catch (e) {} },
+      resumeBgm: function () { try { if ((settings.musicVol || 0) > 0) bgm.play().catch(function () {}); } catch (e) {} },
+      getVariant: function (id) { return getVariant(id); },
+      getSkin: function () { return settings.skin; },
+      playSfx: function () { try { if (typeof playsfx === 'function') playsfx(); } catch (e) {} },
+      getFishdex: function () { return (userStats && userStats.fishdex) || {}; },
+      recordCatch: function (specimen, coins, isNew) { recordCatch(specimen, coins, isNew); },
+    };
+    if (window.FishingGame && typeof window.FishingGame.init === 'function') {
+      window.FishingGame.init(window.__fishingDeps);
+    }
+
     // --- Left mode menu (one button + dropdown: mode switch + options inside) -
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
@@ -5454,13 +5476,14 @@
       if (mode === 'rhythm') mode = (settings.rhythmSubMode === 'mania') ? 'vsrg' : 'osu';
       else if (mode === 'vsrg') settings.rhythmSubMode = 'mania';
       else if (mode === 'osu') settings.rhythmSubMode = 'standard';
-      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu') ? mode : 'clicker';
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'fishing') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
       // keeps these from stomping the new selection.
       if (settings.gameMode !== 'typing' && window.TypingGame && window.TypingGame.close) window.TypingGame.close();
       if (settings.gameMode !== 'vsrg' && window.VsrgGame && window.VsrgGame.close) window.VsrgGame.close();
       if (settings.gameMode !== 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
+      if (settings.gameMode !== 'fishing' && window.FishingGame && window.FishingGame.close) window.FishingGame.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
@@ -5472,6 +5495,9 @@
       } else if (settings.gameMode === 'osu') {
         saveSettings(settings);
         if (window.OsuStdGame && window.OsuStdGame.open) window.OsuStdGame.open();
+      } else if (settings.gameMode === 'fishing') {
+        saveSettings(settings);
+        if (window.FishingGame && window.FishingGame.open) window.FishingGame.open();
       } else {
         saveSettings(settings);
       }
