@@ -5,7 +5,7 @@
 var ENGINE = (typeof require === 'function') ? require('./fishing.js') : window.FishingEngine;
 const {
   rollEncounter, rollCastWait, HOOK_WINDOW_SECONDS,
-  createBarState, stepBar, isCaught, isEscaped,
+  createBarState, stepBar, isCaught, isEscaped, BALANCE_GRACE_SECONDS,
   createSpecimen, computeCoins,
 } = ENGINE;
 
@@ -63,7 +63,11 @@ function step(state, dt, input, rng, ctx) {
         bar: Object.assign({}, s.bar.bar),
         fish_: Object.assign({}, s.bar.fish_),
       });
-      s.bar = stepBar(barCopy, dt, input.holding, rng);
+      // grace period: meter frozen for the first BALANCE_GRACE_SECONDS so the player
+      // can spot the bar and start tracking before catch/escape can trigger.
+      const inGrace = s.timer < BALANCE_GRACE_SECONDS;
+      s.bar = stepBar(barCopy, dt, input.holding, rng, inGrace);
+      s.timer += dt;
       if (isCaught(s.bar)) {
         const specimen = createSpecimen(s.fish, rng);
         const isNew = !ctx.hasCaught(s.fish.id);

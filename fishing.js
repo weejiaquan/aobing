@@ -255,6 +255,7 @@ function stepFish(s, dt, rng, progress = 0) {
 // --- Bar-balance physics ---
 const GRAVITY = 4.0;  // track units / s^2 pulling the bar down
 const THRUST = 7.0;   // upward accel while holding
+const BALANCE_GRACE_SECONDS = 3.0; // start-of-fight grace: meter frozen so the player can orient
 
 function createBarState(fish) {
   const tier = RARITY_TIERS[fish.rarity];
@@ -267,17 +268,21 @@ function createBarState(fish) {
   };
 }
 
-function stepBar(state, dt, holding, rng) {
+function stepBar(state, dt, holding, rng, freezeProgress) {
   const { tier, bar } = state;
 
   // fish motion (before bar physics, so overlap check uses pre-physics bar position)
   const fishPos = stepFish(state.fish_, dt, rng, state.progress);
 
-  // overlap test: fish center within the bar span (using current bar position)
-  const inside = fishPos >= bar.pos && fishPos <= bar.pos + tier.barSize;
-  state.progress += (inside ? tier.fillRate : -tier.drainRate) * dt;
-  if (state.progress > 1) state.progress = 1;
-  if (state.progress < 0) state.progress = 0;
+  // overlap test: fish center within the bar span (using current bar position).
+  // During the start-of-fight grace period (freezeProgress) the bar and fish move
+  // so the player can orient, but the catch/escape meter stays put.
+  if (!freezeProgress) {
+    const inside = fishPos >= bar.pos && fishPos <= bar.pos + tier.barSize;
+    state.progress += (inside ? tier.fillRate : -tier.drainRate) * dt;
+    if (state.progress > 1) state.progress = 1;
+    if (state.progress < 0) state.progress = 0;
+  }
 
   // bar physics (after overlap check)
   bar.vel += (holding ? THRUST : 0) * dt;
@@ -294,7 +299,7 @@ function stepBar(state, dt, holding, rng) {
 function isCaught(state) { return state.progress >= 1; }
 function isEscaped(state) { return state.progress <= 0; }
 
-const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish, createBarState, stepBar, isCaught, isEscaped, GRAVITY, THRUST };
+const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish, createBarState, stepBar, isCaught, isEscaped, GRAVITY, THRUST, BALANCE_GRACE_SECONDS };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.FishingEngine = API;

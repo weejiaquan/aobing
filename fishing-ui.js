@@ -146,6 +146,19 @@
     // bar-balance HUD while balancing
     if (phase === 'balancing' && session.bar) {
       drawBar(c, W, H, session.bar);
+      // start-of-fight grace: show a "Get ready!" countdown while the meter is frozen
+      var grace = window.FishingSession.BALANCE_GRACE_SECONDS || 0;
+      if (session.timer < grace) {
+        c.save();
+        c.textAlign = 'center';
+        c.fillStyle = '#ffd770';
+        c.font = 'bold 30px system-ui, sans-serif';
+        c.fillText('Get ready!  ' + Math.ceil(grace - session.timer), W / 2, H * 0.22);
+        c.font = '15px system-ui, sans-serif';
+        c.fillStyle = '#cfe6f7';
+        c.fillText('keep the bar on the fish', W / 2, H * 0.22 + 24);
+        c.restore();
+      }
     }
     // cast button visibility: only actionable in idle/result
     els.cast.style.display = (phase === 'idle' || phase === 'result') ? '' : 'none';
