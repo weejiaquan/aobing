@@ -2805,12 +2805,50 @@
     #fishing-result.show { display: block; }
     #fishing-result .fr-coins { color: #ffd770; font-weight: 700; }
     #fishing-result .fr-new { color: #7CFC9B; font-weight: 700; }
+    #fishing-dex-btn { position: absolute; bottom: 36px; left: calc(50% + 120px); padding: 10px 18px; border-radius: 999px; border: 0; background: #1f5f8b; color: #fff; cursor: pointer; }
+    #fishing-dex-panel { position: fixed; inset: 0; z-index: 250; display: none; background: #061019; color: #e8f4ff; flex-direction: column; }
+    #fishing-dex-panel.open { display: flex; }
+    #fishing-dex-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(120,200,255,.2); }
+    #fishing-dex-tabs button { background: transparent; color: #9fc7e6; border: 0; font-size: 16px; padding: 6px 10px; cursor: pointer; border-bottom: 2px solid transparent; }
+    #fishing-dex-tabs button.sel { color: #fff; border-bottom-color: #2b86c5; }
+    #fishing-dex-progress { margin-left: auto; color: #cfe6f7; font-size: 14px; }
+    #fishing-dex-close { background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+    #fishing-dex-controls { padding: 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    #fishing-dex-controls select, #fishing-dex-controls label { font-size: 13px; color: #cfe6f7; }
+    #fishing-dex-body { flex: 1; overflow-y: auto; padding: 8px 16px 24px; }
+    .fdex-family-title { margin: 14px 0 6px; color: #9fc7e6; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+    .fdex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .fdex-cell { background: rgba(255,255,255,.05); border-radius: 10px; padding: 8px; text-align: center; font-size: 12px; cursor: default; }
+    .fdex-cell.inv { cursor: pointer; }
+    .fdex-cell canvas { width: 104px; height: 64px; display: block; margin: 0 auto 4px; }
+    .fdex-cell.uncaught canvas { filter: brightness(0) opacity(.45); }
+    .fdex-name { color: #e8f4ff; }
+    .fdex-sub { color: #9fc7e6; }
+    .fdex-shiny { color: #ffd770; }
+    #fishing-inspect { position: absolute; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; }
+    #fishing-inspect.show { display: flex; }
+    #fishing-inspect-card { background: #0b1b28; border: 1px solid rgba(120,200,255,.4); border-radius: 14px; padding: 20px 26px; text-align: center; min-width: 240px; }
+    #fishing-inspect-card canvas { width: 200px; height: 130px; display: block; margin: 0 auto 10px; }
   </style>
   <div id="fishing-panel">
     <canvas id="fishing-canvas"></canvas>
     <button id="fishing-exit" type="button" data-i18n="fishing.exit">Exit</button>
     <button id="fishing-cast-btn" type="button" data-i18n="fishing.cast">Cast</button>
+    <button id="fishing-dex-btn" type="button" data-i18n="fishing.dex">Fishdex</button>
     <div id="fishing-result"></div>
+  </div>
+  <div id="fishing-dex-panel">
+    <div id="fishing-dex-head">
+      <div id="fishing-dex-tabs">
+        <button type="button" data-dextab="fishdex" class="sel" data-i18n="fishing.tab.dex">Fishdex</button>
+        <button type="button" data-dextab="inventory" data-i18n="fishing.tab.inv">Inventory</button>
+      </div>
+      <div id="fishing-dex-progress"></div>
+      <button id="fishing-dex-close" type="button" data-i18n="fishing.close">Close</button>
+    </div>
+    <div id="fishing-dex-controls"></div>
+    <div id="fishing-dex-body"></div>
+    <div id="fishing-inspect"><div id="fishing-inspect-card"></div></div>
   </div>
   <div id="vsrg-panel">
     <div id="vsrg-select" class="vsrg-screen">
@@ -3433,6 +3471,8 @@
         .then(function () { return loadScript('fish-sprite.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('fishing-session.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('fishing-ui.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-dex.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-dex-ui.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
