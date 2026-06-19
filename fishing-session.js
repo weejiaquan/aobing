@@ -1,7 +1,8 @@
 'use strict';
 // Pure fishing session reducer. No DOM, no audio. Inputs/dt/rng injected.
 // Drives the lifecycle: idle -> casting -> waiting -> bite -> balancing -> result.
-const ENGINE = require('./fishing.js');
+(function () {
+var ENGINE = (typeof require === 'function') ? require('./fishing.js') : window.FishingEngine;
 const {
   rollEncounter, rollCastWait, HOOK_WINDOW_SECONDS,
   createBarState, stepBar, isCaught, isEscaped,
@@ -87,5 +88,6 @@ function step(state, dt, input, rng, ctx) {
 }
 
 const API = { createSession, step, CAST_ANIM_SECONDS };
-if (typeof module !== 'undefined' && module.exports) module.exports = API;
-if (typeof window !== 'undefined') window.FishingSession = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  if (typeof window !== 'undefined') window.FishingSession = API;
+})();

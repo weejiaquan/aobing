@@ -1,6 +1,7 @@
 'use strict';
 // Pure fishing engine. No DOM, no audio, no Firebase, no Math.random/Date.
 // Randomness is injected as rng() -> [0,1); time is injected as dt (seconds).
+(function () {
 
 // --- Seeded RNG (tests inject this; production passes Math.random) ---
 function mulberry32(seed) {
@@ -295,5 +296,6 @@ function isEscaped(state) { return state.progress <= 0; }
 
 const API = { mulberry32, RARITY_TIERS, clamp01, rollEncounter, rollCastWait, CAST_WAIT_MIN, CAST_WAIT_MAX, HOOK_WINDOW_SECONDS, rollSize, rollFloat, floatToGrade, rollShiny, createSpecimen, SHINY_RATE, computeCoins, PRIMITIVES, sampleTarget, ZONES, BEHAVIORS, resolveBehavior, createBehaviorState, stepFish, createBarState, stepBar, isCaught, isEscaped, GRAVITY, THRUST };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = API;
-if (typeof window !== 'undefined') window.FishingEngine = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  if (typeof window !== 'undefined') window.FishingEngine = API;
+})();

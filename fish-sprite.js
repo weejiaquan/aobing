@@ -1,6 +1,7 @@
 'use strict';
 // Procedural fish sprite spec + canvas renderer. Spec generation is pure & deterministic.
-const ENGINE = require('./fishing.js');
+(function () {
+var ENGINE = (typeof require === 'function') ? require('./fishing.js') : window.FishingEngine;
 const { mulberry32 } = ENGINE;
 
 const BODY_SHAPES = ['torpedo', 'round', 'flat', 'eel', 'angular', 'blobby'];
@@ -126,5 +127,6 @@ const API = {
   hashId, fishSpriteSpec, drawFish,
   BODY_SHAPES, FIN_SHAPES, TAIL_SHAPES, PATTERNS, PALETTES, SHINY_PALETTES, EYES, ACCENTS,
 };
-if (typeof module !== 'undefined' && module.exports) module.exports = API;
-if (typeof window !== 'undefined') window.FishSprite = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  if (typeof window !== 'undefined') window.FishSprite = API;
+})();
