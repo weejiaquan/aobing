@@ -253,8 +253,8 @@ function stepFish(s, dt, rng, progress = 0) {
 }
 
 // --- Bar-balance physics ---
-const GRAVITY = 1.8;  // track units / s^2 pulling the bar down
-const THRUST = 3.2;   // upward accel while holding
+const GRAVITY = 2.8;  // track units / s^2 pulling the bar down
+const THRUST = 5.0;   // upward accel while holding
 
 function createBarState(fish) {
   const tier = RARITY_TIERS[fish.rarity];
