@@ -5430,6 +5430,7 @@
       getSkin: function () { return settings.skin; },
       playSfx: function () { try { if (typeof playsfx === 'function') playsfx(); } catch (e) {} },
       getFishdex: function () { return (userStats && userStats.fishdex) || {}; },
+      getSpecimens: function () { return (userStats && userStats.aquariumSpecimens) || []; },
       recordCatch: function (specimen, coins, isNew) { recordCatch(specimen, coins, isNew); },
     };
     if (window.FishingGame && typeof window.FishingGame.init === 'function') {
