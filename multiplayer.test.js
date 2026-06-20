@@ -130,3 +130,17 @@ test('createConnection: send before auth_ok is dropped', async () => {
   assert.equal(JSON.parse(ws.sent[0]).type, 'auth');
   conn.close();
 });
+
+test('u8ToB64 / b64ToU8 round-trip arbitrary bytes', () => {
+  const samples = [
+    new Uint8Array([]),
+    new Uint8Array([0, 1, 2, 254, 255]),
+    new Uint8Array(Array.from({ length: 1000 }, (_, i) => i % 256)),
+  ];
+  for (const u8 of samples) {
+    const b64 = MP.u8ToB64(u8);
+    assert.equal(typeof b64, 'string');
+    const back = MP.b64ToU8(b64);
+    assert.deepEqual(Array.from(back), Array.from(u8));
+  }
+});

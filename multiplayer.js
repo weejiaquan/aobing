@@ -32,6 +32,22 @@
     return next;
   }
 
+  function u8ToB64(u8) {
+    let s = '';
+    const CH = 0x8000; // chunk to avoid String.fromCharCode arg overflow
+    for (let i = 0; i < u8.length; i += CH) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    }
+    return btoa(s);
+  }
+
+  function b64ToU8(b64) {
+    const s = atob(b64);
+    const u8 = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);
+    return u8;
+  }
+
   function createConnection(opts) {
     const WS = opts.WebSocketImpl ||
       (typeof WebSocket !== 'undefined' ? WebSocket : null);
@@ -87,6 +103,7 @@
     buildJoin: buildJoin, buildLeave: buildLeave,
     applyServerMessage: applyServerMessage,
     createConnection: createConnection,
+    u8ToB64: u8ToB64, b64ToU8: b64ToU8,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
