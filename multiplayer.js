@@ -127,7 +127,7 @@ if (typeof document !== 'undefined') {
     });
     container.appendChild(list);
     container.appendChild(el('button', {
-      textContent: 'Leave', onclick: function () { conn.send(buildLeave()); openBrowser(container); },
+      textContent: 'Leave', onclick: function () { conn.send(MpEngine.buildLeave()); openBrowser(container); },
     }));
   }
 
@@ -155,7 +155,7 @@ if (typeof document !== 'undefined') {
           textContent: 'Create lobby',
           onclick: function () {
             const name = prompt('Lobby name?') || 'Lobby';
-            ensureConn(container).send(buildCreate({ name: name }));
+            ensureConn(container).send(MpEngine.buildCreate({ name: name }));
           },
         });
         container.appendChild(create);
@@ -166,7 +166,7 @@ if (typeof document !== 'undefined') {
             textContent: label,
             onclick: function () {
               const pw = row.hasPassword ? (prompt('Password?') || '') : undefined;
-              ensureConn(container).send(buildJoin(row.id, pw));
+              ensureConn(container).send(MpEngine.buildJoin(row.id, pw));
             },
           }));
         });
