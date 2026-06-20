@@ -130,3 +130,119 @@ test('createConnection: send before auth_ok is dropped', async () => {
   assert.equal(JSON.parse(ws.sent[0]).type, 'auth');
   conn.close();
 });
+
+test('u8ToB64 / b64ToU8 round-trip arbitrary bytes', () => {
+  const samples = [
+    new Uint8Array([]),
+    new Uint8Array([0, 1, 2, 254, 255]),
+    new Uint8Array(Array.from({ length: 1000 }, (_, i) => i % 256)),
+  ];
+  for (const u8 of samples) {
+    const b64 = MP.u8ToB64(u8);
+    assert.equal(typeof b64, 'string');
+    const back = MP.b64ToU8(b64);
+    assert.deepEqual(Array.from(back), Array.from(u8));
+  }
+});
+
+test('encodeChartTransfer / decodeChartTransfer round-trip (with art)', () => {
+  const rec = {
+    osuText: 'osu file body\nwith lines', hash: 'abc123',
+    title: 'Song', artist: 'X', diffName: 'Hard', stars: 4.2, length: 90000,
+    audio: new Uint8Array([1, 2, 3, 250, 255]),
+    art: new Uint8Array([9, 8, 7]),
+  };
+  const str = MP.encodeChartTransfer(rec);
+  assert.equal(typeof str, 'string');
+  const back = MP.decodeChartTransfer(str);
+  assert.equal(back.osuText, rec.osuText);
+  assert.equal(back.hash, 'abc123');
+  assert.equal(back.title, 'Song');
+  assert.equal(back.length, 90000);
+  assert.equal(back.artist, 'X');
+  assert.equal(back.diffName, 'Hard');
+  assert.equal(back.stars, 4.2);
+  assert.deepEqual(Array.from(back.audio), [1, 2, 3, 250, 255]);
+  assert.deepEqual(Array.from(back.art), [9, 8, 7]);
+});
+
+test('decodeChartTransfer yields null art when absent', () => {
+  const rec = { osuText: 'x', hash: 'h', title: 't', artist: 'a', diffName: 'd',
+    stars: 1, length: 1, audio: new Uint8Array([1]), art: null };
+  const back = MP.decodeChartTransfer(MP.encodeChartTransfer(rec));
+  assert.equal(back.art, null);
+  assert.deepEqual(Array.from(back.audio), [1]);
+});
+
+test('chunkString splits and reassembles in order', () => {
+  const s = 'abcdefghij';
+  const frames = MP.chunkString(s, 4);
+  assert.equal(frames.length, 3);
+  assert.equal(frames[0].total, 3);
+  const ra = MP.createReassembler();
+  let done = false;
+  for (const f of frames) done = ra.add(f);
+  assert.equal(done, true);
+  assert.equal(ra.result(), s);
+});
+
+test('reassembler tolerates out-of-order and duplicate frames', () => {
+  const frames = MP.chunkString('hello world!!', 5); // 3 frames
+  const ra = MP.createReassembler();
+  ra.add(frames[2]); ra.add(frames[0]); ra.add(frames[0]); // dup
+  assert.equal(ra.isComplete(), false);
+  assert.equal(ra.result(), null);
+  const done = ra.add(frames[1]);
+  assert.equal(done, true);
+  assert.equal(ra.result(), 'hello world!!');
+  assert.equal(ra.received(), 3);
+  assert.equal(ra.total(), 3);
+});
+
+test('chunkString of empty string yields one empty frame', () => {
+  const frames = MP.chunkString('', 4);
+  assert.deepEqual(frames, [{ seq: 0, total: 1, data: '' }]);
+});
+
+test('reassembler latches total from first frame, ignores divergent total', () => {
+  const ra = MP.createReassembler();
+  ra.add({ seq: 0, total: 2, data: 'AA' });
+  // A stray/replayed frame claiming a different total must not corrupt completion.
+  ra.add({ seq: 0, total: 99, data: 'AA' }); // duplicate seq, divergent total
+  assert.equal(ra.total(), 2);
+  assert.equal(ra.isComplete(), false);
+  const done = ra.add({ seq: 1, total: 2, data: 'BB' });
+  assert.equal(done, true);
+  assert.equal(ra.result(), 'AABB');
+});
+
+test('buildSelectMap and buildRelay shapes', () => {
+  assert.deepEqual(MP.buildSelectMap({ hash: 'h' }), { type: 'select_map', map: { hash: 'h' } });
+  assert.deepEqual(MP.buildRelay('u2', { t: 'need_map' }),
+    { type: 'relay', to_uid: 'u2', body: { t: 'need_map' } });
+});
+
+test('applyServerMessage: map_selected sets currentMap, does not mutate input', () => {
+  const s0 = { status: 'online', uid: 'u1', lobby: null, error: null, currentMap: null };
+  const s1 = MP.applyServerMessage(s0, { type: 'map_selected', map: { hash: 'h', title: 'T' } });
+  assert.deepEqual(s1.currentMap, { hash: 'h', title: 'T' });
+  assert.equal(s0.currentMap, null); // input untouched
+});
+
+test('createConnection: onMessage receives every raw incoming message', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const raw = [];
+  const conn = MP.createConnection({
+    url: 'wss://x/api/mp/ws', getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS, onState: () => {}, onMessage: (m) => raw.push(m),
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  const ws = instances[0];
+  ws._open();
+  ws._emit({ type: 'auth_ok', uid: 'u1' });
+  ws._emit({ type: 'relay', from_uid: 'u2', body: { t: 'need_map', hash: 'h' } });
+  assert.equal(raw.length, 2);
+  assert.deepEqual(raw[1], { type: 'relay', from_uid: 'u2', body: { t: 'need_map', hash: 'h' } });
+  assert.equal(conn.getState().currentMap, null); // initial state carries the field
+  conn.close();
+});
