@@ -202,6 +202,8 @@ if (typeof document !== 'undefined') {
     if (!body || !conn) return;
     if (body.t === 'need_map') {
       // Host side: stream the requested chart to the requester.
+      const lobby = conn.getState().lobby || {};
+      if (conn.getState().uid !== lobby.host_uid) return; // only the host serves charts
       OsuStdGame.getChartRecord(body.hash).then(function (rec) {
         if (!rec) return; // host somehow lacks it; nothing to send
         const frames = MpEngine.chunkString(MpEngine.encodeChartTransfer(rec), CHUNK);
@@ -213,12 +215,22 @@ if (typeof document !== 'undefined') {
     } else if (body.t === 'chunk') {
       // Requester side: accumulate and save on completion.
       let tr = transfers[body.hash];
-      if (!tr) { tr = transfers[body.hash] = { ra: MpEngine.createReassembler() }; }
+      if (!tr) {
+        const lob = conn.getState().lobby || {};
+        const mem = (lob.members || {})[fromUid] || {};
+        tr = transfers[body.hash] = { ra: MpEngine.createReassembler(), fromName: mem.name || '' };
+      }
       const done = tr.ra.add({ seq: body.seq, total: body.total, data: body.data });
       statusLine(container, 'Downloading map… ' + tr.ra.received() + '/' + tr.ra.total());
       if (done) {
-        const rec = MpEngine.decodeChartTransfer(tr.ra.result());
         delete transfers[body.hash];
+        let rec;
+        try {
+          rec = MpEngine.decodeChartTransfer(tr.ra.result());
+        } catch (e) {
+          statusLine(container, 'Received map was corrupted; transfer failed.');
+          return;
+        }
         const lobbyName = (conn.getState().lobby || {}).name || '';
         OsuStdGame.importForeignCharts([{ osuText: rec.osuText, audio: rec.audio,
           art: rec.art, origin: { type: 'received', fromName: tr.fromName || '',
