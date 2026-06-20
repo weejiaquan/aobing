@@ -180,6 +180,8 @@
 if (typeof document !== 'undefined') {
   const KEI = (typeof KEI_BASE !== 'undefined') ? KEI_BASE : 'https://kei.aobing.it';
   let conn = null;
+  const CHUNK = 48 * 1024;
+  const transfers = {}; // hash -> { ra, fromName }
 
   function el(tag, props, children) {
     const n = document.createElement(tag);
@@ -189,6 +191,80 @@ if (typeof document !== 'undefined') {
   }
 
   function getToken() { return firebase.auth().currentUser.getIdToken(); }
+
+  function statusLine(container, text) {
+    let el2 = container.querySelector('#mp-xfer-status');
+    if (!el2) { el2 = el('p', { id: 'mp-xfer-status' }); container.appendChild(el2); }
+    el2.textContent = text;
+  }
+
+  function onRelay(container, fromUid, body) {
+    if (!body || !conn) return;
+    if (body.t === 'need_map') {
+      // Host side: stream the requested chart to the requester.
+      OsuStdGame.getChartRecord(body.hash).then(function (rec) {
+        if (!rec) return; // host somehow lacks it; nothing to send
+        const frames = MpEngine.chunkString(MpEngine.encodeChartTransfer(rec), CHUNK);
+        frames.forEach(function (f) {
+          conn.send(MpEngine.buildRelay(fromUid, { t: 'chunk', hash: body.hash,
+            seq: f.seq, total: f.total, data: f.data }));
+        });
+      });
+    } else if (body.t === 'chunk') {
+      // Requester side: accumulate and save on completion.
+      let tr = transfers[body.hash];
+      if (!tr) { tr = transfers[body.hash] = { ra: MpEngine.createReassembler() }; }
+      const done = tr.ra.add({ seq: body.seq, total: body.total, data: body.data });
+      statusLine(container, 'Downloading map… ' + tr.ra.received() + '/' + tr.ra.total());
+      if (done) {
+        const rec = MpEngine.decodeChartTransfer(tr.ra.result());
+        delete transfers[body.hash];
+        const lobbyName = (conn.getState().lobby || {}).name || '';
+        OsuStdGame.importForeignCharts([{ osuText: rec.osuText, audio: rec.audio,
+          art: rec.art, origin: { type: 'received', fromName: tr.fromName || '',
+            lobby: lobbyName, receivedAt: new Date().toISOString() } }])
+          .then(function () { statusLine(container, 'Map saved to your library.'); })
+          .catch(function () { statusLine(container, 'Could not save the received map.'); });
+      }
+    }
+  }
+
+  function onMapSelected(container, map) {
+    if (!map || !conn) return;
+    const st = conn.getState();
+    const lobby = st.lobby || {};
+    const hostUid = lobby.host_uid;
+    if (st.uid === hostUid) return; // host already has it
+    OsuStdGame.hasChart(map.hash).then(function (have) {
+      if (have) { statusLine(container, 'You already have "' + (map.title || 'this map') + '".'); return; }
+      statusLine(container, 'Requesting "' + (map.title || 'map') + '" from host…');
+      conn.send(MpEngine.buildRelay(hostUid, { t: 'need_map', hash: map.hash }));
+    });
+  }
+
+  function renderMapPicker(container) {
+    OsuStdGame.listCharts().then(function (charts) {
+      const box = el('div', { id: 'mp-map-picker' });
+      box.appendChild(el('h4', { textContent: 'Pick a map to host' }));
+      if (!charts.length) {
+        box.appendChild(el('p', { textContent: 'Your library is empty — import a map first.' }));
+      }
+      charts.forEach(function (m) {
+        box.appendChild(el('button', {
+          textContent: m.title + ' — ' + m.diffName,
+          onclick: function () {
+            conn.send(MpEngine.buildSelectMap({ hash: m.hash, title: m.title,
+              artist: m.artist, diffName: m.diffName, stars: m.stars, length: m.length }));
+            box.remove();
+            statusLine(container, 'Selected "' + m.title + '".');
+          },
+        }));
+      });
+      const existing = container.querySelector('#mp-map-picker');
+      if (existing) existing.remove();
+      container.appendChild(box);
+    });
+  }
 
   function renderOffline(container, why) {
     container.innerHTML = '';
@@ -210,6 +286,12 @@ if (typeof document !== 'undefined') {
     container.appendChild(el('button', {
       textContent: 'Leave', onclick: function () { conn.send(MpEngine.buildLeave()); conn.close(); conn = null; openBrowser(container); },
     }));
+    if (state.uid === lobby.host_uid) {
+      container.appendChild(el('button', {
+        textContent: 'Pick map',
+        onclick: function () { renderMapPicker(container); },
+      }));
+    }
   }
 
   function onState(container, state) {
@@ -223,6 +305,10 @@ if (typeof document !== 'undefined') {
       url: KEI.replace(/^http/, 'ws') + '/api/mp/ws',
       getToken: getToken,
       onState: function (s) { onState(container, s); },
+      onMessage: function (m) {
+        if (m.type === 'relay') onRelay(container, m.from_uid, m.body);
+        else if (m.type === 'map_selected') onMapSelected(container, m.map);
+      },
     });
     return conn;
   }
