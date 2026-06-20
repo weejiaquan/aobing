@@ -159,6 +159,9 @@ test('encodeChartTransfer / decodeChartTransfer round-trip (with art)', () => {
   assert.equal(back.hash, 'abc123');
   assert.equal(back.title, 'Song');
   assert.equal(back.length, 90000);
+  assert.equal(back.artist, 'X');
+  assert.equal(back.diffName, 'Hard');
+  assert.equal(back.stars, 4.2);
   assert.deepEqual(Array.from(back.audio), [1, 2, 3, 250, 255]);
   assert.deepEqual(Array.from(back.art), [9, 8, 7]);
 });
