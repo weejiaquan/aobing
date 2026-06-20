@@ -228,3 +228,21 @@ test('applyServerMessage: map_selected sets currentMap, does not mutate input', 
   assert.deepEqual(s1.currentMap, { hash: 'h', title: 'T' });
   assert.equal(s0.currentMap, null); // input untouched
 });
+
+test('createConnection: onMessage receives every raw incoming message', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const raw = [];
+  const conn = MP.createConnection({
+    url: 'wss://x/api/mp/ws', getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS, onState: () => {}, onMessage: (m) => raw.push(m),
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  const ws = instances[0];
+  ws._open();
+  ws._emit({ type: 'auth_ok', uid: 'u1' });
+  ws._emit({ type: 'relay', from_uid: 'u2', body: { t: 'need_map', hash: 'h' } });
+  assert.equal(raw.length, 2);
+  assert.deepEqual(raw[1], { type: 'relay', from_uid: 'u2', body: { t: 'need_map', hash: 'h' } });
+  assert.equal(conn.getState().currentMap, null); // initial state carries the field
+  conn.close();
+});

@@ -112,7 +112,7 @@
     const WS = opts.WebSocketImpl ||
       (typeof WebSocket !== 'undefined' ? WebSocket : null);
     const timeoutMs = opts.connectTimeoutMs || 8000;
-    let state = { status: 'connecting', uid: null, lobby: null, error: null };
+    let state = { status: 'connecting', uid: null, lobby: null, error: null, currentMap: null };
     let ws = null;
     let authed = false;
     let timer = null;
@@ -135,6 +135,7 @@
       ws.onopen = function () { ws.send(JSON.stringify(buildAuth(token))); };
       ws.onmessage = function (ev) {
         const msg = JSON.parse(ev.data);
+        if (opts.onMessage) opts.onMessage(msg);
         if (msg.type === 'auth_ok') {
           authed = true;
           if (timer) { clearTimeout(timer); timer = null; }
