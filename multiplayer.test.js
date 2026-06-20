@@ -144,3 +144,29 @@ test('u8ToB64 / b64ToU8 round-trip arbitrary bytes', () => {
     assert.deepEqual(Array.from(back), Array.from(u8));
   }
 });
+
+test('encodeChartTransfer / decodeChartTransfer round-trip (with art)', () => {
+  const rec = {
+    osuText: 'osu file body\nwith lines', hash: 'abc123',
+    title: 'Song', artist: 'X', diffName: 'Hard', stars: 4.2, length: 90000,
+    audio: new Uint8Array([1, 2, 3, 250, 255]),
+    art: new Uint8Array([9, 8, 7]),
+  };
+  const str = MP.encodeChartTransfer(rec);
+  assert.equal(typeof str, 'string');
+  const back = MP.decodeChartTransfer(str);
+  assert.equal(back.osuText, rec.osuText);
+  assert.equal(back.hash, 'abc123');
+  assert.equal(back.title, 'Song');
+  assert.equal(back.length, 90000);
+  assert.deepEqual(Array.from(back.audio), [1, 2, 3, 250, 255]);
+  assert.deepEqual(Array.from(back.art), [9, 8, 7]);
+});
+
+test('decodeChartTransfer yields null art when absent', () => {
+  const rec = { osuText: 'x', hash: 'h', title: 't', artist: 'a', diffName: 'd',
+    stars: 1, length: 1, audio: new Uint8Array([1]), art: null };
+  const back = MP.decodeChartTransfer(MP.encodeChartTransfer(rec));
+  assert.equal(back.art, null);
+  assert.deepEqual(Array.from(back.audio), [1]);
+});

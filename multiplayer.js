@@ -48,6 +48,29 @@
     return u8;
   }
 
+  function encodeChartTransfer(record) {
+    return JSON.stringify({
+      meta: {
+        hash: record.hash, title: record.title, artist: record.artist,
+        diffName: record.diffName, stars: record.stars, length: record.length,
+      },
+      osuText: record.osuText,
+      audio: u8ToB64(record.audio),
+      art: record.art ? u8ToB64(record.art) : null,
+    });
+  }
+
+  function decodeChartTransfer(str) {
+    const o = JSON.parse(str);
+    return {
+      osuText: o.osuText,
+      audio: b64ToU8(o.audio),
+      art: o.art ? b64ToU8(o.art) : null,
+      hash: o.meta.hash, title: o.meta.title, artist: o.meta.artist,
+      diffName: o.meta.diffName, stars: o.meta.stars, length: o.meta.length,
+    };
+  }
+
   function createConnection(opts) {
     const WS = opts.WebSocketImpl ||
       (typeof WebSocket !== 'undefined' ? WebSocket : null);
@@ -104,6 +127,7 @@
     applyServerMessage: applyServerMessage,
     createConnection: createConnection,
     u8ToB64: u8ToB64, b64ToU8: b64ToU8,
+    encodeChartTransfer: encodeChartTransfer, decodeChartTransfer: decodeChartTransfer,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
