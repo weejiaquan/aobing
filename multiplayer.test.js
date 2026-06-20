@@ -215,3 +215,16 @@ test('reassembler latches total from first frame, ignores divergent total', () =
   assert.equal(done, true);
   assert.equal(ra.result(), 'AABB');
 });
+
+test('buildSelectMap and buildRelay shapes', () => {
+  assert.deepEqual(MP.buildSelectMap({ hash: 'h' }), { type: 'select_map', map: { hash: 'h' } });
+  assert.deepEqual(MP.buildRelay('u2', { t: 'need_map' }),
+    { type: 'relay', to_uid: 'u2', body: { t: 'need_map' } });
+});
+
+test('applyServerMessage: map_selected sets currentMap, does not mutate input', () => {
+  const s0 = { status: 'online', uid: 'u1', lobby: null, error: null, currentMap: null };
+  const s1 = MP.applyServerMessage(s0, { type: 'map_selected', map: { hash: 'h', title: 'T' } });
+  assert.deepEqual(s1.currentMap, { hash: 'h', title: 'T' });
+  assert.equal(s0.currentMap, null); // input untouched
+});

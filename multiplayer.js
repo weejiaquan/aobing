@@ -13,10 +13,13 @@
     return { type: 'join_lobby', id: id, password: password };
   }
   function buildLeave() { return { type: 'leave_lobby' }; }
+  function buildSelectMap(map) { return { type: 'select_map', map: map }; }
+  function buildRelay(toUid, body) { return { type: 'relay', to_uid: toUid, body: body }; }
 
   function applyServerMessage(state, msg) {
     const next = { status: state.status, uid: state.uid,
-                   lobby: state.lobby, error: state.error };
+                   lobby: state.lobby, error: state.error,
+                   currentMap: state.currentMap };
     switch (msg.type) {
       case 'auth_ok':
         next.status = 'online'; next.uid = msg.uid; break;
@@ -26,6 +29,8 @@
         next.lobby = msg.lobby; break;
       case 'error':
         next.error = msg.code; break;
+      case 'map_selected':
+        next.currentMap = msg.map; break;
       default:
         break;
     }
@@ -156,6 +161,7 @@
     MP_ENGINE: true,
     buildAuth: buildAuth, buildCreate: buildCreate,
     buildJoin: buildJoin, buildLeave: buildLeave,
+    buildSelectMap: buildSelectMap, buildRelay: buildRelay,
     applyServerMessage: applyServerMessage,
     createConnection: createConnection,
     u8ToB64: u8ToB64, b64ToU8: b64ToU8,
