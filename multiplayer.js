@@ -92,3 +92,87 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.MpEngine = ENGINE;
 })();
+
+// =========================================================================
+// Browser wiring — window.MpUI.open(container). Lobby browser + in-lobby view.
+// Isolated: never imported by osustd.js; failures here stay contained.
+if (typeof document !== 'undefined') {
+  const KEI = (typeof KEI_BASE !== 'undefined') ? KEI_BASE : 'https://kei.aobing.it';
+  let conn = null;
+
+  function el(tag, props, children) {
+    const n = document.createElement(tag);
+    Object.assign(n, props || {});
+    (children || []).forEach(function (c) { n.appendChild(c); });
+    return n;
+  }
+
+  function getToken() { return firebase.auth().currentUser.getIdToken(); }
+
+  function renderOffline(container, why) {
+    container.innerHTML = '';
+    container.appendChild(el('p', { textContent: 'Multiplayer is offline right now.' }));
+    container.appendChild(el('p', { textContent: why || '', className: 'mp-sub' }));
+  }
+
+  function renderLobby(container, state) {
+    container.innerHTML = '';
+    const lobby = state.lobby;
+    container.appendChild(el('h3', { textContent: lobby.name }));
+    const list = el('ul', {});
+    Object.keys(lobby.members).forEach(function (uid) {
+      const m = lobby.members[uid];
+      const tag = (uid === lobby.host_uid) ? ' (host)' : '';
+      list.appendChild(el('li', { textContent: m.name + tag }));
+    });
+    container.appendChild(list);
+    container.appendChild(el('button', {
+      textContent: 'Leave', onclick: function () { conn.send(buildLeave()); openBrowser(container); },
+    }));
+  }
+
+  function onState(container, state) {
+    if (state.status === 'offline') { renderOffline(container, 'Lost connection.'); return; }
+    if (state.lobby) { renderLobby(container, state); }
+  }
+
+  function ensureConn(container) {
+    if (conn) return conn;
+    conn = MpEngine.createConnection({
+      url: KEI.replace(/^http/, 'ws') + '/api/mp/ws',
+      getToken: getToken,
+      onState: function (s) { onState(container, s); },
+    });
+    return conn;
+  }
+
+  function openBrowser(container) {
+    container.innerHTML = '';
+    container.appendChild(el('h3', { textContent: 'Multiplayer lobbies' }));
+    fetch(KEI + '/api/mp/lobbies').then(function (r) { return r.json(); })
+      .then(function (body) {
+        const create = el('button', {
+          textContent: 'Create lobby',
+          onclick: function () {
+            const name = prompt('Lobby name?') || 'Lobby';
+            ensureConn(container).send(buildCreate({ name: name }));
+          },
+        });
+        container.appendChild(create);
+        body.lobbies.forEach(function (row) {
+          const label = row.name + ' — ' + row.hostName + ' (' +
+            row.playerCount + '/' + row.cap + ')' + (row.hasPassword ? ' 🔒' : '');
+          container.appendChild(el('button', {
+            textContent: label,
+            onclick: function () {
+              const pw = row.hasPassword ? (prompt('Password?') || '') : undefined;
+              ensureConn(container).send(buildJoin(row.id, pw));
+            },
+          }));
+        });
+      })
+      .catch(function () { renderOffline(container, 'Could not reach the lobby server.'); });
+  }
+
+  window.MpUI = { open: openBrowser };
+}

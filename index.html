@@ -3200,6 +3200,15 @@
     </div>
   </div>
 
+  <!-- Multiplayer lobby browser entry point -->
+  <button id="mp-open-btn" type="button">Multiplayer</button>
+  <div id="mp-panel"></div>
+  <script>
+    document.getElementById('mp-open-btn').addEventListener('click', function () {
+      window.MpUI.open(document.getElementById('mp-panel'));
+    });
+  </script>
+
   <!-- Project Diva (Future Tone style) performance panel -->
   <div id="divaft-panel">
     <div id="divaft-select" class="diva-screen">
@@ -3496,6 +3505,7 @@
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
         .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
         // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.
