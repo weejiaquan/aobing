@@ -180,6 +180,7 @@
 if (typeof document !== 'undefined') {
   const KEI = (typeof KEI_BASE !== 'undefined') ? KEI_BASE : 'https://kei.aobing.it';
   let conn = null;
+  let lastStatus = '';
   const CHUNK = 48 * 1024;
   const transfers = {}; // hash -> { ra, fromName }
 
@@ -193,6 +194,7 @@ if (typeof document !== 'undefined') {
   function getToken() { return firebase.auth().currentUser.getIdToken(); }
 
   function statusLine(container, text) {
+    lastStatus = text;
     let el2 = container.querySelector('#mp-xfer-status');
     if (!el2) { el2 = el('p', { id: 'mp-xfer-status' }); container.appendChild(el2); }
     el2.textContent = text;
@@ -249,6 +251,7 @@ if (typeof document !== 'undefined') {
     if (st.uid === hostUid) return; // host already has it
     OsuStdGame.hasChart(map.hash).then(function (have) {
       if (have) { statusLine(container, 'You already have "' + (map.title || 'this map') + '".'); return; }
+      if (transfers[map.hash]) return; // download already in flight
       statusLine(container, 'Requesting "' + (map.title || 'map') + '" from host…');
       conn.send(MpEngine.buildRelay(hostUid, { t: 'need_map', hash: map.hash }));
     });
@@ -296,7 +299,12 @@ if (typeof document !== 'undefined') {
     });
     container.appendChild(list);
     container.appendChild(el('button', {
-      textContent: 'Leave', onclick: function () { conn.send(MpEngine.buildLeave()); conn.close(); conn = null; openBrowser(container); },
+      textContent: 'Leave', onclick: function () {
+        conn.send(MpEngine.buildLeave()); conn.close(); conn = null;
+        for (const k in transfers) delete transfers[k];
+        lastStatus = '';
+        openBrowser(container);
+      },
     }));
     if (state.uid === lobby.host_uid) {
       container.appendChild(el('button', {
@@ -304,10 +312,16 @@ if (typeof document !== 'undefined') {
         onclick: function () { renderMapPicker(container); },
       }));
     }
+    if (lastStatus) { container.appendChild(el('p', { id: 'mp-xfer-status', textContent: lastStatus })); }
   }
 
   function onState(container, state) {
-    if (state.status === 'offline') { renderOffline(container, 'Lost connection.'); return; }
+    if (state.status === 'offline') {
+      for (const k in transfers) delete transfers[k];
+      lastStatus = '';
+      renderOffline(container, 'Lost connection.');
+      return;
+    }
     if (state.lobby) { renderLobby(container, state); }
   }
 
