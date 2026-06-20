@@ -71,6 +71,38 @@
     };
   }
 
+  function chunkString(str, size) {
+    const frames = [];
+    if (str.length === 0) return [{ seq: 0, total: 1, data: '' }];
+    const total = Math.ceil(str.length / size);
+    for (let i = 0, seq = 0; i < str.length; i += size, seq++) {
+      frames.push({ seq: seq, total: total, data: str.slice(i, i + size) });
+    }
+    return frames;
+  }
+
+  function createReassembler() {
+    let total = null;
+    const parts = {}; // seq -> data
+    let count = 0;
+    return {
+      add: function (frame) {
+        total = frame.total;
+        if (!(frame.seq in parts)) { parts[frame.seq] = frame.data; count++; }
+        return total != null && count === total;
+      },
+      isComplete: function () { return total != null && count === total; },
+      received: function () { return count; },
+      total: function () { return total; },
+      result: function () {
+        if (total == null || count !== total) return null;
+        let s = '';
+        for (let i = 0; i < total; i++) s += parts[i];
+        return s;
+      },
+    };
+  }
+
   function createConnection(opts) {
     const WS = opts.WebSocketImpl ||
       (typeof WebSocket !== 'undefined' ? WebSocket : null);
@@ -128,6 +160,7 @@
     createConnection: createConnection,
     u8ToB64: u8ToB64, b64ToU8: b64ToU8,
     encodeChartTransfer: encodeChartTransfer, decodeChartTransfer: decodeChartTransfer,
+    chunkString: chunkString, createReassembler: createReassembler,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;

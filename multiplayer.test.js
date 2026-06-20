@@ -173,3 +173,33 @@ test('decodeChartTransfer yields null art when absent', () => {
   assert.equal(back.art, null);
   assert.deepEqual(Array.from(back.audio), [1]);
 });
+
+test('chunkString splits and reassembles in order', () => {
+  const s = 'abcdefghij';
+  const frames = MP.chunkString(s, 4);
+  assert.equal(frames.length, 3);
+  assert.equal(frames[0].total, 3);
+  const ra = MP.createReassembler();
+  let done = false;
+  for (const f of frames) done = ra.add(f);
+  assert.equal(done, true);
+  assert.equal(ra.result(), s);
+});
+
+test('reassembler tolerates out-of-order and duplicate frames', () => {
+  const frames = MP.chunkString('hello world!!', 5); // 3 frames
+  const ra = MP.createReassembler();
+  ra.add(frames[2]); ra.add(frames[0]); ra.add(frames[0]); // dup
+  assert.equal(ra.isComplete(), false);
+  assert.equal(ra.result(), null);
+  const done = ra.add(frames[1]);
+  assert.equal(done, true);
+  assert.equal(ra.result(), 'hello world!!');
+  assert.equal(ra.received(), 3);
+  assert.equal(ra.total(), 3);
+});
+
+test('chunkString of empty string yields one empty frame', () => {
+  const frames = MP.chunkString('', 4);
+  assert.deepEqual(frames, [{ seq: 0, total: 1, data: '' }]);
+});
