@@ -102,3 +102,31 @@ test('createConnection: connect timeout flips to offline', async () => {
   await new Promise((r) => setTimeout(r, 20)); // never opened
   assert.equal(states[states.length - 1], 'offline');
 });
+
+test('createConnection: getToken rejection flips to offline', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const states = [];
+  MP.createConnection({
+    url: 'wss://x/api/mp/ws',
+    getToken: async () => { throw new Error('no token'); },
+    WebSocketImpl: FakeWS, onState: (s) => states.push(s.status),
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(states[states.length - 1], 'offline');
+  assert.equal(instances.length, 0); // socket never constructed
+});
+
+test('createConnection: send before auth_ok is dropped', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const conn = MP.createConnection({
+    url: 'wss://x/api/mp/ws', getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS, onState: () => {},
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  const ws = instances[0];
+  ws._open(); // auth frame is sent on open
+  conn.send({ type: 'ping' }); // not authed yet → must be dropped
+  assert.equal(ws.sent.length, 1); // only the auth frame
+  assert.equal(JSON.parse(ws.sent[0]).type, 'auth');
+  conn.close();
+});
