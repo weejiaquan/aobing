@@ -127,7 +127,7 @@ if (typeof document !== 'undefined') {
     });
     container.appendChild(list);
     container.appendChild(el('button', {
-      textContent: 'Leave', onclick: function () { conn.send(MpEngine.buildLeave()); openBrowser(container); },
+      textContent: 'Leave', onclick: function () { conn.send(MpEngine.buildLeave()); conn.close(); conn = null; openBrowser(container); },
     }));
   }
 
