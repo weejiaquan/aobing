@@ -38,3 +38,67 @@ test('applyServerMessage: error sets error field', () => {
     { type: 'error', code: 'bad_password' });
   assert.equal(s.error, 'bad_password');
 });
+
+// A controllable fake WebSocket for connection-manager tests.
+function makeFakeWS() {
+  const instances = [];
+  class FakeWS {
+    constructor(url) {
+      this.url = url; this.sent = []; this.readyState = 0;
+      this.onopen = null; this.onmessage = null;
+      this.onclose = null; this.onerror = null;
+      instances.push(this);
+    }
+    send(data) { this.sent.push(data); }
+    close() { this.readyState = 3; if (this.onclose) this.onclose({}); }
+    _open() { this.readyState = 1; if (this.onopen) this.onopen({}); }
+    _emit(obj) { if (this.onmessage) this.onmessage({ data: JSON.stringify(obj) }); }
+  }
+  return { FakeWS, instances };
+}
+
+test('createConnection: opens, authenticates, reaches online', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const states = [];
+  const conn = MP.createConnection({
+    url: 'wss://x/api/mp/ws',
+    getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS,
+    onState: (s) => states.push(s.status),
+  });
+  await new Promise((r) => setTimeout(r, 0)); // let getToken resolve
+  const ws = instances[0];
+  ws._open();
+  await new Promise((r) => setTimeout(r, 0)); // auth frame sent after open
+  assert.deepEqual(JSON.parse(ws.sent[0]), { type: 'auth', token: 'TOK' });
+  ws._emit({ type: 'auth_ok', uid: 'u1' });
+  assert.equal(states[states.length - 1], 'online');
+  conn.close();
+});
+
+test('createConnection: socket close flips status to offline', async () => {
+  const { FakeWS, instances } = makeFakeWS();
+  const states = [];
+  MP.createConnection({
+    url: 'wss://x/api/mp/ws', getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS, onState: (s) => states.push(s.status),
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  const ws = instances[0];
+  ws._open();
+  ws._emit({ type: 'auth_ok', uid: 'u1' });
+  ws.close();
+  assert.equal(states[states.length - 1], 'offline');
+});
+
+test('createConnection: connect timeout flips to offline', async () => {
+  const { FakeWS } = makeFakeWS();
+  const states = [];
+  MP.createConnection({
+    url: 'wss://x/api/mp/ws', getToken: async () => 'TOK',
+    WebSocketImpl: FakeWS, onState: (s) => states.push(s.status),
+    connectTimeoutMs: 5,
+  });
+  await new Promise((r) => setTimeout(r, 20)); // never opened
+  assert.equal(states[states.length - 1], 'offline');
+});
