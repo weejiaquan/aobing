@@ -87,7 +87,7 @@
     let count = 0;
     return {
       add: function (frame) {
-        total = frame.total;
+        if (total == null) total = frame.total;
         if (!(frame.seq in parts)) { parts[frame.seq] = frame.data; count++; }
         return total != null && count === total;
       },

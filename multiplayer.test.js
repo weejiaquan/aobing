@@ -203,3 +203,15 @@ test('chunkString of empty string yields one empty frame', () => {
   const frames = MP.chunkString('', 4);
   assert.deepEqual(frames, [{ seq: 0, total: 1, data: '' }]);
 });
+
+test('reassembler latches total from first frame, ignores divergent total', () => {
+  const ra = MP.createReassembler();
+  ra.add({ seq: 0, total: 2, data: 'AA' });
+  // A stray/replayed frame claiming a different total must not corrupt completion.
+  ra.add({ seq: 0, total: 99, data: 'AA' }); // duplicate seq, divergent total
+  assert.equal(ra.total(), 2);
+  assert.equal(ra.isComplete(), false);
+  const done = ra.add({ seq: 1, total: 2, data: 'BB' });
+  assert.equal(done, true);
+  assert.equal(ra.result(), 'AABB');
+});
