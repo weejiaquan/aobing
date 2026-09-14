@@ -5,11 +5,18 @@
   const start = document.getElementById('boot-start');
   const status = document.getElementById('boot-status');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-  const skyChoices = document.querySelectorAll('[data-sky-hour]');
-  const skyLabel = document.getElementById('sky-time-label');
   const requestedHour = new URLSearchParams(location.search).get('hour');
   let previewHour = requestedHour !== null && requestedHour.trim() !== '' && Number.isFinite(Number(requestedHour)) ? ((Number(requestedHour) % 24) + 24) % 24 : null;
+  const urlPreview = previewHour !== null;
+  let skySlider = null;           // bound once the settings window has been parsed
+  let skyLabel = null;
   let skyTimer;
+  let tourStart = null;           // ms timestamp while the sky tour is running
+  let tourFrom = 0;               // hour the running tour swept from
+  let shownHour = 0;              // hour currently on screen
+  const TOUR_TICK_MS = 200;       // sweep cadence; CSS blends between ticks
+  let blendMode = 'none';         // CSS blend for the next sky change (see game-shell.css)
+  const SKY_PHASE_KEYS = { Sunrise: 'sky.sunrise', Day: 'sky.day', Sunset: 'sky.sunset', Night: 'sky.night' };
   document.querySelectorAll('[data-sky-scene]').forEach((scene) => {
     for (const name of ['day', 'night', 'stars', 'clouds', 'city', 'city-lights', 'halos', 'warmth']) {
       const layer = document.createElement('div');
@@ -26,7 +33,10 @@
   });
   function renderSky() {
     const now = new Date();
-    const hour = previewHour ?? now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+    const touring = tourStart !== null;
+    const hour = touring ? window.AobingSky.getTourHour(Date.now() - tourStart, tourFrom)
+      : previewHour ?? now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+    shownHour = hour;
     const sky = window.AobingSky.getSkyState(hour);
     const sunProgress = Math.max(0, Math.min(1, (hour - 5) / 15));
     document.body.style.setProperty('--sky-sun-x', `${10 + sunProgress * 80}%`);
@@ -35,21 +45,77 @@
       document.body.style.setProperty(`--sky-${name}`, value);
     }
     document.body.dataset.skyPhase = sky.phase.toLowerCase();
-    skyChoices.forEach((button) => button.setAttribute('aria-pressed', String(previewHour === null ? button.dataset.skyHour === 'auto' : Number(button.dataset.skyHour) === previewHour)));
-    if (previewHour !== null) now.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
-    skyLabel.textContent = `${previewHour === null ? 'Local time' : 'Preview'} · ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${sky.phase}`;
+    if (previewHour !== null || touring) now.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const readout = `${I18N.t(touring ? 'sky.tour' : previewHour === null ? 'sky.local_time' : 'sky.preview')} · ${time} · ${I18N.t(SKY_PHASE_KEYS[sky.phase])}`;
+    if (skyLabel) skyLabel.textContent = readout;
+    if (skySlider) {
+      // The thumb follows the clock and the tour; while scrubbing it already holds
+      // the value the player set, so writing the same number changes nothing.
+      if (previewHour === null || touring) skySlider.value = hour.toFixed(2);
+      skySlider.setAttribute('aria-valuetext', readout);
+    }
   }
-  function syncSkyClock() {
+  function syncSkyClock(blend) {
     clearTimeout(skyTimer);
+    if (blend) blendMode = blend;
+    document.body.dataset.skyBlend = blendMode;
     renderSky();
-    if (!document.hidden) skyTimer = setTimeout(syncSkyClock, 30000);
+    // Commit an unblended sky before anything else can change it: without this the
+    // first paint can batch with the next render and fade in from the initial values.
+    if (blendMode === 'none') void document.body.offsetWidth;
+    // Steady state: blend each change over the wait until the next one, so the
+    // wall clock drifts continuously instead of stepping every half minute.
+    blendMode = tourStart === null ? 'clock' : 'tour';
+    if (!document.hidden) skyTimer = setTimeout(syncSkyClock, tourStart === null ? 30000 : TOUR_TICK_MS);
   }
-  skyChoices.forEach((button) => button.addEventListener('click', () => {
-    previewHour = button.dataset.skyHour === 'auto' ? null : Number(button.dataset.skyHour);
-    renderSky();
-  }));
-  document.addEventListener('visibilitychange', syncSkyClock);
-  window.addEventListener('pageshow', syncSkyClock);
+  function setSkyHour(value, blend) {
+    previewHour = value === null || value === 'auto' ? null : ((Number(value) % 24) + 24) % 24;
+    if (!Number.isFinite(previewHour)) previewHour = null;
+    syncSkyClock(blend || 'pick');
+  }
+  // app.js owns the picker's clicks so the choice persists with the other settings;
+  // the shell only renders. ?hour= keeps its preview until the player picks one.
+  window.GameShell = {
+    applySkyPreference(hour, tour) {
+      tourStart = tour ? Date.now() : null;
+      if (tour && skySlider) skySlider.step = 'any';
+      // Restoring a stored choice on load should land on it, not fade into it.
+      if (urlPreview) syncSkyClock('none'); else { setSkyHour(hour); syncSkyClock('none'); }
+    },
+    setSkyHour: (hour) => setSkyHour(hour),
+    shownSkyHour: () => shownHour,
+    // Dragging the slider: follow the thumb with no blend so scrubbing feels direct.
+    scrubSkyHour: (hour) => setSkyHour(hour, 'none'),
+    setSkyTour(on) {
+      tourFrom = shownHour;                 // sweep on from the sky already showing
+      tourStart = on ? Date.now() : null;
+      // 'any' lets the thumb glide during the sweep; scrubbing keeps the 15-minute
+      // steps the markup declares.
+      if (skySlider) skySlider.step = on ? 'any' : '0.25';
+      syncSkyClock(on ? 'tour' : 'pick');
+    },
+  };
+  function bindSkyControls() {
+    skySlider = document.getElementById('sky-hour-slider');
+    skyLabel = document.getElementById('sky-time-label');
+    const hours = window.AobingSky.STAGE_HOURS;
+    const span = Number(skySlider.max);
+    document.getElementById('sky-hour-ticks').replaceChildren(...hours.map((hour) => {
+      const tick = document.createElement('option');
+      tick.value = String(hour);
+      return tick;
+    }));
+    [...document.getElementById('sky-scale').children].forEach((label, index) => {
+      label.style.setProperty('--at', `${(hours[index] / span) * 100}%`);
+    });
+    syncSkyClock();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindSkyControls, { once: true });
+  else bindSkyControls();
+  window.addEventListener('i18nchange', renderSky);
+  document.addEventListener('visibilitychange', () => syncSkyClock());
+  window.addEventListener('pageshow', () => syncSkyClock());
   window.addEventListener('pagehide', () => clearTimeout(skyTimer));
   syncSkyClock();
   const train = document.getElementById('boot-train');
@@ -76,14 +142,14 @@
   window.addEventListener('aobingready', () => {
     ready = true;
     start.disabled = false;
-    start.textContent = 'ENTER GAME';
+    start.textContent = I18N.t('boot.enter');
     status.textContent = '';
     curtain.classList.add('boot-ready');
   }, { once: true });
   window.addEventListener('aobingloaderror', () => {
-    status.textContent = 'The game could not load. Check your connection and try again.';
+    status.textContent = I18N.t('boot.error');
     start.disabled = false;
-    start.textContent = 'RETRY CONNECTION';
+    start.textContent = I18N.t('boot.retry');
     start.addEventListener('click', (event) => {
       event.stopPropagation();
       location.reload();
@@ -93,9 +159,8 @@
     if (!ready || started) return;
     started = true;
     start.disabled = true;
-    start.textContent = 'ALL ABOARD!';
-    status.textContent = 'Next stop: Aobing IT!';
-    skyChoices.forEach((button) => { button.disabled = true; });
+    start.textContent = I18N.t('boot.all_aboard');
+    status.textContent = I18N.t('boot.next_stop');
     // Initialize audio inside the click gesture; keep the lobby covered until
     // the entire train has cleared the viewport. The shell owns removal.
     window.dispatchEvent(new Event('aobingstart'));
@@ -158,7 +223,7 @@
   function showLibraryGames() {
     libraryGames.hidden = false;
     libraryTyping.hidden = true;
-    libraryTitle.textContent = 'Choose your play.';
+    libraryTitle.textContent = I18N.t('library.title');
   }
   document.getElementById('library-back').addEventListener('click', () => {
     showLibraryGames();
@@ -182,7 +247,7 @@
       if (button.dataset.launchMode === 'typing' && !button.dataset.launchSubmode) {
         libraryGames.hidden = true;
         libraryTyping.hidden = false;
-        libraryTitle.textContent = 'Typing';
+        libraryTitle.textContent = I18N.t('mode.typing');
         window.TypingGame?.refreshKeyboardPanel?.();
         libraryTyping.querySelector('[data-launch-submode="casual"]').focus();
         return;

@@ -327,722 +327,9 @@
     }
 
     // --- i18n -----------------------------------------------------------------
-    // Lightweight built-in. translations[lang][key] = string. {var} placeholders
-    // are interpolated by t(). data-i18n="key" updates textContent; data-i18n-attr
-    // takes "attr:key" pairs (comma-separated) to update HTML attributes.
-    const I18N = (() => {
-      const SUPPORTED = ['en','ja','ko','zh-Hans','zh-Hant','th','vi','ar'];
-      const NATIVE = {
-        'en':'English','ja':'日本語','ko':'한국어','zh-Hans':'简体中文','zh-Hant':'繁體中文','th':'ไทย','vi':'Tiếng Việt','ar':'العربية'
-      };
-      const T = {
-        en: {
-          'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
-          'settings.character_background':'Character background',
-          'settings.character_background_hint':'Use the character’s original scenery in Clicker.',
-          'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.raw_cps':'Show raw CPS','settings.show_fps':'Show FPS (rhythm)','settings.auto_clicker':'Auto-clicker','settings.reset_defaults':'Reset defaults',
-          'skins.title':'Characters','skins.variants':'{n} variants','skins.variant':'{n} variant',
-          'sensei.trainer':'Trainer',
-          'auth.sign_in_google':'Sign in with Google','auth.sign_out':'Sign out',
-          'auth.already_linked':'This Google account is already linked to another player. Signing you in to that one instead.',
-          'profile.title':'Profile',
-          'profile.anon_blurb':'Sign in to save your progress across devices and appear on the leaderboard.',
-          'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save','profile.leaderboard_photo':'Leaderboard picture',
-          'profile.name_length_error':'Display name must be 1-24 characters.',
-          'profile.country_change_to':'Change to {flag} {code}',
-          'leaderboard.title':'Rankings',
-          'leaderboard.info_banner':"Only mouse and tap clicks count toward your rank. Keyboard mashing is fun, but it's not on the board.",
-          'leaderboard.sign_in_cta':'Sign in to join the leaderboard →',
-          'leaderboard.your_rank':'Your rank: #{rank} of {total} players',
-          'leaderboard.your_rank_outside':'Your rank: #{rank} (not in top 100)',
-          'leaderboard.no_rank_yet':'Click to start climbing the board!',
-          'shop.title':'Shop',
-          'shop.permanent':'Permanent',
-          'shop.auto':'Auto',
-          'shop.buffs':'Buffs (60s)',
-          'shop.item.coinMul.name':'Coin Multiplier',
-          'shop.item.coinMul.desc':'+50% coins per click',
-          'shop.item.clickMul.name':'Click Multiplier',
-          'shop.item.clickMul.desc':'+50% clicks per click',
-          'shop.item.autoLevel.name':'Auto-Clicker',
-          'shop.item.autoLevel.desc':'+0.5 auto-clicks per second',
-          'shop.item.leaderboardAuto.name':'Leaderboard Auto',
-          'shop.item.leaderboardAuto.desc':'Auto-clicks count toward your rank',
-          'shop.item.buffCoins.name':'×2 coins',
-          'shop.item.buffClicks.name':'×2 clicks',
-          'shop.item.buffAutoRate.name':'×2 auto-rate',
-          'shop.atMax':'MAX',
-          'shop.owned':'Owned',
-          'shop.error.notEnough':'Not enough coins',
-          'shop.prestige.title':'Prestige',
-          'shop.prestige.name':'Prestige',
-          'shop.prestige.locked':'Reach Lv {n} on any upgrade to unlock',
-          'shop.prestige.cta':'Reset',
-          'shop.prestige.coinsLabel':'coins',
-          'shop.prestige.permanent':'(permanent)',
-          'shop.prestige.confirm':'Reset all shop levels and coin balance to gain ★{n}? Your lifetime clicks and prestige stars are preserved.',
-          'bond.title':'Bond',
-          'bond.cta':'Bond',
-          'bond.button':'Bond — reset level for +10% coins permanent',
-          'bond.confirm':'Bond with {name}? Resets the visible level back to 0 and adds ♥{n}. Permanent +10% coins when using this skin.',
-          'bond.count':'♥{n} bond level',
-          'settings.admin_mode':'Admin mode',
-          'admin.banner':'Admin mode is ON. Use × to hide a row, ↺ to unhide. Hidden rows are dimmed.',
-          'admin.delete_row':'Hide from leaderboard',
-          'admin.confirm_delete':'Hide "{name}" from the leaderboard?',
-          'admin.hide_row':'Hide from leaderboard',
-          'admin.show_row':'Unhide row',
-          'tag.default':'Default','tag.plushie':'Plushie','tag.track':'Track','tag.idol':'Idol','tag.swimsuit':'Swimsuit',
-          'character.aoba.name':'Aoba','character.mari.name':'Mari','character.miyu.name':'Miyu',
-          'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
-          'skin.mari.name':'Mari','skin.maritrack.name':'Track Mari','skin.mariidol.name':'Idol Mari',
-          'skin.miyu.name':'Miyu','skin.miyuswim.name':'Miyu Swimsuit',
-          'analytics.title':'Statistics',
-          'stats.preset.today':'Today','stats.preset.7d':'7d','stats.preset.30d':'30d','stats.preset.all':'All time',
-          'stats.tile.clicks_today':'Clicks today','stats.tile.clicks':'Clicks',
-          'stats.tile.visitors_today':'Visitors today','stats.tile.visitors':'Visitors',
-          'stats.tile.cpv':'Clicks per visitor',
-          'stats.tile.max_combo_today':'Max combo today','stats.tile.max_combo':'Max combo',
-          'stats.chart.clicks_over_time':'Clicks over time','stats.chart.visitors_over_time':'Visitors over time',
-          'stats.chart.top_countries':'Top countries','stats.chart.characters_used':'Characters used',
-          'stats.chart.skins_per_character':'Skins per character',
-          'stats.chart.click_sources':'Click sources',
-          'stats.source.mouse':'Mouse / Tap',
-          'stats.source.keyboard':'Keyboard',
-          'stats.source.auto':'Auto-click',
-          'stats.no_data':'No data',
-          'stats.range.today':'today','stats.range.last_7_days':'last 7 days',
-          'stats.range.last_30_days':'last 30 days','stats.range.all_time':'all time',
-          'combo.label':'COMBO!','combo.max':'MAX COMBO!','combo.fire':'ON FIRE!','combo.insane':'INSANE!!','combo.godlike':'GODLIKE!!!',
-          'tooltip.click_counter':'Global clicks | Current skin clicks',
-          'disclaimer':'Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.',
-          'meta.description':'Click to make Aoba squeak!',
-          'alt.character':'Character','aria.close':'Close',
-          'typing.title':'Typing',
-          'typing.stop':'Stop',
-          'typing.modifiers':'Modifiers',
-          'typing.boards':'Leaderboards',
-          'typing.upg.power':'Combo Power',
-          'typing.upg.cap':'Casual Cap',
-          'typing.upg.max':'MAX',
-          'typing.board_score':'Score',
-          'mode.clicker':'Clicker',
-          'mode.typing':'Typing',
-          'mode.vsrg':'Rhythm',
-          'mode.rhythm':'Rhythm',
-          'mode.osu':'Standard',
-          'mode.mania':'Mania',
-          'mode.diva':'Diva',
-          'mode.casual':'Casual',
-          'mode.ranked':'Ranked',
-          'mode.keyboard':'Keyboard',
-          'mode.settings':'Settings',
-          'mode.fishing':'Fishing',
-          'fishing.cast':'Cast',
-          'fishing.exit':'Exit',
-          'fishing.dex':'Fishdex','fishing.tab.dex':'Fishdex','fishing.tab.inv':'Inventory','fishing.close':'Close',
-          'typing.times_up':"Time's up!",
-          'typing.restart_hint':'Press Enter or Restart to go again.',
-          'typing.restart':'Restart',
-          'typing.off_ranked':'Off in Ranked',
-          'typing.board_words':'Words','typing.board_wpm':'WPM',
-          'typing.words':'words','typing.wpm':'WPM','typing.accuracy':'accuracy',
-          'typing.ranked':'Ranked','typing.casual':'Casual',
-          'typing.mod.freedom':'Freedom mode','typing.mod.nobackspace':'No backspace',
-          'typing.mod.stoponerror':'Stop on error','typing.mod.qol':'QoL pack (live WPM)',
-          'typing.toggle.on_word':'Bounce on word','typing.toggle.per_key':'Bounce on each key','typing.toggle.caret_follow':'Typewriter caret (follow)',
-          'typing.loading':'Loading…','typing.board_empty':'No entries yet','typing.board_error':'Could not load board',
-        },
-        ja: {
-          'typing.title':'タイピング','typing.stop':'停止','typing.modifiers':'モディファイア','typing.boards':'ランキング',
-          'typing.board_words':'単語数','typing.board_wpm':'WPM','typing.words':'単語','typing.wpm':'WPM','typing.accuracy':'正確率',
-          'typing.ranked':'ランク','typing.casual':'カジュアル','typing.mod.freedom':'フリーダムモード','typing.mod.nobackspace':'バックスペース無効',
-          'typing.mod.stoponerror':'エラーで停止','typing.mod.qol':'QoLパック（リアルタイムWPM）','typing.toggle.on_word':'単語ごとにバウンス','typing.toggle.per_key':'キーごとにバウンス',
-          'typing.loading':'読み込み中…','typing.board_empty':'まだ記録がありません','typing.board_error':'ボードを読み込めませんでした',
-          'settings.title':'設定','settings.music':'音楽','settings.sfx':'効果音','settings.effects':'エフェクト',
-          'settings.language':'言語','settings.join_discord':'Discordに参加','settings.follow_x':'Xでフォロー','settings.keyboard_clicks':'キーボードクリック','settings.raw_cps':'生CPSを表示','settings.auto_clicker':'オートクリッカー','settings.reset_defaults':'デフォルトに戻す',
-          'skins.title':'スキン','skins.variants':'{n}種','skins.variant':'{n}種',
-          'tag.default':'デフォルト','tag.plushie':'ぬいぐるみ','tag.track':'体操服','tag.idol':'アイドル','tag.swimsuit':'水着',
-          'character.aoba.name':'アオバ','character.mari.name':'マリー','character.miyu.name':'ミユ',
-          'skin.aoba.name':'アオバ','skin.aobaplush.name':'アオバ ぬいぐるみ',
-          'skin.mari.name':'マリー','skin.maritrack.name':'体操服マリー','skin.mariidol.name':'アイドル マリー',
-          'skin.miyu.name':'ミユ','skin.miyuswim.name':'水着ミユ',
-          'analytics.title':'アナリティクス',
-          'stats.preset.today':'今日','stats.preset.7d':'7日','stats.preset.30d':'30日','stats.preset.all':'全期間',
-          'stats.tile.clicks_today':'今日のクリック','stats.tile.clicks':'クリック',
-          'stats.tile.visitors_today':'今日の訪問者','stats.tile.visitors':'訪問者',
-          'stats.tile.cpv':'訪問者あたりのクリック',
-          'stats.tile.max_combo_today':'今日の最大コンボ','stats.tile.max_combo':'最大コンボ',
-          'stats.chart.clicks_over_time':'クリック推移','stats.chart.visitors_over_time':'訪問者推移',
-          'stats.chart.top_countries':'国別ランキング','stats.chart.characters_used':'使用キャラクター',
-          'stats.chart.skins_per_character':'キャラクター別スキン',
-          'stats.chart.click_sources':'クリックソース',
-          'stats.source.mouse':'マウス / タップ',
-          'stats.source.keyboard':'キーボード',
-          'stats.source.auto':'自動クリック',
-          'stats.no_data':'データなし',
-          'stats.range.today':'今日','stats.range.last_7_days':'直近7日',
-          'stats.range.last_30_days':'直近30日','stats.range.all_time':'全期間',
-          'combo.label':'コンボ!','combo.max':'マックスコンボ!','combo.fire':'ヒートアップ!','combo.insane':'クレイジー!!','combo.godlike':'ゴッドライク!!!',
-          'tooltip.click_counter':'全体クリック | 現在のスキンクリック',
-          'disclaimer':'Aobing.itはNexon、Nexon Games、Yostarとは無関係です。使用されているすべてのゲームアートワーク、情報、アセットはそれぞれの著作者の所有物および著作権物です。',
-          'meta.description':'クリックでアオバが鳴く!',
-          'alt.character':'キャラクター','aria.close':'閉じる',
-          'sensei.trainer':'先生',
-          'auth.sign_in_google':'Googleでログイン','auth.sign_out':'ログアウト',
-          'auth.already_linked':'このGoogleアカウントは別のプレイヤーにすでに連携されています。そちらでログインします。',
-          'profile.title':'プロフィール',
-          'profile.anon_blurb':'ログインすると進行状況がデバイス間で保存され、リーダーボードに表示されます。',
-          'profile.display_name':'表示名','profile.country':'国','profile.save':'保存','profile.leaderboard_photo':'ランキングの画像',
-          'profile.name_length_error':'表示名は1〜24文字で入力してください。',
-          'profile.country_change_to':'{flag} {code} に変更',
-          'leaderboard.title':'リーダーボード',
-          'leaderboard.info_banner':'マウス/タップのクリックだけがランクに反映されます。キーボード連打は楽しいですが、ランキング対象外です。',
-          'leaderboard.sign_in_cta':'ログインしてリーダーボードに参加 →',
-          'leaderboard.your_rank':'あなたの順位: #{rank} / {total} 人',
-          'leaderboard.your_rank_outside':'あなたの順位: #{rank} (トップ100圏外)',
-          'leaderboard.no_rank_yet':'クリックしてランキングを駆け上がろう!',
-          'shop.title':'ショップ',
-          'shop.permanent':'永続',
-          'shop.auto':'オート',
-          'shop.buffs':'バフ (60秒)',
-          'shop.item.coinMul.name':'コイン倍率',
-          'shop.item.coinMul.desc':'クリックあたりのコイン +50%',
-          'shop.item.clickMul.name':'クリック倍率',
-          'shop.item.clickMul.desc':'クリックあたりのクリック数 +50%',
-          'shop.item.autoLevel.name':'オートクリッカー',
-          'shop.item.autoLevel.desc':'毎秒の自動クリック +0.5',
-          'shop.item.leaderboardAuto.name':'ランキング オート',
-          'shop.item.leaderboardAuto.desc':'オートクリックがランキングに反映されます',
-          'shop.item.buffCoins.name':'×2 コイン',
-          'shop.item.buffClicks.name':'×2 クリック',
-          'shop.item.buffAutoRate.name':'×2 オート速度',
-          'shop.atMax':'最大',
-          'shop.owned':'購入済み',
-          'shop.error.notEnough':'コインが足りません',
-          'shop.prestige.title':'プレステージ',
-          'shop.prestige.name':'プレステージ',
-          'shop.prestige.locked':'いずれかのアップグレードでLv {n}に到達するとアンロック',
-          'shop.prestige.cta':'リセット',
-          'shop.prestige.coinsLabel':'コイン',
-          'shop.prestige.permanent':'(永続)',
-          'shop.prestige.confirm':'すべてのショップレベルとコイン残高をリセットして★{n}を獲得しますか?累計クリックとプレステージスターは保持されます。',
-        },
-        ko: {
-          'typing.title':'타이핑','typing.stop':'중지','typing.modifiers':'모디파이어','typing.boards':'리더보드',
-          'typing.board_words':'단어 수','typing.board_wpm':'WPM','typing.words':'단어','typing.wpm':'WPM','typing.accuracy':'정확도',
-          'typing.ranked':'랭크','typing.casual':'캐주얼','typing.mod.freedom':'프리덤 모드','typing.mod.nobackspace':'백스페이스 비활성화',
-          'typing.mod.stoponerror':'오류 시 정지','typing.mod.qol':'QoL 팩 (실시간 WPM)','typing.toggle.on_word':'단어마다 바운스','typing.toggle.per_key':'키마다 바운스',
-          'typing.loading':'불러오는 중…','typing.board_empty':'아직 기록이 없습니다','typing.board_error':'보드를 불러올 수 없습니다',
-          'settings.title':'설정','settings.music':'음악','settings.sfx':'효과음','settings.effects':'이펙트',
-          'settings.language':'언어','settings.join_discord':'디스코드 참여','settings.follow_x':'X에서 팔로우','settings.keyboard_clicks':'키보드 클릭','settings.raw_cps':'원시 CPS 표시','settings.auto_clicker':'자동 클리커','settings.reset_defaults':'기본값 복원',
-          'skins.title':'스킨','skins.variants':'{n}개','skins.variant':'{n}개',
-          'tag.default':'기본','tag.plushie':'인형','tag.track':'체육복','tag.idol':'아이돌','tag.swimsuit':'수영복',
-          'character.aoba.name':'아오바','character.mari.name':'마리','character.miyu.name':'미유',
-          'skin.aoba.name':'아오바','skin.aobaplush.name':'아오바 인형',
-          'skin.mari.name':'마리','skin.maritrack.name':'체육복 마리','skin.mariidol.name':'아이돌 마리',
-          'skin.miyu.name':'미유','skin.miyuswim.name':'수영복 미유',
-          'analytics.title':'분석',
-          'stats.preset.today':'오늘','stats.preset.7d':'7일','stats.preset.30d':'30일','stats.preset.all':'전체',
-          'stats.tile.clicks_today':'오늘 클릭','stats.tile.clicks':'클릭',
-          'stats.tile.visitors_today':'오늘 방문자','stats.tile.visitors':'방문자',
-          'stats.tile.cpv':'방문자당 클릭',
-          'stats.tile.max_combo_today':'오늘 최고 콤보','stats.tile.max_combo':'최고 콤보',
-          'stats.chart.clicks_over_time':'시간대별 클릭','stats.chart.visitors_over_time':'시간대별 방문자',
-          'stats.chart.top_countries':'상위 국가','stats.chart.characters_used':'사용 캐릭터',
-          'stats.chart.skins_per_character':'캐릭터별 스킨',
-          'stats.chart.click_sources':'클릭 소스',
-          'stats.source.mouse':'마우스 / 탭',
-          'stats.source.keyboard':'키보드',
-          'stats.source.auto':'자동 클릭',
-          'stats.no_data':'데이터 없음',
-          'stats.range.today':'오늘','stats.range.last_7_days':'최근 7일',
-          'stats.range.last_30_days':'최근 30일','stats.range.all_time':'전체 기간',
-          'combo.label':'콤보!','combo.max':'최대 콤보!','combo.fire':'불타오른다!','combo.insane':'미쳤다!!','combo.godlike':'갓라이크!!!',
-          'tooltip.click_counter':'전체 클릭 | 현재 스킨 클릭',
-          'disclaimer':'Aobing.it은 Nexon, Nexon Games 또는 Yostar와 관련이 없습니다. 사용된 모든 게임 아트워크, 정보 및 자료의 소유권과 저작권은 각 저작자에게 있습니다.',
-          'meta.description':'클릭해서 아오바를 울려보세요!',
-          'alt.character':'캐릭터','aria.close':'닫기',
-          'sensei.trainer':'선생',
-          'auth.sign_in_google':'Google로 로그인','auth.sign_out':'로그아웃',
-          'auth.already_linked':'이 Google 계정은 다른 플레이어에 이미 연결되어 있습니다. 해당 계정으로 로그인합니다.',
-          'profile.title':'프로필',
-          'profile.anon_blurb':'로그인하면 진행 상황이 기기 간 저장되고 리더보드에 표시됩니다.',
-          'profile.display_name':'표시 이름','profile.country':'국가','profile.save':'저장','profile.leaderboard_photo':'리더보드 사진',
-          'profile.name_length_error':'표시 이름은 1~24자여야 합니다.',
-          'profile.country_change_to':'{flag} {code} 로 변경',
-          'leaderboard.title':'리더보드',
-          'leaderboard.info_banner':'마우스/탭 클릭만 순위에 반영됩니다. 키보드 연타는 재미있지만 순위에는 들어가지 않습니다.',
-          'leaderboard.sign_in_cta':'로그인해서 리더보드에 참여하기 →',
-          'leaderboard.your_rank':'내 순위: #{rank} / 총 {total}명',
-          'leaderboard.your_rank_outside':'내 순위: #{rank} (TOP 100 밖)',
-          'leaderboard.no_rank_yet':'클릭해서 순위를 올려보세요!',
-          'shop.title':'상점',
-          'shop.permanent':'영구',
-          'shop.auto':'자동',
-          'shop.buffs':'버프 (60초)',
-          'shop.item.coinMul.name':'코인 배수',
-          'shop.item.coinMul.desc':'클릭당 코인 +50%',
-          'shop.item.clickMul.name':'클릭 배수',
-          'shop.item.clickMul.desc':'클릭당 클릭 수 +50%',
-          'shop.item.autoLevel.name':'자동 클리커',
-          'shop.item.autoLevel.desc':'초당 자동 클릭 +0.5',
-          'shop.item.leaderboardAuto.name':'리더보드 자동',
-          'shop.item.leaderboardAuto.desc':'자동 클릭이 순위에 반영됩니다',
-          'shop.item.buffCoins.name':'×2 코인',
-          'shop.item.buffClicks.name':'×2 클릭',
-          'shop.item.buffAutoRate.name':'×2 자동 속도',
-          'shop.atMax':'최대',
-          'shop.owned':'소유 중',
-          'shop.error.notEnough':'코인이 부족합니다',
-          'shop.prestige.title':'프레스티지',
-          'shop.prestige.name':'프레스티지',
-          'shop.prestige.locked':'아무 업그레이드를 Lv {n}까지 올려 잠금 해제',
-          'shop.prestige.cta':'리셋',
-          'shop.prestige.coinsLabel':'코인',
-          'shop.prestige.permanent':'(영구)',
-          'shop.prestige.confirm':'모든 상점 레벨과 코인 잔액을 리셋하고 ★{n}을(를) 획득하시겠습니까? 누적 클릭과 프레스티지 스타는 유지됩니다.',
-        },
-        'zh-Hans': {
-          'typing.title':'打字','typing.stop':'停止','typing.modifiers':'修饰器','typing.boards':'排行榜',
-          'typing.board_words':'单词数','typing.board_wpm':'WPM','typing.words':'单词','typing.wpm':'WPM','typing.accuracy':'准确率',
-          'typing.ranked':'排位','typing.casual':'休闲','typing.mod.freedom':'自由模式','typing.mod.nobackspace':'禁用退格',
-          'typing.mod.stoponerror':'出错暂停','typing.mod.qol':'QoL 包（实时 WPM）','typing.toggle.on_word':'完成单词时弹跳','typing.toggle.per_key':'每次按键弹跳',
-          'typing.loading':'加载中…','typing.board_empty':'暂无记录','typing.board_error':'无法加载排行榜',
-          'settings.title':'设置','settings.music':'音乐','settings.sfx':'音效','settings.effects':'特效',
-          'settings.language':'语言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上关注我','settings.keyboard_clicks':'键盘点击','settings.raw_cps':'显示原始 CPS','settings.auto_clicker':'自动点击器','settings.reset_defaults':'恢复默认',
-          'skins.title':'皮肤','skins.variants':'{n} 款','skins.variant':'{n} 款',
-          'tag.default':'默认','tag.plushie':'玩偶','tag.track':'体操服','tag.idol':'偶像','tag.swimsuit':'泳装',
-          'character.aoba.name':'青叶','character.mari.name':'玛丽','character.miyu.name':'美游',
-          'skin.aoba.name':'青叶','skin.aobaplush.name':'青叶玩偶',
-          'skin.mari.name':'玛丽','skin.maritrack.name':'体操服玛丽','skin.mariidol.name':'偶像玛丽',
-          'skin.miyu.name':'美游','skin.miyuswim.name':'泳装美游',
-          'analytics.title':'数据分析',
-          'stats.preset.today':'今日','stats.preset.7d':'7天','stats.preset.30d':'30天','stats.preset.all':'全部',
-          'stats.tile.clicks_today':'今日点击','stats.tile.clicks':'点击',
-          'stats.tile.visitors_today':'今日访客','stats.tile.visitors':'访客',
-          'stats.tile.cpv':'每访客点击数',
-          'stats.tile.max_combo_today':'今日最高连击','stats.tile.max_combo':'最高连击',
-          'stats.chart.clicks_over_time':'点击趋势','stats.chart.visitors_over_time':'访客趋势',
-          'stats.chart.top_countries':'国家排行','stats.chart.characters_used':'使用角色',
-          'stats.chart.skins_per_character':'角色皮肤分布',
-          'stats.chart.click_sources':'点击来源',
-          'stats.source.mouse':'鼠标 / 触摸',
-          'stats.source.keyboard':'键盘',
-          'stats.source.auto':'自动点击',
-          'stats.no_data':'暂无数据',
-          'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
-          'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部时间',
-          'combo.label':'连击!','combo.max':'极限连击!','combo.fire':'火力全开!','combo.insane':'疯狂!!','combo.godlike':'神之连击!!!',
-          'tooltip.click_counter':'全球点击 | 当前皮肤点击',
-          'disclaimer':'Aobing.it 与 Nexon、Nexon Games 及 Yostar 无任何关联。所使用的全部游戏美术、信息和资源版权归各自作者所有。',
-          'meta.description':'点击让青叶发出叫声!',
-          'alt.character':'角色','aria.close':'关闭',
-          'sensei.trainer':'老师',
-          'auth.sign_in_google':'使用 Google 登录','auth.sign_out':'退出登录',
-          'auth.already_linked':'此 Google 账号已与其他玩家关联。将使用该账号登录。',
-          'profile.title':'个人资料',
-          'profile.anon_blurb':'登录后可跨设备保存进度并出现在排行榜上。',
-          'profile.display_name':'显示名称','profile.country':'国家','profile.save':'保存','profile.leaderboard_photo':'排行榜头像',
-          'profile.name_length_error':'显示名称需为 1–24 个字符。',
-          'profile.country_change_to':'更改为 {flag} {code}',
-          'leaderboard.title':'排行榜',
-          'leaderboard.info_banner':'只有鼠标/点击计入排名。键盘连按很有趣,但不计入榜单。',
-          'leaderboard.sign_in_cta':'登录加入排行榜 →',
-          'leaderboard.your_rank':'你的排名: 第 {rank} / 共 {total} 位玩家',
-          'leaderboard.your_rank_outside':'你的排名: 第 {rank} (前 100 名外)',
-          'leaderboard.no_rank_yet':'点击开始攀登排行榜!',
-          'shop.title':'商店',
-          'shop.permanent':'永久',
-          'shop.auto':'自动',
-          'shop.buffs':'增益 (60秒)',
-          'shop.item.coinMul.name':'金币倍率',
-          'shop.item.coinMul.desc':'每次点击金币 +50%',
-          'shop.item.clickMul.name':'点击倍率',
-          'shop.item.clickMul.desc':'每次点击次数 +50%',
-          'shop.item.autoLevel.name':'自动点击器',
-          'shop.item.autoLevel.desc':'每秒自动点击 +0.5',
-          'shop.item.leaderboardAuto.name':'排行榜自动',
-          'shop.item.leaderboardAuto.desc':'自动点击计入排名',
-          'shop.item.buffCoins.name':'×2 金币',
-          'shop.item.buffClicks.name':'×2 点击',
-          'shop.item.buffAutoRate.name':'×2 自动速度',
-          'shop.atMax':'已满',
-          'shop.owned':'已拥有',
-          'shop.error.notEnough':'金币不足',
-          'shop.prestige.title':'转生',
-          'shop.prestige.name':'转生',
-          'shop.prestige.locked':'将任一升级提升至 Lv {n} 即可解锁',
-          'shop.prestige.cta':'重置',
-          'shop.prestige.coinsLabel':'金币',
-          'shop.prestige.permanent':'(永久)',
-          'shop.prestige.confirm':'重置所有商店等级和金币余额以获得 ★{n}？您的累计点击和转生星不会丢失。',
-        },
-        'zh-Hant': {
-          'typing.title':'打字','typing.stop':'停止','typing.modifiers':'修飾器','typing.boards':'排行榜',
-          'typing.board_words':'單字數','typing.board_wpm':'WPM','typing.words':'單字','typing.wpm':'WPM','typing.accuracy':'準確率',
-          'typing.ranked':'排位','typing.casual':'休閒','typing.mod.freedom':'自由模式','typing.mod.nobackspace':'停用退格',
-          'typing.mod.stoponerror':'出錯暫停','typing.mod.qol':'QoL 包（即時 WPM）','typing.toggle.on_word':'完成單字時彈跳','typing.toggle.per_key':'每次按鍵彈跳',
-          'typing.loading':'載入中…','typing.board_empty':'尚無紀錄','typing.board_error':'無法載入排行榜',
-          'settings.title':'設定','settings.music':'音樂','settings.sfx':'音效','settings.effects':'特效',
-          'settings.language':'語言','settings.join_discord':'加入 Discord','settings.follow_x':'在 X 上追蹤我','settings.keyboard_clicks':'鍵盤點擊','settings.raw_cps':'顯示原始 CPS','settings.auto_clicker':'自動點擊器','settings.reset_defaults':'還原預設',
-          'skins.title':'造型','skins.variants':'{n} 款','skins.variant':'{n} 款',
-          'tag.default':'預設','tag.plushie':'玩偶','tag.track':'體操服','tag.idol':'偶像','tag.swimsuit':'泳裝',
-          'character.aoba.name':'青葉','character.mari.name':'瑪麗','character.miyu.name':'美遊',
-          'skin.aoba.name':'青葉','skin.aobaplush.name':'青葉玩偶',
-          'skin.mari.name':'瑪麗','skin.maritrack.name':'體操服瑪麗','skin.mariidol.name':'偶像瑪麗',
-          'skin.miyu.name':'美遊','skin.miyuswim.name':'泳裝美遊',
-          'analytics.title':'數據分析',
-          'stats.preset.today':'今日','stats.preset.7d':'7天','stats.preset.30d':'30天','stats.preset.all':'全部',
-          'stats.tile.clicks_today':'今日點擊','stats.tile.clicks':'點擊',
-          'stats.tile.visitors_today':'今日訪客','stats.tile.visitors':'訪客',
-          'stats.tile.cpv':'每訪客點擊數',
-          'stats.tile.max_combo_today':'今日最高連擊','stats.tile.max_combo':'最高連擊',
-          'stats.chart.clicks_over_time':'點擊趨勢','stats.chart.visitors_over_time':'訪客趨勢',
-          'stats.chart.top_countries':'國家排行','stats.chart.characters_used':'使用角色',
-          'stats.chart.skins_per_character':'角色造型分布',
-          'stats.chart.click_sources':'點擊來源',
-          'stats.source.mouse':'滑鼠 / 觸控',
-          'stats.source.keyboard':'鍵盤',
-          'stats.source.auto':'自動點擊',
-          'stats.no_data':'暫無數據',
-          'stats.range.today':'今日','stats.range.last_7_days':'近 7 天',
-          'stats.range.last_30_days':'近 30 天','stats.range.all_time':'全部時間',
-          'combo.label':'連擊!','combo.max':'極限連擊!','combo.fire':'火力全開!','combo.insane':'瘋狂!!','combo.godlike':'神之連擊!!!',
-          'tooltip.click_counter':'全球點擊 | 當前造型點擊',
-          'disclaimer':'Aobing.it 與 Nexon、Nexon Games 及 Yostar 無任何關聯。所使用的全部遊戲美術、資訊和資源版權歸各自作者所有。',
-          'meta.description':'點擊讓青葉發出叫聲!',
-          'alt.character':'角色','aria.close':'關閉',
-          'sensei.trainer':'老師',
-          'auth.sign_in_google':'使用 Google 登入','auth.sign_out':'登出',
-          'auth.already_linked':'此 Google 帳戶已與其他玩家連結。將使用該帳戶登入。',
-          'profile.title':'個人資料',
-          'profile.anon_blurb':'登入後可跨裝置保存進度並顯示在排行榜上。',
-          'profile.display_name':'顯示名稱','profile.country':'國家','profile.save':'儲存','profile.leaderboard_photo':'排行榜頭像',
-          'profile.name_length_error':'顯示名稱需為 1–24 個字元。',
-          'profile.country_change_to':'變更為 {flag} {code}',
-          'leaderboard.title':'排行榜',
-          'leaderboard.info_banner':'只有滑鼠/點擊計入排名。鍵盤連按很有趣,但不計入榜單。',
-          'leaderboard.sign_in_cta':'登入加入排行榜 →',
-          'leaderboard.your_rank':'你的排名: 第 {rank} / 共 {total} 位玩家',
-          'leaderboard.your_rank_outside':'你的排名: 第 {rank} (前 100 名外)',
-          'leaderboard.no_rank_yet':'點擊開始攀登排行榜!',
-          'shop.title':'商店',
-          'shop.permanent':'永久',
-          'shop.auto':'自動',
-          'shop.buffs':'增益 (60秒)',
-          'shop.item.coinMul.name':'金幣倍率',
-          'shop.item.coinMul.desc':'每次點擊金幣 +50%',
-          'shop.item.clickMul.name':'點擊倍率',
-          'shop.item.clickMul.desc':'每次點擊次數 +50%',
-          'shop.item.autoLevel.name':'自動點擊器',
-          'shop.item.autoLevel.desc':'每秒自動點擊 +0.5',
-          'shop.item.leaderboardAuto.name':'排行榜自動',
-          'shop.item.leaderboardAuto.desc':'自動點擊計入排名',
-          'shop.item.buffCoins.name':'×2 金幣',
-          'shop.item.buffClicks.name':'×2 點擊',
-          'shop.item.buffAutoRate.name':'×2 自動速度',
-          'shop.atMax':'已滿',
-          'shop.owned':'已擁有',
-          'shop.error.notEnough':'金幣不足',
-          'shop.prestige.title':'轉生',
-          'shop.prestige.name':'轉生',
-          'shop.prestige.locked':'將任一升級提升至 Lv {n} 即可解鎖',
-          'shop.prestige.cta':'重置',
-          'shop.prestige.coinsLabel':'金幣',
-          'shop.prestige.permanent':'(永久)',
-          'shop.prestige.confirm':'重置所有商店等級和金幣餘額以獲得 ★{n}？您的累計點擊和轉生星不會遺失。',
-        },
-        th: {
-          'typing.title':'พิมพ์ดีด','typing.stop':'หยุด','typing.modifiers':'ตัวปรับแต่ง','typing.boards':'กระดานผู้นำ',
-          'typing.board_words':'จำนวนคำ','typing.board_wpm':'WPM','typing.words':'คำ','typing.wpm':'WPM','typing.accuracy':'ความแม่นยำ',
-          'typing.ranked':'จัดอันดับ','typing.casual':'ทั่วไป','typing.mod.freedom':'โหมดอิสระ','typing.mod.nobackspace':'ปิดปุ่มลบ',
-          'typing.mod.stoponerror':'หยุดเมื่อผิด','typing.mod.qol':'แพ็ก QoL (WPM แบบสด)','typing.toggle.on_word':'เด้งเมื่อจบคำ','typing.toggle.per_key':'เด้งทุกการกดปุ่ม',
-          'typing.loading':'กำลังโหลด…','typing.board_empty':'ยังไม่มีข้อมูล','typing.board_error':'โหลดกระดานไม่สำเร็จ',
-          'settings.title':'ตั้งค่า','settings.music':'เพลง','settings.sfx':'เสียงเอฟเฟกต์','settings.effects':'เอฟเฟกต์',
-          'settings.language':'ภาษา','settings.join_discord':'เข้าร่วม Discord','settings.follow_x':'ติดตามบน X','settings.keyboard_clicks':'การกดคีย์บอร์ด','settings.raw_cps':'แสดง CPS ดิบ','settings.auto_clicker':'คลิกอัตโนมัติ','settings.reset_defaults':'คืนค่าเริ่มต้น',
-          'skins.title':'สกิน','skins.variants':'{n} แบบ','skins.variant':'{n} แบบ',
-          'tag.default':'ค่าเริ่มต้น','tag.plushie':'ตุ๊กตา','tag.track':'ชุดพละ','tag.idol':'ไอดอล','tag.swimsuit':'ชุดว่ายน้ำ',
-          'character.aoba.name':'อาโอบะ','character.mari.name':'มาริ','character.miyu.name':'มิยุ',
-          'skin.aoba.name':'อาโอบะ','skin.aobaplush.name':'ตุ๊กตาอาโอบะ',
-          'skin.mari.name':'มาริ','skin.maritrack.name':'มาริชุดพละ','skin.mariidol.name':'ไอดอลมาริ',
-          'skin.miyu.name':'มิยุ','skin.miyuswim.name':'มิยุชุดว่ายน้ำ',
-          'analytics.title':'สถิติ',
-          'stats.preset.today':'วันนี้','stats.preset.7d':'7 วัน','stats.preset.30d':'30 วัน','stats.preset.all':'ทั้งหมด',
-          'stats.tile.clicks_today':'คลิกวันนี้','stats.tile.clicks':'คลิก',
-          'stats.tile.visitors_today':'ผู้เข้าชมวันนี้','stats.tile.visitors':'ผู้เข้าชม',
-          'stats.tile.cpv':'คลิกต่อผู้เข้าชม',
-          'stats.tile.max_combo_today':'คอมโบสูงสุดวันนี้','stats.tile.max_combo':'คอมโบสูงสุด',
-          'stats.chart.clicks_over_time':'คลิกตามช่วงเวลา','stats.chart.visitors_over_time':'ผู้เข้าชมตามช่วงเวลา',
-          'stats.chart.top_countries':'ประเทศยอดนิยม','stats.chart.characters_used':'ตัวละครที่ใช้',
-          'stats.chart.skins_per_character':'สกินต่อตัวละคร',
-          'stats.chart.click_sources':'แหล่งที่มาของคลิก',
-          'stats.source.mouse':'เมาส์ / แตะ',
-          'stats.source.keyboard':'คีย์บอร์ด',
-          'stats.source.auto':'คลิกอัตโนมัติ',
-          'stats.no_data':'ไม่มีข้อมูล',
-          'stats.range.today':'วันนี้','stats.range.last_7_days':'7 วันที่ผ่านมา',
-          'stats.range.last_30_days':'30 วันที่ผ่านมา','stats.range.all_time':'ตลอดกาล',
-          'combo.label':'คอมโบ!','combo.max':'คอมโบสูงสุด!','combo.fire':'ไฟลุก!','combo.insane':'บ้าระห่ำ!!','combo.godlike':'ดุจเทพ!!!',
-          'tooltip.click_counter':'คลิกทั้งหมด | คลิกของสกินปัจจุบัน',
-          'disclaimer':'Aobing.it ไม่มีส่วนเกี่ยวข้องกับ Nexon, Nexon Games หรือ Yostar งานศิลป์ ข้อมูล และทรัพย์สินของเกมทั้งหมดเป็นลิขสิทธิ์ของเจ้าของผลงานนั้นๆ',
-          'meta.description':'คลิกเพื่อให้อาโอบะร้อง!',
-          'alt.character':'ตัวละคร','aria.close':'ปิด',
-          'sensei.trainer':'เซนเซย์',
-          'auth.sign_in_google':'เข้าสู่ระบบด้วย Google','auth.sign_out':'ออกจากระบบ',
-          'auth.already_linked':'บัญชี Google นี้เชื่อมโยงกับผู้เล่นคนอื่นแล้ว ระบบจะเข้าสู่ระบบด้วยบัญชีนั้น',
-          'profile.title':'โปรไฟล์',
-          'profile.anon_blurb':'เข้าสู่ระบบเพื่อบันทึกความคืบหน้าข้ามอุปกรณ์และปรากฏบนกระดานผู้นำ',
-          'profile.display_name':'ชื่อที่แสดง','profile.country':'ประเทศ','profile.save':'บันทึก','profile.leaderboard_photo':'รูปในลีดเดอร์บอร์ด',
-          'profile.name_length_error':'ชื่อที่แสดงต้องมี 1–24 ตัวอักษร',
-          'profile.country_change_to':'เปลี่ยนเป็น {flag} {code}',
-          'leaderboard.title':'กระดานผู้นำ',
-          'leaderboard.info_banner':'เฉพาะคลิกเมาส์/แตะเท่านั้นที่นับเข้าอันดับ การกดคีย์บอร์ดสนุกแต่ไม่อยู่บนกระดาน',
-          'leaderboard.sign_in_cta':'เข้าสู่ระบบเพื่อร่วมกระดานผู้นำ →',
-          'leaderboard.your_rank':'อันดับของคุณ: #{rank} จาก {total} คน',
-          'leaderboard.your_rank_outside':'อันดับของคุณ: #{rank} (นอก 100 อันดับแรก)',
-          'leaderboard.no_rank_yet':'คลิกเพื่อเริ่มไต่อันดับ!',
-          'shop.title':'ร้านค้า',
-          'shop.permanent':'ถาวร',
-          'shop.auto':'อัตโนมัติ',
-          'shop.buffs':'บัฟ (60 วินาที)',
-          'shop.item.coinMul.name':'ตัวคูณเหรียญ',
-          'shop.item.coinMul.desc':'+50% เหรียญต่อคลิก',
-          'shop.item.clickMul.name':'ตัวคูณคลิก',
-          'shop.item.clickMul.desc':'+50% คลิกต่อคลิก',
-          'shop.item.autoLevel.name':'คลิกอัตโนมัติ',
-          'shop.item.autoLevel.desc':'+0.5 คลิกอัตโนมัติต่อวินาที',
-          'shop.item.leaderboardAuto.name':'อันดับอัตโนมัติ',
-          'shop.item.leaderboardAuto.desc':'คลิกอัตโนมัตินับเข้าอันดับของคุณ',
-          'shop.item.buffCoins.name':'×2 เหรียญ',
-          'shop.item.buffClicks.name':'×2 คลิก',
-          'shop.item.buffAutoRate.name':'×2 ความเร็วอัตโนมัติ',
-          'shop.atMax':'สูงสุด',
-          'shop.owned':'มีอยู่แล้ว',
-          'shop.error.notEnough':'เหรียญไม่พอ',
-          'shop.prestige.title':'เพรสทีจ',
-          'shop.prestige.name':'เพรสทีจ',
-          'shop.prestige.locked':'อัปเกรดใดให้ถึง Lv {n} เพื่อปลดล็อก',
-          'shop.prestige.cta':'รีเซ็ต',
-          'shop.prestige.coinsLabel':'เหรียญ',
-          'shop.prestige.permanent':'(ถาวร)',
-          'shop.prestige.confirm':'รีเซ็ตทุกระดับร้านค้าและยอดเหรียญเพื่อรับ ★{n}? คลิกสะสมและดาวเพรสทีจของคุณจะถูกเก็บไว้',
-        },
-        ar: {
-          'typing.title':'الكتابة','typing.stop':'إيقاف','typing.modifiers':'المُعدِّلات','typing.boards':'لوحة المتصدرين',
-          'typing.board_words':'الكلمات','typing.board_wpm':'WPM','typing.words':'كلمات','typing.wpm':'WPM','typing.accuracy':'الدقة',
-          'typing.ranked':'مُصنَّف','typing.casual':'عادي','typing.mod.freedom':'وضع الحرية','typing.mod.nobackspace':'بدون مسافة للخلف',
-          'typing.mod.stoponerror':'التوقف عند الخطأ','typing.mod.qol':'حزمة QoL (WPM مباشر)','typing.toggle.on_word':'ارتداد عند اكتمال الكلمة','typing.toggle.per_key':'ارتداد عند كل مفتاح',
-          'typing.loading':'جارٍ التحميل…','typing.board_empty':'لا توجد إدخالات بعد','typing.board_error':'تعذّر تحميل اللوحة',
-          'settings.title':'الإعدادات','settings.music':'الموسيقى','settings.sfx':'المؤثرات الصوتية','settings.effects':'المؤثرات',
-          'settings.language':'اللغة','settings.join_discord':'انضم إلى Discord','settings.follow_x':'تابعني على X','settings.keyboard_clicks':'نقرات لوحة المفاتيح','settings.raw_cps':'إظهار CPS الخام','settings.auto_clicker':'النقر التلقائي','settings.reset_defaults':'استعادة الإعدادات الافتراضية',
-          'skins.title':'الأزياء','skins.variants':'{n} أزياء','skins.variant':'{n} زي',
-          'tag.default':'افتراضي','tag.plushie':'دمية','tag.track':'رياضي','tag.idol':'نجمة','tag.swimsuit':'ملابس السباحة',
-          'character.aoba.name':'آوبا','character.mari.name':'ماري','character.miyu.name':'ميو',
-          'skin.aoba.name':'آوبا','skin.aobaplush.name':'دمية آوبا',
-          'skin.mari.name':'ماري','skin.maritrack.name':'ماري الرياضية','skin.mariidol.name':'ماري النجمة',
-          'skin.miyu.name':'ميو','skin.miyuswim.name':'ميو بملابس السباحة',
-          'analytics.title':'التحليلات',
-          'stats.preset.today':'اليوم','stats.preset.7d':'٧ أيام','stats.preset.30d':'٣٠ يومًا','stats.preset.all':'كل الأوقات',
-          'stats.tile.clicks_today':'نقرات اليوم','stats.tile.clicks':'النقرات',
-          'stats.tile.visitors_today':'زوار اليوم','stats.tile.visitors':'الزوار',
-          'stats.tile.cpv':'النقرات لكل زائر',
-          'stats.tile.max_combo_today':'أعلى كومبو اليوم','stats.tile.max_combo':'أعلى كومبو',
-          'stats.chart.clicks_over_time':'النقرات عبر الوقت','stats.chart.visitors_over_time':'الزوار عبر الوقت',
-          'stats.chart.top_countries':'أهم الدول','stats.chart.characters_used':'الشخصيات المستخدمة',
-          'stats.chart.skins_per_character':'الأزياء لكل شخصية',
-          'stats.chart.click_sources':'مصادر النقر',
-          'stats.source.mouse':'الفأرة / اللمس',
-          'stats.source.keyboard':'لوحة المفاتيح',
-          'stats.source.auto':'نقر تلقائي',
-          'stats.no_data':'لا توجد بيانات',
-          'stats.range.today':'اليوم','stats.range.last_7_days':'آخر ٧ أيام',
-          'stats.range.last_30_days':'آخر ٣٠ يومًا','stats.range.all_time':'كل الأوقات',
-          'combo.label':'كومبو!','combo.max':'أقصى كومبو!','combo.fire':'مشتعل!','combo.insane':'جنون!!','combo.godlike':'كالآلهة!!!',
-          'tooltip.click_counter':'النقرات الإجمالية | نقرات الزي الحالي',
-          'disclaimer':'Aobing.it غير تابعة لشركة Nexon أو Nexon Games أو Yostar. جميع الرسوم والمعلومات والأصول المستخدمة من اللعبة هي ملكية وحقوق نشر لأصحابها الأصليين.',
-          'meta.description':'اضغط لتجعل آوبا يصدر صوتًا!',
-          'alt.character':'شخصية','aria.close':'إغلاق',
-          'sensei.trainer':'المعلم',
-          'auth.sign_in_google':'تسجيل الدخول بحساب Google','auth.sign_out':'تسجيل الخروج',
-          'auth.already_linked':'حساب Google هذا مرتبط بالفعل بلاعب آخر. سيتم تسجيل الدخول إلى ذلك الحساب.',
-          'profile.title':'الملف الشخصي',
-          'profile.anon_blurb':'سجّل الدخول لحفظ تقدمك عبر الأجهزة والظهور في لوحة المتصدرين.',
-          'profile.display_name':'اسم العرض','profile.country':'الدولة','profile.save':'حفظ','profile.leaderboard_photo':'صورة المتصدرين',
-          'profile.name_length_error':'يجب أن يتكون اسم العرض من 1 إلى 24 حرفًا.',
-          'profile.country_change_to':'تغيير إلى {flag} {code}',
-          'leaderboard.title':'لوحة المتصدرين',
-          'leaderboard.info_banner':'فقط نقرات الفأرة/اللمس تُحتسب في تصنيفك. لعب لوحة المفاتيح ممتع لكنه لا يدخل اللوحة.',
-          'leaderboard.sign_in_cta':'سجّل الدخول للانضمام إلى لوحة المتصدرين →',
-          'leaderboard.your_rank':'ترتيبك: #{rank} من {total} لاعبًا',
-          'leaderboard.your_rank_outside':'ترتيبك: #{rank} (خارج أفضل 100)',
-          'leaderboard.no_rank_yet':'انقر لتبدأ تسلق اللوحة!',
-          'shop.title':'المتجر',
-          'shop.permanent':'دائم',
-          'shop.auto':'تلقائي',
-          'shop.buffs':'تعزيزات (60 ث)',
-          'shop.item.coinMul.name':'مضاعف العملات',
-          'shop.item.coinMul.desc':'+50% عملات لكل نقرة',
-          'shop.item.clickMul.name':'مضاعف النقرات',
-          'shop.item.clickMul.desc':'+50% نقرات لكل نقرة',
-          'shop.item.autoLevel.name':'النقر التلقائي',
-          'shop.item.autoLevel.desc':'+0.5 نقرة تلقائية في الثانية',
-          'shop.item.leaderboardAuto.name':'تلقائي للترتيب',
-          'shop.item.leaderboardAuto.desc':'النقرات التلقائية تُحتسب في ترتيبك',
-          'shop.item.buffCoins.name':'×2 عملات',
-          'shop.item.buffClicks.name':'×2 نقرات',
-          'shop.item.buffAutoRate.name':'×2 سرعة تلقائية',
-          'shop.atMax':'الحد الأقصى',
-          'shop.owned':'مملوك',
-          'shop.error.notEnough':'لا توجد عملات كافية',
-          'shop.prestige.title':'هيبة',
-          'shop.prestige.name':'هيبة',
-          'shop.prestige.locked':'ارفع أي ترقية إلى Lv {n} للفتح',
-          'shop.prestige.cta':'إعادة تعيين',
-          'shop.prestige.coinsLabel':'عملات',
-          'shop.prestige.permanent':'(دائم)',
-          'shop.prestige.confirm':'إعادة تعيين جميع مستويات المتجر ورصيد العملات لكسب ★{n}؟ نقراتك التراكمية ونجوم الهيبة محفوظة.',
-        },
-        vi: {
-          'typing.title':'Gõ phím','typing.stop':'Dừng','typing.modifiers':'Bộ điều chỉnh','typing.boards':'Bảng xếp hạng',
-          'typing.board_words':'Số từ','typing.board_wpm':'WPM','typing.words':'từ','typing.wpm':'WPM','typing.accuracy':'độ chính xác',
-          'typing.ranked':'Xếp hạng','typing.casual':'Thường','typing.mod.freedom':'Chế độ tự do','typing.mod.nobackspace':'Không xóa lùi',
-          'typing.mod.stoponerror':'Dừng khi sai','typing.mod.qol':'Gói QoL (WPM trực tiếp)','typing.toggle.on_word':'Nảy khi xong từ','typing.toggle.per_key':'Nảy mỗi phím',
-          'typing.loading':'Đang tải…','typing.board_empty':'Chưa có mục nào','typing.board_error':'Không tải được bảng',
-          'settings.title':'Cài đặt','settings.music':'Nhạc','settings.sfx':'Âm thanh','settings.effects':'Hiệu ứng',
-          'settings.language':'Ngôn ngữ','settings.join_discord':'Tham gia Discord','settings.follow_x':'Theo dõi tôi trên X','settings.keyboard_clicks':'Nhấn bằng bàn phím','settings.raw_cps':'Hiện CPS thô','settings.auto_clicker':'Tự động nhấn','settings.reset_defaults':'Đặt lại mặc định',
-          'skins.title':'Trang phục','skins.variants':'{n} biến thể','skins.variant':'{n} biến thể',
-          'sensei.trainer':'Huấn luyện viên',
-          'auth.sign_in_google':'Đăng nhập bằng Google','auth.sign_out':'Đăng xuất',
-          'auth.already_linked':'Tài khoản Google này đã được liên kết với người chơi khác. Đang đăng nhập bạn vào tài khoản đó.',
-          'profile.title':'Hồ sơ',
-          'profile.anon_blurb':'Đăng nhập để lưu tiến trình trên mọi thiết bị và xuất hiện trên bảng xếp hạng.',
-          'profile.display_name':'Tên hiển thị','profile.country':'Quốc gia','profile.save':'Lưu','profile.leaderboard_photo':'Ảnh bảng xếp hạng',
-          'profile.name_length_error':'Tên hiển thị phải có từ 1-24 ký tự.',
-          'profile.country_change_to':'Đổi thành {flag} {code}',
-          'leaderboard.title':'Bảng xếp hạng',
-          'leaderboard.info_banner':'Chỉ lượt nhấn chuột và chạm mới được tính vào thứ hạng. Nhấn bàn phím thì vui, nhưng không được tính lên bảng.',
-          'leaderboard.sign_in_cta':'Đăng nhập để tham gia bảng xếp hạng →',
-          'leaderboard.your_rank':'Thứ hạng của bạn: #{rank} trên {total} người chơi',
-          'leaderboard.your_rank_outside':'Thứ hạng của bạn: #{rank} (ngoài top 100)',
-          'leaderboard.no_rank_yet':'Nhấn để bắt đầu leo hạng!',
-          'shop.title':'Cửa hàng',
-          'shop.permanent':'Vĩnh viễn',
-          'shop.auto':'Tự động',
-          'shop.buffs':'Tăng cường (60 giây)',
-          'shop.item.coinMul.name':'Hệ số xu',
-          'shop.item.coinMul.desc':'+50% xu mỗi lượt nhấn',
-          'shop.item.clickMul.name':'Hệ số nhấn',
-          'shop.item.clickMul.desc':'+50% lượt nhấn mỗi lần nhấn',
-          'shop.item.autoLevel.name':'Tự động nhấn',
-          'shop.item.autoLevel.desc':'+0,5 lượt tự động nhấn mỗi giây',
-          'shop.item.leaderboardAuto.name':'Tự động lên bảng',
-          'shop.item.leaderboardAuto.desc':'Lượt tự động nhấn được tính vào thứ hạng',
-          'shop.item.buffCoins.name':'×2 xu',
-          'shop.item.buffClicks.name':'×2 lượt nhấn',
-          'shop.item.buffAutoRate.name':'×2 tốc độ tự động',
-          'shop.atMax':'TỐI ĐA',
-          'shop.owned':'Đã sở hữu',
-          'shop.error.notEnough':'Không đủ xu',
-          'shop.prestige.title':'Thăng hoa',
-          'shop.prestige.name':'Thăng hoa',
-          'shop.prestige.locked':'Đạt Cấp {n} ở bất kỳ nâng cấp nào để mở khóa',
-          'shop.prestige.cta':'Đặt lại',
-          'shop.prestige.coinsLabel':'xu',
-          'shop.prestige.permanent':'(vĩnh viễn)',
-          'shop.prestige.confirm':'Đặt lại toàn bộ cấp cửa hàng và số dư xu để nhận ★{n}? Tổng lượt nhấn và sao thăng hoa của bạn được giữ nguyên.',
-          'bond.title':'Gắn kết',
-          'bond.cta':'Gắn kết',
-          'bond.button':'Gắn kết — đặt lại cấp để nhận +10% xu vĩnh viễn',
-          'bond.confirm':'Gắn kết với {name}? Đặt lại cấp hiển thị về 0 và thêm ♥{n}. +10% xu vĩnh viễn khi dùng trang phục này.',
-          'bond.count':'♥{n} cấp gắn kết',
-          'settings.admin_mode':'Chế độ quản trị',
-          'admin.banner':'Chế độ quản trị đang BẬT. Dùng × để ẩn một hàng, ↺ để hiện lại. Hàng bị ẩn sẽ mờ đi.',
-          'admin.delete_row':'Ẩn khỏi bảng xếp hạng',
-          'admin.confirm_delete':'Ẩn "{name}" khỏi bảng xếp hạng?',
-          'admin.hide_row':'Ẩn khỏi bảng xếp hạng',
-          'admin.show_row':'Hiện lại hàng',
-          'tag.default':'Mặc định','tag.plushie':'Thú bông','tag.track':'Đồ thể thao','tag.idol':'Thần tượng','tag.swimsuit':'Đồ bơi',
-          'character.aoba.name':'Aoba','character.mari.name':'Mari','character.miyu.name':'Miyu',
-          'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Thú Bông',
-          'skin.mari.name':'Mari','skin.maritrack.name':'Mari Thể Thao','skin.mariidol.name':'Mari Thần Tượng',
-          'skin.miyu.name':'Miyu','skin.miyuswim.name':'Miyu Đồ Bơi',
-          'analytics.title':'Phân tích',
-          'stats.preset.today':'Hôm nay','stats.preset.7d':'7 ngày','stats.preset.30d':'30 ngày','stats.preset.all':'Toàn thời gian',
-          'stats.tile.clicks_today':'Lượt nhấn hôm nay','stats.tile.clicks':'Lượt nhấn',
-          'stats.tile.visitors_today':'Khách hôm nay','stats.tile.visitors':'Khách',
-          'stats.tile.cpv':'Lượt nhấn mỗi khách',
-          'stats.tile.max_combo_today':'Combo cao nhất hôm nay','stats.tile.max_combo':'Combo cao nhất',
-          'stats.chart.clicks_over_time':'Lượt nhấn theo thời gian','stats.chart.visitors_over_time':'Khách theo thời gian',
-          'stats.chart.top_countries':'Quốc gia hàng đầu','stats.chart.characters_used':'Nhân vật đã dùng',
-          'stats.chart.skins_per_character':'Trang phục theo nhân vật',
-          'stats.chart.click_sources':'Nguồn nhấn',
-          'stats.source.mouse':'Chuột / Chạm',
-          'stats.source.keyboard':'Bàn phím',
-          'stats.source.auto':'Tự động nhấn',
-          'stats.no_data':'Không có dữ liệu',
-          'stats.range.today':'hôm nay','stats.range.last_7_days':'7 ngày qua',
-          'stats.range.last_30_days':'30 ngày qua','stats.range.all_time':'toàn thời gian',
-          'combo.label':'COMBO!','combo.max':'COMBO TỐI ĐA!','combo.fire':'BỐC CHÁY!','combo.insane':'ĐIÊN RỒ!!','combo.godlike':'NHƯ THẦN!!!',
-          'tooltip.click_counter':'Tổng lượt nhấn | Lượt nhấn trang phục hiện tại',
-          'disclaimer':'Aobing.it không liên kết với Nexon, Nexon Games hay Yostar. Mọi hình ảnh, thông tin và tài nguyên trò chơi được sử dụng đều thuộc quyền sở hữu và bản quyền của các tác giả tương ứng.',
-          'meta.description':'Nhấn để Aoba kêu chít chít!',
-          'alt.character':'Nhân vật','aria.close':'Đóng',
-        },
-      };
-      let current = 'en';
-
-      function detect(stored) {
-        if (stored && SUPPORTED.includes(stored)) return stored;
-        const nav = (navigator.language || 'en').toLowerCase();
-        if (nav.startsWith('ja')) return 'ja';
-        if (nav.startsWith('ko')) return 'ko';
-        if (nav.startsWith('th')) return 'th';
-        if (nav.startsWith('vi')) return 'vi';
-        if (nav.startsWith('ar')) return 'ar';
-        if (nav.startsWith('zh')) {
-          if (/(^|[-_])(hant|tw|hk|mo)/i.test(nav)) return 'zh-Hant';
-          return 'zh-Hans';
-        }
-        return 'en';
-      }
-
-      function t(key, params) {
-        const dict = T[current] || T.en;
-        let s = dict[key];
-        if (s === undefined) s = (T.en[key] !== undefined) ? T.en[key] : key;
-        if (params) {
-          for (const k in params) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
-        }
-        return s;
-      }
-
-      function apply() {
-        document.documentElement.lang = current;
-        document.documentElement.dir = (current === 'ar') ? 'rtl' : 'ltr';
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-          el.textContent = t(el.dataset.i18n);
-        });
-        document.querySelectorAll('[data-i18n-attr]').forEach(el => {
-          el.dataset.i18nAttr.split(',').forEach(pair => {
-            const idx = pair.indexOf(':');
-            if (idx < 0) return;
-            const attr = pair.slice(0, idx).trim();
-            const key = pair.slice(idx + 1).trim();
-            el.setAttribute(attr, t(key));
-          });
-        });
-      }
-
-      function set(lang) {
-        if (!SUPPORTED.includes(lang)) lang = 'en';
-        current = lang;
-        apply();
-        window.dispatchEvent(new CustomEvent('i18nchange', { detail: { lang } }));
-      }
-
-      return { SUPPORTED, NATIVE, t, set, detect, apply, get current() { return current; } };
-    })();
+    // The translation table and DOM application live in i18n.js, which loads before
+    // the shell so the boot screen is translated while app.js is still loading.
+    // window.I18N is available here as the global binding I18N.
     // -------------------------------------------------------------------------
 
     // --- Settings Persistence ---
@@ -1051,6 +338,8 @@
       musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true,
       adminMode: false, rawCps: false, autoClicker: true,
       characterBackground: false,
+      skyHour: 'auto',            // 'auto' (device time) | '6' | '12' | '18' | '23'
+      skyTour: false,             // rotate through the four skies, 15s each
       showFps: true,              // show an FPS counter during rhythm gameplay (osu/mania)
       // Typing game (typing.js)
       typingClickOnWord: true,    // word-complete fires reactCharacter()
@@ -1140,6 +429,9 @@
     const sfxSlider = document.getElementById('sfx-slider');
     const effectsToggle = document.getElementById('effects-toggle');
     const characterBackgroundToggle = document.getElementById('character-background-toggle');
+    const skyHourSlider = document.getElementById('sky-hour-slider');
+    const skyAutoToggle = document.getElementById('sky-auto-toggle');
+    const skyTourToggle = document.getElementById('sky-tour-toggle');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
     const langSelect = document.getElementById('lang-select');
@@ -1169,6 +461,7 @@
     sfxSlider.value = settings.sfxVol;
     if (!settings.effects) effectsToggle.classList.remove('on');
     syncCharacterBackground(settings.characterBackground);
+    syncSkyControls({ initial: true });
 
     let bgmPlaying = false;
     // Track the currently-loaded BGM src ourselves — browsers can keep <audio>.currentSrc
@@ -1221,6 +514,57 @@
       e.stopPropagation();
       settings.characterBackground = !settings.characterBackground;
       syncCharacterBackground(settings.characterBackground);
+      saveSettings(settings);
+    });
+
+    // --- Sky time picker + sky tour -----------------------------------------
+    // game-shell.js owns the rendering and the tour timer; this only stores the
+    // choice and keeps the controls in sync.
+    function renderSkyControls() {
+      const tour = settings.skyTour === true;
+      const auto = settings.skyHour === 'auto';
+      skyTourToggle.classList.toggle('on', tour);
+      skyTourToggle.setAttribute('aria-checked', String(tour));
+      skyAutoToggle.classList.toggle('on', auto);
+      skyAutoToggle.setAttribute('aria-checked', String(auto));
+      if (!auto) skyHourSlider.value = settings.skyHour;
+    }
+    function syncSkyControls(options) {
+      renderSkyControls();
+      if (options && options.initial) {
+        window.GameShell.applySkyPreference(settings.skyHour, settings.skyTour === true);
+      } else {
+        window.GameShell.setSkyHour(settings.skyHour);
+        window.GameShell.setSkyTour(settings.skyTour === true);
+      }
+    }
+    // Scrubbing follows the thumb immediately and only saves on release, so a drag
+    // is one write instead of one per quarter hour.
+    skyHourSlider.addEventListener('input', (e) => {
+      if (settings.skyTour) { settings.skyTour = false; window.GameShell.setSkyTour(false); }
+      settings.skyHour = e.target.value;
+      renderSkyControls();
+      window.GameShell.scrubSkyHour(e.target.value);
+    });
+    skyHourSlider.addEventListener('change', () => saveSettings(settings));
+    skyHourSlider.addEventListener('click', (e) => e.stopPropagation());
+    skyAutoToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Turning it off keeps the sky that is on screen, so the slider starts there.
+      settings.skyHour = settings.skyHour === 'auto' ? skyHourSlider.value : 'auto';
+      settings.skyTour = false;
+      syncSkyControls();
+      saveSettings(settings);
+    });
+    skyTourToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (settings.skyTour) {
+        // Stopping keeps the sky the sweep is showing instead of snapping back to
+        // the previous pick; round to the slider's step so thumb and sky agree.
+        settings.skyHour = (Math.round(window.GameShell.shownSkyHour() * 4) / 4).toFixed(2);
+      }
+      settings.skyTour = !settings.skyTour;
+      syncSkyControls();
       saveSettings(settings);
     });
 
@@ -1308,6 +652,7 @@
       sfxSlider.value = s.sfxVol;
       effectsToggle.classList.toggle('on', s.effects);
       syncCharacterBackground(s.characterBackground);
+      syncSkyControls();
       keyboardToggle.classList.toggle('on', s.keyboardClicks);
       adminToggle.classList.toggle('on', s.adminMode);
       rawCpsToggle.classList.toggle('on', s.rawCps);
@@ -2543,7 +1888,7 @@
       const s = userShop || {};
       const have = shopAffordableCoins();
       const context = document.getElementById('shop-context');
-      if (context) context.textContent = settings.gameMode === 'typing' ? 'TYPING / UPGRADES' : 'CLICKER / UPGRADES';
+      if (context) context.textContent = I18N.t(settings.gameMode === 'typing' ? 'shop.kicker.typing' : 'shop.kicker.clicker');
       const wallet = document.getElementById('shop-wallet');
       if (wallet) wallet.textContent = shopFormatNum(have);
 
@@ -3140,7 +2485,8 @@
       if (stars > 0) senseiPrestigeEl.textContent = '★' + stars;
 
       const welcomeName = document.getElementById('lobby-welcome-name');
-      if (welcomeName) welcomeName.textContent = userProfile?.displayName || 'Sensei';
+      if (welcomeName) welcomeName.textContent = I18N.t('lobby.welcome_name',
+        { name: userProfile?.displayName || I18N.t('lobby.sensei') });
       if (userProfile) {
         senseiNameEl.textContent = userProfile.displayName || I18N.t('sensei.trainer');
         senseiFlagEl.textContent = flagFromCountry(userProfile.country);
@@ -5311,6 +4657,7 @@
     window.addEventListener('i18nchange', () => {
       renderSkinList();
       renderSenseiBar();
+      renderShopPanel();   // shop kicker/context is rendered from the active game mode
       // Combo label: apply() restored the static "COMBO!"; if a MAX COMBO! is
       // currently showing, keep that wording in the new language.
       if (comboEl.classList.contains('tier-' + COMBO_CAP_TIER)) {

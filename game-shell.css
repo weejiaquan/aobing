@@ -12,20 +12,39 @@
   --sky-warmth: 0;
   --sky-warm-color: #f48c52;
 }
-body { color: var(--hub-ink); background-color: #dff3fa; }
+@property --sky-daylight { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --sky-stars { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --sky-warmth { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --sky-warm-color { syntax: '<color>'; inherits: true; initial-value: #f48c52; }
+@property --sky-sun-x { syntax: '<percentage>'; inherits: true; initial-value: 75%; }
+@property --sky-sun-y { syntax: '<percentage>'; inherits: true; initial-value: 20%; }
+body {
+  color: var(--hub-ink); background-color: #dff3fa;
+  /* game-shell.js picks the blend per change: none on first paint, the full tick
+     length for the wall clock (so the sky drifts instead of stepping), shorter
+     for a preset the player picked and for each sky-tour stop. */
+  --sky-blend: 0s;
+  transition:
+    --sky-daylight var(--sky-blend) linear, --sky-stars var(--sky-blend) linear,
+    --sky-warmth var(--sky-blend) linear, --sky-warm-color var(--sky-blend) linear,
+    --sky-sun-x var(--sky-blend) linear, --sky-sun-y var(--sky-blend) linear;
+}
+body[data-sky-blend='clock'] { --sky-blend: 30s; }   /* one tick: continuous drift */
+body[data-sky-blend='pick'] { --sky-blend: 2.5s; }
+body[data-sky-blend='tour'] { --sky-blend: .25s; }   /* one sweep tick: continuous */
 button { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, [tabindex]:focus-visible { outline: 3px solid #0079b9; outline-offset: 5px; }
 .sky-scene { overflow: hidden; background: #092344; pointer-events: none; }
 .sky-layer { position: absolute; inset: -1%; background-position: center; background-size: cover; background-repeat: no-repeat; }
 .sky-day { background: radial-gradient(ellipse at var(--sky-sun-x,75%) var(--sky-sun-y,20%),#e6faff66,transparent 50%),linear-gradient(180deg,#087bc6 0%,#189fed 60%,#c1eefa 100%); }
-.sky-night { background: radial-gradient(ellipse at 54% 70%,#17467a80,transparent 65%),linear-gradient(180deg,#040c1e 0%,#0d284b 64%,#174269 100%); opacity: calc(1 - var(--sky-daylight)); transition: opacity 1.5s linear; }
-.sky-clouds { background-image: url('assets/sky-clouds.svg'); opacity: calc(.07 + var(--sky-daylight) * .93); filter: brightness(calc(.4 + var(--sky-daylight) * .6)); transition: opacity 1.5s,filter 1.5s; animation: sky-drift 60s ease-in-out infinite alternate; }
-.sky-city { background-image: url('assets/sky-city.svg'); filter: brightness(calc(1 + var(--sky-daylight) * 1.3)); transition: filter 1.5s; }
-.sky-city::after { content: ''; position: absolute; inset: 60% 0 0; background: linear-gradient(transparent,#a6dff5); opacity: calc(var(--sky-daylight) * .35); transition: opacity 1.5s; }
-.sky-city-lights { background-image: url('assets/sky-city-lights.svg'); opacity: var(--sky-stars); transition: opacity 1.5s; }
-.sky-halos { background-image: url('assets/sky-halos.svg'); opacity: calc(.65 + var(--sky-stars) * .3); transition: opacity 1.5s; }
-.sky-warmth { background: linear-gradient(180deg,#713d9600 0%,var(--sky-warm-color) 76%,#ffbb6c); opacity: var(--sky-warmth); mix-blend-mode: color; transition: opacity 1.5s,background 1.5s; }
-.sky-stars { opacity: var(--sky-stars); transition: opacity 1.5s; }
+.sky-night { background: radial-gradient(ellipse at 54% 70%,#17467a80,transparent 65%),linear-gradient(180deg,#040c1e 0%,#0d284b 64%,#174269 100%); opacity: calc(1 - var(--sky-daylight)); }
+.sky-clouds { background-image: url('assets/sky-clouds.svg'); opacity: calc(.07 + var(--sky-daylight) * .93); filter: brightness(calc(.4 + var(--sky-daylight) * .6)); animation: sky-drift 60s ease-in-out infinite alternate; }
+.sky-city { background-image: url('assets/sky-city.svg'); filter: brightness(calc(1 + var(--sky-daylight) * 1.3)); }
+.sky-city::after { content: ''; position: absolute; inset: 60% 0 0; background: linear-gradient(transparent,#a6dff5); opacity: calc(var(--sky-daylight) * .35); }
+.sky-city-lights { background-image: url('assets/sky-city-lights.svg'); opacity: var(--sky-stars); }
+.sky-halos { background-image: url('assets/sky-halos.svg'); opacity: calc(.65 + var(--sky-stars) * .3); }
+.sky-warmth { background: linear-gradient(180deg,#713d9600 0%,var(--sky-warm-color) 76%,#ffbb6c); opacity: var(--sky-warmth); mix-blend-mode: color; }
+.sky-stars { opacity: var(--sky-stars); }
 .sky-stars i { position: absolute; width: var(--star-size); height: var(--star-size); background: #e9f8ff; border-radius: 50%; box-shadow: 0 0 7px #c0eeff; animation: sky-twinkle 7s var(--twinkle-delay) ease-in-out infinite alternate; }
 body[data-sky-phase='day'] .sky-stars i { animation-play-state: paused; }
 .lobby-atmosphere { position: fixed; inset: 0; z-index: 1; }
@@ -57,7 +76,7 @@ body[data-sky-phase='day'] .sky-stars i { animation-play-state: paused; }
 .feature-copy span { display: block; font-size: 11px; margin-top: 5px; color: #dceffc; }
 .feature-caption { margin-top: 15px; padding-left: 12px; border-left: 2px solid #05a9e5; font-size: 11px; line-height: 1.8; color: #53768b; }
 #click-counter { top: 34px; left: auto; right: 165px; transform: none; border-radius: 3px; box-shadow: none; background: #ffffffe6; border-color: #a9d2e6; padding: 9px 15px; font-size: 14px; }
-#click-counter::before { content: 'CLICKS'; font-size: 9px; letter-spacing: 1.6px; color: #6388a0; margin-right: 6px; }
+#click-counter .pill-label { font-size: 9px; letter-spacing: 1.6px; color: #6388a0; margin-right: 6px; }
 #system-time { right: 36px; top: 35px; bottom: auto; border: 0; box-shadow: none; background: transparent; font-size: 14px; }
 #sensei-bar { left: 36px; bottom: 44px; width: 250px; border-radius: 4px 18px 4px 4px; border: 1px solid #b3d9eb; border-top: 3px solid var(--hub-blue); box-shadow: 6px 6px 0 #3183a610; }
 #profile-panel { left: 36px; bottom: 198px; }
@@ -149,19 +168,12 @@ body[data-sky-phase='night'] #boot-train { color: #b0d5ed; opacity: .16; }
 .train-car-rear { animation-delay: -.76s; }
 .train-wheel { animation: train-wheel-turn .48s linear infinite; }
 .boot-departing #boot-start { cursor: wait; }
-.boot-departing #sky-picker, .boot-departing .boot-top, .boot-departing .boot-bottom, .boot-departing .boot-controls { opacity: 0; transition: opacity .3s; }
+.boot-departing .boot-top, .boot-departing .boot-bottom, .boot-departing .boot-controls { opacity: 0; transition: opacity .3s; }
 .boot-departing .boot-controls { animation: none; }
 .boot-departing .railway-scenery { animation-duration: 12s; }
 .boot-departing .railway-track::after { animation-duration: .12s; }
 .boot-departing .train-wheel { animation-duration: .25s; }
 .boot-departing .train-car { animation-duration: .75s; }
-#sky-picker { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; border: 0; margin: 28px 16px 44px; padding: 0; max-width: 520px; flex-shrink: 0; }
-#sky-picker[hidden] { display: none; }
-#sky-picker legend { width: 100%; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 2px; color: #d1e7f5; margin-bottom: 12px; }
-#sky-picker button { min-height: 36px; padding: 8px 13px; border: 1px solid #bce5ff55; border-radius: 5px; background: #0f325970; color: #eaf7ff; cursor: pointer; font: 600 10px 'Segoe UI',sans-serif; }
-#sky-picker button:hover { background: #376789b0; }
-#sky-picker button[aria-pressed='true'] { border-color: #b3f1ff; background: #e6f8ff; color: #164962; }
-#sky-time-label { width: 100%; text-align: center; font-size: 10px; letter-spacing: .5px; color: #c7e3f4; margin-top: 4px; }
 .hub-header, .lobby-intro, .lobby-feature, .lobby-tap { color: #f3fbff; text-shadow: 0 2px 12px #062b5480; }
 .hub-header { border-bottom-color: #c7eaff60; }
 .hub-brand em, .lobby-intro h1 span { color: #a5efff; }
@@ -216,7 +228,7 @@ body.library-open #character { animation-play-state: paused; }
 }
 @media (max-width: 760px) {
   .hub-header { left: 18px; right: 18px; top: 13px; height: 48px; } .hub-brand { font-size: 27px; }
-  #click-counter { top: 24px; right: 18px; font-size: 12px; padding: 5px 8px; } #click-counter::before { display: none; } #system-time { display: none; }
+  #click-counter { top: 24px; right: 18px; font-size: 12px; padding: 5px 8px; } #click-counter .pill-label { display: none; } #system-time { display: none; }
   .lobby-intro { left: 23px; top: 95px; width: min(280px,calc(100vw - 46px)); } .lobby-intro h1 { font-size: 25px; } .lobby-intro p { font-size: 12px; max-width: none; }
   .lobby-feature { display: none; } #character { margin-top: 35px; margin-left: 40px; } #character img { height: 64vh; max-width: 83vw; max-height: 65vh; }
   #sensei-bar { bottom: 110px; left: 16px; width: 175px; padding: 7px 10px; } #hub-launch { right: 16px; bottom: 156px; width: 164px; height: 58px; padding: 9px 12px; } #hub-launch strong { font-size: 19px; } #hub-launch small { font-size: 7px; letter-spacing: 1.5px; } #hub-launch b { right: 10px; top: 18px; font-size: 20px; }
@@ -226,25 +238,23 @@ body.library-open #character { animation-play-state: paused; }
   .lobby-tap { display: none; } #idle-bubble { right: 4%; max-width: 180px; font-size: 14px; }
   #game-library { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); } .library-inner { padding: 20px 16px; } .library-top h2 { font-size: 32px; } .library-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; } .game-card { min-height: 185px; } .game-card img { height: 155px; width: 135px; } .card-copy strong { font-size: 22px; } .card-copy span { max-width: 120px; font-size: 9px; } .game-card .card-copy { padding: 32px 12px 13px; } .game-card::after { right: 10px; bottom: 17px; font-size: 18px; } .library-footer { font-size: 8px; gap: 14px; line-height: 1.7; }
   .boot-top { top: 24px; left: 22px; right: 22px; font-size: 7px; letter-spacing: 1.5px; } .boot-halo { width: 235px; height: 235px; } .boot-controls { margin-top: 38px; } .boot-bottom { padding: 0 24px; font-size: 8px; }
-  #sky-picker { gap: 5px; margin-top: 24px; } #sky-picker button { padding: 8px 9px; font-size: 9px; }
   #disclaimer { font-size: 7px; line-height: 1.5; padding: 4px 9px; }
 }
 @media (max-height: 760px) {
   .boot-mark { margin-top: 52px; } .boot-word { font-size: clamp(30px,9vw,85px); } .boot-halo { width: 220px; height: 220px; }
   .boot-controls { margin-top: 12px; }
-  #sky-picker { margin-top: 18px; margin-bottom: 30px; }
 }
 @media (max-width: 380px) {
   #sensei-bar { width: 151px; } #hub-launch, #mode-menu { width: 144px; } #hub-launch strong { font-size: 17px; }
 }
 @media (max-height: 600px) and (min-width: 761px) {
   .lobby-intro { top: 22%; } .lobby-intro h1 { font-size: 28px; } .feature-caption { display: none; } .lobby-feature { top: 22%; } .fishing-feature { height: 145px; } #character img { height: 70vh; } .lobby-tap { display: none; }
-  .boot-halo { width: 210px; height: 210px; } .boot-word { font-size: 80px; } .boot-mark { margin-top: 55px; } .boot-controls { margin-top: 10px; } .boot-bottom { bottom: 12px; } #sky-picker { margin-top: 15px; margin-bottom: 30px; }
+  .boot-halo { width: 210px; height: 210px; } .boot-word { font-size: 80px; } .boot-mark { margin-top: 55px; } .boot-controls { margin-top: 10px; } .boot-bottom { bottom: 12px; }
 }
 @media (max-height: 540px) {
   #curtain { justify-content: flex-start; overflow-y: auto; padding: 140px 0 80px; }
   .boot-mark { margin-top: 0; } .boot-controls { margin-top: 12px; } .boot-halo { width: 190px; height: 190px; }
-  .boot-bottom { position: static; flex-shrink: 0; } #sky-picker { margin-bottom: 25px; }
+  .boot-bottom { position: static; flex-shrink: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

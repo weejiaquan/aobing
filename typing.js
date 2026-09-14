@@ -645,7 +645,7 @@ if (typeof document !== 'undefined') {
       if (!owned.length) {
         const empty = document.createElement('p');
         empty.className = 'ui-description';
-        empty.textContent = 'No modifiers owned yet. Find them in the typing Shop.';
+        empty.textContent = t('typing.no_mods_owned');
         host.appendChild(empty);
       }
       owned.forEach((d) => {
@@ -671,7 +671,7 @@ if (typeof document !== 'undefined') {
         } else {
           const state = document.createElement('span');
           state.className = 'typing-mod-off';
-          state.textContent = d.toggle ? t('typing.off_ranked') : 'Always active';
+          state.textContent = t(d.toggle ? 'typing.off_ranked' : 'typing.always_active');
           row.appendChild(state);
         }
         host.appendChild(row);

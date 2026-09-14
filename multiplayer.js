@@ -223,22 +223,22 @@ if (typeof document !== 'undefined') {
         tr = transfers[body.hash] = { ra: MpEngine.createReassembler(), fromName: mem.name || '' };
       }
       const done = tr.ra.add({ seq: body.seq, total: body.total, data: body.data });
-      statusLine(container, 'Downloading map… ' + tr.ra.received() + '/' + tr.ra.total());
+      statusLine(container, I18N.t('mp.downloading', { received: tr.ra.received(), total: tr.ra.total() }));
       if (done) {
         delete transfers[body.hash];
         let rec;
         try {
           rec = MpEngine.decodeChartTransfer(tr.ra.result());
         } catch (e) {
-          statusLine(container, 'Received map was corrupted; transfer failed.');
+          statusLine(container, I18N.t('mp.corrupted'));
           return;
         }
         const lobbyName = (conn.getState().lobby || {}).name || '';
         OsuStdGame.importForeignCharts([{ osuText: rec.osuText, audio: rec.audio,
           art: rec.art, origin: { type: 'received', fromName: tr.fromName || '',
             lobby: lobbyName, receivedAt: new Date().toISOString() } }])
-          .then(function () { statusLine(container, 'Map saved to your library.'); })
-          .catch(function () { statusLine(container, 'Could not save the received map.'); });
+          .then(function () { statusLine(container, I18N.t('mp.saved')); })
+          .catch(function () { statusLine(container, I18N.t('mp.save_failed')); });
       }
     }
   }
@@ -250,9 +250,9 @@ if (typeof document !== 'undefined') {
     const hostUid = lobby.host_uid;
     if (st.uid === hostUid) return; // host already has it
     OsuStdGame.hasChart(map.hash).then(function (have) {
-      if (have) { statusLine(container, 'You already have "' + (map.title || 'this map') + '".'); return; }
+      if (have) { statusLine(container, I18N.t('mp.already_have', { title: map.title || I18N.t('mp.untitled_map') })); return; }
       if (transfers[map.hash]) return; // download already in flight
-      statusLine(container, 'Requesting "' + (map.title || 'map') + '" from host…');
+      statusLine(container, I18N.t('mp.requesting', { title: map.title || I18N.t('mp.untitled_map') }));
       conn.send(MpEngine.buildRelay(hostUid, { t: 'need_map', hash: map.hash }));
     });
   }
@@ -260,18 +260,18 @@ if (typeof document !== 'undefined') {
   function renderMapPicker(container) {
     OsuStdGame.listCharts().then(function (charts) {
       const box = el('div', { id: 'mp-map-picker' });
-      box.appendChild(el('h4', { textContent: 'Pick a map to host' }));
+      box.appendChild(el('h4', { textContent: I18N.t('mp.pick_map_title') }));
       if (!charts.length) {
-        box.appendChild(el('p', { textContent: 'Your library is empty — import a map first.' }));
+        box.appendChild(el('p', { textContent: I18N.t('mp.library_empty') }));
       }
       charts.forEach(function (m) {
         box.appendChild(el('button', {
-          textContent: m.title + ' — ' + m.diffName,
+          textContent: I18N.t('mp.map_row', { title: m.title, diff: m.diffName }),
           onclick: function () {
             conn.send(MpEngine.buildSelectMap({ hash: m.hash, title: m.title,
               artist: m.artist, diffName: m.diffName, stars: m.stars, length: m.length }));
             box.remove();
-            statusLine(container, 'Selected "' + m.title + '".');
+            statusLine(container, I18N.t('mp.selected', { title: m.title }));
           },
         }));
       });
@@ -283,7 +283,7 @@ if (typeof document !== 'undefined') {
 
   function renderOffline(container, why) {
     container.innerHTML = '';
-    container.appendChild(el('p', { textContent: 'Multiplayer is offline right now.' }));
+    container.appendChild(el('p', { textContent: I18N.t('mp.offline') }));
     container.appendChild(el('p', { textContent: why || '', className: 'mp-sub' }));
   }
 
@@ -294,12 +294,12 @@ if (typeof document !== 'undefined') {
     const list = el('ul', {});
     Object.keys(lobby.members).forEach(function (uid) {
       const m = lobby.members[uid];
-      const tag = (uid === lobby.host_uid) ? ' (host)' : '';
-      list.appendChild(el('li', { textContent: m.name + tag }));
+      list.appendChild(el('li', { textContent: (uid === lobby.host_uid)
+        ? I18N.t('mp.member_host', { name: m.name }) : m.name }));
     });
     container.appendChild(list);
     container.appendChild(el('button', {
-      textContent: 'Leave', onclick: function () {
+      textContent: I18N.t('mp.leave'), onclick: function () {
         conn.send(MpEngine.buildLeave()); conn.close(); conn = null;
         for (const k in transfers) delete transfers[k];
         lastStatus = '';
@@ -308,7 +308,7 @@ if (typeof document !== 'undefined') {
     }));
     if (state.uid === lobby.host_uid) {
       container.appendChild(el('button', {
-        textContent: 'Pick map',
+        textContent: I18N.t('mp.pick_map'),
         onclick: function () { renderMapPicker(container); },
       }));
     }
@@ -319,7 +319,7 @@ if (typeof document !== 'undefined') {
     if (state.status === 'offline') {
       for (const k in transfers) delete transfers[k];
       lastStatus = '';
-      renderOffline(container, 'Lost connection.');
+      renderOffline(container, I18N.t('mp.lost_connection'));
       return;
     }
     if (state.lobby) { renderLobby(container, state); }
@@ -341,30 +341,30 @@ if (typeof document !== 'undefined') {
 
   function openBrowser(container) {
     container.innerHTML = '';
-    container.appendChild(el('h3', { textContent: 'Multiplayer lobbies' }));
+    container.appendChild(el('h3', { textContent: I18N.t('mp.lobbies_title') }));
     fetch(KEI + '/api/mp/lobbies').then(function (r) { return r.json(); })
       .then(function (body) {
         const create = el('button', {
-          textContent: 'Create lobby',
+          textContent: I18N.t('mp.create_lobby'),
           onclick: function () {
-            const name = prompt('Lobby name?') || 'Lobby';
+            const name = prompt(I18N.t('mp.lobby_name_prompt')) || I18N.t('mp.lobby_default_name');
             ensureConn(container).send(MpEngine.buildCreate({ name: name }));
           },
         });
         container.appendChild(create);
         body.lobbies.forEach(function (row) {
-          const label = row.name + ' — ' + row.hostName + ' (' +
-            row.playerCount + '/' + row.cap + ')' + (row.hasPassword ? ' 🔒' : '');
+          const label = I18N.t('mp.lobby_row', { name: row.name, host: row.hostName,
+            players: row.playerCount, cap: row.cap }) + (row.hasPassword ? ' 🔒' : '');
           container.appendChild(el('button', {
             textContent: label,
             onclick: function () {
-              const pw = row.hasPassword ? (prompt('Password?') || '') : undefined;
+              const pw = row.hasPassword ? (prompt(I18N.t('mp.password_prompt')) || '') : undefined;
               ensureConn(container).send(MpEngine.buildJoin(row.id, pw));
             },
           }));
         });
       })
-      .catch(function () { renderOffline(container, 'Could not reach the lobby server.'); });
+      .catch(function () { renderOffline(container, I18N.t('mp.no_server')); });
   }
 
   window.MpUI = { open: openBrowser };

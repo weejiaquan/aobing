@@ -2282,40 +2282,40 @@
   <header class="hub-header">
     <div class="hub-brand">AOBING<em> IT!</em></div>
   </header>
-  <section id="lobby-welcome" class="lobby-intro" aria-label="Welcome" role="status" hidden>
-    <h1>Welcome back,<br><span id="lobby-welcome-name">Sensei</span>.</h1>
-    <p>Hope you enjoy your stay.</p>
+  <section id="lobby-welcome" class="lobby-intro" aria-label="Welcome" role="status" hidden data-i18n-attr="aria-label:lobby.welcome_aria">
+    <h1><span data-i18n="lobby.welcome_back">Welcome back,</span><br><span id="lobby-welcome-name">Sensei.</span></h1>
+    <p data-i18n="lobby.welcome_sub">Hope you enjoy your stay.</p>
   </section>
-  <aside class="lobby-feature" aria-label="Featured game" hidden>
-    <div class="feature-heading"><span class="hub-eyebrow">Take a detour</span><span>01 / 06</span></div>
+  <aside class="lobby-feature" aria-label="Featured game" hidden data-i18n-attr="aria-label:lobby.feature_aria">
+    <div class="feature-heading"><span class="hub-eyebrow" data-i18n="lobby.feature_eyebrow">Take a detour</span><span>01 / 06</span></div>
     <button class="fishing-feature" type="button" data-launch-mode="fishing">
       <img src="assets/miyuswim-idle.webp" alt="" loading="lazy">
-      <span class="feature-copy"><small>AFTER SCHOOL / FISHING</small><strong>Gone fishing.</strong><span>A quiet afternoon with Miyu. ↗</span></span>
+      <span class="feature-copy"><small data-i18n="lobby.feature_kicker">AFTER SCHOOL / FISHING</small><strong data-i18n="lobby.feature_title">Gone fishing.</strong><span data-i18n="lobby.feature_desc">A quiet afternoon with Miyu. ↗</span></span>
     </button>
-    <p class="feature-caption">No rush, Sensei.<br>There’s more than one way to play.</p>
+    <p class="feature-caption"><span data-i18n="lobby.feature_caption">No rush, Sensei.</span><br><span data-i18n="lobby.feature_caption_2">There’s more than one way to play.</span></p>
   </aside>
-  <div class="lobby-tap" aria-hidden="true"><span>◇</span> TAP YOUR CHARACTER TO PLAY</div>
-  <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small>CHOOSE YOUR NEXT SIDE QUEST</small><strong>Game library</strong><b aria-hidden="true">↗</b></button>
+  <div class="lobby-tap" aria-hidden="true"><span>◇</span> <span data-i18n="lobby.tap_to_play">TAP YOUR CHARACTER TO PLAY</span></div>
+  <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small data-i18n="library.launch_kicker">CHOOSE YOUR NEXT SIDE QUEST</small><strong data-i18n="library.launch_title">Game library</strong><b aria-hidden="true">↗</b></button>
   <dialog id="game-library" aria-labelledby="library-title">
     <div class="library-inner">
-      <div class="library-top"><div><div class="hub-eyebrow">Game library / 06 games</div><h2 id="library-title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library">Close ✕</button></div>
+      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 06 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
       <div class="library-grid" id="library-games">
-        <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / CASUAL</span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>ONE MORE SQUEAK</small><strong>Clicker</strong><span>Tap, collect, and meet your favourites.</span></span></button>
-        <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / CHALLENGE</span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small>FIND YOUR FLOW</small><strong>Typing</strong><span>Casual practice or a ranked sprint.</span></span></button>
-        <button class="game-card" type="button" data-launch-mode="fishing"><span class="card-number">03 / RELAX</span><img src="assets/miyuswim-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>CAST AWAY WITH MIYU</small><strong>Fishing</strong><span>A new catch for your collection.</span></span></button>
-        <button class="game-card" type="button" data-launch-mode="osu"><span class="card-number">04 / RHYTHM</span><span class="card-symbol" aria-hidden="true">◎</span><span class="card-copy"><small>FOLLOW THE BEAT</small><strong>Standard</strong><span>Circles, sliders, and perfect timing.</span></span></button>
-        <button class="game-card" type="button" data-launch-mode="vsrg"><span class="card-number">05 / RHYTHM</span><span class="card-symbol card-lanes" aria-hidden="true">▂▆▄▇</span><span class="card-copy"><small>EVERY KEY COUNTS</small><strong>Mania</strong><span>Find your rhythm. Chase the combo.</span></span></button>
-        <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / RHYTHM</span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>TAKE THE STAGE</small><strong>Diva</strong><span>Your songs. Your spotlight.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / <span data-i18n="library.tag.casual">CASUAL</span></span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.clicker.kicker">ONE MORE SQUEAK</small><strong data-i18n="mode.clicker">Clicker</strong><span data-i18n="library.card.clicker.desc">Tap, collect, and meet your favourites.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / <span data-i18n="library.tag.challenge">CHALLENGE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.typing.kicker">FIND YOUR FLOW</small><strong data-i18n="mode.typing">Typing</strong><span data-i18n="library.card.typing.desc">Casual practice or a ranked sprint.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="fishing"><span class="card-number">03 / <span data-i18n="library.tag.relax">RELAX</span></span><img src="assets/miyuswim-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.fishing.kicker">CAST AWAY WITH MIYU</small><strong data-i18n="mode.fishing">Fishing</strong><span data-i18n="library.card.fishing.desc">A new catch for your collection.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="osu"><span class="card-number">04 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><span class="card-symbol" aria-hidden="true">◎</span><span class="card-copy"><small data-i18n="library.card.osu.kicker">FOLLOW THE BEAT</small><strong data-i18n="mode.osu">Standard</strong><span data-i18n="library.card.osu.desc">Circles, sliders, and perfect timing.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="vsrg"><span class="card-number">05 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><span class="card-symbol card-lanes" aria-hidden="true">▂▆▄▇</span><span class="card-copy"><small data-i18n="library.card.mania.kicker">EVERY KEY COUNTS</small><strong data-i18n="mode.mania">Mania</strong><span data-i18n="library.card.mania.desc">Find your rhythm. Chase the combo.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.diva.kicker">TAKE THE STAGE</small><strong data-i18n="mode.diva">Diva</strong><span data-i18n="library.card.diva.desc">Your songs. Your spotlight.</span></span></button>
       </div>
-      <section id="library-typing" hidden aria-label="Typing modes">
-        <button id="library-back" class="library-back" type="button">← All games</button>
-        <p class="ui-description">Find your pace, or chase a place on the leaderboard.</p>
+      <section id="library-typing" hidden aria-label="Typing modes" data-i18n-attr="aria-label:library.typing_aria">
+        <button id="library-back" class="library-back" type="button">← <span data-i18n="library.back">All games</span></button>
+        <p class="ui-description" data-i18n="library.typing_desc">Find your pace, or chase a place on the leaderboard.</p>
         <div class="library-grid library-typing-grid">
-          <button class="game-card" type="button" data-launch-mode="typing" data-launch-submode="casual"><span class="card-number">01 / AT YOUR PACE</span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small>PRACTICE &amp; MODIFIERS</small><strong data-i18n="mode.casual">Casual</strong><span>Build your rhythm with your own modifiers.</span></span></button>
-          <button class="game-card typing-ranked-card" type="button" data-launch-mode="typing" data-launch-submode="ranked"><span class="card-number">02 / CHASE YOUR BEST</span><span class="card-symbol" aria-hidden="true">↗</span><span class="card-copy"><small>MAKE EVERY WORD COUNT</small><strong data-i18n="mode.ranked">Ranked</strong><span>A clean run. A new personal best.</span></span></button>
+          <button class="game-card" type="button" data-launch-mode="typing" data-launch-submode="casual"><span class="card-number">01 / <span data-i18n="library.tag.at_your_pace">AT YOUR PACE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.casual.kicker">PRACTICE &amp; MODIFIERS</small><strong data-i18n="mode.casual">Casual</strong><span data-i18n="library.card.casual.desc">Build your rhythm with your own modifiers.</span></span></button>
+          <button class="game-card typing-ranked-card" type="button" data-launch-mode="typing" data-launch-submode="ranked"><span class="card-number">02 / <span data-i18n="library.tag.chase_your_best">CHASE YOUR BEST</span></span><span class="card-symbol" aria-hidden="true">↗</span><span class="card-copy"><small data-i18n="library.card.ranked.kicker">MAKE EVERY WORD COUNT</small><strong data-i18n="mode.ranked">Ranked</strong><span data-i18n="library.card.ranked.desc">A clean run. A new personal best.</span></span></button>
         </div>
-        <details class="library-typing-options"><summary>Run duration</summary>
-          <p class="ui-description">Choose your run length before starting.</p>
+        <details class="library-typing-options"><summary data-i18n="library.run_duration">Run duration</summary>
+          <p class="ui-description" data-i18n="library.run_duration_desc">Choose your run length before starting.</p>
       <div class="mp-section" id="mp-typing">
         <div id="typing-modes" class="typing-modes">
           <button type="button" data-mode="s15">15</button>
@@ -2326,7 +2326,7 @@
       </div>
         </details>
       </section>
-      <div class="library-footer"><span>Choose a game. Upgrades are always available in Shop.</span><span>MADE FOR SENSEI, WITH ♡</span></div>
+      <div class="library-footer"><span data-i18n="library.footer_note">Choose a game. Upgrades are always available in Shop.</span><span data-i18n="library.footer_credit">MADE FOR SENSEI, WITH ♡</span></div>
     </div>
   </dialog>
   <div id="scene-transition" aria-hidden="true"></div>
@@ -2407,7 +2407,7 @@
   <!-- END DISCORD ACTIVITY BOOT -->
 
   <!-- Intro Elements -->
-  <div id="curtain" role="dialog" aria-modal="true" aria-label="Welcome to Aobing IT">
+  <div id="curtain" role="dialog" aria-modal="true" aria-label="Welcome to Aobing IT" data-i18n-attr="aria-label:boot.aria">
     <div class="boot-sky sky-scene" data-sky-scene aria-hidden="true"></div>
     <div class="boot-top"><span>AOBING.IT</span></div>
     <div class="boot-mark">
@@ -2442,18 +2442,10 @@
         </svg>
       </div>
     </div>
-    <div class="boot-controls"><button id="boot-start" type="button" disabled>CONNECTING…</button><p id="boot-status" role="status">Getting your games ready…</p></div>
-    <fieldset id="sky-picker" hidden>
-      <legend>YOUR SKY, AROUND THE CLOCK</legend>
-      <button type="button" data-sky-hour="auto" aria-pressed="true">Device time</button>
-      <button type="button" data-sky-hour="6" aria-pressed="false">Sunrise</button>
-      <button type="button" data-sky-hour="12" aria-pressed="false">Day</button>
-      <button type="button" data-sky-hour="18" aria-pressed="false">Sunset</button>
-      <button type="button" data-sky-hour="23" aria-pressed="false">Night</button>
-      <output id="sky-time-label" aria-live="off"></output>
-    </fieldset>
-    <div class="boot-bottom">Welcome to Aobing IT!<span>CLICKER · TYPING · FISHING · RHYTHM</span></div>
+    <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
+    <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
+  <script src="i18n.js"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js"></script>
 
@@ -2483,7 +2475,7 @@
 
   <!-- Persistent Shop launcher; game selection lives in the library. -->
   <div id="mode-menu">
-    <button id="modifiers-btn" type="button" aria-haspopup="dialog" aria-controls="modifiers-panel" aria-expanded="false">Modifiers</button>
+    <button id="modifiers-btn" type="button" aria-haspopup="dialog" aria-controls="modifiers-panel" aria-expanded="false" data-i18n="typing.modifiers">Modifiers</button>
     <button id="mode-chip" type="button" aria-haspopup="dialog" aria-controls="shop-panel" aria-expanded="false">
       <span id="mode-chip-label">Shop</span>
     </button>
@@ -2495,6 +2487,7 @@
 
   <!-- Click counter (BA-style pill: global | current skin) -->
   <div id="click-counter" class="ba-pill" title="Global clicks | Current skin clicks" data-i18n-attr="title:tooltip.click_counter">
+    <span class="pill-label" data-i18n="counter.clicks">CLICKS</span>
     <span class="pill-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 1 1 4 0v6"/><path d="M13 8a2 2 0 1 1 4 0v4"/><path d="M17 10a2 2 0 1 1 4 0v5a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-3l-3-5a2 2 0 0 1 3-2.5L9 13V6"/></svg>
     </span>
@@ -2505,8 +2498,8 @@
 
   <!-- Profile panel (opens above sensei bar) -->
   <div id="profile-panel" class="hub-window" role="dialog" aria-modal="true" aria-label="Profile" tabindex="-1">
-    <p class="ui-kicker">PLAYER PROFILE</p>
-    <button class="ui-close ui-profile-close" type="button" data-close-panel="profile-panel" aria-label="Close profile">✕</button>
+    <p class="ui-kicker" data-i18n="profile.kicker">PLAYER PROFILE</p>
+    <button class="ui-close ui-profile-close" type="button" data-close-panel="profile-panel" aria-label="Close profile" data-i18n-attr="aria-label:profile.close_aria">✕</button>
     <div id="profile-anon">
       <div class="settings-title"><span data-i18n="profile.title">Profile</span></div>
       <p style="font-size: 0.78rem; color: var(--ba-text-muted); margin-bottom: 10px;"
@@ -2649,13 +2642,13 @@
   <audio id="bgm" src="assets/bgm.mp3" preload="auto" loop></audio>
 
   <!-- Settings -->
-  <button id="settings-btn" class="panel-btn" aria-label="Settings" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+  <button id="settings-btn" class="panel-btn" aria-label="Settings" title="Settings" data-i18n-attr="aria-label:settings.title,title:settings.title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <div id="settings-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="settings-heading" tabindex="-1">
     <header class="ui-window-head">
-      <div><p class="ui-kicker">PREFERENCES</p><h2 id="settings-heading" class="settings-title" data-i18n="settings.title">Settings</h2><p class="ui-description">Make yourself at home.</p></div>
-      <button class="ui-close" type="button" data-close-panel="settings-panel" aria-label="Close settings">✕</button>
+      <div><p class="ui-kicker" data-i18n="settings.kicker">PREFERENCES</p><h2 id="settings-heading" class="settings-title" data-i18n="settings.title">Settings</h2><p class="ui-description" data-i18n="settings.desc">Make yourself at home.</p></div>
+      <button class="ui-close" type="button" data-close-panel="settings-panel" aria-label="Close settings" data-i18n-attr="aria-label:settings.close_aria">✕</button>
     </header>
-    <h3 class="ui-section-title">Sound &amp; atmosphere</h3>
+    <h3 class="ui-section-title" data-i18n="settings.section.sound">Sound &amp; atmosphere</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.music">Music</span>
       <input type="range" id="music-slider" class="settings-slider" min="0" max="100" value="10">
@@ -2673,7 +2666,29 @@
       <button id="character-background-toggle" class="settings-toggle" type="button" role="switch" aria-checked="false" aria-labelledby="character-background-label" aria-describedby="character-background-hint"></button>
     </div>
     <p id="character-background-hint" class="settings-background-hint" data-i18n="settings.character_background_hint">Use the character’s original scenery in Clicker.</p>
-    <h3 class="ui-section-title">Play &amp; display</h3>
+    <div class="settings-group">
+      <span id="sky-picker-label" class="settings-label" data-i18n="sky.title">Your sky, around the clock</span>
+      <input id="sky-hour-slider" class="settings-slider sky-slider" type="range" min="0" max="24" step="0.25"
+             aria-labelledby="sky-picker-label" aria-describedby="sky-time-label" list="sky-hour-ticks">
+      <datalist id="sky-hour-ticks"></datalist>
+      <div id="sky-scale" class="sky-scale" aria-hidden="true">
+        <span data-i18n="sky.sunrise">Sunrise</span>
+        <span data-i18n="sky.day">Day</span>
+        <span data-i18n="sky.sunset">Sunset</span>
+        <span data-i18n="sky.night">Night</span>
+      </div>
+      <output id="sky-time-label" class="sky-time-label" aria-live="off"></output>
+    </div>
+    <div class="settings-row">
+      <span id="sky-auto-label" class="settings-label" data-i18n="sky.device_time">Device time</span>
+      <button id="sky-auto-toggle" class="settings-toggle on" type="button" role="switch" aria-checked="true" aria-labelledby="sky-auto-label"></button>
+    </div>
+    <div class="settings-row">
+      <span id="sky-tour-label" class="settings-label" data-i18n="sky.tour">Sky tour</span>
+      <button id="sky-tour-toggle" class="settings-toggle" type="button" role="switch" aria-checked="false" aria-labelledby="sky-tour-label" aria-describedby="sky-tour-hint"></button>
+    </div>
+    <p id="sky-tour-hint" class="settings-background-hint" data-i18n="sky.tour_hint">Sweeps the slider through a whole day, one minute per cycle.</p>
+    <h3 class="ui-section-title" data-i18n="settings.section.play">Play &amp; display</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
       <button id="keyboard-toggle" class="settings-toggle on"></button>
@@ -2694,7 +2709,7 @@
       <span class="settings-label" data-i18n="settings.admin_mode">Admin mode</span>
       <button id="admin-toggle" class="settings-toggle"></button>
     </div>
-    <h3 class="ui-section-title">General</h3>
+    <h3 class="ui-section-title" data-i18n="settings.section.general">General</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.language">Language</span>
       <select id="lang-select" class="settings-select"></select>
@@ -2708,17 +2723,17 @@
   </div>
 
   <!-- Skins -->
-  <button id="skins-btn" class="panel-btn" aria-label="Characters" title="Characters"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>
+  <button id="skins-btn" class="panel-btn" aria-label="Characters" title="Characters" data-i18n-attr="aria-label:skins.title,title:skins.title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>
   <div id="skins-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="skins-heading" tabindex="-1">
     <header class="ui-window-head">
-      <div><p class="ui-kicker">YOUR COLLECTION</p><h2 id="skins-heading" class="settings-title" data-i18n="skins.title">Characters</h2><p class="ui-description">Pick a familiar face. Find a new favorite.</p></div>
-      <button class="ui-close" type="button" data-close-panel="skins-panel" aria-label="Close characters">✕</button>
+      <div><p class="ui-kicker" data-i18n="skins.kicker">YOUR COLLECTION</p><h2 id="skins-heading" class="settings-title" data-i18n="skins.title">Characters</h2><p class="ui-description" data-i18n="skins.desc">Pick a familiar face. Find a new favorite.</p></div>
+      <button class="ui-close" type="button" data-close-panel="skins-panel" aria-label="Close characters" data-i18n-attr="aria-label:skins.close_aria">✕</button>
     </header>
     <div id="skin-list"></div>
   </div>
 
   <!-- Shop -->
-  <button id="shop-btn" class="panel-btn" aria-label="Shop">
+  <button id="shop-btn" class="panel-btn" aria-label="Shop" title="Shop" data-i18n-attr="aria-label:shop.title,title:shop.title">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="9" cy="20" r="1.5"/>
       <circle cx="17" cy="20" r="1.5"/>
@@ -2727,10 +2742,10 @@
   </button>
   <div id="shop-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="shop-heading" tabindex="-1">
     <header class="ui-window-head">
-      <div><p id="shop-context" class="ui-kicker">CLICKER / UPGRADES</p><h2 id="shop-heading" class="settings-title" data-i18n="shop.title">Shop</h2><p class="ui-description">A little boost for the journey.</p></div>
-      <button class="ui-close" type="button" data-close-panel="shop-panel" aria-label="Close shop">✕</button>
+      <div><p id="shop-context" class="ui-kicker">CLICKER / UPGRADES</p><h2 id="shop-heading" class="settings-title" data-i18n="shop.title">Shop</h2><p class="ui-description" data-i18n="shop.desc">A little boost for the journey.</p></div>
+      <button class="ui-close" type="button" data-close-panel="shop-panel" aria-label="Close shop" data-i18n-attr="aria-label:shop.close_aria">✕</button>
     </header>
-    <div class="ui-wallet"><span>Available coins</span><strong id="shop-wallet">0</strong></div>
+    <div class="ui-wallet"><span data-i18n="shop.wallet">Available coins</span><strong id="shop-wallet">0</strong></div>
     <div class="shop-section clicker-shop-section">
       <div class="shop-section-title" data-i18n="shop.permanent">Permanent</div>
       <div class="shop-item" data-item="coinMul"></div>
@@ -2751,18 +2766,18 @@
       <div class="shop-section-title" data-i18n="shop.prestige.title">Prestige</div>
       <div class="shop-item shop-item-prestige" data-item="prestige"></div>
     </div>
-    <section class="shop-section typing-shop-section"><h3 class="shop-section-title">Typing modifiers</h3><div id="typing-mods" class="typing-mods-list"></div></section>
-    <section class="shop-section typing-shop-section"><h3 class="shop-section-title">Combo upgrades</h3><div id="typing-upgrades"></div><p class="ui-description">Combo upgrades apply to Casual play. Enable your owned modifiers with the Modifiers button.</p></section>
+    <section class="shop-section typing-shop-section"><h3 class="shop-section-title" data-i18n="shop.section.typing_mods">Typing modifiers</h3><div id="typing-mods" class="typing-mods-list"></div></section>
+    <section class="shop-section typing-shop-section"><h3 class="shop-section-title" data-i18n="shop.section.combo_upgrades">Combo upgrades</h3><div id="typing-upgrades"></div><p class="ui-description" data-i18n="shop.typing_hint">Combo upgrades apply to Casual play. Enable your owned modifiers with the Modifiers button.</p></section>
   </div>
 
   <div id="modifiers-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="modifiers-heading" tabindex="-1">
-    <header class="ui-window-head"><div><p class="ui-kicker">TYPING / YOUR SETUP</p><h2 id="modifiers-heading" class="settings-title">Modifiers</h2><p class="ui-description">Set up your next run. Assists stay off in Ranked.</p></div><button class="ui-close" type="button" data-close-panel="modifiers-panel" aria-label="Close modifiers">✕</button></header>
-    <h3 class="ui-section-title">Owned modifiers</h3><div id="typing-owned-mods"></div>
-    <h3 class="ui-section-title">Feedback &amp; display</h3><div id="typing-toggles" class="typing-mods-list"></div>
+    <header class="ui-window-head"><div><p class="ui-kicker" data-i18n="modifiers.kicker">TYPING / YOUR SETUP</p><h2 id="modifiers-heading" class="settings-title" data-i18n="typing.modifiers">Modifiers</h2><p class="ui-description" data-i18n="modifiers.desc">Set up your next run. Assists stay off in Ranked.</p></div><button class="ui-close" type="button" data-close-panel="modifiers-panel" aria-label="Close modifiers" data-i18n-attr="aria-label:modifiers.close_aria">✕</button></header>
+    <h3 class="ui-section-title" data-i18n="modifiers.owned">Owned modifiers</h3><div id="typing-owned-mods"></div>
+    <h3 class="ui-section-title" data-i18n="modifiers.feedback">Feedback &amp; display</h3><div id="typing-toggles" class="typing-mods-list"></div>
   </div>
 
   <!-- Leaderboard -->
-  <button id="leaderboard-btn" class="panel-btn" aria-label="Rankings" title="Rankings">
+  <button id="leaderboard-btn" class="panel-btn" aria-label="Rankings" title="Rankings" data-i18n-attr="aria-label:leaderboard.title,title:leaderboard.title">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
       <path d="M17 4h3v3a3 3 0 0 1-3 3M7 4H4v3a3 3 0 0 0 3 3"/>
@@ -2771,7 +2786,7 @@
   <div id="leaderboard-modal" aria-hidden="true">
     <div class="leaderboard-dialog" role="dialog" aria-label="Leaderboard" data-i18n-attr="aria-label:leaderboard.title">
       <div class="stats-header">
-        <div><p class="ui-kicker">THE LEADERBOARD</p><h2 class="stats-title" data-i18n="leaderboard.title">Rankings</h2><p class="ui-description">Every click. Every personal best.</p></div>
+        <div><p class="ui-kicker" data-i18n="leaderboard.kicker">THE LEADERBOARD</p><h2 class="stats-title" data-i18n="leaderboard.title">Rankings</h2><p class="ui-description" data-i18n="leaderboard.desc">Every click. Every personal best.</p></div>
         <button class="stats-close" id="leaderboard-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
       <div class="lb-scope" id="lb-scope">
@@ -2801,7 +2816,7 @@
   </div>
 
   <!-- Typing game -->
-  <button id="typing-btn" class="panel-btn" aria-label="Typing">
+  <button id="typing-btn" class="panel-btn" aria-label="Typing" title="Typing" data-i18n-attr="aria-label:mode.typing,title:mode.typing">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="6" width="20" height="12" rx="2"/>
       <path d="M6 10h0M10 10h0M14 10h0M18 10h0M8 14h8"/>
@@ -3217,7 +3232,7 @@
     <div id="osu-select" class="osu-screen">
       <div class="osu-select-head">
         <h2 data-i18n="mode.osu">Standard</h2>
-        <button type="button" id="mp-open-btn">Multiplayer</button>
+        <button type="button" id="mp-open-btn" data-i18n="mp.title">Multiplayer</button>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button id="osu-import" type="button" title="Import beatmaps AND skins from an osu! folder (point at your osu! install, or its Songs / Skins folder)">Import osu! folder</button>
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
@@ -3302,7 +3317,7 @@
 
   <!-- Multiplayer lobby browser entry point -->
   <dialog id="multiplayer-dialog" aria-labelledby="multiplayer-title">
-    <header class="ui-window-head"><div><p class="ui-kicker">STANDARD / ONLINE</p><h2 id="multiplayer-title" class="stats-title">Multiplayer</h2></div><button id="mp-close" class="ui-close" type="button" aria-label="Close multiplayer">✕</button></header>
+    <header class="ui-window-head"><div><p class="ui-kicker" data-i18n="mp.kicker">STANDARD / ONLINE</p><h2 id="multiplayer-title" class="stats-title" data-i18n="mp.title">Multiplayer</h2></div><button id="mp-close" class="ui-close" type="button" aria-label="Close multiplayer" data-i18n-attr="aria-label:mp.close_aria">✕</button></header>
     <div id="mp-panel"></div>
   </dialog>
   <script>
@@ -3401,11 +3416,11 @@
   </div>
 
   <!-- Stats -->
-  <button id="stats-btn" class="panel-btn" aria-label="Statistics" title="Statistics"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
+  <button id="stats-btn" class="panel-btn" aria-label="Statistics" title="Statistics" data-i18n-attr="aria-label:analytics.title,title:analytics.title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
     <div class="stats-dialog" role="dialog" aria-label="Analytics" data-i18n-attr="aria-label:analytics.title">
       <div class="stats-header">
-        <div><p class="ui-kicker">ACTIVITY &amp; RECORDS</p><h2 class="stats-title" data-i18n="analytics.title">Statistics</h2><p class="ui-description">See how the numbers add up.</p></div>
+        <div><p class="ui-kicker" data-i18n="analytics.kicker">ACTIVITY &amp; RECORDS</p><h2 class="stats-title" data-i18n="analytics.title">Statistics</h2><p class="ui-description" data-i18n="analytics.desc">See how the numbers add up.</p></div>
         <button class="stats-close" id="stats-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
       <div class="stats-controls">

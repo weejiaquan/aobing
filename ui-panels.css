@@ -9,6 +9,11 @@ body {
   --ui-accent: #008bc7;
   --ui-surface: linear-gradient(125deg,#e4f5fff2,#f6fbfff9 70%),url('assets/sky-halos.svg') center/cover;
 }
+/* The day/night theme flips at a phase boundary, so ease the chrome colors with
+   the sky instead of snapping them (most visible during the sky tour). */
+.panel-btn, #sensei-bar, #click-counter, #mode-chip, #modifiers-btn, .settings-row, .ui-close {
+  transition: background-color .8s,color .8s,border-color .8s;
+}
 body[data-sky-phase='night'] {
   --ui-paper: #102940;
   --ui-card: #17354eea;
@@ -50,7 +55,7 @@ body:not([data-game-mode='clicker']) #idle-bubble, body.is-booting #idle-bubble 
   background: var(--ui-surface); color: var(--ui-text); border: 1px solid var(--ui-border);
   border-radius: 5px 5px 28px 5px; box-shadow: 0 30px 100px #073d6755;
   backdrop-filter: none; visibility: hidden; transform: translateY(14px);
-  transition: opacity .22s,transform .22s,visibility .22s;
+  transition: opacity .22s,transform .22s,visibility .22s,background-color .8s,color .8s,border-color .8s;
   scrollbar-width: thin; scrollbar-color: var(--ui-border) transparent;
 }
 #settings-panel.open, #skins-panel.open, #shop-panel.open, #profile-panel.open, #modifiers-panel.open {
@@ -105,6 +110,24 @@ body[data-game-mode='typing'] #shop-panel .typing-shop-section { display: block;
 .settings-toggle.on { background: #009fe8; }
 .settings-toggle.on::after { transform: translateX(20px); }
 .settings-background-hint { margin: 0; padding: 10px 16px; color: var(--ui-muted); background: var(--ui-soft); font-size: 11px; }
+/* Sky picker: a labelled group, so its presets stack under the label. */
+#settings-panel .settings-group {
+  display: grid; gap: 10px; margin: 0; padding: 14px 16px;
+  border-bottom: 1px solid var(--ui-border); background: var(--ui-card);
+}
+.sky-slider { width: 100%; }
+/* Stage checkpoints under the slider; game-shell.js positions them from the same
+   hours the sky tour uses, so the marks cannot drift from the presets. */
+.sky-scale { position: relative; height: 24px; }
+.sky-scale span {
+  position: absolute; top: 9px; left: var(--at); transform: translateX(-50%);
+  color: var(--ui-muted); font-size: 10px; letter-spacing: .3px; white-space: nowrap;
+}
+.sky-scale span::before {
+  content: ''; position: absolute; left: 50%; top: -9px; width: 1px; height: 6px; background: var(--ui-border);
+}
+@media (max-width: 560px) { .sky-scale span { font-size: 9px; } }
+.sky-time-label { color: var(--ui-muted); font-size: 11px; letter-spacing: .4px; }
 .settings-select, .profile-input, .profile-select, .stats-date-input {
   border: 1px solid var(--ui-border); background: var(--ui-card); color: var(--ui-text);
   border-radius: 3px; min-height: 40px; padding: 8px 12px; font: inherit;
