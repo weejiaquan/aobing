@@ -1881,11 +1881,25 @@ if (typeof document !== 'undefined') {
       for (const r of records) {
         let chart; try { chart = assembleChart(r.osuText); } catch (e) { continue; }   // accept Mode-0 only
         const hash = await sha256(r.osuText);
-        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null });
+        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null, origin: r.origin || { type: 'imported' } });
         n++;
       }
       if (n && panelOpen) await refreshLibrary();
       return n;
+    };
+    api.hasChart = function (hash) {
+      return idbGet('osz', hash).then(function (r) { return !!r; });
+    };
+    api.getChartRecord = function (hash) {
+      return idbGet('osz', hash);
+    };
+    api.listCharts = function () {
+      return idbGetAll('osz').then(function (rows) {
+        return (rows || []).map(function (r) {
+          return { hash: r.hash, title: r.title, artist: r.artist,
+            diffName: r.diffName, stars: r.stars, length: r.length };
+        });
+      });
     };
     api.importSkinFile = function (file) { return handleSkinOsk(file); };
     api.importSkinFromFolder = async function (fileList) {   // auto-load a skin from a picked folder

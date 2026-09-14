@@ -24,6 +24,10 @@ body[data-sky-phase='night'] {
 }
 #ui-panel-backdrop { position: fixed; inset: 0; z-index: 260; }
 #ui-panel-backdrop[hidden] { display: none; }
+#multiplayer-dialog { margin: auto; width: min(760px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 28px; background: var(--ui-surface); background-color: var(--ui-paper); color: var(--ui-text); border: 1px solid var(--ui-border); border-radius: 5px 5px 24px 5px; }
+#multiplayer-dialog::backdrop { background: #14395380; backdrop-filter: blur(12px); }
+#mp-panel button { display: block; width: 100%; margin-top: 10px; padding: 12px 16px; border: 1px solid var(--ui-border); border-radius: 3px; background: var(--ui-card); color: var(--ui-text); text-align: left; cursor: pointer; }
+#mp-panel p, #mp-panel li { margin: 12px 0; color: var(--ui-muted); }
 .lobby-feature[hidden] { display: none; }
 /* Reserve the complete line's height while revealing text, without moving the box. */
 #idle-bubble {

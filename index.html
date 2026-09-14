@@ -2487,6 +2487,7 @@
     <button id="mode-chip" type="button" aria-haspopup="dialog" aria-controls="shop-panel" aria-expanded="false">
       <span id="mode-chip-label">Shop</span>
     </button>
+
   </div>
 
   <!-- Floating text particles container -->
@@ -3216,6 +3217,7 @@
     <div id="osu-select" class="osu-screen">
       <div class="osu-select-head">
         <h2 data-i18n="mode.osu">Standard</h2>
+        <button type="button" id="mp-open-btn">Multiplayer</button>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button id="osu-import" type="button" title="Import beatmaps AND skins from an osu! folder (point at your osu! install, or its Songs / Skins folder)">Import osu! folder</button>
           <input id="osu-import-input" type="file" webkitdirectory directory multiple hidden>
@@ -3297,6 +3299,22 @@
       <button id="osu-visual-done" type="button">Done</button>
     </div>
   </div>
+
+  <!-- Multiplayer lobby browser entry point -->
+  <dialog id="multiplayer-dialog" aria-labelledby="multiplayer-title">
+    <header class="ui-window-head"><div><p class="ui-kicker">STANDARD / ONLINE</p><h2 id="multiplayer-title" class="stats-title">Multiplayer</h2></div><button id="mp-close" class="ui-close" type="button" aria-label="Close multiplayer">✕</button></header>
+    <div id="mp-panel"></div>
+  </dialog>
+  <script>
+    const multiplayerDialog = document.getElementById('multiplayer-dialog');
+    document.getElementById('mp-open-btn').addEventListener('click', function () {
+      multiplayerDialog.showModal();
+      window.MpUI.open(document.getElementById('mp-panel'));
+    });
+    document.getElementById('mp-close').addEventListener('click', () => multiplayerDialog.close());
+    multiplayerDialog.addEventListener('click', (event) => { if (event.target === multiplayerDialog) multiplayerDialog.close(); });
+    window.addEventListener('keydown', (event) => { if (multiplayerDialog.open) event.stopPropagation(); }, true);
+  </script>
 
   <!-- Project Diva (Future Tone style) performance panel -->
   <div id="divaft-panel">
@@ -3598,6 +3616,7 @@
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
         .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
         // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.

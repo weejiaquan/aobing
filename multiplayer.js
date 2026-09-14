@@ -1,0 +1,371 @@
+'use strict';
+// osu! multiplayer client. Pure core (MP_ENGINE) is Node-testable; browser
+// wiring is guarded by `typeof document`. Fully isolated from osustd.js: a
+// failure here must never affect single-player.
+(function () {
+  function buildAuth(token) { return { type: 'auth', token: token }; }
+  function buildCreate(opts) {
+    opts = opts || {};
+    return { type: 'create_lobby', name: opts.name, password: opts.password,
+             listed: opts.listed !== false, discord: opts.discord || null };
+  }
+  function buildJoin(id, password) {
+    return { type: 'join_lobby', id: id, password: password };
+  }
+  function buildLeave() { return { type: 'leave_lobby' }; }
+  function buildSelectMap(map) { return { type: 'select_map', map: map }; }
+  function buildRelay(toUid, body) { return { type: 'relay', to_uid: toUid, body: body }; }
+
+  function applyServerMessage(state, msg) {
+    const next = { status: state.status, uid: state.uid,
+                   lobby: state.lobby, error: state.error,
+                   currentMap: state.currentMap };
+    switch (msg.type) {
+      case 'auth_ok':
+        next.status = 'online'; next.uid = msg.uid; break;
+      case 'lobby_state':
+      case 'member_joined':
+      case 'member_left':
+        next.lobby = msg.lobby; break;
+      case 'error':
+        next.error = msg.code; break;
+      case 'map_selected':
+        next.currentMap = msg.map; break;
+      default:
+        break;
+    }
+    return next;
+  }
+
+  function u8ToB64(u8) {
+    let s = '';
+    const CH = 0x8000; // chunk to avoid String.fromCharCode arg overflow
+    for (let i = 0; i < u8.length; i += CH) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    }
+    return btoa(s);
+  }
+
+  function b64ToU8(b64) {
+    const s = atob(b64);
+    const u8 = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);
+    return u8;
+  }
+
+  function encodeChartTransfer(record) {
+    return JSON.stringify({
+      meta: {
+        hash: record.hash, title: record.title, artist: record.artist,
+        diffName: record.diffName, stars: record.stars, length: record.length,
+      },
+      osuText: record.osuText,
+      audio: u8ToB64(record.audio),
+      art: record.art ? u8ToB64(record.art) : null,
+    });
+  }
+
+  function decodeChartTransfer(str) {
+    const o = JSON.parse(str);
+    return {
+      osuText: o.osuText,
+      audio: b64ToU8(o.audio),
+      art: o.art ? b64ToU8(o.art) : null,
+      hash: o.meta.hash, title: o.meta.title, artist: o.meta.artist,
+      diffName: o.meta.diffName, stars: o.meta.stars, length: o.meta.length,
+    };
+  }
+
+  function chunkString(str, size) {
+    const frames = [];
+    if (str.length === 0) return [{ seq: 0, total: 1, data: '' }];
+    const total = Math.ceil(str.length / size);
+    for (let i = 0, seq = 0; i < str.length; i += size, seq++) {
+      frames.push({ seq: seq, total: total, data: str.slice(i, i + size) });
+    }
+    return frames;
+  }
+
+  function createReassembler() {
+    let total = null;
+    const parts = {}; // seq -> data
+    let count = 0;
+    return {
+      add: function (frame) {
+        if (total == null) total = frame.total;
+        if (!(frame.seq in parts)) { parts[frame.seq] = frame.data; count++; }
+        return total != null && count === total;
+      },
+      isComplete: function () { return total != null && count === total; },
+      received: function () { return count; },
+      total: function () { return total; },
+      result: function () {
+        if (total == null || count !== total) return null;
+        let s = '';
+        for (let i = 0; i < total; i++) s += parts[i];
+        return s;
+      },
+    };
+  }
+
+  function createConnection(opts) {
+    const WS = opts.WebSocketImpl ||
+      (typeof WebSocket !== 'undefined' ? WebSocket : null);
+    const timeoutMs = opts.connectTimeoutMs || 8000;
+    let state = { status: 'connecting', uid: null, lobby: null, error: null, currentMap: null };
+    let ws = null;
+    let authed = false;
+    let timer = null;
+    let closed = false;
+
+    function emit() { if (opts.onState) opts.onState(state); }
+    function setStatus(s) { state = Object.assign({}, state, { status: s }); emit(); }
+    function fail() {
+      if (closed) return;
+      if (timer) { clearTimeout(timer); timer = null; }
+      setStatus('offline');
+    }
+
+    emit(); // initial 'connecting'
+    timer = setTimeout(function () { if (!authed) fail(); }, timeoutMs);
+
+    Promise.resolve(opts.getToken()).then(function (token) {
+      if (closed) return;
+      ws = new WS(opts.url);
+      ws.onopen = function () { ws.send(JSON.stringify(buildAuth(token))); };
+      ws.onmessage = function (ev) {
+        const msg = JSON.parse(ev.data);
+        if (opts.onMessage) opts.onMessage(msg);
+        if (msg.type === 'auth_ok') {
+          authed = true;
+          if (timer) { clearTimeout(timer); timer = null; }
+        }
+        state = applyServerMessage(state, msg);
+        emit();
+      };
+      ws.onclose = function () { fail(); };
+      ws.onerror = function () { fail(); };
+    }).catch(function () { fail(); });
+
+    return {
+      send: function (msg) { if (ws && authed) ws.send(JSON.stringify(msg)); },
+      close: function () {
+        closed = true;
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (ws) ws.close();
+      },
+      getState: function () { return state; },
+    };
+  }
+
+  const ENGINE = {
+    MP_ENGINE: true,
+    buildAuth: buildAuth, buildCreate: buildCreate,
+    buildJoin: buildJoin, buildLeave: buildLeave,
+    buildSelectMap: buildSelectMap, buildRelay: buildRelay,
+    applyServerMessage: applyServerMessage,
+    createConnection: createConnection,
+    u8ToB64: u8ToB64, b64ToU8: b64ToU8,
+    encodeChartTransfer: encodeChartTransfer, decodeChartTransfer: decodeChartTransfer,
+    chunkString: chunkString, createReassembler: createReassembler,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
+  if (typeof window !== 'undefined') window.MpEngine = ENGINE;
+})();
+
+// =========================================================================
+// Browser wiring — window.MpUI.open(container). Lobby browser + in-lobby view.
+// Isolated: never imported by osustd.js; failures here stay contained.
+if (typeof document !== 'undefined') {
+  const KEI = (typeof KEI_BASE !== 'undefined') ? KEI_BASE : 'https://kei.aobing.it';
+  let conn = null;
+  let lastStatus = '';
+  const CHUNK = 48 * 1024;
+  const transfers = {}; // hash -> { ra, fromName }
+
+  function el(tag, props, children) {
+    const n = document.createElement(tag);
+    Object.assign(n, props || {});
+    (children || []).forEach(function (c) { n.appendChild(c); });
+    return n;
+  }
+
+  function getToken() { return firebase.auth().currentUser.getIdToken(); }
+
+  function statusLine(container, text) {
+    lastStatus = text;
+    let el2 = container.querySelector('#mp-xfer-status');
+    if (!el2) { el2 = el('p', { id: 'mp-xfer-status' }); container.appendChild(el2); }
+    el2.textContent = text;
+  }
+
+  function onRelay(container, fromUid, body) {
+    if (!body || !conn) return;
+    if (body.t === 'need_map') {
+      // Host side: stream the requested chart to the requester.
+      const lobby = conn.getState().lobby || {};
+      if (conn.getState().uid !== lobby.host_uid) return; // only the host serves charts
+      OsuStdGame.getChartRecord(body.hash).then(function (rec) {
+        if (!rec) return; // host somehow lacks it; nothing to send
+        const frames = MpEngine.chunkString(MpEngine.encodeChartTransfer(rec), CHUNK);
+        frames.forEach(function (f) {
+          conn.send(MpEngine.buildRelay(fromUid, { t: 'chunk', hash: body.hash,
+            seq: f.seq, total: f.total, data: f.data }));
+        });
+      });
+    } else if (body.t === 'chunk') {
+      // Requester side: accumulate and save on completion.
+      let tr = transfers[body.hash];
+      if (!tr) {
+        const lob = conn.getState().lobby || {};
+        const mem = (lob.members || {})[fromUid] || {};
+        tr = transfers[body.hash] = { ra: MpEngine.createReassembler(), fromName: mem.name || '' };
+      }
+      const done = tr.ra.add({ seq: body.seq, total: body.total, data: body.data });
+      statusLine(container, 'Downloading map… ' + tr.ra.received() + '/' + tr.ra.total());
+      if (done) {
+        delete transfers[body.hash];
+        let rec;
+        try {
+          rec = MpEngine.decodeChartTransfer(tr.ra.result());
+        } catch (e) {
+          statusLine(container, 'Received map was corrupted; transfer failed.');
+          return;
+        }
+        const lobbyName = (conn.getState().lobby || {}).name || '';
+        OsuStdGame.importForeignCharts([{ osuText: rec.osuText, audio: rec.audio,
+          art: rec.art, origin: { type: 'received', fromName: tr.fromName || '',
+            lobby: lobbyName, receivedAt: new Date().toISOString() } }])
+          .then(function () { statusLine(container, 'Map saved to your library.'); })
+          .catch(function () { statusLine(container, 'Could not save the received map.'); });
+      }
+    }
+  }
+
+  function onMapSelected(container, map) {
+    if (!map || !conn) return;
+    const st = conn.getState();
+    const lobby = st.lobby || {};
+    const hostUid = lobby.host_uid;
+    if (st.uid === hostUid) return; // host already has it
+    OsuStdGame.hasChart(map.hash).then(function (have) {
+      if (have) { statusLine(container, 'You already have "' + (map.title || 'this map') + '".'); return; }
+      if (transfers[map.hash]) return; // download already in flight
+      statusLine(container, 'Requesting "' + (map.title || 'map') + '" from host…');
+      conn.send(MpEngine.buildRelay(hostUid, { t: 'need_map', hash: map.hash }));
+    });
+  }
+
+  function renderMapPicker(container) {
+    OsuStdGame.listCharts().then(function (charts) {
+      const box = el('div', { id: 'mp-map-picker' });
+      box.appendChild(el('h4', { textContent: 'Pick a map to host' }));
+      if (!charts.length) {
+        box.appendChild(el('p', { textContent: 'Your library is empty — import a map first.' }));
+      }
+      charts.forEach(function (m) {
+        box.appendChild(el('button', {
+          textContent: m.title + ' — ' + m.diffName,
+          onclick: function () {
+            conn.send(MpEngine.buildSelectMap({ hash: m.hash, title: m.title,
+              artist: m.artist, diffName: m.diffName, stars: m.stars, length: m.length }));
+            box.remove();
+            statusLine(container, 'Selected "' + m.title + '".');
+          },
+        }));
+      });
+      const existing = container.querySelector('#mp-map-picker');
+      if (existing) existing.remove();
+      container.appendChild(box);
+    });
+  }
+
+  function renderOffline(container, why) {
+    container.innerHTML = '';
+    container.appendChild(el('p', { textContent: 'Multiplayer is offline right now.' }));
+    container.appendChild(el('p', { textContent: why || '', className: 'mp-sub' }));
+  }
+
+  function renderLobby(container, state) {
+    container.innerHTML = '';
+    const lobby = state.lobby;
+    container.appendChild(el('h3', { textContent: lobby.name }));
+    const list = el('ul', {});
+    Object.keys(lobby.members).forEach(function (uid) {
+      const m = lobby.members[uid];
+      const tag = (uid === lobby.host_uid) ? ' (host)' : '';
+      list.appendChild(el('li', { textContent: m.name + tag }));
+    });
+    container.appendChild(list);
+    container.appendChild(el('button', {
+      textContent: 'Leave', onclick: function () {
+        conn.send(MpEngine.buildLeave()); conn.close(); conn = null;
+        for (const k in transfers) delete transfers[k];
+        lastStatus = '';
+        openBrowser(container);
+      },
+    }));
+    if (state.uid === lobby.host_uid) {
+      container.appendChild(el('button', {
+        textContent: 'Pick map',
+        onclick: function () { renderMapPicker(container); },
+      }));
+    }
+    if (lastStatus) { container.appendChild(el('p', { id: 'mp-xfer-status', textContent: lastStatus })); }
+  }
+
+  function onState(container, state) {
+    if (state.status === 'offline') {
+      for (const k in transfers) delete transfers[k];
+      lastStatus = '';
+      renderOffline(container, 'Lost connection.');
+      return;
+    }
+    if (state.lobby) { renderLobby(container, state); }
+  }
+
+  function ensureConn(container) {
+    if (conn) return conn;
+    conn = MpEngine.createConnection({
+      url: KEI.replace(/^http/, 'ws') + '/api/mp/ws',
+      getToken: getToken,
+      onState: function (s) { onState(container, s); },
+      onMessage: function (m) {
+        if (m.type === 'relay') onRelay(container, m.from_uid, m.body);
+        else if (m.type === 'map_selected') onMapSelected(container, m.map);
+      },
+    });
+    return conn;
+  }
+
+  function openBrowser(container) {
+    container.innerHTML = '';
+    container.appendChild(el('h3', { textContent: 'Multiplayer lobbies' }));
+    fetch(KEI + '/api/mp/lobbies').then(function (r) { return r.json(); })
+      .then(function (body) {
+        const create = el('button', {
+          textContent: 'Create lobby',
+          onclick: function () {
+            const name = prompt('Lobby name?') || 'Lobby';
+            ensureConn(container).send(MpEngine.buildCreate({ name: name }));
+          },
+        });
+        container.appendChild(create);
+        body.lobbies.forEach(function (row) {
+          const label = row.name + ' — ' + row.hostName + ' (' +
+            row.playerCount + '/' + row.cap + ')' + (row.hasPassword ? ' 🔒' : '');
+          container.appendChild(el('button', {
+            textContent: label,
+            onclick: function () {
+              const pw = row.hasPassword ? (prompt('Password?') || '') : undefined;
+              ensureConn(container).send(MpEngine.buildJoin(row.id, pw));
+            },
+          }));
+        });
+      })
+      .catch(function () { renderOffline(container, 'Could not reach the lobby server.'); });
+  }
+
+  window.MpUI = { open: openBrowser };
+}

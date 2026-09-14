@@ -144,6 +144,8 @@ imports, customization, and results. Preserve gameplay canvas geometry and timin
 - Rankings uses clear player rows and highlighted personal rank; statistics uses
   large metric cards and matching chart panels. Chart labels/tooltips must be
   readable in the night theme as well as daytime.
+- Standard's Multiplayer entry lives in its song-selection header and opens a
+  matching native dialog. Preserve this entry when changing library navigation.
 - Panel windows close with their close button, Escape, or backdrop. Trap focus,
   make the background inert, and restore focus to the opener. After closing the
   shop, return focus to the dropdown control. Nested confirmations keep the
