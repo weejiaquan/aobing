@@ -269,6 +269,7 @@
     // Esc/click-backdrop = cancel; Enter = confirm.
     function showModal(options) {
       return new Promise((resolve) => {
+        const returnFocus = document.activeElement;
         const modalEl    = document.getElementById('app-modal');
         const titleEl    = document.getElementById('app-modal-title');
         const messageEl  = document.getElementById('app-modal-message');
@@ -282,6 +283,7 @@
         cancelBtn.hidden = !!options.alertOnly;
         function cleanup() {
           modalEl.hidden = true;
+          queueMicrotask(() => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); });
           confirmBtn.removeEventListener('click', onConfirm);
           cancelBtn.removeEventListener('click', onCancel);
           backdrop.removeEventListener('click', onCancel);
@@ -336,8 +338,10 @@
       const T = {
         en: {
           'settings.title':'Settings','settings.music':'Music','settings.sfx':'SFX','settings.effects':'Effects',
+          'settings.character_background':'Character background',
+          'settings.character_background_hint':'Use the character’s original scenery in Clicker.',
           'settings.language':'Language','settings.join_discord':'Join Discord','settings.follow_x':'Follow me on X','settings.keyboard_clicks':'Keyboard clicks','settings.raw_cps':'Show raw CPS','settings.show_fps':'Show FPS (rhythm)','settings.auto_clicker':'Auto-clicker','settings.reset_defaults':'Reset defaults',
-          'skins.title':'Skins','skins.variants':'{n} variants','skins.variant':'{n} variant',
+          'skins.title':'Characters','skins.variants':'{n} variants','skins.variant':'{n} variant',
           'sensei.trainer':'Trainer',
           'auth.sign_in_google':'Sign in with Google','auth.sign_out':'Sign out',
           'auth.already_linked':'This Google account is already linked to another player. Signing you in to that one instead.',
@@ -346,7 +350,7 @@
           'profile.display_name':'Display name','profile.country':'Country','profile.save':'Save','profile.leaderboard_photo':'Leaderboard picture',
           'profile.name_length_error':'Display name must be 1-24 characters.',
           'profile.country_change_to':'Change to {flag} {code}',
-          'leaderboard.title':'Leaderboard',
+          'leaderboard.title':'Rankings',
           'leaderboard.info_banner':"Only mouse and tap clicks count toward your rank. Keyboard mashing is fun, but it's not on the board.",
           'leaderboard.sign_in_cta':'Sign in to join the leaderboard →',
           'leaderboard.your_rank':'Your rank: #{rank} of {total} players',
@@ -393,7 +397,7 @@
           'skin.aoba.name':'Aoba','skin.aobaplush.name':'Aoba Plush',
           'skin.mari.name':'Mari','skin.maritrack.name':'Track Mari','skin.mariidol.name':'Idol Mari',
           'skin.miyu.name':'Miyu','skin.miyuswim.name':'Miyu Swimsuit',
-          'analytics.title':'Analytics',
+          'analytics.title':'Statistics',
           'stats.preset.today':'Today','stats.preset.7d':'7d','stats.preset.30d':'30d','stats.preset.all':'All time',
           'stats.tile.clicks_today':'Clicks today','stats.tile.clicks':'Clicks',
           'stats.tile.visitors_today':'Visitors today','stats.tile.visitors':'Visitors',
@@ -436,6 +440,7 @@
           'mode.fishing':'Fishing',
           'fishing.cast':'Cast',
           'fishing.exit':'Exit',
+          'fishing.dex':'Fishdex','fishing.tab.dex':'Fishdex','fishing.tab.inv':'Inventory','fishing.close':'Close',
           'typing.times_up':"Time's up!",
           'typing.restart_hint':'Press Enter or Restart to go again.',
           'typing.restart':'Restart',
@@ -1045,6 +1050,7 @@
     const DEFAULT_SETTINGS = {
       musicVol: 10, sfxVol: 50, effects: true, skin: 'aoba', keyboardClicks: true,
       adminMode: false, rawCps: false, autoClicker: true,
+      characterBackground: false,
       showFps: true,              // show an FPS counter during rhythm gameplay (osu/mania)
       // Typing game (typing.js)
       typingClickOnWord: true,    // word-complete fires reactCharacter()
@@ -1133,6 +1139,7 @@
     const musicSlider = document.getElementById('music-slider');
     const sfxSlider = document.getElementById('sfx-slider');
     const effectsToggle = document.getElementById('effects-toggle');
+    const characterBackgroundToggle = document.getElementById('character-background-toggle');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
     const langSelect = document.getElementById('lang-select');
@@ -1161,6 +1168,7 @@
     musicSlider.value = settings.musicVol;
     sfxSlider.value = settings.sfxVol;
     if (!settings.effects) effectsToggle.classList.remove('on');
+    syncCharacterBackground(settings.characterBackground);
 
     let bgmPlaying = false;
     // Track the currently-loaded BGM src ourselves — browsers can keep <audio>.currentSrc
@@ -1199,6 +1207,20 @@
       e.stopPropagation();
       settings.effects = !settings.effects;
       effectsToggle.classList.toggle('on', settings.effects);
+      saveSettings(settings);
+    });
+
+    // --- Original character background (Clicker only) ---
+    function syncCharacterBackground(enabled) {
+      enabled = enabled === true;
+      document.body.classList.toggle('character-background', enabled);
+      characterBackgroundToggle.classList.toggle('on', enabled);
+      characterBackgroundToggle.setAttribute('aria-checked', String(enabled));
+    }
+    characterBackgroundToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settings.characterBackground = !settings.characterBackground;
+      syncCharacterBackground(settings.characterBackground);
       saveSettings(settings);
     });
 
@@ -1285,6 +1307,7 @@
       musicSlider.value = s.musicVol;
       sfxSlider.value = s.sfxVol;
       effectsToggle.classList.toggle('on', s.effects);
+      syncCharacterBackground(s.characterBackground);
       keyboardToggle.classList.toggle('on', s.keyboardClicks);
       adminToggle.classList.toggle('on', s.adminMode);
       rawCpsToggle.classList.toggle('on', s.rawCps);
@@ -1459,7 +1482,7 @@
           const bondBadge = (bonds > 0 && !canBond)
             ? `<span class="skin-variant-bondcount" title="${I18N.t('bond.count', { n: bonds })}">♥${bonds}</span>`
             : '';
-          return `<div class="skin-item${v.id === settings.skin ? ' active' : ''}${canBond ? ' bond-ready' : ''}" data-variant="${v.id}"${bondAttrs}>
+          return `<div role="button" tabindex="0" aria-pressed="${v.id === settings.skin}" class="skin-item${v.id === settings.skin ? ' active' : ''}${canBond ? ' bond-ready' : ''}" data-variant="${v.id}"${bondAttrs}>
             <img class="skin-thumb" src="${v.idle}" alt="${variantName(v)}">
             <div class="skin-info">
               <div class="skin-name">${variantName(v)}</div>
@@ -1472,7 +1495,7 @@
           </div>`;
         }).join('');
         return `<div class="skin-group" data-character="${c.id}" data-open="${isOpen}">
-          <button class="skin-group-header" type="button">
+          <button class="skin-group-header" type="button" aria-expanded="${isOpen}">
             <span class="skin-group-caret">${isOpen ? '▼' : '▶'}</span>
             <span class="skin-group-name">${charName(c)}</span>
             <span class="skin-group-meta">${meta}</span>
@@ -1494,6 +1517,7 @@
     }
 
     skinListEl.addEventListener('click', (e) => {
+      e.stopPropagation();
       const bondBtn = e.target.closest('.skin-variant-bond');
       if (bondBtn) {
         e.stopPropagation();
@@ -1505,6 +1529,7 @@
         const group = header.parentElement;
         const nowOpen = group.dataset.open !== 'true';
         group.dataset.open = nowOpen ? 'true' : 'false';
+        header.setAttribute('aria-expanded', String(nowOpen));
         const body = group.querySelector('.skin-group-body');
         const caret = group.querySelector('.skin-group-caret');
         if (nowOpen) {
@@ -1537,12 +1562,14 @@
     shopBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       shopPanel.classList.toggle('open');
+      if (settings.gameMode === 'typing') window.TypingGame?.refreshKeyboardPanel?.();
       if (typeof renderShopPanel === 'function') renderShopPanel();
     });
     shopPanel.addEventListener('click', (e) => e.stopPropagation());
 
     // Close panels on outside click
     document.addEventListener('click', (e) => {
+      if (e.target.closest('#app-modal,.merge-overlay,#update-modal')) return;
       if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
         settingsPanel.classList.remove('open');
       }
@@ -1901,7 +1928,7 @@
             plugins: {
               legend: {
                 position: 'bottom',
-                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
+                labels: { color: chartColor('--ui-text'), font: { size: 11, weight: '600' }, boxWidth: 12 },
               },
               tooltip: tooltipStyle(),
             },
@@ -1939,7 +1966,7 @@
             plugins: {
               legend: {
                 position: 'bottom',
-                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
+                labels: { color: chartColor('--ui-text'), font: { size: 11, weight: '600' }, boxWidth: 12 },
               },
               tooltip: tooltipStyle(),
             },
@@ -1987,7 +2014,7 @@
             plugins: {
               legend: {
                 position: 'bottom',
-                labels: { color: '#1f2c40', font: { size: 11, weight: '600' }, boxWidth: 12 },
+                labels: { color: chartColor('--ui-text'), font: { size: 11, weight: '600' }, boxWidth: 12 },
                 // Hide zero-data variants from legend to avoid clutter when characters
                 // have no clicks yet (especially the new Mari before populating sound).
                 filter: (item, data) => {
@@ -2006,20 +2033,24 @@
               x: {
                 stacked: true,
                 beginAtZero: true,
-                ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, precision: 0 },
-                grid: { color: 'rgba(60,90,130,0.10)' },
-                border: { color: 'rgba(60,90,130,0.15)' },
+                ticks: { color: chartColor('--ui-muted'), font: { size: 10, weight: '600' }, precision: 0 },
+                grid: { color: chartColor('--ui-border') },
+                border: { color: chartColor('--ui-border') },
               },
               y: {
                 stacked: true,
-                ticks: { color: 'rgba(31,44,64,0.8)', font: { size: 11, weight: '700' } },
+                ticks: { color: chartColor('--ui-text'), font: { size: 11, weight: '700' } },
                 grid: { display: false },
-                border: { color: 'rgba(60,90,130,0.15)' },
+                border: { color: chartColor('--ui-border') },
               },
             },
           },
         });
       }
+    }
+
+    function chartColor(name) {
+      return getComputedStyle(document.body).getPropertyValue(name).trim();
     }
 
     function chartLineOptions() {
@@ -2032,15 +2063,15 @@
         },
         scales: {
           x: {
-            ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
-            grid: { color: 'rgba(60,90,130,0.10)' },
-            border: { color: 'rgba(60,90,130,0.15)' },
+            ticks: { color: chartColor('--ui-muted'), font: { size: 10, weight: '600' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+            grid: { color: chartColor('--ui-border') },
+            border: { color: chartColor('--ui-border') },
           },
           y: {
             beginAtZero: true,
-            ticks: { color: 'rgba(31,44,64,0.55)', font: { size: 10, weight: '600' }, precision: 0 },
-            grid: { color: 'rgba(60,90,130,0.10)' },
-            border: { color: 'rgba(60,90,130,0.15)' },
+            ticks: { color: chartColor('--ui-muted'), font: { size: 10, weight: '600' }, precision: 0 },
+            grid: { color: chartColor('--ui-border') },
+            border: { color: chartColor('--ui-border') },
           },
         },
       };
@@ -2048,12 +2079,12 @@
 
     function tooltipStyle() {
       return {
-        backgroundColor: 'rgba(255,255,255,0.98)',
-        borderColor: 'rgba(160,195,230,0.55)',
+        backgroundColor: chartColor('--ui-paper'),
+        borderColor: chartColor('--ui-border'),
         borderWidth: 1,
-        titleColor: '#1f2c40',
+        titleColor: chartColor('--ui-text'),
         titleFont: { weight: '700' },
-        bodyColor: 'rgba(31,44,64,0.85)',
+        bodyColor: chartColor('--ui-text'),
         bodyFont: { weight: '600' },
         padding: 10,
         cornerRadius: 10,
@@ -2511,6 +2542,10 @@
       const now = Date.now();
       const s = userShop || {};
       const have = shopAffordableCoins();
+      const context = document.getElementById('shop-context');
+      if (context) context.textContent = settings.gameMode === 'typing' ? 'TYPING / UPGRADES' : 'CLICKER / UPGRADES';
+      const wallet = document.getElementById('shop-wallet');
+      if (wallet) wallet.textContent = shopFormatNum(have);
 
       // Permanent + Auto leveled items
       const leveled = [
@@ -3104,6 +3139,8 @@
       senseiPrestigeEl.hidden = stars <= 0;
       if (stars > 0) senseiPrestigeEl.textContent = '★' + stars;
 
+      const welcomeName = document.getElementById('lobby-welcome-name');
+      if (welcomeName) welcomeName.textContent = userProfile?.displayName || 'Sensei';
       if (userProfile) {
         senseiNameEl.textContent = userProfile.displayName || I18N.t('sensei.trainer');
         senseiFlagEl.textContent = flagFromCountry(userProfile.country);
@@ -3312,6 +3349,7 @@
     });
     profilePanel.addEventListener('click', (e) => e.stopPropagation());
     document.addEventListener('click', (e) => {
+      if (e.target.closest('#app-modal,.merge-overlay,#update-modal')) return;
       if (!profilePanel.contains(e.target) && e.target !== senseiBar && !senseiBar.contains(e.target)) {
         profilePanel.classList.remove('open');
       }
@@ -4614,12 +4652,26 @@
     function endIntro(opts) {
       if (!introActive) return;
       introActive = false;
+      const fromLobby = opts && opts.source === 'lobby';
       const source = opts && opts.source === 'keyboard' ? 'keyboard' : 'mouse';
 
       if (walkTimer) clearTimeout(walkTimer);
       if (currentWalkAnim) currentWalkAnim.pause();
 
       aobaImg.style.transform = '';
+
+      // Entering the lobby is navigation, so it does not count as a click or
+      // trigger character reactions. The shell owns the boot exit animation.
+      if (fromLobby) {
+        applyMode('clicker');
+        character.classList.remove('intro-walk');
+        character.style.transform = '';
+        const { character: ch, variant: v } = getVariant(settings.skin);
+        if (ch.bgm || v.bgm) bgm.play().then(() => { bgmPlaying = true; }).catch(() => {});
+        scheduleIdleBubble();
+        rearmAutoLoop();
+        return;
+      }
 
       animate(character, {
         translateX: '0vw',
@@ -4670,8 +4722,12 @@
       });
     }
 
-    document.getElementById('curtain').addEventListener('click', endIntro);
-    startIntroWalk();
+    if (document.getElementById('boot-start')) {
+      window.addEventListener('aobingstart', () => endIntro({ source: 'lobby' }), { once: true });
+    } else {
+      document.getElementById('curtain').addEventListener('click', endIntro);
+      startIntroWalk();
+    }
 
     // Purely-cosmetic character reaction: SFX, combo bump, sprite swap, bounce,
     // particles. Carries NO economy (no recordClick / coins / totalClicks).
@@ -4821,7 +4877,9 @@
       void senseiXpFillEl.offsetWidth;
       senseiXpFillEl.classList.add('pulse');
     });
-    document.addEventListener('keydown', () => {
+    document.addEventListener('keydown', (event) => {
+      if (document.getElementById('curtain') || document.getElementById('game-library')?.open) return;
+      if (event.defaultPrevented || event.target.closest('button, input, select, textarea, a, [contenteditable="true"]')) return;
       if (isTypingActive) return; // typing panel owns the keyboard while focused
       if (settings.keyboardClicks === false) return;
       triggerClick({ source: 'keyboard' });
@@ -5175,6 +5233,12 @@
 
     function startTypewriter(text) {
       stopTypewriter();
+      idleBubbleEl.dataset.fullText = text;
+      idleBubbleEl.setAttribute('aria-label', text);
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        idleBubbleTextEl.textContent = text;
+        return;
+      }
       idleBubbleTextEl.textContent = '';
       idleBubbleEl.classList.add('typing');
       let i = 0;
@@ -5453,47 +5517,22 @@
       window.DivaGame.init(window.__divaftDeps);
     }
 
-    // --- Left mode menu (one button + dropdown: mode switch + options inside) -
+    // --- Persistent shop launcher and game-library mode integration ---
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
-    const modePopEl       = document.getElementById('mode-pop');
     const modeChipLabelEl = document.getElementById('mode-chip-label');
-    const mpClickerEl     = document.getElementById('mp-clicker');
-    const mpTypingEl      = document.getElementById('mp-typing');
-    function modeLabel(mode, sub) {
-      if (mode === 'typing') return I18N.t('mode.typing') + ' · ' + (sub === 'ranked' ? I18N.t('mode.ranked') : I18N.t('mode.casual'));
-      if (mode === 'vsrg') return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.mania');
-      if (mode === 'osu')  return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.osu');
-      if (mode === 'diva') return I18N.t('mode.rhythm') + ' · ' + I18N.t('mode.diva');
-      return I18N.t('mode.clicker');
-    }
-    const mpSubmodeEl = document.getElementById('mp-submode');
-    const mpRhythmSubEl = document.getElementById('mp-rhythm-submode');
     function renderModeMenu() {
-      const mode = settings.gameMode || 'clicker';
-      const sub  = settings.typingSubMode || 'casual';
-      const isRhythm = (mode === 'vsrg' || mode === 'osu' || mode === 'diva');
-      if (modeChipLabelEl) modeChipLabelEl.textContent = modeLabel(mode, sub);
-      if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
-        const dm = b.getAttribute('data-mode');
-        b.classList.toggle('sel', dm === 'rhythm' ? isRhythm : dm === mode);
-      });
-      if (mpSubmodeEl) {
-        mpSubmodeEl.hidden = (mode !== 'typing');
-        mpSubmodeEl.querySelectorAll('button[data-submode]').forEach((b) =>
-          b.classList.toggle('sel', b.getAttribute('data-submode') === sub));
+      document.body.dataset.gameMode = settings.gameMode || 'clicker';
+      if (modeChipLabelEl) modeChipLabelEl.textContent = I18N.t('shop.title');
+      if (modeChipEl) {
+        modeChipEl.setAttribute('aria-haspopup', 'dialog');
+        modeChipEl.setAttribute('aria-controls', 'shop-panel');
       }
-      if (mpRhythmSubEl) {
-        mpRhythmSubEl.hidden = !isRhythm;
-        const activeRhythm = (mode === 'vsrg') ? 'mania' : (mode === 'diva') ? 'diva' : 'standard';
-        mpRhythmSubEl.querySelectorAll('button[data-rhythm]').forEach((b) =>
-          b.classList.toggle('sel', b.getAttribute('data-rhythm') === activeRhythm));
-      }
-      if (mpClickerEl) mpClickerEl.hidden = (mode !== 'clicker');
-      if (mpTypingEl)  mpTypingEl.hidden  = (mode !== 'typing');
     }
-    function openModePop()  { if (modeMenuEl) { modeMenuEl.classList.add('open');    if (modePopEl) modePopEl.hidden = false; if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'true'); } }
-    function closeModePop() { if (modeMenuEl) { modeMenuEl.classList.remove('open'); if (modePopEl) modePopEl.hidden = true;  if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false'); } }
+    function closeModePop() {
+      if (modeMenuEl) modeMenuEl.classList.remove('open');
+      if (modeChipEl) modeChipEl.setAttribute('aria-expanded', 'false');
+    }
     function applyMode(mode, sub) {
       // 'rhythm' is an umbrella over the two rhythm sub-modes (osu standard / vsrg
       // mania); resolve it to the concrete gameMode the panels understand. A direct
@@ -5531,51 +5570,24 @@
       } else {
         saveSettings(settings);
       }
-      renderModeMenu();   // popover stays open so the options for the new mode show
+      renderModeMenu();
       syncMusicMode();    // pause/restore the clicker background for music-game modes
     }
+    window.addEventListener('aobinglaunch', (event) => {
+      const mode = typeof event.detail === 'string' ? event.detail : event.detail?.mode;
+      const sub = event.detail?.submode;
+      if (!['clicker', 'typing', 'fishing', 'osu', 'vsrg', 'diva'].includes(mode)) return;
+      applyMode(mode, sub === 'ranked' || sub === 'casual' ? sub : settings.typingSubMode || 'casual');
+      closeModePop();
+    });
     if (modeMenuEl) {
       if (modeChipEl) modeChipEl.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (modePopEl && modePopEl.hidden) openModePop(); else closeModePop();
+        closeModePop();
+        shopBtn.click();
       });
-      if (modePopEl) modePopEl.querySelectorAll('.mp-opt').forEach((b) => {
-        b.addEventListener('click', (e) => {
-          e.stopPropagation();
-          applyMode(b.getAttribute('data-mode'), settings.typingSubMode || 'casual');
-        });
-      });
-      // Casual/Ranked sub-toggle — lightweight switch (panel already open), no full
-      // re-open, so the modifier list just refreshes in place.
-      if (mpSubmodeEl) mpSubmodeEl.addEventListener('click', (e) => {
-        const b = e.target.closest('button[data-submode]');
-        if (!b) return;
-        e.stopPropagation();
-        const sm = b.getAttribute('data-submode');
-        if (settings.gameMode !== 'typing') { applyMode('typing', sm); return; }
-        settings.typingSubMode = sm;
-        if (window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sm);
-        if (window.TypingGame && window.TypingGame.refreshKeyboardPanel) window.TypingGame.refreshKeyboardPanel();
-        renderModeMenu();
-      });
-      // Standard/Mania sub-toggle — switches between the two rhythm sub-modes
-      // (osu standard / vsrg mania), opening the matching panel.
-      if (mpRhythmSubEl) mpRhythmSubEl.addEventListener('click', (e) => {
-        const b = e.target.closest('button[data-rhythm]');
-        if (!b) return;
-        e.stopPropagation();
-        settings.rhythmSubMode = b.getAttribute('data-rhythm');
-        applyMode('rhythm');
-      });
-      // Inline the shop into the dropdown's Clicker section (relocate its DOM so
-      // the existing render + buy-delegation keep working by id).
-      const shopPanelEl = document.getElementById('shop-panel');
-      if (mpClickerEl && shopPanelEl) {
-        mpClickerEl.appendChild(shopPanelEl);
-        shopPanelEl.classList.add('open');
-        if (typeof renderShopPanel === 'function') renderShopPanel();
-      }
-      document.addEventListener('click', (e) => { if (!modeMenuEl.contains(e.target)) closeModePop(); });
+      // The shop now has its own library-style window and navigation button.
+      if (typeof renderShopPanel === 'function') renderShopPanel();
       renderModeMenu();
       window.addEventListener('i18nchange', renderModeMenu);
       window.addEventListener('gamemodechange', renderModeMenu);
@@ -5636,4 +5648,5 @@
     function syncMusicMode() { setMusicMode(settings.gameMode === 'vsrg' || settings.gameMode === 'osu'); }
     window.addEventListener('gamemodechange', syncMusicMode);
     syncMusicMode();   // set the initial state to match the restored gameMode
+    window.__aobingAppReady = true;
 

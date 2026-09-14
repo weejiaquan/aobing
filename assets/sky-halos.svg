@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="80" y1="80" x2="1390" y2="470" gradientUnits="userSpaceOnUse"><stop stop-color="#e1fbff" stop-opacity=".48"/><stop offset=".46" stop-color="#a3f5ff"/><stop offset="1" stop-color="#d6faff" stop-opacity=".65"/></linearGradient>
+    <linearGradient id="column" x1="0" y1="75" x2="0" y2="880" gradientUnits="userSpaceOnUse"><stop stop-color="#a6edff" stop-opacity="0"/><stop offset=".3" stop-color="#c9faff" stop-opacity=".65"/><stop offset=".75" stop-color="#9ceaff" stop-opacity=".2"/><stop offset="1" stop-color="#a6edff" stop-opacity="0"/></linearGradient>
+    <filter id="light" x="-15%" y="-30%" width="130%" height="160%"><feGaussianBlur stdDeviation="1.4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <path d="M859 75H862V880H859Z" fill="url(#column)"/>
+  <path d="M854 90H867V800H854Z" fill="url(#column)" opacity=".16"/>
+  <g stroke="url(#ring)" filter="url(#light)">
+    <ellipse cx="860" cy="227" rx="686" ry="140" stroke-width="1.4"/>
+    <ellipse cx="860" cy="227" rx="535" ry="105" stroke-width="1.8"/>
+    <ellipse cx="860" cy="227" rx="515" ry="100" stroke-width=".8" opacity=".65"/>
+    <ellipse cx="860" cy="227" rx="286" ry="56" stroke-width="1.4"/>
+    <ellipse cx="860" cy="227" rx="271" ry="51" stroke-width=".7"/>
+    <path d="M239 288A686 140 0 0 0 1490 280" stroke-width="3" opacity=".18"/>
+    <ellipse cx="-102" cy="363" rx="400" ry="72" stroke-width="1" opacity=".55"/>
+    <ellipse cx="-102" cy="363" rx="286" ry="49" stroke-width=".8" opacity=".55"/>
+    <ellipse cx="1485" cy="387" rx="415" ry="84" stroke-width="1" opacity=".6"/>
+    <ellipse cx="1485" cy="387" rx="286" ry="55" stroke-width="1.3" opacity=".65"/>
+    <ellipse cx="1485" cy="387" rx="133" ry="26" stroke-width=".8" opacity=".6"/>
+    <ellipse cx="430" cy="-130" rx="690" ry="208" stroke-width="1" opacity=".5"/>
+    <ellipse cx="430" cy="-130" rx="665" ry="198" stroke-width=".65" opacity=".5"/>
+  </g>
+  <g fill="#d9ffff"><circle cx="1325" cy="129" r="2"/><circle cx="211" cy="273" r="1.7"/><circle cx="1119" cy="202" r="1.6"/></g>
+</svg>

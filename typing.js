@@ -626,23 +626,6 @@ if (typeof document !== 'undefined') {
             else { buy.disabled = false; buy.classList.add('typing-buy-err'); }
           });
           row.appendChild(buy);
-        } else if (d.toggle && settings.typingSubMode === 'ranked') {
-          // Assists are force-disabled in Ranked — show a static label, keep the
-          // saved toggle state for when the player switches back to Casual.
-          const off = document.createElement('span');
-          off.className = 'typing-mod-off';
-          off.textContent = t('typing.off_ranked');
-          row.appendChild(off);
-        } else if (d.toggle) {
-          const tg = document.createElement('button');
-          tg.className = 'settings-toggle' + (settings[d.toggle] ? ' on' : '');
-          tg.addEventListener('click', (e) => {
-            e.stopPropagation();
-            settings[d.toggle] = !settings[d.toggle];
-            tg.classList.toggle('on', settings[d.toggle]);
-            deps.saveSettings();
-          });
-          row.appendChild(tg);
         } else {
           const ok = document.createElement('span');
           ok.className = 'typing-owned';
@@ -650,6 +633,48 @@ if (typeof document !== 'undefined') {
           row.appendChild(ok);
         }
         modsEl.appendChild(row);
+      });
+      renderOwnedMods();
+    }
+
+    function renderOwnedMods() {
+      const host = document.getElementById('typing-owned-mods');
+      if (!host) return;
+      host.replaceChildren();
+      const owned = MOD_DEFS.filter((d) => !!deps.getUserShop()[d.key]);
+      if (!owned.length) {
+        const empty = document.createElement('p');
+        empty.className = 'ui-description';
+        empty.textContent = 'No modifiers owned yet. Find them in the typing Shop.';
+        host.appendChild(empty);
+      }
+      owned.forEach((d) => {
+        const row = document.createElement('div');
+        row.className = 'typing-mod';
+        const name = document.createElement('span');
+        name.textContent = t(d.label);
+        row.appendChild(name);
+        if (d.toggle && settings.typingSubMode !== 'ranked') {
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'settings-toggle' + (settings[d.toggle] ? ' on' : '');
+          toggle.setAttribute('role', 'switch');
+          toggle.setAttribute('aria-label', t(d.label));
+          toggle.setAttribute('aria-checked', String(!!settings[d.toggle]));
+          toggle.addEventListener('click', () => {
+            settings[d.toggle] = !settings[d.toggle];
+            toggle.classList.toggle('on', settings[d.toggle]);
+            toggle.setAttribute('aria-checked', String(!!settings[d.toggle]));
+            deps.saveSettings();
+          });
+          row.appendChild(toggle);
+        } else {
+          const state = document.createElement('span');
+          state.className = 'typing-mod-off';
+          state.textContent = d.toggle ? t('typing.off_ranked') : 'Always active';
+          row.appendChild(state);
+        }
+        host.appendChild(row);
       });
     }
 
@@ -668,10 +693,14 @@ if (typeof document !== 'undefined') {
         name.textContent = t(d.label);
         const tg = document.createElement('button');
         tg.className = 'settings-toggle' + (settings[d.key] ? ' on' : '');
+        tg.setAttribute('role', 'switch');
+        tg.setAttribute('aria-label', t(d.label));
+        tg.setAttribute('aria-checked', String(!!settings[d.key]));
         tg.addEventListener('click', (e) => {
           e.stopPropagation();
           settings[d.key] = !settings[d.key];
           tg.classList.toggle('on', settings[d.key]);
+          tg.setAttribute('aria-checked', String(!!settings[d.key]));
           deps.saveSettings();
         });
         row.appendChild(name);
@@ -864,9 +893,8 @@ if (typeof document !== 'undefined') {
       loadBoard(boardKind, b.getAttribute('data-bmode'));   // reload current board in the chosen mode
     });
 
-    // The typing config (modes/modifiers/upgrades/toggles) now lives inline in the
-    // left accordion's Keyboard section, so render it once on init and on language
-    // change — not only when a modal opens.
+    // Duration lives in the library; purchases and owned controls have separate
+    // Shop and Modifiers windows. Keep all views in sync after each purchase.
     function refreshKeyboardPanel() {
       renderModes(); renderMods(); renderToggles(); renderUpgrades();
     }

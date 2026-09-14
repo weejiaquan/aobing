@@ -12,7 +12,7 @@
   <meta name="twitter:description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta name="twitter:image" content="assets/aoba-idle.webp">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#eaf8ff">
   <title>Aobing IT!</title>
   <link rel="icon" type="image/png" href="assets/aobaplush-idle.png">
   <link rel="preload" href="assets/aoba-active.webp" as="image">
@@ -2276,7 +2276,60 @@
     .update-btn:hover { filter: brightness(1.08); }
   </style>
 </head>
-<body>
+<body class="is-booting" data-game-mode="clicker">
+  <link rel="stylesheet" href="game-shell.css">
+  <div class="lobby-atmosphere sky-scene" data-sky-scene aria-hidden="true"></div>
+  <header class="hub-header">
+    <div class="hub-brand">AOBING<em> IT!</em></div>
+  </header>
+  <section id="lobby-welcome" class="lobby-intro" aria-label="Welcome" role="status" hidden>
+    <h1>Welcome back,<br><span id="lobby-welcome-name">Sensei</span>.</h1>
+    <p>Hope you enjoy your stay.</p>
+  </section>
+  <aside class="lobby-feature" aria-label="Featured game" hidden>
+    <div class="feature-heading"><span class="hub-eyebrow">Take a detour</span><span>01 / 06</span></div>
+    <button class="fishing-feature" type="button" data-launch-mode="fishing">
+      <img src="assets/miyuswim-idle.webp" alt="" loading="lazy">
+      <span class="feature-copy"><small>AFTER SCHOOL / FISHING</small><strong>Gone fishing.</strong><span>A quiet afternoon with Miyu. ↗</span></span>
+    </button>
+    <p class="feature-caption">No rush, Sensei.<br>There’s more than one way to play.</p>
+  </aside>
+  <div class="lobby-tap" aria-hidden="true"><span>◇</span> TAP YOUR CHARACTER TO PLAY</div>
+  <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small>CHOOSE YOUR NEXT SIDE QUEST</small><strong>Game library</strong><b aria-hidden="true">↗</b></button>
+  <dialog id="game-library" aria-labelledby="library-title">
+    <div class="library-inner">
+      <div class="library-top"><div><div class="hub-eyebrow">Game library / 06 games</div><h2 id="library-title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library">Close ✕</button></div>
+      <div class="library-grid" id="library-games">
+        <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / CASUAL</span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>ONE MORE SQUEAK</small><strong>Clicker</strong><span>Tap, collect, and meet your favourites.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / CHALLENGE</span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small>FIND YOUR FLOW</small><strong>Typing</strong><span>Casual practice or a ranked sprint.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="fishing"><span class="card-number">03 / RELAX</span><img src="assets/miyuswim-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>CAST AWAY WITH MIYU</small><strong>Fishing</strong><span>A new catch for your collection.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="osu"><span class="card-number">04 / RHYTHM</span><span class="card-symbol" aria-hidden="true">◎</span><span class="card-copy"><small>FOLLOW THE BEAT</small><strong>Standard</strong><span>Circles, sliders, and perfect timing.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="vsrg"><span class="card-number">05 / RHYTHM</span><span class="card-symbol card-lanes" aria-hidden="true">▂▆▄▇</span><span class="card-copy"><small>EVERY KEY COUNTS</small><strong>Mania</strong><span>Find your rhythm. Chase the combo.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / RHYTHM</span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small>TAKE THE STAGE</small><strong>Diva</strong><span>Your songs. Your spotlight.</span></span></button>
+      </div>
+      <section id="library-typing" hidden aria-label="Typing modes">
+        <button id="library-back" class="library-back" type="button">← All games</button>
+        <p class="ui-description">Find your pace, or chase a place on the leaderboard.</p>
+        <div class="library-grid library-typing-grid">
+          <button class="game-card" type="button" data-launch-mode="typing" data-launch-submode="casual"><span class="card-number">01 / AT YOUR PACE</span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small>PRACTICE &amp; MODIFIERS</small><strong data-i18n="mode.casual">Casual</strong><span>Build your rhythm with your own modifiers.</span></span></button>
+          <button class="game-card typing-ranked-card" type="button" data-launch-mode="typing" data-launch-submode="ranked"><span class="card-number">02 / CHASE YOUR BEST</span><span class="card-symbol" aria-hidden="true">↗</span><span class="card-copy"><small>MAKE EVERY WORD COUNT</small><strong data-i18n="mode.ranked">Ranked</strong><span>A clean run. A new personal best.</span></span></button>
+        </div>
+        <details class="library-typing-options"><summary>Run duration</summary>
+          <p class="ui-description">Choose your run length before starting.</p>
+      <div class="mp-section" id="mp-typing">
+        <div id="typing-modes" class="typing-modes">
+          <button type="button" data-mode="s15">15</button>
+          <button type="button" data-mode="s30">30</button>
+          <button type="button" data-mode="s60">60</button>
+          <button type="button" data-mode="endless">∞</button>
+        </div>
+      </div>
+        </details>
+      </section>
+      <div class="library-footer"><span>Choose a game. Upgrades are always available in Shop.</span><span>MADE FOR SENSEI, WITH ♡</span></div>
+    </div>
+  </dialog>
+  <div id="scene-transition" aria-hidden="true"></div>
   <!-- ================================================================
        DISCORD ACTIVITY BOOT — iframe-gated, no-op on normal web
        Runs ONLY on *.discordsays.com. Calls window.__loadLibsAndApp()
@@ -2354,13 +2407,60 @@
   <!-- END DISCORD ACTIVITY BOOT -->
 
   <!-- Intro Elements -->
-  <div id="curtain"></div>
+  <div id="curtain" role="dialog" aria-modal="true" aria-label="Welcome to Aobing IT">
+    <div class="boot-sky sky-scene" data-sky-scene aria-hidden="true"></div>
+    <div class="boot-top"><span>AOBING.IT</span></div>
+    <div class="boot-mark">
+      <div class="boot-halo" aria-hidden="true">
+      <svg class="boot-halo-art" viewBox="0 0 360 360" fill="none" focusable="false">
+        <g class="aoba-halo-track" stroke="currentColor" stroke-width="10">
+          <circle class="aoba-halo-inner" cx="180" cy="180" r="117" pathLength="1"/>
+          <path class="aoba-halo-outer" d="M 321.5 128.5 A 150 150 0 0 0 30 180 M 38.5 231.5 A 150 150 0 0 0 330 180" pathLength="1"/>
+          <path class="aoba-halo-sleepers" d="M180 30V63 M74 74L97 97 M282 78L263 97 M180 297V330 M74 286L97 263 M282 282L263 263"/>
+        </g>
+        <path class="aoba-halo-crossbar" d="M63 180H297" stroke="currentColor" stroke-width="22" pathLength="1"/>
+      </svg>
+      </div>
+      <div class="boot-word-motion"><div class="boot-word" aria-label="Aobing IT!">AOBING<span> IT!</span></div></div>
+    </div>
+    <div class="boot-railway" aria-hidden="true">
+      <div class="railway-scenery"></div>
+      <div class="railway-track"></div>
+      <div id="boot-train">
+        <svg viewBox="0 0 720 160" fill="currentColor" focusable="false">
+          <defs><g id="train-wheel"><path fill-rule="evenodd" d="M12 0A12 12 0 1 1-12 0 12 12 0 1 1 12 0ZM-3-8H3V8H-3Z"/></g></defs>
+          <path d="M40 118H209V128H40zM266 118H435V128H266zM493 118H673V128H493zM201 108H274V115H201zM429 108H501V115H429z"/>
+          <g transform="translate(68 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(92 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g transform="translate(164 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(188 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g transform="translate(294 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(318 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g transform="translate(390 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(414 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g transform="translate(521 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(545 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g transform="translate(631 130)"><use class="train-wheel" href="#train-wheel"/></g><g transform="translate(655 130)"><use class="train-wheel" href="#train-wheel"/></g>
+          <g class="train-car train-car-rear"><path fill-rule="evenodd" d="M34 62Q34 48 48 48H205Q219 48 219 62V115H34ZM48 61H72V84H48ZM80 61H104V84H80ZM112 61H136V84H112ZM144 61H168V84H144ZM188 64H200V83H188Z"/><path d="M49 44H202V49H49Z"/></g>
+          <g class="train-car train-car-middle"><path fill-rule="evenodd" d="M260 62Q260 48 274 48H431Q445 48 445 62V115H260ZM274 61H298V84H274ZM306 61H330V84H306ZM338 61H362V84H338ZM370 61H394V84H370ZM414 64H426V83H414Z"/><path d="M275 44H428V49H275Z"/></g>
+          <g class="train-car train-locomotive"><path fill-rule="evenodd" d="M487 61Q487 48 500 48H549V28Q549 21 556 21H615L637 62H661L681 91V116H487ZM561 33H581V60H561ZM587 33H602L617 60H587ZM503 64H535V68H503ZM503 73H535V77H503Z"/><path d="M546 19H618V25H546ZM500 38H523V49H500ZM668 116H689L697 127H677Z"/></g>
+        </svg>
+      </div>
+    </div>
+    <div class="boot-controls"><button id="boot-start" type="button" disabled>CONNECTING…</button><p id="boot-status" role="status">Getting your games ready…</p></div>
+    <fieldset id="sky-picker" hidden>
+      <legend>YOUR SKY, AROUND THE CLOCK</legend>
+      <button type="button" data-sky-hour="auto" aria-pressed="true">Device time</button>
+      <button type="button" data-sky-hour="6" aria-pressed="false">Sunrise</button>
+      <button type="button" data-sky-hour="12" aria-pressed="false">Day</button>
+      <button type="button" data-sky-hour="18" aria-pressed="false">Sunset</button>
+      <button type="button" data-sky-hour="23" aria-pressed="false">Night</button>
+      <output id="sky-time-label" aria-live="off"></output>
+    </fieldset>
+    <div class="boot-bottom">Welcome to Aobing IT!<span>CLICKER · TYPING · FISHING · RHYTHM</span></div>
+  </div>
+  <script src="sky-time.js"></script>
+  <script src="game-shell.js"></script>
 
+  <!-- Speech stays separate from the character's bounce and image effects. -->
+  <button id="idle-bubble" type="button" hidden aria-live="polite"><span id="idle-bubble-text" aria-hidden="true"></span></button>
   <!-- Character (clickable) -->
   <div id="character">
-    <button id="idle-bubble" type="button" hidden aria-live="polite">
-      <span id="idle-bubble-text"></span>
-    </button>
     <img id="aoba-img" src="assets/aoba-idle.webp" alt="Aoba" data-i18n-attr="alt:alt.character">
   </div>
 
@@ -2381,43 +2481,12 @@
     </div>
   </div>
 
-  <!-- Left mode menu — one button + dropdown (mode switch + options inside) -->
+  <!-- Persistent Shop launcher; game selection lives in the library. -->
   <div id="mode-menu">
-    <button id="mode-chip" type="button" aria-haspopup="true" aria-expanded="false">
-      <span id="mode-chip-label">Clicker</span>
-      <span id="mode-timer" hidden></span>
-      <span class="mode-caret">▾</span>
+    <button id="modifiers-btn" type="button" aria-haspopup="dialog" aria-controls="modifiers-panel" aria-expanded="false">Modifiers</button>
+    <button id="mode-chip" type="button" aria-haspopup="dialog" aria-controls="shop-panel" aria-expanded="false">
+      <span id="mode-chip-label">Shop</span>
     </button>
-    <div id="mode-pop" hidden>
-      <div class="mp-modes">
-        <button class="mp-opt" type="button" data-mode="clicker"><span data-i18n="mode.clicker">Clicker</span></button>
-        <button class="mp-opt" type="button" data-mode="typing"><span data-i18n="mode.typing">Typing</span></button>
-        <button class="mp-opt" type="button" data-mode="rhythm"><span data-i18n="mode.rhythm">Rhythm</span></button>
-        <button class="mp-opt" type="button" data-mode="fishing"><span data-i18n="mode.fishing">Fishing</span></button>
-      </div>
-      <div class="mp-submode" id="mp-submode" hidden>
-        <button type="button" data-submode="casual" data-i18n="mode.casual">Casual</button>
-        <button type="button" data-submode="ranked" data-i18n="mode.ranked">Ranked</button>
-      </div>
-      <div class="mp-submode" id="mp-rhythm-submode" hidden>
-        <button type="button" data-rhythm="standard" data-i18n="mode.osu">Standard</button>
-        <button type="button" data-rhythm="mania" data-i18n="mode.mania">Mania</button>
-        <button type="button" data-rhythm="diva" data-i18n="mode.diva">Diva</button>
-      </div>
-      <div class="mp-section" id="mp-clicker"></div>
-      <div class="mp-section" id="mp-typing" hidden>
-        <div id="typing-modes" class="typing-modes">
-          <button type="button" data-mode="s15">15</button>
-          <button type="button" data-mode="s30">30</button>
-          <button type="button" data-mode="s60">60</button>
-          <button type="button" data-mode="endless">∞</button>
-        </div>
-        <div class="mp-label" data-i18n="typing.modifiers">Modifiers</div>
-        <div id="typing-mods" class="typing-mods-list"></div>
-        <div id="typing-upgrades"></div>
-        <div id="typing-toggles" class="typing-mods-list"></div>
-      </div>
-    </div>
   </div>
 
   <!-- Floating text particles container -->
@@ -2434,7 +2503,9 @@
   </div>
 
   <!-- Profile panel (opens above sensei bar) -->
-  <div id="profile-panel" role="dialog" aria-label="Profile">
+  <div id="profile-panel" class="hub-window" role="dialog" aria-modal="true" aria-label="Profile" tabindex="-1">
+    <p class="ui-kicker">PLAYER PROFILE</p>
+    <button class="ui-close ui-profile-close" type="button" data-close-panel="profile-panel" aria-label="Close profile">✕</button>
     <div id="profile-anon">
       <div class="settings-title"><span data-i18n="profile.title">Profile</span></div>
       <p style="font-size: 0.78rem; color: var(--ba-text-muted); margin-bottom: 10px;"
@@ -2577,9 +2648,13 @@
   <audio id="bgm" src="assets/bgm.mp3" preload="auto" loop></audio>
 
   <!-- Settings -->
-  <button id="settings-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-  <div id="settings-panel">
-    <div class="settings-title" data-i18n="settings.title">Settings</div>
+  <button id="settings-btn" class="panel-btn" aria-label="Settings" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+  <div id="settings-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="settings-heading" tabindex="-1">
+    <header class="ui-window-head">
+      <div><p class="ui-kicker">PREFERENCES</p><h2 id="settings-heading" class="settings-title" data-i18n="settings.title">Settings</h2><p class="ui-description">Make yourself at home.</p></div>
+      <button class="ui-close" type="button" data-close-panel="settings-panel" aria-label="Close settings">✕</button>
+    </header>
+    <h3 class="ui-section-title">Sound &amp; atmosphere</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.music">Music</span>
       <input type="range" id="music-slider" class="settings-slider" min="0" max="100" value="10">
@@ -2592,6 +2667,12 @@
       <span class="settings-label" data-i18n="settings.effects">Effects</span>
       <button id="effects-toggle" class="settings-toggle on"></button>
     </div>
+    <div class="settings-row">
+      <span id="character-background-label" class="settings-label" data-i18n="settings.character_background">Character background</span>
+      <button id="character-background-toggle" class="settings-toggle" type="button" role="switch" aria-checked="false" aria-labelledby="character-background-label" aria-describedby="character-background-hint"></button>
+    </div>
+    <p id="character-background-hint" class="settings-background-hint" data-i18n="settings.character_background_hint">Use the character’s original scenery in Clicker.</p>
+    <h3 class="ui-section-title">Play &amp; display</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.keyboard_clicks">Keyboard clicks</span>
       <button id="keyboard-toggle" class="settings-toggle on"></button>
@@ -2612,6 +2693,7 @@
       <span class="settings-label" data-i18n="settings.admin_mode">Admin mode</span>
       <button id="admin-toggle" class="settings-toggle"></button>
     </div>
+    <h3 class="ui-section-title">General</h3>
     <div class="settings-row">
       <span class="settings-label" data-i18n="settings.language">Language</span>
       <select id="lang-select" class="settings-select"></select>
@@ -2625,9 +2707,12 @@
   </div>
 
   <!-- Skins -->
-  <button id="skins-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>
-  <div id="skins-panel">
-    <div class="settings-title" data-i18n="skins.title">Skins</div>
+  <button id="skins-btn" class="panel-btn" aria-label="Characters" title="Characters"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></button>
+  <div id="skins-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="skins-heading" tabindex="-1">
+    <header class="ui-window-head">
+      <div><p class="ui-kicker">YOUR COLLECTION</p><h2 id="skins-heading" class="settings-title" data-i18n="skins.title">Characters</h2><p class="ui-description">Pick a familiar face. Find a new favorite.</p></div>
+      <button class="ui-close" type="button" data-close-panel="skins-panel" aria-label="Close characters">✕</button>
+    </header>
     <div id="skin-list"></div>
   </div>
 
@@ -2639,32 +2724,44 @@
       <path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.4L21 7H6"/>
     </svg>
   </button>
-  <div id="shop-panel">
-    <div class="settings-title" data-i18n="shop.title">Shop</div>
-    <div class="shop-section">
+  <div id="shop-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="shop-heading" tabindex="-1">
+    <header class="ui-window-head">
+      <div><p id="shop-context" class="ui-kicker">CLICKER / UPGRADES</p><h2 id="shop-heading" class="settings-title" data-i18n="shop.title">Shop</h2><p class="ui-description">A little boost for the journey.</p></div>
+      <button class="ui-close" type="button" data-close-panel="shop-panel" aria-label="Close shop">✕</button>
+    </header>
+    <div class="ui-wallet"><span>Available coins</span><strong id="shop-wallet">0</strong></div>
+    <div class="shop-section clicker-shop-section">
       <div class="shop-section-title" data-i18n="shop.permanent">Permanent</div>
       <div class="shop-item" data-item="coinMul"></div>
       <div class="shop-item" data-item="clickMul"></div>
     </div>
-    <div class="shop-section">
+    <div class="shop-section clicker-shop-section">
       <div class="shop-section-title" data-i18n="shop.auto">Auto</div>
       <div class="shop-item" data-item="autoLevel"></div>
       <div class="shop-item" data-item="leaderboardAuto"></div>
     </div>
-    <div class="shop-section">
+    <div class="shop-section clicker-shop-section">
       <div class="shop-section-title" data-i18n="shop.buffs">Buffs (60s)</div>
       <div class="shop-item" data-item="buffCoins"></div>
       <div class="shop-item" data-item="buffClicks"></div>
       <div class="shop-item" data-item="buffAutoRate"></div>
     </div>
-    <div class="shop-section">
+    <div class="shop-section clicker-shop-section">
       <div class="shop-section-title" data-i18n="shop.prestige.title">Prestige</div>
       <div class="shop-item shop-item-prestige" data-item="prestige"></div>
     </div>
+    <section class="shop-section typing-shop-section"><h3 class="shop-section-title">Typing modifiers</h3><div id="typing-mods" class="typing-mods-list"></div></section>
+    <section class="shop-section typing-shop-section"><h3 class="shop-section-title">Combo upgrades</h3><div id="typing-upgrades"></div><p class="ui-description">Combo upgrades apply to Casual play. Enable your owned modifiers with the Modifiers button.</p></section>
+  </div>
+
+  <div id="modifiers-panel" class="hub-window" role="dialog" aria-modal="true" aria-labelledby="modifiers-heading" tabindex="-1">
+    <header class="ui-window-head"><div><p class="ui-kicker">TYPING / YOUR SETUP</p><h2 id="modifiers-heading" class="settings-title">Modifiers</h2><p class="ui-description">Set up your next run. Assists stay off in Ranked.</p></div><button class="ui-close" type="button" data-close-panel="modifiers-panel" aria-label="Close modifiers">✕</button></header>
+    <h3 class="ui-section-title">Owned modifiers</h3><div id="typing-owned-mods"></div>
+    <h3 class="ui-section-title">Feedback &amp; display</h3><div id="typing-toggles" class="typing-mods-list"></div>
   </div>
 
   <!-- Leaderboard -->
-  <button id="leaderboard-btn" class="panel-btn" aria-label="Leaderboard">
+  <button id="leaderboard-btn" class="panel-btn" aria-label="Rankings" title="Rankings">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
       <path d="M17 4h3v3a3 3 0 0 1-3 3M7 4H4v3a3 3 0 0 0 3 3"/>
@@ -2673,7 +2770,7 @@
   <div id="leaderboard-modal" aria-hidden="true">
     <div class="leaderboard-dialog" role="dialog" aria-label="Leaderboard" data-i18n-attr="aria-label:leaderboard.title">
       <div class="stats-header">
-        <div class="stats-title"><span data-i18n="leaderboard.title">Leaderboard</span></div>
+        <div><p class="ui-kicker">THE LEADERBOARD</p><h2 class="stats-title" data-i18n="leaderboard.title">Rankings</h2><p class="ui-description">Every click. Every personal best.</p></div>
         <button class="stats-close" id="leaderboard-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
       <div class="lb-scope" id="lb-scope">
@@ -2714,6 +2811,7 @@
     <div id="typing-stream" class="typing-stream"></div>
     <input id="typing-input" class="typing-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Typing input" />
     <div class="typing-livebar">
+      <span id="mode-timer" hidden></span>
       <div id="typing-live" class="typing-live"></div>
       <button id="typing-restart" class="typing-stop" type="button" data-i18n="typing.restart">Restart</button>
       <button id="typing-stop" class="typing-stop" type="button" hidden data-i18n="typing.stop">Stop</button>
@@ -3285,11 +3383,11 @@
   </div>
 
   <!-- Stats -->
-  <button id="stats-btn" class="panel-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
+  <button id="stats-btn" class="panel-btn" aria-label="Statistics" title="Statistics"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
   <div id="stats-modal" aria-hidden="true">
     <div class="stats-dialog" role="dialog" aria-label="Analytics" data-i18n-attr="aria-label:analytics.title">
       <div class="stats-header">
-        <div class="stats-title" data-i18n="analytics.title">Analytics</div>
+        <div><p class="ui-kicker">ACTIVITY &amp; RECORDS</p><h2 class="stats-title" data-i18n="analytics.title">Statistics</h2><p class="ui-description">See how the numbers add up.</p></div>
         <button class="stats-close" id="stats-close" aria-label="Close" data-i18n-attr="aria-label:aria.close">&times;</button>
       </div>
       <div class="stats-controls">
@@ -3387,6 +3485,10 @@
       </div>
     </div>
   </div>
+
+  <div id="ui-panel-backdrop" hidden aria-hidden="true"></div>
+  <link rel="stylesheet" href="ui-panels.css">
+  <script src="ui-panels.js" defer></script>
 
   <!-- Link-Discord toast -->
   <div id="link-toast" role="status" aria-live="polite"></div>
@@ -3509,7 +3611,11 @@
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .catch(function (e) { console.error('lib load failed', e); });
+        .then(function () {
+          if (!window.__aobingAppReady) throw new Error('Game initialization failed');
+          window.dispatchEvent(new Event('aobingready'));
+        })
+        .catch(function (e) { console.error('lib load failed', e); window.dispatchEvent(new Event('aobingloaderror')); });
     };
     // Coordinator: on web, load immediately; in Activity, the module below calls this after Discord flow
     if (!location.hostname.endsWith('.discordsays.com')) {
