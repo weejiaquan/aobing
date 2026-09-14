@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { getSkyState } = require('./sky-time.js');
+const { getSkyState, getTourHour, STAGE_HOURS, TOUR_MS } = require('./sky-time.js');
 
 function approximately(actual, expected, message, tolerance = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= tolerance,
@@ -110,5 +110,56 @@ test('sky: nonfinite and nonnumeric inputs are rejected without coercion', () =>
   for (const input of [Number.MAX_VALUE, -Number.MAX_VALUE, Number.MIN_VALUE]) {
     const state = getSkyState(input);
     assert.ok(Number.isFinite(state.daylight), `finite number ${input} remains valid`);
+  }
+});
+
+test('sky tour: sweeps a whole day in one minute, starting where it was', () => {
+  assert.equal(TOUR_MS, 60000, 'one sweep lasts a minute');
+  for (const from of [0, 6, 12, 18, 23, 23.75]) {
+    assert.equal(getTourHour(0, from), from, `sweep starts at ${from}:00, without a jump`);
+    assert.equal(getTourHour(TOUR_MS, from).toFixed(6), from.toFixed(6),
+      `sweep returns to ${from}:00 after a full minute`);
+    assert.equal(getTourHour(TOUR_MS / 2, from), (from + 12) % 24,
+      `half a sweep is half a day from ${from}:00`);
+    assert.equal(getTourHour(TOUR_MS * 3.5, from), (from + 12) % 24,
+      `sweeps keep repeating past ${from}:00`);
+  }
+});
+
+test('sky tour: the hour advances continuously, with no stage-sized jumps', () => {
+  const step = TOUR_MS / 240;            // the shell renders far more often than this
+  let previous = getTourHour(0, 6);
+  const phases = new Set([getSkyState(previous).phase]);
+  for (let elapsed = step; elapsed <= TOUR_MS; elapsed += step) {
+    const hour = getTourHour(elapsed, 6);
+    const advanced = (hour - previous + 24) % 24;
+    assert.ok(advanced > 0 && advanced < 0.2,
+      `at ${elapsed}ms the sweep moved ${advanced.toFixed(3)}h, expected a small forward step`);
+    phases.add(getSkyState(hour).phase);
+    previous = hour;
+  }
+  assert.deepEqual([...phases].sort(), ['Day', 'Night', 'Sunrise', 'Sunset'],
+    'one sweep shows every sky phase');
+});
+
+test('sky tour: the slider checkpoints are the four art-directed stages', () => {
+  assert.deepEqual(STAGE_HOURS, [6, 12, 18, 23], 'sunrise, day, sunset, night');
+  assert.deepEqual(STAGE_HOURS.map((hour) => getSkyState(hour).phase),
+    ['Sunrise', 'Day', 'Sunset', 'Night'], 'each checkpoint sits in its own phase');
+  for (const hour of STAGE_HOURS) {
+    assert.ok(hour >= 0 && hour <= 24, `checkpoint ${hour} fits on the 0-24 slider`);
+  }
+});
+
+test('sky tour: nonfinite inputs are rejected without coercion', () => {
+  for (const input of [NaN, Infinity, -1, -15000, undefined, null, '0', {}, []]) {
+    assert.throws(() => getTourHour(input, 6), {
+      name: 'TypeError', message: 'Sky tour needs a non-negative elapsed time',
+    }, `reject elapsed ${String(input)}`);
+  }
+  for (const input of [NaN, Infinity, undefined, null, '6', {}, []]) {
+    assert.throws(() => getTourHour(0, input), {
+      name: 'TypeError', message: 'Sky tour needs a finite start hour',
+    }, `reject start hour ${String(input)}`);
   }
 });

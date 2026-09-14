@@ -69,11 +69,39 @@ must not keep clipping the finished logo.
 - Current blending uses smoothstep between stops in `sky-time.js`, pink morning
   warmth, orange evening warmth, and stars weighted by darkness squared. The
   clock refreshes every 30 seconds while visible and resynchronizes on return.
-- Keep `#sky-picker` **hidden**, including its legend, buttons, and time output.
-  Its retained markup supports previews; it is not part of the public layout.
-  Preserve the `[hidden]` display override so the flex rule cannot reveal it.
-  Developers can preview `?hour=6`, `?hour=12`, `?hour=18`, and `?hour=23`.
-  Remove the query parameter to return to device time.
+- The sky is a **player-facing setting**, not a hidden dev control. Settings →
+  Sound & atmosphere carries a slider over the whole day (0–24h, 15-minute steps)
+  so any mixture between stages is reachable, not just four fixed looks. The four
+  art-directed stages are its **checkpoints**: tick marks and Sunrise / Day /
+  Sunset / Night labels, positioned from `STAGE_HOURS` so marks and presets cannot
+  drift apart. Below it sits a live readout of source, time, and phase, and a
+  **Device time** switch that hands the sky back to the wall clock; turning it off
+  keeps the sky that is on screen. Scrubbing follows the thumb immediately and
+  saves on release. The choice persists as `skyHour` (`'auto'` or an hour) and
+  resets to Device time with defaults. Developers can still preview `?hour=18.55`;
+  that preview wins until the player moves the slider.
+- **Sky tour** is a switch below the slider: it sweeps the slider continuously
+  through a whole day, one minute per cycle, starting from the sky already showing
+  and never hopping between stages. Scrubbing ends the tour, and stopping it keeps
+  the sky the sweep reached (rounded to the slider's step so thumb and sky agree).
+  The sweep is pure logic in `sky-time.js` (`getTourHour`, `STAGE_HOURS`,
+  `TOUR_MS`), not timing buried in the shell; the shell only re-renders on a tick.
+- The sky never cuts between looks. `--sky-daylight`, `--sky-stars`,
+  `--sky-warmth`, `--sky-warm-color`, and the sun position are registered with
+  `@property` so they can be transitioned, and `game-shell.js` picks the blend per
+  change through `body[data-sky-blend]`: none on first paint and while scrubbing
+  (the sky must track the thumb), the full clock tick (30s) for the wall clock so
+  the sky drifts continuously instead of stepping, 2.5s for an hour the player
+  set, and one sweep tick (0.25s) during the sky tour. Individual sky layers must
+  not re-add their own opacity transitions on top of this.
+- Wall-clock sky state stays a continuous function of the local time across the
+  art-directed windows (sunrise 05:00–08:00, sunset 17:00–20:00), so arriving
+  mid-window lands mid-transition — 18:33 sits at roughly two thirds of the
+  sunset. Do not compress those ramps into short staged switches.
+- The day/night **UI theme** still flips at the phase boundary (20:00 / 05:00),
+  crossfading its colors over 0.8s. Do not interpolate panel text and surface
+  colors continuously: a light-on-dark and dark-on-light pair collapses to
+  unreadable mid-blend.
 
 See [assets/sky-sources.md](../assets/sky-sources.md) for the art inventory and
 reference provenance.
@@ -150,6 +178,11 @@ imports, customization, and results. Preserve gameplay canvas geometry and timin
   make the background inert, and restore focus to the opener. After closing the
   shop, return focus to the dropdown control. Nested confirmations keep the
   parent window intact.
+- Every user-visible string is translated. Add new copy as an `i18n.js` key in all
+  supported languages and reference it with `data-i18n` / `data-i18n-attr`, or with
+  `I18N.t()` for JS-rendered text; never put display text in CSS `content`. `i18n.js`
+  loads before `game-shell.js` so the boot screen is already translated, and
+  `i18n.test.js` fails if a key is referenced but missing or untranslated.
 - Keep `.lobby-feature` hidden until the owner is ready to build it.
 - The character speech bubble lives outside the animated character element so
   text does not inherit its bounce or image filters. Reserve the full line's size
@@ -181,10 +214,11 @@ imports, customization, and results. Preserve gameplay canvas geometry and timin
 | --- | --- |
 | `index.html` | Boot markup and inline halo/train SVG, lobby, library, settings controls |
 | `game-shell.css` | Shell layout, theme, sky layers, responsive rules, CSS motion |
-| `game-shell.js` | Boot timeline, library navigation including the typing submode view, sky clock/previews, greeting dismissal |
+| `game-shell.js` | Boot timeline, library navigation including the typing submode view, sky clock/tour/blend, greeting dismissal |
 | `ui-panels.css` | Shared library-inspired panel, control, collection, and game-menu styling; loads after legacy inline styles |
 | `ui-panels.js` | Existing-panel focus/inert management, close controls, keyboard card interaction, accessible switch state |
 | `sky-time.js` / `sky-time.test.js` | Pure hour-to-sky interpolation and its tests |
+| `i18n.js` / `i18n.test.js` | Translation table for the eight supported languages, `[data-i18n]` application, and its coverage tests |
 | `assets/sky-*.svg` | Original clouds, city, city lights, and aerial halo |
 | `assets/railway-scenery.svg` | Moving background railway scenery |
 | `app.js` | Existing game modes, profile, settings, character variants, audio integration |
