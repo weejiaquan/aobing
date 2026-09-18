@@ -1,235 +1,197 @@
 'use strict';
-// DOM/canvas controller for the Fishing mode. Exposes window.FishingGame.
-// All game rules live in fishing-session.js / fishing.js; this is render + input.
+// Input and presentation for the session reducer; rewards persist only on caught.
 (function () {
-  var deps = null;
-  var els = {};
-  var session = null;
-  var input = { cast: false, holding: false };
-  var rng = Math.random; // production randomness; engine stays pure via injection
-  var raf = 0;
-  var lastT = 0;
-  var open = false;
-  var sprites = {}; // cache: speciesId -> { spec, drawnFloat }
-  var miyuImg = null;
-
-  function el(id) { return document.getElementById(id); }
-
-  function init(d) {
-    deps = d;
-    els.panel = el('fishing-panel');
-    els.canvas = el('fishing-canvas');
-    els.cast = el('fishing-cast-btn');
-    els.exit = el('fishing-exit');
-    els.result = el('fishing-result');
-    els.ctx = els.canvas.getContext('2d');
-    session = window.FishingSession.createSession();
-    bindEvents();
-    if (window.FishingDexUI && window.FishingDexUI.init) window.FishingDexUI.init(d);
-    var dexBtn = document.getElementById('fishing-dex-btn');
-    if (dexBtn) dexBtn.addEventListener('click', function () {
-      if (window.FishingDexUI && window.FishingDexUI.open) window.FishingDexUI.open();
+  var deps, els={}, session, scene, raf=0, lastT=0, open=false;
+  var input={cast:false,holding:false}, sources=new Set(), pointerId=null;
+  var lastChrome='', trip={catches:0,coins:0}, lastResult=null;
+  var audio=null, stopResultSprite=null;
+  var catchNotice=null;
+  var CATCH_NOTICE_SECONDS=4, CATCH_FADE_SECONDS=.6;
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  function el(id){return document.getElementById(id);}
+  function t(key,params){return deps.t(key,params);}
+  function blocked(){return !!document.querySelector('dialog[open],.ui-window-open') || document.hidden;}
+  function revealingCatch(){return session&&session.phase==='result'&&session.result&&session.result.outcome==='caught';}
+  function releaseInput(){sources.clear();input.cast=false;input.holding=false;pointerId=null;}
+  function cancelInput(){releaseInput();if(session&&session.phase==='charging')session=window.FishingSession.createSession();}
+  function start(source){
+    if(!open||blocked()||revealingCatch()||sources.has(source))return;
+    unlockAudio();
+    sources.add(source);input.holding=true;input.cast=true;
+  }
+  function stop(source){sources.delete(source);input.holding=sources.size>0;}
+  function unlockAudio(){
+    if(!(deps.settings.sfxVol>0))return;
+    try{if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume().catch(function(){});}catch(e){}
+  }
+  function cue(type){
+    if(!audio||audio.state!=='running'||!(deps.settings.sfxVol>0))return;
+    var notes={cast:[420,210],splash:[180,95],bite:[780,1170],hooked:[520,780],caught:[523,659,784],missed:[260,190],escaped:[260,170]}[type];
+    if(!notes)return;
+    notes.forEach(function(hz,i){
+      var start=audio.currentTime+i*.085,osc=audio.createOscillator(),gain=audio.createGain();
+      osc.type=type==='splash'?'triangle':'sine';osc.frequency.setValueAtTime(hz,start);
+      osc.frequency.exponentialRampToValueAtTime(hz*.85,start+.16);
+      gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(.12*deps.settings.sfxVol/100,start+.012);gain.gain.exponentialRampToValueAtTime(.0001,start+.22);
+      osc.connect(gain);gain.connect(audio.destination);osc.start(start);osc.stop(start+.24);
+      osc.onended=function(){osc.disconnect();gain.disconnect();};
     });
   }
-
-  function bindEvents() {
-    els.cast.addEventListener('click', onCastPress);
-    els.exit.addEventListener('click', function () {
-      deps.settings.gameMode = 'clicker';
-      deps.saveSettings();
-      doClose();
-      // return to clicker UI: reuse the app's mode menu by simulating its switch
-      if (window.applyMode) window.applyMode('clicker');
+  function init(d){
+    deps=d;
+    ['panel','canvas','cast-btn','exit','result','status','hint','action','phase-label','control-hint','reel','reel-zone','reel-fish','catch-progress','reel-percent','reel-feedback','session-log'].forEach(function(id){els[id]=el('fishing-'+id);});
+    scene=window.FishingScene.create(els.canvas,deps.getVariant('miyuswim').variant);
+    window.FishingDexUI.init(d);
+    el('fishing-dex-btn').addEventListener('click',function(){releaseInput();window.FishingDexUI.open();});
+    els.exit.addEventListener('click',function(){
+      deps.settings.gameMode='clicker';deps.saveSettings();doClose();
+      if(window.applyMode)window.applyMode('clicker');el('hub-launch').focus({preventScroll:true});
     });
-    document.addEventListener('keydown', onKeyDown, true);
-    document.addEventListener('keyup', onKeyUp, true);
-    els.canvas.addEventListener('pointerdown', onPointerDown);
-    els.canvas.addEventListener('pointerup', onPointerUp);
-    els.canvas.addEventListener('pointercancel', onPointerUp);
-  }
-
-  // A "cast press" is the discrete action used to cast, hook, and dismiss.
-  function onCastPress() { if (!open) return; input.cast = true; }
-
-  function onKeyDown(e) {
-    if (!open) return;
-    if (e.code === 'Space') { e.preventDefault(); input.holding = true; input.cast = true; }
-  }
-  function onKeyUp(e) {
-    if (!open) return;
-    if (e.code === 'Space') { e.preventDefault(); input.holding = false; }
-  }
-  function onPointerDown(e) { if (!open) return; input.holding = true; input.cast = true; }
-  function onPointerUp(e) { if (!open) return; input.holding = false; }
-
-  function sessionCtx() {
-    return { table: window.FishData.FISH, hasCaught: function (id) { return !!deps.getFishdex()[id]; } };
-  }
-
-  function loop(now) {
-    if (!open) return;
-    var dt = Math.min(0.05, (now - lastT) / 1000) || 0;
-    lastT = now;
-    var r = window.FishingSession.step(session, dt, input, rng, sessionCtx());
-    session = r.state;
-    for (var i = 0; i < r.events.length; i++) handleEvent(r.events[i]);
-    input.cast = false; // consume the discrete press each frame
-    render(now);
-    raf = requestAnimationFrame(loop);
-  }
-
-  function handleEvent(ev) {
-    if (ev.type === 'cast' || ev.type === 'bite' || ev.type === 'hooked') {
-      hideResult();
-      try { deps.playSfx(); } catch (e) {}
-    } else if (ev.type === 'caught') {
-      try { deps.playSfx(); } catch (e) {}
-      deps.recordCatch(ev.specimen, ev.coins, ev.isNew);
-      showResult(ev);
-    } else if (ev.type === 'escaped') {
-      showResult({ type: 'escaped' });
-    } else if (ev.type === 'missed') {
-      // brief flash handled by render; no popup
-    }
-  }
-
-  function showResult(ev) {
-    var h = deps.escapeHtml;
-    if (ev.type === 'escaped') {
-      els.result.innerHTML = '<div>It got away…</div>';
-    } else {
-      var s = ev.specimen, f = ev.fish;
-      els.result.innerHTML =
-        '<canvas id="fishing-result-sprite" width="130" height="84" style="display:block;margin:0 auto 8px"></canvas>' +
-        '<div style="font-size:18px">' + h(f.name) + (s.shiny ? ' <span class="fr-new">✨ SHINY</span>' : '') + '</div>' +
-        '<div>' + s.size.toFixed(1) + ' cm · ' + h(s.grade) + ' (float ' + s.float.toFixed(3) + ')</div>' +
-        '<div class="fr-coins">+' + ev.coins + ' 🪙</div>' +
-        (ev.isNew ? '<div class="fr-new">NEW! added to your Fishdex</div>' : '');
-      var cv = document.getElementById('fishing-result-sprite');
-      if (cv && window.FishSprite && window.FishSprite.drawFish) {
-        try { window.FishSprite.drawFish(cv.getContext('2d'), spriteFor(f, s.float, s.shiny), 0); } catch (e) {}
+    [els.canvas,els['cast-btn']].forEach(function(surface){
+      surface.addEventListener('pointerdown',function(e){
+        if(e.button!==0||pointerId!==null||!open||blocked())return;
+        pointerId=e.pointerId;surface.setPointerCapture(e.pointerId);start('pointer');
+      });
+      function up(e){if(e.pointerId!==pointerId)return;stop('pointer');pointerId=null;}
+      surface.addEventListener('pointerup',up);surface.addEventListener('pointercancel',function(e){if(e.pointerId===pointerId)cancelInput();});surface.addEventListener('lostpointercapture',up);
+    });
+    // Native activation / assistive technology gets a short cast without a hold.
+    els['cast-btn'].addEventListener('click',function(e){if(e.detail===0&&open&&!blocked()&&!revealingCatch()){unlockAudio();input.cast=true;}});
+    function accepts(e){return !e.target.closest('button:not(#fishing-cast-btn),input,select,textarea,[contenteditable="true"]');}
+    document.addEventListener('keydown',function(e){
+      if(!open||blocked()||!accepts(e))return;
+      if(e.code==='Space'||(e.code==='Enter'&&e.target===els['cast-btn'])){
+        e.preventDefault();if(!e.repeat)start(e.code);
       }
+    },true);
+    document.addEventListener('keyup',function(e){
+      if(e.code!=='Space'&&e.code!=='Enter')return;
+      stop(e.code);if(open&&!blocked()&&accepts(e))e.preventDefault();
+    },true);
+    window.addEventListener('blur',cancelInput);
+    document.addEventListener('visibilitychange',cancelInput);
+    window.addEventListener('i18nchange',function(){lastChrome='';if(open){if(catchNotice)showResult(catchNotice.result);else if(session.phase==='result')showResult(session.result);}});
+  }
+  function loop(now){
+    if(!open)return;
+    var dt=Math.min(.05,(now-lastT)/1000)||0;lastT=now;
+    if(blocked()){
+      releaseInput();
+      // Releasing focus cancels cast preparation rather than throwing on return.
+      if(session.phase==='charging')session=window.FishingSession.createSession();
+      raf=requestAnimationFrame(loop);return;
+    }
+    var r=window.FishingSession.step(session,dt,input,Math.random,{
+      table:window.FishData.FISH,hasCaught:function(id){return !!deps.getFishdex()[id];}
+    });
+    var previousPhase=session.phase;
+    session=r.state;input.cast=false;
+    if(previousPhase!==session.phase&&(revealingCatch()||previousPhase==='result'))releaseInput();
+    r.events.forEach(function(ev){
+      if(ev.type==='caught'){
+        deps.recordCatch(ev.specimen,ev.coins,ev.isNew);
+        trip.catches++;trip.coins+=ev.coins;
+      }
+      cue(ev.type);
+    });
+    scene.render(session,dt,reduced.matches);
+    updateChrome();
+    updateCatchNotice(dt);
+    raf=requestAnimationFrame(loop);
+  }
+  function updateChrome(){
+    var phase=session.phase, grace=window.FishingEngine.BALANCE_GRACE_SECONDS;
+    var reveal=revealingCatch(),remaining=reveal?Math.max(0,window.FishingSession.CATCH_REVEAL_SECONDS-session.timer):0;
+    var count=reveal?Math.ceil(remaining):phase==='balancing'?Math.max(0,Math.ceil(grace-session.timer)):0;
+    var key=phase+'|'+count+'|'+window.I18N.current;
+    els.panel.style.setProperty('--cast-charge',phase==='charging'?session.charge:0);
+    els.panel.dataset.holding=String(input.holding);
+    if(phase==='balancing'&&session.bar){
+      var b=session.bar, inside=b.fish_.pos>=b.bar.pos&&b.fish_.pos<=b.bar.pos+b.tier.barSize;
+      els['reel-zone'].style.left=(b.bar.pos*100)+'%';els['reel-zone'].style.width=(b.tier.barSize*100)+'%';
+      els['reel-fish'].style.left=(b.fish_.pos*100)+'%';
+      els.reel.dataset.tracking=String(inside);els.reel.dataset.grace=String(count>0);
+      els['catch-progress'].value=b.progress;
+      var percent=Math.round(b.progress*100)+'%';
+      if(els['reel-percent'].textContent!==percent)els['reel-percent'].textContent=percent;
+      var feedback=count?t('fishing.ready')+' '+count:t(inside?'fishing.tracking':'fishing.follow');
+      if(els['reel-feedback'].textContent!==feedback)els['reel-feedback'].textContent=feedback;
+    }
+    if(key===lastChrome)return;lastChrome=key;
+    els.panel.dataset.phase=phase;document.body.dataset.fishingPhase=phase;
+    els.reel.setAttribute('aria-hidden',String(phase!=='balancing'));
+    var copy={
+      idle:['fishing.idle','fishing.charge_hint','fishing.prepare','fishing.cast'],
+      charging:['fishing.release','fishing.charge_hint','fishing.release','fishing.cast'],
+      casting:['fishing.casting','fishing.wait_hint','fishing.casting','fishing.cast'],
+      waiting:['fishing.waiting','fishing.wait_hint','fishing.wait','fishing.hook'],
+      bite:['fishing.fish_on','fishing.hook_hint','fishing.hook','fishing.hook'],
+      balancing:['fishing.reeling','fishing.follow_hint','fishing.hold','fishing.reel'],
+      landing:['fishing.landing','fishing.caught','fishing.landing','fishing.reel'],
+      missed:['fishing.missed','fishing.retry','fishing.wait','fishing.hook'],
+      result:['fishing.result','fishing.charge_hint','fishing.cast_again','fishing.caught']
+    }[phase];
+    els.status.textContent=t(copy[0]);els.hint.textContent=t(copy[1]);els.action.textContent=t(copy[2]);
+    if(reveal)els.action.textContent=t('fishing.next_cast_in',{n:count});
+    els['phase-label'].textContent=t(copy[3]);
+    els['control-hint'].textContent=t(phase==='balancing'?'fishing.follow_hint':phase==='bite'?'fishing.hook_hint':phase==='charging'?'fishing.release':phase==='result'||phase==='idle'?'fishing.charge_hint':'fishing.wait_hint');
+    if(reveal)els['control-hint'].textContent=t('fishing.caught');
+    // Keep the action focusable as its role changes; ignore actions in timed phases.
+    els['cast-btn'].setAttribute('aria-disabled',String(reveal||/casting|waiting|landing|missed/.test(phase)));
+    if(phase==='result')showResult(session.result);
+    else if(!catchNotice)hideResult();
+    var summary=window.FishingDex.dexSummary(deps.getFishdex(),window.FishData.FISH);
+    el('fishing-collection-count').textContent=t('fishing.discovered',{n:summary.caught,total:summary.total});
+    els['session-log'].textContent=t('fishing.trip',{n:trip.catches,coins:trip.coins});
+  }
+  function showResult(result){
+    if(!result)return;
+    if(result.outcome==='caught'){
+      if(!catchNotice||catchNotice.result!==result){catchNotice={result:result,age:0};lastResult=null;}
+    }else catchNotice=null;
+    var id=result.outcome+'|'+result.fish.id+'|'+window.I18N.current+'|'+(result.specimen?result.specimen.float:'');
+    if(id===lastResult)return;lastResult=id;
+    if(stopResultSprite){stopResultSprite();stopResultSprite=null;}
+    els.result.style.opacity='1';
+    els.result.classList.toggle('catch-notice',!!catchNotice&&!revealingCatch());
+    var h=deps.escapeHtml;
+    if(result.outcome==='escaped'){
+      els.result.innerHTML='<div class="fishing-result-art fishing-escape" aria-hidden="true">≈</div><div class="fishing-result-copy"><p class="ui-kicker">'+h(t('fishing.result'))+'</p><h2 class="fishing-result-title">'+h(t('fishing.escaped'))+'</h2><p class="fdex-sub">'+h(t('fishing.retry'))+'</p></div>';
+    }else{
+      var s=result.specimen;
+      els.result.innerHTML='<div class="fishing-result-art"><div class="fishing-result-orbit" aria-hidden="true"></div><canvas id="fishing-result-sprite" width="260" height="168" aria-hidden="true"></canvas></div><div class="fishing-result-copy"><p class="ui-kicker">'+h(t('fishing.caught'))+'</p><h2 class="fishing-result-title">'+h(result.fish.name)+'</h2><div class="fishing-result-meta"><span>'+s.size.toFixed(1)+' cm</span><span>'+h(s.grade)+'</span></div><div class="fr-coins">+'+h(t('fishing.coins',{n:result.coins}))+'</div>'+(s.shiny?'<div class="fr-new">✦ '+h(t('fishing.shiny'))+'</div>':'')+(result.isNew?'<div class="fr-new">'+h(t('fishing.new'))+'</div>':'')+'</div>';
+      var cv=el('fishing-result-sprite');
+      stopResultSprite=window.FishSprite.animate(cv,window.FishSprite.fishSpriteSpec(result.fish,s),{
+        reveal:true,active:function(){return open&&!!catchNotice&&!blocked();}
+      });
     }
     els.result.classList.add('show');
   }
-  function hideResult() { els.result.classList.remove('show'); }
-
-  function spriteFor(fish, float, shiny) {
-    var key = fish.id + '|' + float.toFixed(3) + '|' + (shiny ? 1 : 0);
-    if (!sprites[key]) {
-      if (Object.keys(sprites).length > 64) sprites = {};
-      sprites[key] = window.FishSprite.fishSpriteSpec(fish, { float: float, shiny: shiny });
-    }
-    return sprites[key];
+  function hideResult(){
+    catchNotice=null;lastResult=null;
+    els.result.classList.remove('show','catch-notice');els.result.style.opacity='1';
+    if(stopResultSprite){stopResultSprite();stopResultSprite=null;}
   }
-
-  function render(now) {
-    var c = els.ctx, W = els.canvas.width, H = els.canvas.height;
-    // keep the backing store sized to the element
-    if (els.canvas.width !== els.canvas.clientWidth || els.canvas.height !== els.canvas.clientHeight) {
-      els.canvas.width = els.canvas.clientWidth; els.canvas.height = els.canvas.clientHeight;
-      W = els.canvas.width; H = els.canvas.height;
-    }
-    // water background
-    var g = c.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#0b2236'); g.addColorStop(1, '#06121c');
-    c.fillStyle = g; c.fillRect(0, 0, W, H);
-
-    // Miyu sprite (swim variant), idle vs active by phase
-    drawMiyu(c, W, H);
-
-    var phase = session.phase;
-    // bobber while waiting / bite
-    if (phase === 'casting' || phase === 'waiting' || phase === 'bite') {
-      drawBobber(c, W, H, phase === 'bite', now);
-    }
-    // bar-balance HUD while balancing
-    if (phase === 'balancing' && session.bar) {
-      drawBar(c, W, H, session.bar);
-      // start-of-fight grace: show a "Get ready!" countdown while the meter is frozen
-      var grace = window.FishingSession.BALANCE_GRACE_SECONDS || 0;
-      if (session.timer < grace) {
-        c.save();
-        c.textAlign = 'center';
-        c.fillStyle = '#ffd770';
-        c.font = 'bold 30px system-ui, sans-serif';
-        c.fillText('Get ready!  ' + Math.ceil(grace - session.timer), W / 2, H * 0.22);
-        c.font = '15px system-ui, sans-serif';
-        c.fillStyle = '#cfe6f7';
-        c.fillText('keep the bar on the fish', W / 2, H * 0.22 + 24);
-        c.restore();
-      }
-    }
-    // cast button visibility: only actionable in idle/result
-    els.cast.style.display = (phase === 'idle' || phase === 'result') ? '' : 'none';
+  function updateCatchNotice(dt){
+    if(!catchNotice)return;
+    catchNotice.age+=dt;
+    if(catchNotice.age>=CATCH_NOTICE_SECONDS){hideResult();return;}
+    els.result.classList.toggle('catch-notice',!revealingCatch());
+    els.result.style.opacity=reduced.matches?'1':String(Math.min(1,(CATCH_NOTICE_SECONDS-catchNotice.age)/CATCH_FADE_SECONDS));
   }
-
-  function drawMiyu(c, W, H) {
-    if (!miyuImg) {
-      miyuImg = new Image();
-    }
-    var v = deps.getVariant(deps.getSkin()).variant;
-    var active = (session.phase === 'bite' || session.phase === 'balancing');
-    var src = active ? (v.active || v.idle) : v.idle;
-    if (miyuImg.getAttribute('data-src') !== src) { miyuImg.setAttribute('data-src', src); miyuImg.src = src; }
-    if (miyuImg.complete && miyuImg.naturalWidth) {
-      var h = Math.min(H * 0.6, 420), w = h * (miyuImg.naturalWidth / miyuImg.naturalHeight);
-      c.drawImage(miyuImg, W * 0.12, H - h - 10, w, h);
-    }
+  function doOpen(){
+    if(open)return;open=true;session=window.FishingSession.createSession();trip={catches:0,coins:0};
+    scene.reset();lastChrome='';hideResult();releaseInput();
+    els.panel.classList.add('open');document.body.classList.add('music-mode');
+    deps.captureKeyboard(true);deps.pauseBgm();updateChrome();
+    els['cast-btn'].focus({preventScroll:true});lastT=performance.now();raf=requestAnimationFrame(loop);
   }
-
-  function drawBobber(c, W, H, biting, now) {
-    var x = W * 0.62, y = H * 0.55 + Math.sin(now / 300) * (biting ? 10 : 3);
-    c.fillStyle = biting ? '#ff5a5a' : '#ffd770';
-    c.beginPath(); c.arc(x, y, 9, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = 'rgba(255,255,255,.5)'; c.beginPath(); c.moveTo(W * 0.28, H * 0.42); c.lineTo(x, y); c.stroke();
-    if (biting) { c.fillStyle = '#ff5a5a'; c.font = '20px system-ui'; c.fillText('!', x + 14, y - 10); }
-  }
-
-  function drawBar(c, W, H, bar) {
-    // vertical track on the right
-    var trackX = W - 70, trackY = H * 0.18, trackH = H * 0.64, trackW = 26;
-    c.fillStyle = 'rgba(255,255,255,.10)'; c.fillRect(trackX, trackY, trackW, trackH);
-    // helper: normalized pos (0 bottom .. 1 top) -> y
-    function py(p) { return trackY + (1 - p) * trackH; }
-    // catch bar (green)
-    var barSize = bar.tier.barSize, barPos = bar.bar.pos;
-    c.fillStyle = 'rgba(90,220,140,.45)';
-    c.fillRect(trackX, py(barPos + barSize), trackW, barSize * trackH);
-    // fish marker
-    var fp = bar.fish_.pos;
-    c.fillStyle = '#ffd770';
-    c.beginPath(); c.arc(trackX + trackW / 2, py(fp), 9, 0, Math.PI * 2); c.fill();
-    // progress meter (left of track)
-    var pmX = trackX - 16;
-    c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(pmX, trackY, 8, trackH);
-    c.fillStyle = '#2b86c5'; c.fillRect(pmX, py(bar.progress), 8, bar.progress * trackH);
-  }
-
-  function doOpen() {
-    if (open) return;
-    open = true;
-    els.panel.classList.add('open');
-    document.body.classList.add('music-mode');
-    deps.captureKeyboard(true);
-    deps.pauseBgm();
-    session = window.FishingSession.createSession();
-    lastT = performance.now();
-    raf = requestAnimationFrame(loop);
-  }
-
-  function doClose() {
-    if (!open) return;
-    open = false;
-    cancelAnimationFrame(raf); raf = 0;
-    els.panel.classList.remove('open');
-    document.body.classList.remove('music-mode');
+  function doClose(){
+    if(!open)return;open=false;cancelAnimationFrame(raf);raf=0;
     hideResult();
-    deps.captureKeyboard(false);
-    deps.resumeBgm();
-    input.cast = false; input.holding = false;
-    if (window.FishingDexUI && window.FishingDexUI.close) window.FishingDexUI.close();
+    els.panel.classList.remove('open');document.body.classList.remove('music-mode');delete document.body.dataset.fishingPhase;
+    els.result.classList.remove('show');releaseInput();deps.captureKeyboard(false);deps.resumeBgm();
+    window.FishingDexUI.close();
   }
-
-  window.FishingGame = { init: init, open: doOpen, close: doClose };
+  window.FishingGame={init:init,open:doOpen,close:doClose};
 })();

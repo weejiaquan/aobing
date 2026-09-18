@@ -50,7 +50,7 @@ test('waiting transitions to bite after the rolled wait, emitting bite', () => {
   assert.ok(r.events.some(e => e.type === 'bite'), 'should emit a bite within 7s');
 });
 
-test('missing the hook window returns to idle with a missed event', () => {
+test('missing the hook window shows a missed beat, then returns to idle', () => {
   const rng = mulberry32(3);
   let { state } = run(createSession(), rng, 1, CAST, NEW_CTX);
   // reach the bite phase
@@ -60,7 +60,9 @@ test('missing the hook window returns to idle with a missed event', () => {
   // never press cast through the whole hook window -> miss
   const r = run(state, rng, Math.ceil(HOOK_WINDOW_SECONDS * 60) + 2, NONE, NEW_CTX);
   assert.ok(r.events.some(e => e.type === 'missed'));
-  assert.equal(r.state.phase, 'idle');
+  assert.equal(r.state.phase, 'missed');
+  const after = run(r.state, rng, Math.ceil(S.MISS_SECONDS * 60) + 1, NONE, NEW_CTX);
+  assert.equal(after.state.phase, 'idle');
 });
 
 test('hooking enters balancing; holding to fill yields a caught event with specimen + coins', () => {
@@ -87,8 +89,13 @@ test('hooking enters balancing; holding to fill yields a caught event with speci
   assert.equal(caught.specimen.species, 'trout');
   assert.ok(caught.coins > 0, 'caught event must carry positive coins');
   assert.equal(caught.isNew, true, 'first catch of a species is new (hasCaught=false)');
-  assert.equal(state.phase, 'result');
+  assert.equal(state.phase, 'landing');
   assert.equal(state.result.outcome, 'caught');
+  assert.equal(step(state, .1, CAST, rng, NEW_CTX).state.phase, 'landing', 'an early press does not skip landing');
+  const landed = run(state, rng, Math.ceil(S.LANDING_SECONDS * 60) + 1, NONE, NEW_CTX);
+  assert.equal(landed.state.phase, 'result');
+  assert.equal(landed.events.filter(e => e.type === 'caught').length, 0, 'landing cannot pay twice');
+  assert.equal(landed.events.filter(e => e.type === 'reveal').length, 1);
 });
 
 test('isNew is false when ctx.hasCaught reports the species already caught', () => {
@@ -110,13 +117,59 @@ test('isNew is false when ctx.hasCaught reports the species already caught', () 
   assert.equal(caught.isNew, false);
   assert.equal(caught.specimen.species, 'trout');
   assert.ok(caught.coins > 0, 'caught event must carry positive coins');
-  assert.equal(state.phase, 'result');
+  assert.equal(state.phase, 'landing');
 });
 
-test('cast from result returns to idle (dismiss)', () => {
-  // Build a result state directly and dismiss it.
+test('cast from an escaped result still begins the next cast directly', () => {
   const rng = mulberry32(9);
   const resultState = { phase: 'result', fish: TABLE[0], waitDur: 0, timer: 0, bar: null, result: { outcome: 'escaped', fish: TABLE[0] } };
   const r = step(resultState, 1 / 60, CAST, rng, NEW_CTX);
-  assert.equal(r.state.phase, 'idle');
+  assert.equal(r.state.phase, 'casting');
+  assert.equal(r.state.result, null);
+  assert.equal(r.events.filter(e => e.type === 'cast').length, 1);
+});
+
+test('caught popup ignores spam and held input, then times out to idle without recasting', () => {
+  const result={outcome:'caught',fish:TABLE[0],coins:25,specimen:{species:'trout'}};
+  const original={...createSession(),phase:'result',fish:TABLE[0],result};
+  const rng=()=>{throw new Error('reveal must not roll another encounter');};
+  let state=original;
+  for(let i=0;i<9;i++){
+    const r=step(state,S.CATCH_REVEAL_SECONDS/10,{cast:true,holding:i%2===0},rng,NEW_CTX);
+    state=r.state;
+    assert.equal(state.phase,'result');assert.equal(state.result,result);assert.deepEqual(r.events,[]);
+  }
+  assert.equal(original.timer,0,'previous snapshot remains unchanged');
+  const expired=step(state,S.CATCH_REVEAL_SECONDS/5,{cast:true,holding:true},rng,NEW_CTX);
+  assert.deepEqual(expired.state,createSession());assert.deepEqual(expired.events,[]);
+  const held=step(expired.state,.1,{cast:false,holding:true},rng,NEW_CTX);
+  assert.equal(held.state.phase,'idle','a held key must not restart fishing');
+});
+
+test('caught popup expires without any input and a fresh press can cast afterward', () => {
+  const state={...createSession(),phase:'result',result:{outcome:'caught'}};
+  const rng=mulberry32(19);
+  const expired=step(state,S.CATCH_REVEAL_SECONDS,NONE,rng,NEW_CTX);
+  assert.equal(expired.state.phase,'idle');
+  assert.equal(step(expired.state,1/60,CAST,rng,NEW_CTX).state.phase,'casting');
+});
+
+test('hold prepares a bounded charge; only releasing rolls an encounter', () => {
+  let calls = 0;
+  const rng = () => { calls++; return .5; };
+  const hold = { cast: true, holding: true };
+  const original = createSession();
+  let r = step(original, 1/60, hold, rng, NEW_CTX);
+  assert.equal(original.phase, 'idle', 'reducer does not mutate caller');
+  assert.equal(r.state.phase, 'charging');
+  assert.equal(calls, 0, 'preparing does not roll fish');
+  r = run(r.state, rng, 180, {cast:false,holding:true}, NEW_CTX);
+  assert.equal(r.state.charge, 1);
+  assert.equal(r.state.phase, 'charging', 'a long hold never casts by itself');
+  r = step(r.state, 1/60, NONE, rng, NEW_CTX);
+  assert.equal(r.state.phase, 'casting');
+  assert.equal(r.events.filter(e => e.type === 'cast').length, 1);
+  assert.ok(calls > 0);
+  r = run(r.state, rng, Math.ceil(CAST_ANIM_SECONDS * 60) + 1, NONE, NEW_CTX);
+  assert.equal(r.events.filter(e => e.type === 'splash').length, 1);
 });

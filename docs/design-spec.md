@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-09-14. This is the current design contract for the game shell,
+Last updated: 2026-09-17. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -142,7 +142,8 @@ Use its large italic headings, small cyan section labels, subtle SVG halo backdr
 spacious cards, fine borders, asymmetric corners, and blurred modal backdrop for
 shop, settings, characters, rankings, statistics, profile, and confirmation dialogs.
 Carry the same colors and controls into typing, fishing/Fishdex, and rhythm menus,
-imports, customization, and results. Preserve gameplay canvas geometry and timing.
+imports, customization, and results. Preserve gameplay canvas geometry and timing
+except for Fishing, whose new interaction flow is specified below.
 
 - Settings is a centered window with Sound & atmosphere, Play & display, and
   General sections; keep controls aligned, labeled, and comfortably spaced.
@@ -210,6 +211,89 @@ imports, customization, and results. Preserve gameplay canvas geometry and timin
 
 ## Implementation map and interaction requirements
 
+### Fishing
+
+- Fishing now carries the game library's visual language throughout the play
+  screen, catch results, Fishdex, inventory, and specimen inspection. Use the shared
+  `--ui-*` and `--hub-*` palette, italic display headings, cyan section labels,
+  fine borders, and asymmetric corners; preserve the night theme.
+- Fishing is a connected, animated game scene. Use the full viewport for the
+  waterfront, with a perspective pier, Miyu, a bending rod, an attached line,
+  traveling float, moving water, ripples, splashes, and underwater silhouettes.
+  Small header navigation replaces the large title/collection cards. Contextual
+  instructions and a single action control leave the scene clear while waiting.
+- Flow: **hold to prepare → release to cast → watch the float → hook the bite →
+  track the fish → land → reveal**. Cast strength changes the visible cast distance,
+  not encounter odds. A tap/assistive activation still casts. Cast travel lasts
+  0.8 seconds, landing 0.85 seconds, and a missed bite has a 1.1-second feedback beat.
+  Successful catches have a one-second input guard, then casting becomes available
+  again. The catch card has an independent four-second presentation lifetime:
+  after the guard it becomes a compact, noninteractive receipt below the header
+  and stays visible during the next cast. It fades over its last 0.6 seconds,
+  then hides automatically (reduced motion skips fading). Cast input never clears
+  this receipt. Show a next-cast countdown only during the one-second guard and
+  discard held input; the next cast requires a fresh press. Pause both timers
+  while a modal is open or the page is hidden. Escape results can retry directly;
+  a new result replaces the previous receipt. Exiting clears pending presentation.
+- The reel interaction is a prominent horizontal lane near the float: hold moves
+  the capture zone right, release moves it left. Show the fish silhouette, zone
+  boundaries, tracking feedback, startup grace, and labeled landing progress.
+  Retain the existing fish behaviors, rarity difficulty, reward calculation and
+  saves. Pay once on capture; landing and reveal never issue another reward.
+- Drive the rod, line, float and landing from session phase/timer values. Keep
+  motion continuous across phase boundaries; water and idle motion use a paused
+  presentation clock. Use distinct synthesized cast, splash, bite and catch cues
+  at the saved SFX volume, with audio unlocked by the player's gesture.
+- Reveal catches as an illustrated card with animated fish artwork, size, grade,
+  reward and discovery status. Keep the primary action and collection access
+  available, including small portrait and short landscape windows. Library and
+  Shop remain compact secondary controls at the bottom; Shop stays bottom-right.
+- The owner rejected the procedural fish shape construction and requested generated
+  game sprites. The first painted set was too realistic; the current direction is
+  bright anime mobile-game item artwork with thin navy linework, soft cel shading,
+  luminous cyan accents, simplified markings and expressive proportions. Use
+  `assets/fish/anime-atlas-v1.png`. Keep species-specific anatomy and flowing fins;
+  avoid both photorealistic skin texture and generic geometric bodies.
+  Do not restore the vector body paths.
+  All landing, catch, Fishdex and inspection artwork shares `fish-sprite.js`.
+- The atlas supplies 20 source illustrations across 19 families (two Tropical
+  designs). All 151 species use these family sprites with subtle colorway and
+  shiny finishes. Preserve detailed shading and markings; avoid flat tint fills.
+  Source rectangles and contour windows are individually measured so fins and
+  tentacles are intact without neighboring specimens. Preserve the original
+  alpha, aspect ratio, and small margins. Keep pale finishes readable on white
+  cards. Version the sprite script URL in both game and preview on asset changes.
+  Keep species IDs, rarity, rewards and saved specimens unchanged.
+- Preload the atlas and redraw queued canvases after it loads; keep the small
+  texture cache bounded. The owner approved the anime artwork and requested
+  tweening / morph animation. Deform the original texture with a small continuous
+  mesh: pin the face, flex tails/fins, pulse jellyfish bells with trailing tentacle
+  motion, flap ray wings, ripple eel/dragon bodies, and move crab extremities.
+  Keep amplitudes gentle and preserve recognizable anatomy and alpha edges.
+  Sample the full texture inside each mesh triangle to avoid visible tile seams.
+- Use a shared 30fps sprite clock for preview, caught collection tiles, catch
+  results and inspection. Only visible sprites advance; pause covered catch
+  cards / collection tiles and the hidden page. Stop registrations on close,
+  re-render or removal. Unknown silhouettes remain still. Landing uses the
+  scene's paused clock. Catch/inspection sprites have a short eased settle.
+  Reduced motion draws the undeformed time-zero pose with no recurring sprite
+  frame loop, and live preference changes take effect immediately. The gallery
+  `fish-sprite-preview.html` shows all species (`?shiny=1` for shiny finishes).
+  See `assets/fish/README.md` for generation provenance and the final prompt.
+- Fishdex and specimen inspection are native modal dialogs with blurred
+  backdrops, Escape, keyboard focus containment, and focus restoration. Inventory
+  tiles are keyboard-operable buttons. Empty inventories and filters have useful
+  translated messages, and the Fishdex displays discovery progress.
+- Pause the fishing session while a modal is open or the page is hidden. Clear
+  held input on blur; cancel an unfinished charge when focus is lost. Do not let
+  collection navigation trigger casts. Keyboard, pointer and touch share the
+  same press/hold/release contract; pointer capture prevents stuck holds.
+- `fishing-session.js` owns flow timing and `fishing-scene.js` owns scene drawing.
+  Keep UI controls in `fishing-ui.js` and styling in `fishing-ui.css`; collection
+  browsing stays in `fishing-dex-ui.js`. New interface copy belongs in `i18n.js`
+  for all eight languages. Reduced motion disables decorative waves, bobbing,
+  particles, rotation and CSS reveals while preserving readable gameplay motion.
+
 | File | Responsibility |
 | --- | --- |
 | `index.html` | Boot markup and inline halo/train SVG, lobby, library, settings controls |
@@ -217,6 +301,8 @@ imports, customization, and results. Preserve gameplay canvas geometry and timin
 | `game-shell.js` | Boot timeline, library navigation including the typing submode view, sky clock/tour/blend, greeting dismissal |
 | `ui-panels.css` | Shared library-inspired panel, control, collection, and game-menu styling; loads after legacy inline styles |
 | `ui-panels.js` | Existing-panel focus/inert management, close controls, keyboard card interaction, accessible switch state |
+| `fishing-ui.css` / `fishing-ui.js` / `fishing-dex-ui.js` | Fishing scenery and responsive chrome, phase prompts, catch presentation, and native collection/inspection dialogs |
+| `fishing-scene.js` / `assets/fishing-shore.svg` | Animated canvas waterfront, pier, rod/line, float, splash and landing presentation |
 | `sky-time.js` / `sky-time.test.js` | Pure hour-to-sky interpolation and its tests |
 | `i18n.js` / `i18n.test.js` | Translation table for the eight supported languages, `[data-i18n]` application, and its coverage tests |
 | `assets/sky-*.svg` | Original clouds, city, city lights, and aerial halo |
