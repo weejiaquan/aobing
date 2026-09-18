@@ -2445,7 +2445,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js"></script>
+  <script src="i18n.js?v=catch-reveal-v1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js"></script>
 
@@ -2945,25 +2945,41 @@
     #fishing-inspect-card canvas { width: 200px; height: 130px; display: block; margin: 0 auto 10px; }
   </style>
   <div id="fishing-panel">
-    <canvas id="fishing-canvas"></canvas>
-    <button id="fishing-exit" type="button" data-i18n="fishing.exit">Exit</button>
-    <button id="fishing-cast-btn" type="button" data-i18n="fishing.cast">Cast</button>
-    <button id="fishing-dex-btn" type="button" data-i18n="fishing.dex">Fishdex</button>
-    <div id="fishing-result"></div>
+    <canvas id="fishing-canvas" data-i18n-attr="aria-label:fishing.controls"></canvas>
+    <header class="fishing-header">
+      <div><p class="ui-kicker" data-i18n="library.card.fishing.kicker">CAST AWAY WITH MIYU</p><h1 data-i18n="mode.fishing">Fishing</h1></div>
+      <nav class="fishing-nav"><button id="fishing-dex-btn" type="button" aria-haspopup="dialog"><span aria-hidden="true">≋</span><span><strong data-i18n="fishing.dex">Fishdex</strong><small id="fishing-collection-count"></small></span></button><button id="fishing-exit" type="button"><span data-i18n="fishing.exit">Exit</span> <span aria-hidden="true">↗</span></button></nav>
+    </header>
+    <div class="fishing-callout"><p id="fishing-phase-label" class="ui-kicker"></p><strong id="fishing-status" role="status" aria-live="polite"></strong><span id="fishing-hint"></span></div>
+    <section id="fishing-reel" aria-hidden="true">
+      <div class="fishing-reel-head"><span data-i18n="fishing.follow">Keep the fish in your zone</span><strong id="fishing-reel-feedback"></strong></div>
+      <div class="fishing-reel-track"><div class="fishing-reel-ticks" aria-hidden="true"></div><div id="fishing-reel-zone"><i></i><i></i></div><div id="fishing-reel-fish"><svg viewBox="0 0 64 36" aria-hidden="true"><path d="M15 18C24 0 49 1 60 18C49 35 24 36 15 18L3 29V7Z" fill="currentColor"/><circle cx="47" cy="14" r="2.5" fill="#173653"/></svg></div></div>
+      <div class="fishing-reel-meter"><span data-i18n="fishing.landing_progress">Landing progress</span><span id="fishing-reel-percent">30%</span></div>
+      <progress id="fishing-catch-progress" max="1" value="0.3" data-i18n-attr="aria-label:fishing.landing_progress"></progress>
+      <p data-i18n="fishing.follow_hint">Hold to move right. Release to move left.</p>
+    </section>
+    <div id="fishing-result" role="status" aria-live="polite"></div>
+    <footer class="fishing-console">
+      <button id="fishing-cast-btn" type="button"><span id="fishing-action"></span><span class="fishing-key" data-i18n="fishing.space">SPACE</span></button>
+      <div class="fishing-charge-meter" aria-hidden="true"><i></i></div>
+      <span id="fishing-control-hint"></span>
+    </footer>
+    <div id="fishing-session-log" aria-live="polite"></div>
   </div>
-  <div id="fishing-dex-panel">
+  <dialog id="fishing-dex-panel" aria-labelledby="fishing-dex-title">
     <div id="fishing-dex-head">
-      <div id="fishing-dex-tabs">
-        <button type="button" data-dextab="fishdex" class="sel" data-i18n="fishing.tab.dex">Fishdex</button>
-        <button type="button" data-dextab="inventory" data-i18n="fishing.tab.inv">Inventory</button>
-      </div>
-      <div id="fishing-dex-progress"></div>
+      <div><p class="ui-kicker" data-i18n="fishing.collection">YOUR COLLECTION</p><h2 id="fishing-dex-title" data-i18n="fishing.dex">Fishdex</h2></div>
       <button id="fishing-dex-close" type="button" data-i18n="fishing.close">Close</button>
     </div>
+    <div class="fishing-dex-toolbar"><div id="fishing-dex-tabs">
+      <button type="button" data-dextab="fishdex" class="sel" aria-pressed="true" data-i18n="fishing.tab.dex">Fishdex</button>
+      <button type="button" data-dextab="inventory" aria-pressed="false" data-i18n="fishing.tab.inv">Inventory</button>
+    </div><div id="fishing-dex-progress"></div></div>
+    <progress id="fishing-dex-meter" max="151" value="0" data-i18n-attr="aria-label:fishing.collection"></progress>
     <div id="fishing-dex-controls"></div>
     <div id="fishing-dex-body"></div>
-    <div id="fishing-inspect"><div id="fishing-inspect-card"></div></div>
-  </div>
+  </dialog>
+  <dialog id="fishing-inspect" aria-labelledby="fishing-inspect-name"><div id="fishing-inspect-card"></div></dialog>
   <div id="vsrg-panel">
     <div id="vsrg-select" class="vsrg-screen">
       <div class="vsrg-select-head">
@@ -3521,6 +3537,7 @@
 
   <div id="ui-panel-backdrop" hidden aria-hidden="true"></div>
   <link rel="stylesheet" href="ui-panels.css">
+  <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-panels.js" defer></script>
 
   <!-- Link-Discord toast -->
@@ -3612,11 +3629,12 @@
         // app.js injects its deps into window.__fishingDeps.
         .then(function () { return loadScript('fishing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('fish-data.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fish-sprite.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-session.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-ui.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fish-sprite.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-session.js?v=catch-reveal-1s' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-scene.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-ui.js?v=catch-notice-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('fishing-dex.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-dex-ui.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('fishing-dex-ui.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
         .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })

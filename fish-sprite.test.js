@@ -5,15 +5,63 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const S = require('./fish-sprite.js');
+const { FISH, FAMILIES } = require('./fish-data.js');
 const { fishSpriteSpec, BODY_SHAPES, PATTERNS, PALETTES, SHINY_PALETTES, ACCENTS } = S;
 
 const COMMON = { id: 'river-minnow', name: 'River Minnow', rarity: 1, behavior: 'drifter', family: 'Minnows', sizeRange: [6, 14], coinBase: 10 };
 const LEGEND = { id: 'storm-mythic', name: 'Storm Mythic', rarity: 5, behavior: 'tempest', family: 'Mythic', sizeRange: [300, 800], coinBase: 1400 };
 
+test('swim rigs preserve the rest pose and remain bounded through complete cycles', () => {
+  for (const family of FAMILIES) {
+    const spec=fishSpriteSpec({...COMMON,family});
+    for (let x=0;x<=1;x+=.25) for(let y=0;y<=1;y+=.25) {
+      assert.deepEqual(S.swimPoint(spec,x,y,0),{x,y});
+      for(let t=.1;t<8;t+=.2){
+        const p=S.swimPoint(spec,x,y,t),next=S.swimPoint(spec,x,y,t+.001);
+        assert.ok(Math.abs(p.x-x)<.09 && Math.abs(p.y-y)<.1, family+' displacement');
+        assert.ok(Math.hypot(next.x-p.x,next.y-p.y)<.002, family+' continuity');
+      }
+    }
+  }
+});
+
+test('side-profile fish keep the face fixed while the tail flexes', () => {
+  const spec=fishSpriteSpec(COMMON);
+  assert.deepEqual(S.swimPoint(spec,.9,.5,1.5),{x:.9,y:.5});
+  const tail=S.swimPoint(spec,.1,.5,1.5);
+  assert.ok(Math.hypot(tail.x-.1,tail.y-.5)>.001);
+});
+
+test('all 151 species have explicit family anatomy and distinct seeded details', () => {
+  assert.deepEqual(Object.keys(S.FAMILY_PROFILES).sort(), [...FAMILIES].sort());
+  const identities = new Set();
+  for (const fish of FISH) {
+    const normal = fishSpriteSpec(fish, { float: 0.2 });
+    const shiny = fishSpriteSpec(fish, { float: 0.2, shiny: true });
+    assert.equal(normal.family, fish.family);
+    identities.add(JSON.stringify([normal.family, normal.variation]));
+    // Alternate finishes never turn a specimen into a different animal.
+    for (const key of ['family', 'variation', 'bodyShape', 'finShape', 'tailShape', 'pattern', 'eye'])
+      assert.deepEqual(shiny[key], normal[key], fish.id + ': ' + key);
+  }
+  assert.equal(identities.size, 151);
+});
+
 test('fishSpriteSpec is deterministic in (id, float, shiny)', () => {
   const a = fishSpriteSpec(COMMON, { float: 0.3, shiny: false });
   const b = fishSpriteSpec(COMMON, { float: 0.3, shiny: false });
   assert.deepEqual(a, b);
+});
+
+test('every family maps to a complete painted atlas region', () => {
+  for (const family of FAMILIES) {
+    const rect = S.ATLAS_RECTS[family];
+    assert.ok(rect, family);
+    const [x, y, w, h] = rect;
+    assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0);
+    assert.ok(x + w <= 1254 && y + h <= 1254, family + ' must stay inside the atlas');
+  }
+  assert.ok(S.ATLAS_RECTS.Angelfish, 'second tropical illustration');
 });
 
 test('every chosen trait comes from its pool', () => {

@@ -1,28 +1,28 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Fish sprite preview</title>
-<style>body{background:#0e1620;margin:0;display:flex;flex-wrap:wrap;gap:8px;padding:12px}
-.cell{width:140px;color:#cbd5e1;font:11px system-ui;text-align:center}
-canvas{background:#13202e;border-radius:8px;display:block}</style>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fish sprite preview</title>
+<style>body{background:#dff3fa;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:24px;color:#183653;font:13px system-ui}
+.cell{min-width:0;border:1px solid #beddec;background:linear-gradient(145deg,#fff,#edfaff);border-radius:4px 20px 4px 20px;text-align:center;padding:12px 0 18px;box-shadow:0 5px 20px #18365308}
+.cell div{font-weight:650}canvas{width:100%;height:140px;display:block;object-fit:contain}
+@media(prefers-color-scheme:dark){body{background:#10263c;color:#e1f5ff}.cell{background:linear-gradient(145deg,#1c3c58,#142e46);border-color:#31556c}}</style>
 </head><body>
 <script src="fishing.js"></script>
 <script src="fish-data.js"></script>
-<script src="fish-sprite.js"></script>
+<script src="fish-sprite.js?v=anime-motion-v1"></script>
 <script>
 const { FISH } = window.FishData;
 const { fishSpriteSpec, drawFish } = window.FishSprite;
-const sample = FISH.filter((_, i) => i % 6 === 0).slice(0, 24);
-const start = performance.now();
+const sample = [...FISH].sort((a,b)=>a.family.localeCompare(b.family)||a.id.localeCompare(b.id));
+const shiny = new URLSearchParams(location.search).get('shiny') === '1';
 const cells = sample.map(fish => {
   const wrap = document.createElement('div'); wrap.className = 'cell';
-  const cv = document.createElement('canvas'); cv.width = 130; cv.height = 80;
+  const cv = document.createElement('canvas'); cv.width = 448; cv.height = 280;
   const label = document.createElement('div');
-  const shiny = Math.random() < 0.25;
-  const float = Math.random();
-  label.textContent = `${fish.name} ${shiny ? '✨' : ''} f=${float.toFixed(2)}`;
+  const float = 0.2;
+  label.textContent = `${fish.name} ${shiny ? '✨' : ''}`;
+  cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', fish.name);
   wrap.appendChild(cv); wrap.appendChild(label); document.body.appendChild(wrap);
-  return { ctx: cv.getContext('2d'), spec: fishSpriteSpec(fish, { float, shiny }) };
+  const spec = fishSpriteSpec(fish, { float, shiny });
+  return { ctx: cv.getContext('2d'), spec, stop: FishSprite.animate(cv,spec) };
 });
-function frame(now){ const t=(now-start)/1000; for(const c of cells) drawFish(c.ctx,c.spec,t); requestAnimationFrame(frame); }
-requestAnimationFrame(frame);
 </script>
 </body></html>
