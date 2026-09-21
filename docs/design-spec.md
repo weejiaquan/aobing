@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-09-17. This is the current design contract for the game shell,
+Last updated: 2026-09-20. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -94,6 +94,12 @@ must not keep clipping the finished logo.
   the sky drifts continuously instead of stepping, 2.5s for an hour the player
   set, and one sweep tick (0.25s) during the sky tour. Individual sky layers must
   not re-add their own opacity transitions on top of this.
+- While an immersive game covers the lobby (`body.music-mode`), set the sky
+  blend duration to zero. Keep clock/tour values and theme updates current, but
+  avoid continuously interpolating inherited sky properties through gameplay
+  canvases. Restore the normal blend on return to the visible lobby. Normal-motion
+  Chrome testing exposed runaway renderer memory when these hidden transitions
+  continued; reduced-motion-only tests do not cover this failure.
 - Wall-clock sky state stays a continuous function of the local time across the
   art-directed windows (sunrise 05:00–08:00, sunset 17:00–20:00), so arriving
   mid-window lands mid-transition — 18:33 sits at roughly two thirds of the
@@ -194,8 +200,8 @@ except for Fishing, whose new interaction flow is specified below.
 - Keep the character central, profile toward the lower left, game launcher and
   Shop toward the lower right, and labeled utility controls along the
   bottom: Settings, Characters, Rankings, Statistics.
-- Preserve the native game-library dialog and six choices: Clicker, Typing,
-  Fishing, Standard, Mania, and Diva. Reuse existing mode switching and settings.
+- Preserve the native game-library dialog and seven choices: Clicker, Typing,
+  Fishing, Standard, Mania, Diva, and Doom. Reuse existing mode switching and settings.
 - Replace permanent marketing copy with the temporary greeting:
   **Welcome back, [username].** / **Hope you enjoy your stay.** Use the profile
   display name safely through `textContent`, with “Sensei” as the fallback.
@@ -210,6 +216,53 @@ except for Fishing, whose new interaction flow is specified below.
   the wordmark or making the entry button unreachable.
 
 ## Implementation map and interaction requirements
+
+### Doom and DOS games
+
+- The owner approved adding Doom and a reusable foundation for more DOS games.
+  Use the self-hosted js-dos emulator core with FastDoom and Freedoom: Phase 1.
+  Use the Mode 13h executable, interpolated uncapped rendering, and fixed 60,000
+  DOSBox cycles. Ship the Aobing renderer patch: sky/interpolated plane lookup
+  must match stored heights, with checked plane allocation. Upstream 1.3.0's
+  mismatched heights create duplicate planes and can overwrite memory.
+  The previous planar renderer/35 FPS cap and automatic cycle
+  adjustment produced poor pacing; preserve the save namespace across this
+  graphics-only executable variant change.
+  Keep the existing library's styling and the persistent Shop control.
+- Doom opens a campaign picker: play the included, clearly named Freedoom campaign
+  or choose a locally owned Doom / Doom II IWAD. Do not label Freedoom's content
+  as the original Doom campaign. Imported WADs stay on the device and are not uploaded.
+- Load the emulator and game content only after Play. Provide loading/error/retry
+  feedback, an explicit Play / Resume action, fullscreen, game-menu access and a
+  return to the lobby. Pause on Escape, lost focus, hidden page or modal opening;
+  release held keys and pointer lock, and require an explicit resume.
+  Combine mouse motion once per display frame, bound capture jumps, and discard
+  pending motion on pause. Native engine failures must show an explicit error
+  and Retry, release the worker/audio, and retain existing saves.
+- Keep keyboard, mouse and visible touch controls available. WASD moves, arrows
+  turn/navigate menus, Space fires, E uses, Enter selects, 1–7 select weapons,
+  and F2/F3 save/load. Use native game bindings so save names accept normal letters.
+  Avoid Ctrl for gameplay: Ctrl+W closes Chrome's tab and Ctrl+Shift+W closes its
+  window. Migrate old fire/use config bindings while preserving saved games.
+- Provide a native modal **Remap controls** dialog before and during play. Pause
+  gameplay on opening and keep focus contained. Let players assign unique letter,
+  arrow, Space or Shift keys to movement, turning, fire, use and run, and assign
+  left/middle/right mouse buttons to fire, use or nothing. Reserve menu, weapon
+  and browser modifier keys. Escape cancels key capture, then closes the dialog.
+  Save bindings locally; Cancel discards the draft and Reset requires Save.
+  Clearly state that changes apply next session. Compile bindings to native Doom
+  config so menus and save-name typing retain normal keys; mouse/touch controls
+  use the active session's bindings. Translate labels and validation feedback.
+- In-game saves are local to the browser, separate from account/economy data and
+  isolated by IWAD identity and engine version. Ending a session retains in-game
+  saves, not an automatic snapshot of unsaved play. State this in the picker.
+- All Aobing launcher copy uses the eight-language translation table. The DOS
+  engine's native menus and game assets retain their original language.
+- Keep reusable hosting in `dos-runtime.js`, game definitions in `dos-games.js`,
+  and presentation in `dos-ui.js` / `dos-ui.css`. Vendor runtime/content plus
+  licenses and corresponding engine sources in `games/dos/`; maintain its README,
+  checksums and `scripts/vendor-dos.py`. Additional DOS games need their own
+  licensed bundles, controls, save patterns and verification.
 
 ### Fishing
 

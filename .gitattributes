@@ -1,0 +1,5 @@
+# Keep vendored files byte-for-byte identical to their published checksums.
+games/dos/engine/* -text -whitespace
+games/dos/licenses/* -text whitespace=cr-at-eol
+# Docker executes this script on Linux, including after a Windows checkout.
+scripts/build-fastdoom.sh text eol=lf

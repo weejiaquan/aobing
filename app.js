@@ -4864,6 +4864,22 @@
       window.DivaGame.init(window.__divaftDeps);
     }
 
+    // Shared DOS host; all runtime/data downloads wait for a play gesture.
+    window.__doomDeps = {
+      settings, saveSettings: () => saveSettings(settings),
+      captureKeyboard: on => setTypingActive(!!on),
+      pauseBgm: () => { bgm.pause(); bgmPlaying = false; },
+      resumeBgm: () => {
+        if (settings.gameMode === 'clicker' && (settings.musicVol || 0) > 0) {
+          bgm.play().then(() => { bgmPlaying = true; }).catch(() => {});
+        }
+      },
+    };
+    window.DoomGame?.init(window.__doomDeps);
+    bgm.addEventListener('play', () => {
+      if (settings.gameMode === 'doom') { bgm.pause(); bgmPlaying = false; }
+    });
+
     // --- Persistent shop launcher and game-library mode integration ---
     const modeMenuEl      = document.getElementById('mode-menu');
     const modeChipEl      = document.getElementById('mode-chip');
@@ -4888,7 +4904,7 @@
       else if (mode === 'vsrg') settings.rhythmSubMode = 'mania';
       else if (mode === 'osu') settings.rhythmSubMode = 'standard';
       else if (mode === 'diva') settings.rhythmSubMode = 'diva';
-      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'diva' || mode === 'fishing') ? mode : 'clicker';
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'diva' || mode === 'fishing' || mode === 'doom') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
       // keeps these from stomping the new selection.
@@ -4897,6 +4913,7 @@
       if (settings.gameMode !== 'osu' && window.OsuStdGame && window.OsuStdGame.close) window.OsuStdGame.close();
       if (settings.gameMode !== 'fishing' && window.FishingGame && window.FishingGame.close) window.FishingGame.close();
       if (settings.gameMode !== 'diva' && window.DivaGame && window.DivaGame.close) window.DivaGame.close();
+      if (settings.gameMode !== 'doom') window.DoomGame?.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
@@ -4911,6 +4928,9 @@
       } else if (settings.gameMode === 'fishing') {
         saveSettings(settings);
         if (window.FishingGame && window.FishingGame.open) window.FishingGame.open();
+      } else if (settings.gameMode === 'doom') {
+        saveSettings(settings);
+        window.DoomGame?.open();
       } else if (settings.gameMode === 'diva') {
         saveSettings(settings);
         if (window.DivaGame && window.DivaGame.open) window.DivaGame.open();
@@ -4923,7 +4943,7 @@
     window.addEventListener('aobinglaunch', (event) => {
       const mode = typeof event.detail === 'string' ? event.detail : event.detail?.mode;
       const sub = event.detail?.submode;
-      if (!['clicker', 'typing', 'fishing', 'osu', 'vsrg', 'diva'].includes(mode)) return;
+      if (!['clicker', 'typing', 'fishing', 'osu', 'vsrg', 'diva', 'doom'].includes(mode)) return;
       applyMode(mode, sub === 'ranked' || sub === 'casual' ? sub : settings.typingSubMode || 'casual');
       closeModePop();
     });
@@ -4980,9 +5000,11 @@
     }
     function setMusicMode(on) {
       on = !!on;
+      // Individual game close() methods can remove the class during a switch.
+      // Reconcile presentation even when both games share the same idle state.
+      document.body.classList.toggle('music-mode', on);
       if (on === musicModeOn) return;
       musicModeOn = on;
-      document.body.classList.toggle('music-mode', on);
       if (on) {
         if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
         stopAutoCoinFloater();
@@ -4992,7 +5014,7 @@
         rearmAutoLoop();    // resume the live auto-click timer + coin floater
       }
     }
-    function syncMusicMode() { setMusicMode(settings.gameMode === 'vsrg' || settings.gameMode === 'osu'); }
+    function syncMusicMode() { setMusicMode(['vsrg', 'osu', 'diva', 'fishing', 'doom'].includes(settings.gameMode)); }
     window.addEventListener('gamemodechange', syncMusicMode);
     syncMusicMode();   // set the initial state to match the restored gameMode
     window.__aobingAppReady = true;
