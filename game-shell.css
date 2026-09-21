@@ -32,6 +32,10 @@ body {
 body[data-sky-blend='clock'] { --sky-blend: 30s; }   /* one tick: continuous drift */
 body[data-sky-blend='pick'] { --sky-blend: 2.5s; }
 body[data-sky-blend='tour'] { --sky-blend: .25s; }   /* one sweep tick: continuous */
+/* Full-screen games cover the sky. Interpolating inherited sky properties on
+   body still invalidates their canvas subtree each frame, even with the sky
+   hidden. Keep clock values current without animating the covered background. */
+body.music-mode { --sky-blend: 0s !important; }
 button { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, [tabindex]:focus-visible { outline: 3px solid #0079b9; outline-offset: 5px; }
 .sky-scene { overflow: hidden; background: #092344; pointer-events: none; }

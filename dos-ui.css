@@ -1,0 +1,78 @@
+#dos-panel { position: fixed; inset: 0; z-index: 100; padding: 24px 32px 84px; overflow: auto; background: var(--ui-surface); background-color: var(--ui-paper); color: var(--ui-text); }
+#dos-panel[hidden], #dos-panel [hidden] { display: none !important; }
+#dos-panel::after { content: ''; position: fixed; inset: auto 0 0; height: 76px; background: var(--ui-paper); border-top: 1px solid var(--ui-border); pointer-events: none; }
+.dos-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1180px; margin: 0 auto 20px; }
+.dos-header h1 { font: italic 900 32px/1 'Arial Black','Segoe UI',sans-serif; margin: 4px 0; }
+.dos-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#dos-panel button, .dos-file { font: 600 13px/1.3 'Segoe UI',sans-serif; padding: 11px 16px; border: 1px solid var(--ui-border); border-radius: 3px 3px 12px 3px; background: var(--ui-card); color: var(--ui-text); cursor: pointer; }
+#dos-panel button:disabled { opacity: .45; cursor: default; }
+#dos-panel button:focus-visible, #dos-panel a:focus-visible, #dos-panel summary:focus-visible, #dos-panel input:focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 3px; }
+#dos-panel .dos-primary { background: var(--hub-blue); color: white; border-color: var(--hub-blue); }
+#dos-setup { max-width: 1060px; margin: clamp(16px,7vh,72px) auto 0; }
+.dos-intro { max-width: 660px; margin-bottom: 30px; }
+.dos-intro h2 { font: italic 900 clamp(38px,6vw,76px)/1 'Arial Black','Segoe UI',sans-serif; letter-spacing: -2px; margin: 10px 0 20px; }
+#dos-panel p { line-height: 1.6; }
+.dos-intro p, .dos-choice p, .dos-footnote, .dos-help { color: var(--ui-muted); }
+.dos-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.dos-choice { position: relative; padding: 26px; border: 1px solid var(--ui-border); border-radius: 4px 4px 26px 4px; background: var(--ui-card); }
+.dos-choice h3 { font-size: 23px; font-style: italic; margin: 8px 0; }
+.dos-choice p { min-height: 50px; }
+.dos-file { display: block; padding-inline: 0; border: 0; background: none; margin-bottom: 12px; }
+.dos-file input { display: block; max-width: 100%; margin-top: 10px; color: var(--ui-muted); }
+.dos-footnote { margin: 20px 0 0; font-size: 12px; }
+.dos-footnote a { color: var(--ui-accent); }
+#dos-player { max-width: 1120px; margin: auto; }
+.dos-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+#dos-campaign { color: var(--ui-muted); font-size: 13px; }
+.dos-stage { position: relative; display: flex; align-items: center; justify-content: center; background: #050b12; border: 1px solid var(--ui-border); border-radius: 4px; overflow: hidden; min-height: 180px; }
+#dos-canvas { display: block; width: min(100%,calc((100dvh - 380px)*4/3)); aspect-ratio: 4/3; height: auto; image-rendering: pixelated; outline: none; }
+#dos-overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 16px; padding: 24px; text-align: center; background: #071c32db; color: #e6f5ff; }
+#dos-overlay p { margin: 0; }
+#dos-status { min-height: 24px; max-width: 1060px; margin: 14px auto 0; color: var(--ui-accent); font-size: 14px; }
+#dos-save-warning { max-width: 1060px; margin: 6px auto; color: var(--ui-text); }
+.dos-help { font-size: 12px; margin-top: 12px; }
+.dos-help summary { cursor: pointer; padding: 8px 0; }
+#dos-touch { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 12px; user-select: none; }
+.dos-pad { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#dos-touch button { min-width: 44px; min-height: 44px; touch-action: none; }
+#dos-touch button:active { background: var(--ui-accent); color: var(--ui-paper); }
+#dos-controls-dialog { margin: auto; width: min(580px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid var(--ui-border); border-radius: 4px 4px 24px 4px; background: var(--ui-paper); color: var(--ui-text); }
+#dos-controls-dialog::backdrop { background: #071c32b8; backdrop-filter: blur(6px); }
+#dos-controls-dialog h2 { margin: 0; font-style: italic; }
+#dos-bindings-hint { font-size: 13px; color: var(--ui-muted); }
+#dos-binding-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+#dos-binding-rows > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+#dos-binding-rows button { min-width: 64px; min-height: 44px; }
+#dos-panel .dos-listening { border-color: var(--ui-accent); color: var(--ui-accent); }
+.dos-mouse-bindings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+.dos-mouse-bindings label { display: grid; gap: 8px; font-size: 13px; }
+.dos-mouse-bindings select { width: 100%; padding: 10px 6px; background: var(--ui-card); color: var(--ui-text); border: 1px solid var(--ui-border); border-radius: 4px; font: inherit; }
+.dos-mouse-bindings select:focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 3px; }
+#dos-binding-status { min-height: 24px; font-size: 13px; color: var(--ui-accent); }
+#dos-controls-dialog .dos-actions { justify-content: flex-end; }
+@media (max-width: 480px) { #dos-controls-dialog { padding: 18px; } #dos-binding-rows { grid-template-columns: 1fr; } .dos-mouse-bindings { grid-template-columns: 1fr; } .dos-mouse-bindings label { grid-template-columns: 1fr 1fr; align-items: center; } }
+body[data-game-mode='doom'] #hub-launch { z-index: 150; inset: auto 170px 20px auto; width: 155px; height: 44px; padding: 10px 13px; background: var(--ui-card); color: var(--ui-text); border: 1px solid var(--ui-border); box-shadow: none; }
+body[data-game-mode='doom'] #hub-launch small { display: none; }
+body[data-game-mode='doom'] #hub-launch strong { font-size: 16px; }
+body[data-game-mode='doom'] #hub-launch b { top: 11px; right: 10px; font-size: 18px; }
+body[data-game-mode='doom'] #mode-menu { z-index: 150; bottom: 20px; right: 32px; width: 125px; }
+@media (max-width: 680px) {
+  #dos-panel { padding: 18px 16px 88px; }
+  .dos-header { align-items: flex-start; margin-bottom: 14px; }
+  .dos-header h1 { font-size: 26px; }
+  #dos-panel button { padding: 10px 12px; }
+  .dos-choices { grid-template-columns: 1fr; }
+  #dos-setup { margin-top: 20px; }
+  .dos-choice { padding: 20px; }
+  .dos-choice p { min-height: 0; }
+  .dos-toolbar { align-items: flex-start; flex-direction: column; }
+  #dos-canvas { width: 100%; }
+  body[data-game-mode='doom'] #hub-launch { left: 16px; right: auto; width: calc(50% - 24px); }
+  body[data-game-mode='doom'] #mode-menu { right: 16px; width: calc(50% - 24px); }
+}
+@media (max-height: 520px) and (min-width: 681px) {
+  #dos-panel { padding-top: 12px; }
+  .dos-header { margin-bottom: 8px; }
+  #dos-canvas { width: min(100%,calc((100dvh - 220px)*4/3)); }
+  .dos-stage { min-height: 130px; }
+}

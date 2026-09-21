@@ -8,7 +8,7 @@ const I18N = require('./i18n.js');
 const PLACEHOLDER = /\{\w+\}/g;
 // Keys built at runtime from data ids (I18N.t('character.' + id + '.name')), so the
 // literal in the source is only a prefix and cannot be looked up as-is.
-const DYNAMIC_PREFIXES = ['character.', 'skin.', 'tag.', 'stats.source.'];
+const DYNAMIC_PREFIXES = ['character.', 'skin.', 'tag.', 'stats.source.', 'dos.'];
 
 function referencedKeys() {
   const keys = new Map(); // key -> where it came from
@@ -20,7 +20,7 @@ function referencedKeys() {
       keys.set(key, 'index.html data-i18n-attr');
     }
   }
-  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js']) {
+  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js', 'dos-ui.js']) {
     const source = fs.readFileSync(file, 'utf8');
     for (const match of source.matchAll(/(?:I18N\.t|[^.\w]t)\(\s*'([a-z][\w.]*)'/g)) {
       keys.set(match[1], file);
@@ -30,6 +30,7 @@ function referencedKeys() {
       for (const match of source.matchAll(/'(fishing\.[\w]+)'/g)) keys.set(match[1], file);
     }
   }
+  for (const action of require('./dos-bindings').actions) keys.set('dos.' + action, 'dos-bindings.js');
   return [...keys].filter(([key]) => !DYNAMIC_PREFIXES.includes(key));
 }
 
@@ -158,7 +159,9 @@ test('i18n: the redesigned hub, boot and panel copy is translated everywhere', (
     'profile.kicker', 'leaderboard.kicker', 'analytics.kicker',
     'sky.title', 'sky.device_time', 'sky.sunrise', 'sky.night', 'sky.local_time',
     'sky.tour', 'sky.tour_hint', 'mp.lobbies_title', 'mp.create_lobby', 'mp.leave',
-    'mp.library_empty', 'mp.downloading', 'mp.saved', 'mp.offline'];
+    'mp.library_empty', 'mp.downloading', 'mp.saved', 'mp.offline',
+    'dos.intro', 'dos.card_desc', 'dos.free_desc', 'dos.own_desc', 'dos.save_hint',
+    'dos.remap_hint', 'dos.remap_duplicate', 'dos.remap_reserved', 'dos.remap_storage_error', 'dos.load_error', 'dos.invalid_wad', 'dos.controls_hint', 'dos.storage_error'];
   const names = ['mp.title', 'mp.kicker', 'mode.clicker', 'mode.typing', 'mode.osu', 'mode.mania',
     'mode.diva', 'mode.casual', 'mode.ranked', 'mode.fishing', 'library.tag.rhythm'];
   for (const key of prose.concat(names)) {

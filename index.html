@@ -2277,7 +2277,7 @@
   </style>
 </head>
 <body class="is-booting" data-game-mode="clicker">
-  <link rel="stylesheet" href="game-shell.css">
+  <link rel="stylesheet" href="game-shell.css?v=doom-perf-2">
   <div class="lobby-atmosphere sky-scene" data-sky-scene aria-hidden="true"></div>
   <header class="hub-header">
     <div class="hub-brand">AOBING<em> IT!</em></div>
@@ -2298,7 +2298,7 @@
   <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small data-i18n="library.launch_kicker">CHOOSE YOUR NEXT SIDE QUEST</small><strong data-i18n="library.launch_title">Game library</strong><b aria-hidden="true">↗</b></button>
   <dialog id="game-library" aria-labelledby="library-title">
     <div class="library-inner">
-      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 06 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
+      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 07 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
       <div class="library-grid" id="library-games">
         <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / <span data-i18n="library.tag.casual">CASUAL</span></span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.clicker.kicker">ONE MORE SQUEAK</small><strong data-i18n="mode.clicker">Clicker</strong><span data-i18n="library.card.clicker.desc">Tap, collect, and meet your favourites.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / <span data-i18n="library.tag.challenge">CHALLENGE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.typing.kicker">FIND YOUR FLOW</small><strong data-i18n="mode.typing">Typing</strong><span data-i18n="library.card.typing.desc">Casual practice or a ranked sprint.</span></span></button>
@@ -2306,6 +2306,7 @@
         <button class="game-card" type="button" data-launch-mode="osu"><span class="card-number">04 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><span class="card-symbol" aria-hidden="true">◎</span><span class="card-copy"><small data-i18n="library.card.osu.kicker">FOLLOW THE BEAT</small><strong data-i18n="mode.osu">Standard</strong><span data-i18n="library.card.osu.desc">Circles, sliders, and perfect timing.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="vsrg"><span class="card-number">05 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><span class="card-symbol card-lanes" aria-hidden="true">▂▆▄▇</span><span class="card-copy"><small data-i18n="library.card.mania.kicker">EVERY KEY COUNTS</small><strong data-i18n="mode.mania">Mania</strong><span data-i18n="library.card.mania.desc">Find your rhythm. Chase the combo.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.diva.kicker">TAKE THE STAGE</small><strong data-i18n="mode.diva">Diva</strong><span data-i18n="library.card.diva.desc">Your songs. Your spotlight.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="doom"><span class="card-number">07 / <span data-i18n="dos.tag">DOS CLASSIC</span></span><span class="card-symbol" aria-hidden="true">⊕</span><span class="card-copy"><small data-i18n="dos.card_kicker">LOCK AND LOAD</small><strong data-i18n="mode.doom">Doom</strong><span data-i18n="dos.card_desc">Play Freedoom or bring your own Doom.</span></span></button>
       </div>
       <section id="library-typing" hidden aria-label="Typing modes" data-i18n-attr="aria-label:library.typing_aria">
         <button id="library-back" class="library-back" type="button">← <span data-i18n="library.back">All games</span></button>
@@ -2445,7 +2446,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=catch-reveal-v1"></script>
+  <script src="i18n.js?v=doom-remap-1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js"></script>
 
@@ -3536,6 +3537,49 @@
   </div>
 
   <div id="ui-panel-backdrop" hidden aria-hidden="true"></div>
+  <section id="dos-panel" hidden aria-labelledby="dos-title" data-state="setup">
+    <header class="dos-header">
+      <div><div class="hub-eyebrow" data-i18n="dos.tag">DOS CLASSIC</div><h1 id="dos-title" data-i18n="mode.doom">Doom</h1></div>
+      <nav class="dos-actions">
+        <button id="dos-back" type="button" data-i18n="dos.back">Back to lobby</button>
+        <button id="dos-library" type="button" data-i18n="library.launch_title">Game library</button>
+        <button id="dos-settings" type="button" data-i18n="settings.title">Settings</button>
+        <button id="dos-remap" type="button" data-i18n="dos.remap">Remap controls</button>
+        <button id="dos-fullscreen" type="button" data-i18n="dos.fullscreen">Fullscreen</button>
+      </nav>
+    </header>
+    <div id="dos-setup">
+      <div class="dos-intro"><div class="hub-eyebrow" data-i18n="dos.card_kicker">LOCK AND LOAD</div><h2 data-i18n="dos.title">Choose your campaign.</h2><p data-i18n="dos.intro">Step into Freedoom, a free campaign for the Doom engine, or play with your own Doom game file.</p></div>
+      <div class="dos-choices">
+        <article class="dos-choice"><div class="hub-eyebrow" data-i18n="dos.included">INCLUDED CAMPAIGN</div><h3 data-i18n="dos.free_campaign">Freedoom: Phase 1</h3><p data-i18n="dos.free_desc">Four episodes with original levels, enemies, and music. About 13 MB on first play.</p><button id="dos-play-free" class="dos-primary" type="button" data-i18n="dos.play_free">Play Freedoom</button></article>
+        <article class="dos-choice"><div class="hub-eyebrow" data-i18n="dos.own">YOUR COLLECTION</div><h3 data-i18n="dos.owned_campaign">Original Doom / Doom II</h3><p data-i18n="dos.own_desc">Choose an IWAD from a copy you own. Your file stays on this device.</p><label class="dos-file"><span data-i18n="dos.choose_wad">Choose a Doom WAD (up to 64 MB)</span><input id="dos-wad" type="file" accept=".wad" /></label><button id="dos-play-wad" type="button" disabled data-i18n="dos.play_wad">Play my WAD</button></article>
+      </div>
+      <p class="dos-footnote"><span data-i18n="dos.save_hint">Use the game’s Save menu (F2) to save your progress. Saves are kept in this browser, not your account.</span> <a href="games/dos/credits.html" target="_blank" rel="noopener" data-i18n="dos.credits">Credits &amp; source code</a></p>
+    </div>
+    <div id="dos-player" hidden>
+      <div class="dos-toolbar"><strong id="dos-campaign"></strong><div class="dos-actions"><button id="dos-menu" type="button" data-i18n="dos.game_menu">Game menu</button><button id="dos-pause" type="button" data-i18n="dos.pause">Pause</button><button id="dos-end" type="button" data-i18n="dos.end">End session</button></div></div>
+      <div class="dos-stage"><canvas id="dos-canvas" width="320" height="200" tabindex="0" aria-label="Doom game screen" data-i18n-attr="aria-label:dos.screen"></canvas><div id="dos-overlay"><p data-i18n="dos.overlay_hint">Your mission awaits.</p><button id="dos-resume" class="dos-primary" type="button" data-i18n="dos.resume">Play / Resume</button><button id="dos-retry" type="button" data-i18n="dos.retry">Retry</button></div></div>
+      <details class="dos-help" open><summary data-i18n="dos.controls">Controls &amp; touch buttons</summary><p data-i18n="dos.controls_hint">Arrows: menus · Enter: select · 1–7: weapons · F2 / F3: save / load · Esc: pause. Click the screen to capture the mouse.</p>
+        <p id="dos-binding-summary"></p>
+        <div id="dos-touch"><div class="dos-pad"><button type="button" data-dos-key="87" data-dos-action="forward" data-dos-label-key data-i18n-attr="aria-label:dos.forward">W</button><button type="button" data-dos-key="65" data-dos-action="strafe_left" data-dos-label-key data-i18n-attr="aria-label:dos.strafe_left">A</button><button type="button" data-dos-key="83" data-dos-action="backward" data-dos-label-key data-i18n-attr="aria-label:dos.backward">S</button><button type="button" data-dos-key="68" data-dos-action="strafe_right" data-dos-label-key data-i18n-attr="aria-label:dos.strafe_right">D</button><button type="button" data-dos-key="263" data-dos-action="left" aria-label="Turn left" data-i18n-attr="aria-label:dos.left">←</button><button type="button" data-dos-key="265" data-dos-action="forward" aria-label="Forward" data-i18n-attr="aria-label:dos.forward">↑</button><button type="button" data-dos-key="264" data-dos-action="backward" aria-label="Backward" data-i18n-attr="aria-label:dos.backward">↓</button><button type="button" data-dos-key="262" data-dos-action="right" aria-label="Turn right" data-i18n-attr="aria-label:dos.right">→</button></div><div class="dos-pad"><button type="button" data-dos-key="32" data-dos-action="fire" data-i18n="dos.fire">Fire</button><button type="button" data-dos-key="69" data-dos-action="use" data-i18n="dos.use">Use</button><button type="button" data-dos-key="47" data-i18n="dos.weapon">Weapon</button><button type="button" data-dos-key="257" data-i18n="dos.select">Select</button></div></div>
+      </details>
+    </div>
+    <p id="dos-status" role="status" aria-live="polite"></p>
+    <p id="dos-save-warning" hidden role="alert" data-i18n="dos.storage_error">Browser storage is unavailable. Your saves may be lost when you leave.</p>
+    <dialog id="dos-controls-dialog" aria-labelledby="dos-bindings-title" aria-describedby="dos-bindings-hint">
+      <h2 id="dos-bindings-title" data-i18n="dos.remap">Remap controls</h2>
+      <p id="dos-bindings-hint" data-i18n="dos.remap_hint">Click a binding, then press a letter, arrow, Space or Shift. Changes apply next session. Menu and save-name keys stay the same.</p>
+      <div id="dos-binding-rows"></div>
+      <div class="dos-mouse-bindings">
+        <label><span data-i18n="dos.mouse_left">Left mouse</span><select data-dos-mouse="0"><option value="fire" data-i18n="dos.fire">Fire</option><option value="use" data-i18n="dos.use">Use</option><option value="none" data-i18n="dos.unbound">Unbound</option></select></label>
+        <label><span data-i18n="dos.mouse_middle">Middle mouse</span><select data-dos-mouse="1"><option value="fire" data-i18n="dos.fire">Fire</option><option value="use" data-i18n="dos.use">Use</option><option value="none" data-i18n="dos.unbound">Unbound</option></select></label>
+        <label><span data-i18n="dos.mouse_right">Right mouse</span><select data-dos-mouse="2"><option value="fire" data-i18n="dos.fire">Fire</option><option value="use" data-i18n="dos.use">Use</option><option value="none" data-i18n="dos.unbound">Unbound</option></select></label>
+      </div>
+      <p id="dos-binding-status" role="status" aria-live="polite"></p>
+      <div class="dos-actions"><button id="dos-bindings-reset" type="button" data-i18n="dos.reset_controls">Reset defaults</button><button id="dos-bindings-cancel" type="button" data-i18n="dos.cancel_controls">Cancel</button><button id="dos-bindings-save" class="dos-primary" type="button" data-i18n="dos.save_controls">Save controls</button></div>
+    </dialog>
+  </section>
+  <link rel="stylesheet" href="dos-ui.css?v=2">
   <link rel="stylesheet" href="ui-panels.css">
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-panels.js" defer></script>
@@ -3662,6 +3706,10 @@
         .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
+        .then(function () { return loadScript('dos-runtime.js?v=5'); })
+        .then(function () { return loadScript('dos-games.js?v=4'); })
+        .then(function () { return loadScript('dos-bindings.js?v=1'); })
+        .then(function () { return loadScript('dos-ui.js?v=4'); })
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () {
           if (!window.__aobingAppReady) throw new Error('Game initialization failed');

@@ -157,7 +157,7 @@
       // game library
       'library.launch_kicker':'CHOOSE YOUR NEXT SIDE QUEST',
       'library.launch_title':'Game library',
-      'library.eyebrow':'Game library / 06 games',
+      'library.eyebrow':'Game library / 07 games',
       'library.title':'Choose your play.',
       'library.close':'Close',
       'library.close_aria':'Close game library',
@@ -362,7 +362,7 @@
       // game library
       'library.launch_kicker':'次のサイドクエストを選ぼう',
       'library.launch_title':'ゲームライブラリ',
-      'library.eyebrow':'ゲームライブラリ / 6ゲーム',
+      'library.eyebrow':'ゲームライブラリ / 7ゲーム',
       'library.title':'遊ぶものを選ぼう。',
       'library.close':'閉じる',
       'library.close_aria':'ゲームライブラリを閉じる',
@@ -620,7 +620,7 @@
       // game library
       'library.launch_kicker':'다음 사이드 퀘스트를 골라요',
       'library.launch_title':'게임 라이브러리',
-      'library.eyebrow':'게임 라이브러리 / 게임 6개',
+      'library.eyebrow':'게임 라이브러리 / 게임 7개',
       'library.title':'무엇을 플레이할까요.',
       'library.close':'닫기',
       'library.close_aria':'게임 라이브러리 닫기',
@@ -878,7 +878,7 @@
       // game library
       'library.launch_kicker':'选择下一个支线任务',
       'library.launch_title':'游戏库',
-      'library.eyebrow':'游戏库 / 6 款游戏',
+      'library.eyebrow':'游戏库 / 7 款游戏',
       'library.title':'选择你的玩法。',
       'library.close':'关闭',
       'library.close_aria':'关闭游戏库',
@@ -1136,7 +1136,7 @@
       // game library
       'library.launch_kicker':'選擇下一個支線任務',
       'library.launch_title':'遊戲庫',
-      'library.eyebrow':'遊戲庫 / 6 款遊戲',
+      'library.eyebrow':'遊戲庫 / 7 款遊戲',
       'library.title':'選擇你的玩法。',
       'library.close':'關閉',
       'library.close_aria':'關閉遊戲庫',
@@ -1394,7 +1394,7 @@
       // game library
       'library.launch_kicker':'เลือกเควสต์เสริมถัดไป',
       'library.launch_title':'คลังเกม',
-      'library.eyebrow':'คลังเกม / 6 เกม',
+      'library.eyebrow':'คลังเกม / 7 เกม',
       'library.title':'เลือกเกมที่จะเล่น',
       'library.close':'ปิด',
       'library.close_aria':'ปิดคลังเกม',
@@ -1652,7 +1652,7 @@
       // game library
       'library.launch_kicker':'اختر مهمتك الجانبية التالية',
       'library.launch_title':'مكتبة الألعاب',
-      'library.eyebrow':'مكتبة الألعاب / 6 ألعاب',
+      'library.eyebrow':'مكتبة الألعاب / 7 ألعاب',
       'library.title':'اختر ما تريد لعبه.',
       'library.close':'إغلاق',
       'library.close_aria':'إغلاق مكتبة الألعاب',
@@ -1960,7 +1960,7 @@
       // game library
       'library.launch_kicker':'CHỌN NHIỆM VỤ PHỤ TIẾP THEO',
       'library.launch_title':'Thư viện game',
-      'library.eyebrow':'Thư viện game / 06 game',
+      'library.eyebrow':'Thư viện game / 07 game',
       'library.title':'Chọn cách chơi của bạn.',
       'library.close':'Đóng',
       'library.close_aria':'Đóng thư viện game',
@@ -2122,6 +2122,630 @@
     condition: ['Condition','状態','상태','品相','品相','สภาพ','Tình trạng','الحالة'],
   };
   Object.entries(fishingCopy).forEach(([key, values]) => SUPPORTED.forEach((lang, i) => { T[lang]['fishing.' + key] = values[i]; }));
+  const dosCopy = {
+    "tag": [
+        "DOS CLASSIC",
+        "DOSクラシック",
+        "DOS 클래식",
+        "DOS 经典",
+        "DOS 經典",
+        "เกม DOS คลาสสิก",
+        "DOS CỔ ĐIỂN",
+        "ألعاب DOS الكلاسيكية"
+    ],
+    "card_kicker": [
+        "LOCK AND LOAD",
+        "戦闘準備",
+        "전투 준비",
+        "准备出击",
+        "準備出擊",
+        "เตรียมอาวุธให้พร้อม",
+        "SẴN SÀNG CHIẾN ĐẤU",
+        "استعد للقتال"
+    ],
+    "card_desc": [
+        "Play Freedoom or bring your own Doom.",
+        "Freedoom、または自分のDoomで遊ぼう。",
+        "Freedoom 또는 보유한 Doom을 플레이하세요.",
+        "畅玩 Freedoom，或载入自己的 Doom。",
+        "暢玩 Freedoom，或載入自己的 Doom。",
+        "เล่น Freedoom หรือใช้ Doom ของคุณเอง",
+        "Chơi Freedoom hoặc bản Doom của bạn.",
+        "العب Freedoom أو نسخة Doom الخاصة بك."
+    ],
+    "title": [
+        "Choose your campaign.",
+        "キャンペーンを選ぼう。",
+        "캠페인을 선택하세요.",
+        "选择你的战役。",
+        "選擇你的戰役。",
+        "เลือกแคมเปญของคุณ",
+        "Chọn chiến dịch của bạn.",
+        "اختر حملتك."
+    ],
+    "intro": [
+        "Step into Freedoom, a free campaign for the Doom engine, or play with your own Doom game file.",
+        "Doomエンジン用の無料キャンペーンFreedoomか、自分のDoomファイルで遊べます。",
+        "Doom 엔진용 무료 캠페인 Freedoom 또는 보유한 Doom 파일로 플레이하세요.",
+        "进入 Doom 引擎的免费战役 Freedoom，或使用自己的 Doom 游戏文件。",
+        "進入 Doom 引擎的免費戰役 Freedoom，或使用自己的 Doom 遊戲檔案。",
+        "เข้าสู่ Freedoom แคมเปญฟรีสำหรับเอนจิน Doom หรือเล่นด้วยไฟล์ Doom ของคุณ",
+        "Khám phá Freedoom, chiến dịch miễn phí cho bộ máy Doom, hoặc dùng tệp Doom của bạn.",
+        "ادخل Freedoom، حملة مجانية لمحرك Doom، أو العب بملف Doom الخاص بك."
+    ],
+    "included": [
+        "INCLUDED CAMPAIGN",
+        "収録キャンペーン",
+        "포함된 캠페인",
+        "内置战役",
+        "內建戰役",
+        "แคมเปญที่มีให้",
+        "CHIẾN DỊCH CÓ SẴN",
+        "الحملة المضمّنة"
+    ],
+    "free_campaign": [
+        "Freedoom: Phase 1",
+        "Freedoom: Phase 1",
+        "Freedoom: Phase 1",
+        "Freedoom：第一阶段",
+        "Freedoom：第一階段",
+        "Freedoom: Phase 1",
+        "Freedoom: Giai đoạn 1",
+        "Freedoom: المرحلة الأولى"
+    ],
+    "free_desc": [
+        "Four episodes with original levels, enemies, and music. About 13 MB on first play.",
+        "独自のマップ、敵、音楽を楽しめる4つのエピソード。初回は約13 MB。",
+        "독창적인 맵, 적, 음악으로 구성된 4개 에피소드. 첫 실행 시 약 13 MB.",
+        "四个章节，原创关卡、敌人与音乐。首次游玩约需下载 13 MB。",
+        "四個章節，原創關卡、敵人與音樂。首次遊玩約需下載 13 MB。",
+        "สี่ตอนพร้อมด่าน ศัตรู และเพลงต้นฉบับ ดาวน์โหลดครั้งแรกประมาณ 13 MB",
+        "Bốn chương với màn chơi, kẻ địch và nhạc riêng. Lần đầu tải khoảng 13 MB.",
+        "أربع حلقات بمراحل وأعداء وموسيقى أصلية. نحو 13 ميغابايت عند اللعب لأول مرة."
+    ],
+    "own": [
+        "YOUR COLLECTION",
+        "自分のコレクション",
+        "내 컬렉션",
+        "你的收藏",
+        "你的收藏",
+        "คอลเลกชันของคุณ",
+        "BỘ SƯU TẬP CỦA BẠN",
+        "مجموعتك"
+    ],
+    "owned_campaign": [
+        "Original Doom / Doom II",
+        "オリジナルDoom / Doom II",
+        "오리지널 Doom / Doom II",
+        "原版 Doom / Doom II",
+        "原版 Doom / Doom II",
+        "Doom / Doom II ต้นฉบับ",
+        "Doom / Doom II gốc",
+        "Doom / Doom II الأصلية"
+    ],
+    "own_desc": [
+        "Choose an IWAD from a copy you own. Your file stays on this device.",
+        "所有するゲームのIWADを選択。ファイルはこの端末内に保存されます。",
+        "보유한 게임의 IWAD를 선택하세요. 파일은 이 기기에만 남습니다.",
+        "选择你拥有的游戏副本中的 IWAD。文件仅留在本设备上。",
+        "選擇你擁有的遊戲副本中的 IWAD。檔案僅留在本裝置上。",
+        "เลือก IWAD จากเกมที่คุณเป็นเจ้าของ ไฟล์จะอยู่บนอุปกรณ์นี้เท่านั้น",
+        "Chọn IWAD từ bản game bạn sở hữu. Tệp chỉ nằm trên thiết bị này.",
+        "اختر ملف IWAD من نسخة تملكها. يبقى ملفك على هذا الجهاز."
+    ],
+    "choose_wad": [
+        "Choose a Doom WAD (up to 64 MB)",
+        "DoomのWADを選択（最大64 MB）",
+        "Doom WAD 선택 (최대 64 MB)",
+        "选择 Doom WAD（最大 64 MB）",
+        "選擇 Doom WAD（最大 64 MB）",
+        "เลือก Doom WAD (ไม่เกิน 64 MB)",
+        "Chọn Doom WAD (tối đa 64 MB)",
+        "اختر ملف Doom WAD (حتى 64 ميغابايت)"
+    ],
+    "play_free": [
+        "Play Freedoom",
+        "Freedoomをプレイ",
+        "Freedoom 플레이",
+        "游玩 Freedoom",
+        "遊玩 Freedoom",
+        "เล่น Freedoom",
+        "Chơi Freedoom",
+        "العب Freedoom"
+    ],
+    "play_wad": [
+        "Play my WAD",
+        "自分のWADでプレイ",
+        "내 WAD 플레이",
+        "游玩我的 WAD",
+        "遊玩我的 WAD",
+        "เล่น WAD ของฉัน",
+        "Chơi WAD của tôi",
+        "العب ملف WAD الخاص بي"
+    ],
+    "save_hint": [
+        "Use the game’s Save menu (F2) to save your progress. Saves are kept in this browser, not your account.",
+        "ゲーム内のセーブメニュー（F2）で進行を保存。セーブはアカウントではなく、このブラウザーに保存されます。",
+        "게임 내 저장 메뉴(F2)로 진행 상황을 저장하세요. 계정이 아닌 이 브라우저에 저장됩니다.",
+        "使用游戏内保存菜单（F2）保存进度。存档保存在此浏览器中，不与账号同步。",
+        "使用遊戲內儲存選單（F2）儲存進度。存檔保存在此瀏覽器中，不與帳號同步。",
+        "ใช้เมนูบันทึกในเกม (F2) เพื่อบันทึกความคืบหน้า ข้อมูลเก็บในเบราว์เซอร์นี้ ไม่ใช่บัญชี",
+        "Dùng menu lưu trong game (F2) để lưu tiến độ. Bản lưu nằm trong trình duyệt này, không đồng bộ tài khoản.",
+        "استخدم قائمة الحفظ داخل اللعبة (F2) لحفظ تقدمك. تُحفظ البيانات في هذا المتصفح، وليس حسابك."
+    ],
+    "credits": [
+        "Credits & source code",
+        "クレジットとソースコード",
+        "제작진 및 소스 코드",
+        "致谢与源代码",
+        "致謝與原始碼",
+        "เครดิตและซอร์สโค้ด",
+        "Ghi công & mã nguồn",
+        "الشكر والشيفرة المصدرية"
+    ],
+    "back": [
+        "Back to lobby",
+        "ロビーへ戻る",
+        "로비로 돌아가기",
+        "返回大厅",
+        "返回大廳",
+        "กลับล็อบบี้",
+        "Về sảnh",
+        "العودة إلى الردهة"
+    ],
+    "fullscreen": [
+        "Fullscreen",
+        "全画面",
+        "전체 화면",
+        "全屏",
+        "全螢幕",
+        "เต็มหน้าจอ",
+        "Toàn màn hình",
+        "ملء الشاشة"
+    ],
+    "game_menu": [
+        "Game menu",
+        "ゲームメニュー",
+        "게임 메뉴",
+        "游戏菜单",
+        "遊戲選單",
+        "เมนูเกม",
+        "Menu game",
+        "قائمة اللعبة"
+    ],
+    "pause": [
+        "Pause",
+        "一時停止",
+        "일시 정지",
+        "暂停",
+        "暫停",
+        "หยุดชั่วคราว",
+        "Tạm dừng",
+        "إيقاف مؤقت"
+    ],
+    "end": [
+        "End session",
+        "プレイを終了",
+        "세션 종료",
+        "结束游玩",
+        "結束遊玩",
+        "จบการเล่น",
+        "Kết thúc phiên",
+        "إنهاء الجلسة"
+    ],
+    "screen": [
+        "Doom game screen",
+        "Doomのゲーム画面",
+        "Doom 게임 화면",
+        "Doom 游戏画面",
+        "Doom 遊戲畫面",
+        "หน้าจอเกม Doom",
+        "Màn hình game Doom",
+        "شاشة لعبة Doom"
+    ],
+    "overlay_hint": [
+        "Your mission awaits.",
+        "任務が待っている。",
+        "임무가 기다립니다.",
+        "任务等待着你。",
+        "任務等待著你。",
+        "ภารกิจกำลังรอคุณ",
+        "Nhiệm vụ đang chờ.",
+        "مهمتك بانتظارك."
+    ],
+    "resume": [
+        "Play / Resume",
+        "プレイ・再開",
+        "플레이 / 재개",
+        "开始 / 继续",
+        "開始 / 繼續",
+        "เล่น / เล่นต่อ",
+        "Chơi / Tiếp tục",
+        "العب / استأنف"
+    ],
+    "retry": [
+        "Retry",
+        "再試行",
+        "다시 시도",
+        "重试",
+        "重試",
+        "ลองอีกครั้ง",
+        "Thử lại",
+        "إعادة المحاولة"
+    ],
+    "controls": [
+        "Controls & touch buttons",
+        "操作とタッチボタン",
+        "조작 및 터치 버튼",
+        "操作与触控按钮",
+        "操作與觸控按鈕",
+        "การควบคุมและปุ่มสัมผัส",
+        "Điều khiển & nút cảm ứng",
+        "التحكم وأزرار اللمس"
+    ],
+    "controls_hint": [
+        "Arrows: menus · Enter: select · 1–7: weapons · F2 / F3: save / load · Esc: pause. Click the screen to capture the mouse.",
+        "矢印：メニュー · Enter：決定 · 1–7：武器 · F2 / F3：セーブ / ロード · Esc：一時停止。画面をクリックするとマウスを捕捉します。",
+        "화살표: 메뉴 · Enter: 선택 · 1–7: 무기 · F2 / F3: 저장 / 불러오기 · Esc: 일시정지. 화면을 클릭하면 마우스가 잠깁니다.",
+        "方向键：菜单 · Enter：选择 · 1–7：武器 · F2 / F3：存档 / 读档 · Esc：暂停。点击画面锁定鼠标。",
+        "方向鍵：選單 · Enter：選擇 · 1–7：武器 · F2 / F3：存檔 / 讀檔 · Esc：暫停。點擊畫面鎖定滑鼠。",
+        "ลูกศร: เมนู · Enter: เลือก · 1–7: อาวุธ · F2 / F3: บันทึก / โหลด · Esc: หยุดชั่วคราว คลิกหน้าจอเพื่อล็อกเมาส์",
+        "Mũi tên: menu · Enter: chọn · 1–7: vũ khí · F2 / F3: lưu / tải · Esc: tạm dừng. Nhấp màn hình để khóa chuột.",
+        "الأسهم: القوائم · Enter: اختيار · 1–7: الأسلحة · F2 / F3: حفظ / تحميل · Esc: إيقاف مؤقت. انقر الشاشة لالتقاط الفأرة."
+    ],
+    "left": [
+        "Turn left",
+        "左に旋回",
+        "왼쪽 회전",
+        "左转",
+        "左轉",
+        "หันซ้าย",
+        "Quay trái",
+        "انعطف يساراً"
+    ],
+    "right": [
+        "Turn right",
+        "右に旋回",
+        "오른쪽 회전",
+        "右转",
+        "右轉",
+        "หันขวา",
+        "Quay phải",
+        "انعطف يميناً"
+    ],
+    "forward": [
+        "Forward",
+        "前進",
+        "전진",
+        "前进",
+        "前進",
+        "เดินหน้า",
+        "Tiến",
+        "تقدّم"
+    ],
+    "backward": [
+        "Backward",
+        "後退",
+        "후진",
+        "后退",
+        "後退",
+        "ถอยหลัง",
+        "Lùi",
+        "تراجع"
+    ],
+    "fire": [
+        "Fire",
+        "射撃",
+        "발사",
+        "开火",
+        "開火",
+        "ยิง",
+        "Bắn",
+        "إطلاق"
+    ],
+    "use": [
+        "Use",
+        "使用",
+        "사용",
+        "使用",
+        "使用",
+        "ใช้",
+        "Dùng",
+        "استخدام"
+    ],
+    "weapon": [
+        "Weapon",
+        "武器",
+        "무기",
+        "武器",
+        "武器",
+        "อาวุธ",
+        "Vũ khí",
+        "سلاح"
+    ],
+    "select": [
+        "Select",
+        "決定",
+        "선택",
+        "选择",
+        "選擇",
+        "เลือก",
+        "Chọn",
+        "اختيار"
+    ],
+    "storage_error": [
+        "Browser storage is unavailable. Your saves may be lost when you leave.",
+        "ブラウザーの保存領域を利用できません。終了するとセーブが失われる可能性があります。",
+        "브라우저 저장소를 사용할 수 없습니다. 나가면 저장 데이터가 사라질 수 있습니다.",
+        "浏览器存储不可用，离开时可能丢失存档。",
+        "瀏覽器儲存空間無法使用，離開時可能遺失存檔。",
+        "พื้นที่เก็บข้อมูลเบราว์เซอร์ใช้ไม่ได้ ข้อมูลบันทึกอาจหายเมื่อออก",
+        "Không thể dùng bộ nhớ trình duyệt. Bản lưu có thể mất khi bạn rời đi.",
+        "تخزين المتصفح غير متاح. قد تفقد ملفات الحفظ عند المغادرة."
+    ],
+    "paused": [
+        "Paused. Resume when you’re ready.",
+        "一時停止中。準備ができたら再開。",
+        "일시 정지 중입니다. 준비되면 재개하세요.",
+        "已暂停，准备好后继续。",
+        "已暫停，準備好後繼續。",
+        "หยุดชั่วคราว พร้อมแล้วค่อยเล่นต่อ",
+        "Đã tạm dừng. Tiếp tục khi sẵn sàng.",
+        "متوقفة مؤقتاً. استأنف عندما تستعد."
+    ],
+    "loading": [
+        "Loading your game…",
+        "ゲームを読み込み中…",
+        "게임 불러오는 중…",
+        "正在载入游戏…",
+        "正在載入遊戲…",
+        "กำลังโหลดเกม…",
+        "Đang tải game…",
+        "جارٍ تحميل اللعبة…"
+    ],
+    "ready": [
+        "Ready to play.",
+        "プレイ準備完了。",
+        "플레이 준비 완료.",
+        "已准备就绪。",
+        "已準備就緒。",
+        "พร้อมเล่นแล้ว",
+        "Sẵn sàng chơi.",
+        "جاهزة للعب."
+    ],
+    "runtime_error": [
+        "The game stopped unexpectedly. Retry to restart, then load your last save with F3.",
+        "ゲームが予期せず停止しました。再試行して起動し、F3で最後のセーブを読み込んでください。",
+        "게임이 예기치 않게 중단되었습니다. 다시 시작한 뒤 F3으로 마지막 저장을 불러오세요.",
+        "游戏意外停止。请重试启动，然后按 F3 读取最近的存档。",
+        "遊戲意外停止。請重試啟動，然後按 F3 讀取最近的存檔。",
+        "เกมหยุดทำงานโดยไม่คาดคิด ลองเริ่มใหม่แล้วกด F3 เพื่อโหลดบันทึกล่าสุด",
+        "Game dừng đột ngột. Thử khởi động lại rồi nhấn F3 để tải bản lưu gần nhất.",
+        "توقفت اللعبة بشكل غير متوقع. أعد تشغيلها ثم اضغط F3 لتحميل آخر حفظ."
+    ],
+    "load_error": [
+        "The game couldn’t start. Check your connection and retry.",
+        "起動できませんでした。接続を確認して再試行してください。",
+        "게임을 시작하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+        "游戏无法启动，请检查网络连接后重试。",
+        "遊戲無法啟動，請檢查網路連線後重試。",
+        "เริ่มเกมไม่ได้ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง",
+        "Không thể khởi động game. Kiểm tra kết nối và thử lại.",
+        "تعذّر بدء اللعبة. تحقق من اتصالك وأعد المحاولة."
+    ],
+    "invalid_wad": [
+        "Choose a valid Doom / Doom II IWAD, up to 64 MB. Mod-only PWADs are not supported.",
+        "有効なDoom / Doom IIのIWAD（最大64 MB）を選択してください。MOD専用PWADには対応していません。",
+        "유효한 Doom / Doom II IWAD(최대 64 MB)를 선택하세요. 모드 전용 PWAD는 지원하지 않습니다.",
+        "请选择有效的 Doom / Doom II IWAD，最大 64 MB。不支持仅含模组的 PWAD。",
+        "請選擇有效的 Doom / Doom II IWAD，最大 64 MB。不支援僅含模組的 PWAD。",
+        "เลือก Doom / Doom II IWAD ที่ถูกต้อง ไม่เกิน 64 MB ไม่รองรับ PWAD ที่เป็นม็อดอย่างเดียว",
+        "Chọn IWAD Doom / Doom II hợp lệ, tối đa 64 MB. Không hỗ trợ PWAD chỉ chứa bản mod.",
+        "اختر IWAD صالحاً لـ Doom / Doom II بحجم حتى 64 ميغابايت. ملفات PWAD الخاصة بالتعديلات فقط غير مدعومة."
+    ],
+    "selected": [
+        "Selected: {name}",
+        "選択済み：{name}",
+        "선택됨: {name}",
+        "已选择：{name}",
+        "已選擇：{name}",
+        "เลือกแล้ว: {name}",
+        "Đã chọn: {name}",
+        "المحدد: {name}"
+    ],
+    "ended": [
+        "Session ended. Your in-game saves are kept in this browser.",
+        "プレイ終了。ゲーム内セーブはこのブラウザーに保存されます。",
+        "세션이 종료되었습니다. 게임 내 저장은 이 브라우저에 보관됩니다.",
+        "游玩已结束。游戏存档保存在此浏览器中。",
+        "遊玩已結束。遊戲存檔保存在此瀏覽器中。",
+        "จบการเล่นแล้ว ข้อมูลบันทึกในเกมเก็บไว้ในเบราว์เซอร์นี้",
+        "Phiên đã kết thúc. Bản lưu trong game được giữ trong trình duyệt này.",
+        "انتهت الجلسة. تبقى ملفات الحفظ في هذا المتصفح."
+    ],
+    "fullscreen_error": [
+        "Fullscreen is unavailable here. You can keep playing in this window.",
+        "ここでは全画面を利用できません。このウィンドウで続けられます。",
+        "전체 화면을 사용할 수 없습니다. 이 창에서 계속 플레이할 수 있습니다.",
+        "此处无法全屏，可继续在当前窗口游玩。",
+        "此處無法全螢幕，可繼續在目前視窗遊玩。",
+        "ใช้เต็มหน้าจอไม่ได้ คุณเล่นต่อในหน้าต่างนี้ได้",
+        "Không thể mở toàn màn hình. Bạn vẫn có thể chơi trong cửa sổ này.",
+        "ملء الشاشة غير متاح هنا. يمكنك متابعة اللعب في هذه النافذة."
+    ],
+    "remap": [
+        "Remap controls",
+        "操作の割り当て",
+        "조작 설정",
+        "修改按键",
+        "修改按鍵",
+        "ตั้งค่าปุ่ม",
+        "Đổi phím điều khiển",
+        "تخصيص التحكم"
+    ],
+    "remap_hint": [
+        "Click a binding, then press a letter, arrow, Space or Shift. Changes apply next session. Menu and save-name keys stay the same.",
+        "ボタンを選び、文字・矢印・Space・Shiftを押してください。変更は次の起動から適用されます。メニューとセーブ名の入力は変わりません。",
+        "버튼을 선택하고 문자, 화살표, Space 또는 Shift를 누르세요. 다음 실행부터 적용됩니다. 메뉴와 저장 이름 입력은 바뀌지 않습니다.",
+        "点击按键后，按字母、方向键、空格或 Shift。下次启动游戏时生效。菜单和存档名称输入不变。",
+        "點擊按鍵後，按字母、方向鍵、空白鍵或 Shift。下次啟動遊戲時生效。選單和存檔名稱輸入不變。",
+        "คลิกปุ่มแล้วกดตัวอักษร ลูกศร Space หรือ Shift การเปลี่ยนแปลงมีผลเมื่อเริ่มเกมครั้งถัดไป ปุ่มเมนูและการพิมพ์ชื่อบันทึกไม่เปลี่ยน",
+        "Chọn nút rồi nhấn chữ cái, phím mũi tên, Space hoặc Shift. Có hiệu lực từ phiên chơi tiếp theo. Phím menu và nhập tên bản lưu không đổi.",
+        "اختر الزر ثم اضغط حرفاً أو سهماً أو Space أو Shift. تُطبّق التغييرات في جلسة اللعب التالية. لا تتغير مفاتيح القوائم وكتابة أسماء الحفظ."
+    ],
+    "remap_listening": [
+        "Press a key…",
+        "キーを押してください…",
+        "키를 누르세요…",
+        "请按键…",
+        "請按鍵…",
+        "กดปุ่ม…",
+        "Nhấn một phím…",
+        "اضغط مفتاحاً…"
+    ],
+    "remap_reserved": [
+        "Use a letter, arrow, Space or Shift. Other keys are reserved.",
+        "文字・矢印・Space・Shiftを使用してください。他のキーは予約済みです。",
+        "문자, 화살표, Space 또는 Shift를 사용하세요. 다른 키는 예약되어 있습니다.",
+        "请使用字母、方向键、空格或 Shift。其他按键已保留。",
+        "請使用字母、方向鍵、空白鍵或 Shift。其他按鍵已保留。",
+        "ใช้ตัวอักษร ลูกศร Space หรือ Shift ปุ่มอื่นสงวนไว้",
+        "Dùng chữ cái, mũi tên, Space hoặc Shift. Các phím khác được dành riêng.",
+        "استخدم حرفاً أو سهماً أو Space أو Shift. المفاتيح الأخرى محجوزة."
+    ],
+    "remap_duplicate": [
+        "That key is already assigned. Choose another key.",
+        "このキーは使用中です。別のキーを選んでください。",
+        "이미 사용 중인 키입니다. 다른 키를 선택하세요.",
+        "此按键已被使用，请选择其他按键。",
+        "此按鍵已被使用，請選擇其他按鍵。",
+        "ปุ่มนี้ถูกใช้แล้ว กรุณาเลือกปุ่มอื่น",
+        "Phím này đã được gán. Hãy chọn phím khác.",
+        "هذا المفتاح مستخدم بالفعل. اختر مفتاحاً آخر."
+    ],
+    "remap_storage_error": [
+        "Could not save controls in this browser. Try again.",
+        "操作設定を保存できませんでした。再試行してください。",
+        "조작 설정을 저장하지 못했습니다. 다시 시도하세요.",
+        "无法在此浏览器保存按键，请重试。",
+        "無法在此瀏覽器儲存按鍵，請重試。",
+        "บันทึกปุ่มในเบราว์เซอร์นี้ไม่ได้ ลองอีกครั้ง",
+        "Không thể lưu điều khiển trong trình duyệt này. Hãy thử lại.",
+        "تعذّر حفظ التحكم في هذا المتصفح. حاول مجدداً."
+    ],
+    "key_space": [
+        "Space",
+        "スペース",
+        "스페이스",
+        "空格",
+        "空白鍵",
+        "เว้นวรรค",
+        "Dấu cách",
+        "مسافة"
+    ],
+    "strafe_left": [
+        "Strafe left",
+        "左に平行移動",
+        "왼쪽 이동",
+        "向左平移",
+        "向左平移",
+        "เลื่อนซ้าย",
+        "Đi ngang trái",
+        "تحرك جانبياً لليسار"
+    ],
+    "strafe_right": [
+        "Strafe right",
+        "右に平行移動",
+        "오른쪽 이동",
+        "向右平移",
+        "向右平移",
+        "เลื่อนขวา",
+        "Đi ngang phải",
+        "تحرك جانبياً لليمين"
+    ],
+    "run": [
+        "Run",
+        "走る",
+        "달리기",
+        "奔跑",
+        "奔跑",
+        "วิ่ง",
+        "Chạy",
+        "ركض"
+    ],
+    "mouse_left": [
+        "Left mouse",
+        "マウス左",
+        "마우스 왼쪽",
+        "鼠标左键",
+        "滑鼠左鍵",
+        "เมาส์ซ้าย",
+        "Chuột trái",
+        "زر الفأرة الأيسر"
+    ],
+    "mouse_middle": [
+        "Middle mouse",
+        "マウス中央",
+        "마우스 가운데",
+        "鼠标中键",
+        "滑鼠中鍵",
+        "เมาส์กลาง",
+        "Chuột giữa",
+        "زر الفأرة الأوسط"
+    ],
+    "mouse_right": [
+        "Right mouse",
+        "マウス右",
+        "마우스 오른쪽",
+        "鼠标右键",
+        "滑鼠右鍵",
+        "เมาส์ขวา",
+        "Chuột phải",
+        "زر الفأرة الأيمن"
+    ],
+    "unbound": [
+        "Unbound",
+        "割り当てなし",
+        "지정 안 함",
+        "未绑定",
+        "未綁定",
+        "ไม่กำหนด",
+        "Chưa gán",
+        "غير معيّن"
+    ],
+    "reset_controls": [
+        "Reset defaults",
+        "初期設定に戻す",
+        "기본값 복원",
+        "恢复默认",
+        "恢復預設",
+        "คืนค่าเริ่มต้น",
+        "Khôi phục mặc định",
+        "استعادة الافتراضي"
+    ],
+    "cancel_controls": [
+        "Cancel",
+        "キャンセル",
+        "취소",
+        "取消",
+        "取消",
+        "ยกเลิก",
+        "Hủy",
+        "إلغاء"
+    ],
+    "save_controls": [
+        "Save controls",
+        "操作設定を保存",
+        "조작 저장",
+        "保存按键",
+        "儲存按鍵",
+        "บันทึกปุ่ม",
+        "Lưu điều khiển",
+        "حفظ التحكم"
+    ]
+};
+  Object.entries(dosCopy).forEach(([key, values]) => SUPPORTED.forEach((lang, i) => { T[lang]['dos.' + key] = values[i]; }));
+  SUPPORTED.forEach(lang => { T[lang]['mode.doom'] = 'Doom'; });
   let current = 'en';
 
   function detect(stored) {
