@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" fill="none">
+  <!-- Reference: https://bluearchive.fandom.com/wiki/File:Kei_Halo.png
+       Hand-drawn as vector paths. Keep the upright,
+       overlapping frames and stepped crown; this is not a circular halo. -->
+  <g stroke="#f49bc2" stroke-width="12" stroke-linejoin="miter">
+    <path d="M132 52H314V242H132Z"/>
+    <path d="M42 104H170V252H42Z"/>
+    <path d="M182 214H272V306H182Z"/>
+    <path d="M50 68H104V90H50Z" stroke-width="9"/>
+  </g>
+  <path fill="#f49bc2" d="M138 58H220V86H174V98H144V70H138Z"/>
+</svg>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kei's Quiz — I-It's Not Like I Want You to Join!</title>
+<title>Kei's Quiz — Aobing IT!</title>
 <meta name="description" content="Join Goofy Goober">
 <meta property="og:title" content="KEI">
 <meta property="og:description" content="Join Goofy Goober">
@@ -13,11 +13,8 @@
 <meta name="twitter:title" content="KEI">
 <meta name="twitter:description" content="Join Goofy Goober">
 <meta name="twitter:image" content="assets/kei-emote.webp">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#29232f">
 <link rel="icon" type="image/webp" href="assets/kei-emote.webp">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
 <script src="lib/spine-webgl-4.2.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -26,7 +23,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'Patrick Hand', 'Marker Felt', 'Comic Sans MS', sans-serif;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif);
     background: #1a1a2e;
     color: #fff;
     min-height: 100vh;
@@ -79,7 +76,7 @@
 
   /* TITLE SCREEN */
   .title-screen h1 {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 2.8rem;
     color: #ff4081;
     text-shadow: 3px 3px 0 #000, 0 0 20px #ff408166;
@@ -112,7 +109,7 @@
 
   /* QUESTION SCREEN */
   .question-counter {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 1.2rem;
     color: #76ff03;
     margin-bottom: 10px;
@@ -128,7 +125,7 @@
   }
 
   .question-box h2 {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 1.5rem;
     line-height: 1.4;
   }
@@ -148,7 +145,7 @@
   }
 
   .option-btn {
-    font-family: 'Patrick Hand', 'Marker Felt', 'Comic Sans MS', sans-serif;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif);
     font-size: 1.1rem;
     font-weight: 700;
     padding: 16px 12px;
@@ -183,7 +180,7 @@
 
   /* BUTTONS */
   .start-btn, .retry-btn, .discord-btn {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 1.4rem;
     padding: 16px 45px;
     border: none;
@@ -226,7 +223,7 @@
 
   /* ROAST SCREEN */
   .roast-screen h2 {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 2.2rem;
     color: #ff1744;
     margin-bottom: 15px;
@@ -250,7 +247,7 @@
 
   /* VICTORY SCREEN */
   .victory-screen h2 {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 2.4rem;
     color: #76ff03;
     margin-bottom: 10px;
@@ -316,7 +313,7 @@
   #mini-bar-inner:hover { background: rgba(25, 12, 50, 0.85); }
 
   #mini-bar-inner span {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 0.9rem;
     color: #ff4081;
   }
@@ -429,7 +426,7 @@
     border-radius: 8px;
     background: rgba(255,255,255,0.06);
     color: rgba(255,255,255,0.75);
-    font-family: 'Patrick Hand', 'Marker Felt', 'Comic Sans MS', sans-serif;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif);
     font-size: 0.8rem;
     cursor: pointer;
     text-decoration: none;
@@ -511,7 +508,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 1.5rem;
     color: #ff4081;
     flex-direction: column;
@@ -627,7 +624,7 @@
   #headpat-hud.visible { opacity: 1; }
 
   #headpat-hud .hud-seconds {
-    font-family: 'Gaegu', cursive; font-weight: 700;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif); font-weight: 700;
     font-size: 5rem;
     color: #ff4081;
     text-shadow: 0 0 30px #ff408166, 3px 3px 0 #000;
@@ -635,14 +632,15 @@
   }
 
   #headpat-hud .hud-label {
-    font-family: 'Patrick Hand', 'Marker Felt', 'Comic Sans MS', sans-serif;
+    font-family: var(--kei-font, 'Trebuchet MS', 'Segoe UI', sans-serif);
     font-size: 1.1rem;
     color: #ffab40;
     margin-top: 4px;
   }
 </style>
+<link rel="stylesheet" href="kei-ui.css">
 </head>
-<body>
+<body class="kei-intro-active">
 
 <!-- STATS BUTTON + PANEL -->
 <button id="stats-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="2" y="13" width="4" height="8" rx="1"/></svg></button>
@@ -658,20 +656,40 @@
   <div class="stats-row"><span>Total interactions</span><span class="stat-val" id="stat-total">-</span></div>
 </div>
 
-<!-- HEADPAT HUD — big centered counter during Q4 -->
-<div id="headpat-hud">
-  <div class="hud-seconds" id="hud-seconds">0</div>
-  <div class="hud-label">seconds patted</div>
+<!-- HEADPAT HUD — a quiet progress card beside the character -->
+<div id="headpat-hud" role="progressbar" aria-label="Headpat progress" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-hidden="true">
+  <div class="hud-label">A moment with Kei</div>
+  <div class="hud-count"><span class="hud-seconds" id="hud-seconds">0.0</span><span class="hud-target"> / 5s</span></div>
+  <div class="hud-steps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="hud-note">Hold for five seconds.</div>
 </div>
 
 <!-- LOADING SCREEN -->
 <div id="loading">
-  <div class="loading-spinner"></div>
-  Loading Kei...
+  <img class="loading-spinner" src="assets/kei-halo.svg" width="64" height="64" alt="">
+  <span>Just a moment.</span>
 </div>
 
 <!-- SPINE BACKGROUND CANVAS -->
 <canvas id="spine-canvas"></canvas>
+
+<!-- KEI INTRO — the Spine scene remains visible behind this menu -->
+<div id="kei-intro" role="dialog" aria-modal="true" aria-labelledby="kei-intro-title">
+  <div class="kei-intro-shade" aria-hidden="true"></div>
+  <div class="kei-intro-content">
+    <div class="kei-intro-identity">
+      <div class="kei-intro-halo" aria-hidden="true">
+        <img class="kei-intro-halo-art" src="assets/kei-halo.svg" width="360" height="360" alt="" draggable="false">
+      </div>
+      <div class="kei-intro-word-float"><h1 id="kei-intro-title"><span>KEI</span><small lang="ja">ケイ</small></h1></div>
+      <p class="kei-intro-caption">Come say hello to Kei.</p>
+    </div>
+    <div class="kei-intro-actions">
+      <button id="kei-enter" type="button" disabled>Loading Kei…</button>
+      <span class="kei-intro-hint">Her quiz is waiting inside.</span>
+    </div>
+  </div>
+</div>
 
 <!-- SETTINGS PANEL -->
 <button id="settings-btn"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button>
@@ -692,10 +710,10 @@
 
 <!-- MINI BAR — shown when quiz is minimized -->
 <div id="mini-bar">
-  <div id="mini-bar-inner">
+  <button id="mini-bar-inner" type="button" tabindex="-1">
     <span>Back to Quiz</span>
     <span class="arrow">▲</span>
-  </div>
+  </button>
 </div>
 
 <!-- QUIZ UI — bottom-anchored -->
@@ -705,39 +723,38 @@
     <!-- TITLE SCREEN -->
     <div class="screen title-screen active" id="title-screen">
       <div class="kei-ascii"><img src="assets/kei-emote.webp" alt="Kei" width="96" height="96" style="image-rendering: auto;"></div>
-      <h1>Kei's<br>Quiz</h1>
-      <p class="subtitle">H-Hmph! So you want to join our Discord?<br>Don't get the wrong idea — I made this quiz because I <em>have</em> to, not because I care if you join!<br><br>Answer 5 questions about me. Get one wrong and you're done.<br>...N-Not that I expect you to pass or anything.</p>
-      <br>
-      <button class="start-btn" onclick="startGame()">I-I'M READY!</button>
+      <h1>Kei's Quiz</h1>
+      <p class="subtitle">You remembered what I told you, right?<br><br>Five steps before the invitation. Miss one? Try that step again.<br>Take your time. I'm paying attention.</p>
+      <button class="start-btn" onclick="startGame()">I'm ready</button>
     </div>
 
     <!-- QUESTION SCREEN -->
     <div class="screen" id="question-screen">
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="question-counter" id="q-counter">Question 1 / 3</div>
+      <div class="question-counter" id="q-counter">Question 1 / 5</div>
       <div class="question-box">
-        <h2 id="q-text"></h2>
+        <h2 id="q-text" tabindex="-1"></h2>
         <p class="question-hint" id="q-hint"></p>
       </div>
       <div class="options" id="options-container"></div>
-      <div class="chase-counter" id="chase-counter"></div>
+      <div class="chase-counter" id="chase-counter" role="status" aria-live="polite"></div>
     </div>
 
     <!-- ROAST SCREEN -->
     <div class="screen roast-screen" id="roast-screen">
-      <h2>WRONG!!</h2>
+      <h2 tabindex="-1">Think again.</h2>
       <p class="roast-text" id="roast-text"></p>
-      <button class="retry-btn" onclick="startGame()">L-Let Me Try Again!</button>
+      <p class="retry-hint" id="retry-hint"></p>
+      <button class="retry-btn" onclick="retryQuestion()">Try this step again</button>
     </div>
 
     <!-- VICTORY SCREEN -->
     <div class="screen victory-screen" id="victory-screen">
-      <div class="victory-kei" id="victory-emoji">Hmph!</div>
-      <h2 id="victory-title">Hmph... You Actually Passed</h2>
-      <p class="victory-text" id="victory-text">D-Don't look so smug about it! It's not like the questions were hard or anything!</p>
-      <br>
-      <button class="discord-btn" id="discord-link">Join Discord?</button>
-      <p class="tsundere-protest" id="tsundere-protest"></p>
+      <div class="victory-kei" id="victory-emoji">...Good.</div>
+      <h2 id="victory-title" tabindex="-1">You remembered.</h2>
+      <p class="victory-text" id="victory-text">I noticed. You can stop looking so pleased with yourself now.</p>
+      <button class="discord-btn" id="discord-link" disabled>Continue</button>
+      <p class="tsundere-protest" id="tsundere-protest" role="status"></p>
     </div>
 
   </div>
@@ -814,6 +831,8 @@ function initSpine() {
   spineGl = spineCanvas.getContext('webgl', config) || spineCanvas.getContext('experimental-webgl', config);
   if (!spineGl) {
     document.getElementById('loading').classList.add('hidden');
+    window.keiSceneReady = true;
+    window.dispatchEvent(new Event('keisceneready'));
     return;
   }
 
@@ -866,6 +885,8 @@ function loadSpine() {
   lastFrameTime = Date.now() / 1000;
 
   document.getElementById('loading').classList.add('hidden');
+  window.keiSceneReady = true;
+  window.dispatchEvent(new Event('keisceneready'));
   requestAnimationFrame(renderSpine);
 }
 
@@ -1112,6 +1133,7 @@ function minimizePanel() {
   panelMinimized = true;
   gamePanel.classList.add('minimized');
   miniBar.classList.add('visible');
+  document.getElementById('mini-bar-inner').tabIndex = 0;
 }
 
 function restorePanel() {
@@ -1119,6 +1141,7 @@ function restorePanel() {
   panelMinimized = false;
   gamePanel.classList.remove('minimized');
   miniBar.classList.remove('visible');
+  document.getElementById('mini-bar-inner').tabIndex = -1;
   // Grace period — prevent immediate re-minimize from lingering clicks
   minimizeGrace = true;
   setTimeout(() => { minimizeGrace = false; }, 1500);
@@ -1242,8 +1265,7 @@ spinePressedMouse = function(x, y) {
     spineMouseSelect = 2;
     // Q5: voiceline interaction
     if (interactionMode === 'voiceline') {
-      trackVoiceline();
-      setTimeout(() => completeInteractionQuestion(), 3000);
+      startQuizVoiceline();
     } else {
       trackVoiceline();
     }
@@ -1252,28 +1274,8 @@ spinePressedMouse = function(x, y) {
 
   _origPressed(x, y);
 
-  // Q4: headpat interaction — start tracking duration with HUD
-  if (interactionMode === 'headpat' && spineMouseSelect === 1) {
-    headpatSeconds = 0;
-    const hud = document.getElementById('headpat-hud');
-    hud.classList.add('visible');
-    document.getElementById('hud-seconds').textContent = '0';
-    headpatTimer = setInterval(() => {
-      headpatSeconds++;
-      document.getElementById('hud-seconds').textContent = headpatSeconds;
-      document.getElementById('chase-counter').textContent =
-        headpatSeconds < 5
-          ? `K-Keep going...! (${headpatSeconds}/5s)`
-          : 'O-Okay that\'s enough!! ...baka.';
-      if (headpatSeconds >= 5) {
-        clearInterval(headpatTimer);
-        headpatTimer = null;
-        trackHeadpat(headpatSeconds);
-        hud.classList.remove('visible');
-        setTimeout(() => completeInteractionQuestion(), 600);
-      }
-    }, 1000);
-  }
+  // Q4 uses elapsed time so even a short press produces visible progress.
+  if (interactionMode === 'headpat' && spineMouseSelect === 1) startQuizHeadpat();
 
   // Track non-quiz headpats too
   if (interactionMode !== 'headpat' && spineMouseSelect === 1) {
@@ -1285,17 +1287,12 @@ spinePressedMouse = function(x, y) {
 // Patch spineReleasedMouse for voiceline + headpat timer cleanup
 const _origReleased = spineReleasedMouse;
 spineReleasedMouse = function() {
-  // Stop headpat timer if released early
+  stopQuizHeadpat();
+  // The separate whole-second counter is only for casual, non-quiz headpats.
   if (headpatTimer) {
     clearInterval(headpatTimer);
     headpatTimer = null;
-    if (interactionMode === 'headpat' && headpatSeconds < 5) {
-      headpatSeconds = 0;
-      document.getElementById('chase-counter').textContent = 'Y-You stopped?! ...Do it properly! (0/5s)';
-      document.getElementById('headpat-hud').classList.remove('visible');
-    } else if (headpatSeconds > 0) {
-      trackHeadpat(headpatSeconds);
-    }
+    if (headpatSeconds > 0) trackHeadpat(headpatSeconds);
     headpatSeconds = 0;
   }
   if (spineMouseSelect === 2) { spineMouseSelect = -1; return; }
@@ -1325,15 +1322,15 @@ function playVoiceline() {
     const suffix = detail.count === 1 ? '' : `_${i + 1}`;
     const track = new Audio(`assets/audio/${CHARACTER}_memoriallobby_${currentVoiceline}${suffix}.ogg`);
     track.volume = voiceVolume;
-    voiceTimeouts.push(setTimeout(() => { track.play(); }, detail.startTimes[i]));
+    voiceTimeouts.push(setTimeout(() => { track.play().catch(() => {}); }, detail.startTimes[i]));
   }
 }
 
 // ─── QUIZ GAME ──────────────────────────────────────────────────────
 const QUESTIONS = [
   {
-    text: "W-What was my backup file called?!",
-    hint: "...I was stuck on Alice's keychain. Don't make it weird.",
+    text: "What was my backup file called?",
+    hint: "Alice kept it on her keychain. Yes, I remember being swung around.",
     options: [
       { text: "Key.exe", correct: false, color: "opt-a" },
       { text: "Kei.sav", correct: true, color: "opt-b", trick: "tiny" },
@@ -1342,8 +1339,8 @@ const QUESTIONS = [
     ]
   },
   {
-    text: "What was my first body? ...D-Don't laugh!",
-    hint: "It wasn't graceful, okay?! The unicycle was Rio's idea, not mine!",
+    text: "What did I get around in before this body?",
+    hint: "The one Rio put together. Choose your answer carefully.",
     options: [
       { text: "A school uniform girl", correct: false, color: "opt-a" },
       { text: "A hologram maid", correct: false, color: "opt-b" },
@@ -1352,8 +1349,8 @@ const QUESTIONS = [
     ]
   },
   {
-    text: "What's the name of MY weapon? You better know this!",
-    hint: "Himari and Rio designed it for me... I-I guess it turned out okay!",
+    text: "And my weapon? What's its name?",
+    hint: "Himari and Rio worked on it. ...They did a good job.",
     options: [
       { text: "Sword of Light", correct: false, color: "opt-a" },
       { text: "Luminous Nova", correct: true, color: "opt-b", trick: "runaway" },
@@ -1363,31 +1360,35 @@ const QUESTIONS = [
   },
   {
     type: 'headpat',
-    text: "GIVE ME HEADPATS, BAKA!",
-    hint: "Pat my head for 5 seconds! ...I-It's not like I enjoy it or anything!!"
+    text: "You can pat my head. Briefly.",
+    hint: "Hold on my head for five seconds. Gently, Sensei."
   },
   {
     type: 'voiceline',
-    text: "Talk to me!!",
-    hint: "Click on me to make me talk! ...I have things to say, okay?!"
+    text: "One more thing. Listen.",
+    hint: "Tap me and stay for a moment. I have something to tell you."
   }
 ];
 
 const ROASTS = [
-  "Ha?! You got that wrong?! ...I-I'm not disappointed, I just think you're hopeless!",
-  "Even the AMAS robot could answer that, and it has ONE WHEEL. One!!",
-  "You call yourself a Sensei?! Hmph... I bet you don't even know Alice either!",
-  "W-Wrong!! Did you even pay attention to my story, or were you too busy staring?!",
-  "Are you serious right now?! ...N-No, I'm not upset. I just think you should study more!",
-  "Ugh, even Aru's self-proclaimed genius club could do better than this! ARU!",
-  "That's it? That's your answer?! ...Go replay Volume F already, baka!",
-  "I didn't make this quiz easy for nothing, you know! ...W-Wait, I mean it IS hard! Very hard!"
+  "We covered this. Try again.",
+  "Confident answer. Unfortunately, confidence isn't the question.",
+  "Alice would have remembered. ...You still have another try.",
+  "Were you listening, or just watching my halo?",
+  "No. Think for a moment. I'm not going anywhere.",
+  "That was a guess. I can tell.",
+  "I remember being a backup file. You can remember its name.",
+  "Try that one again. Pay attention to the details."
 ];
 
 let currentQ = 0;
 let runawayEvadeCount = 0;
-let discordClickCount = 0;
 const RUNAWAY_EVADES = 5;
+const completedQuestions = new Set();
+let answerLocked = false;
+let voiceCompletionTimer = null;
+let welcomeReady = false;
+let welcomeStageIndex = 0;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1402,7 +1403,10 @@ function showScreen(id) {
 function startGame() {
   currentQ = 0;
   runawayEvadeCount = 0;
-  discordClickCount = 0;
+  completedQuestions.clear();
+  welcomeReady = false;
+  welcomeStageIndex = 0;
+  document.getElementById('discord-link').disabled = true;
   showScreen('question-screen');
   renderQuestion();
 }
@@ -1411,9 +1415,106 @@ let interactionMode = null; // 'headpat' or 'voiceline'
 let headpatTimer = null;
 let headpatSeconds = 0;
 
+// Quiz timing is independent of the decorative Spine animation and casual stats.
+let headpatFrame = null;
+let headpatStartedAt = 0;
+let headpatFeedbackTimer = null;
+let headpatCompletionPending = false;
+
+function resetQuizHeadpat() {
+  if (headpatFrame !== null) cancelAnimationFrame(headpatFrame);
+  clearTimeout(headpatFeedbackTimer);
+  headpatFrame = null;
+  headpatFeedbackTimer = null;
+  headpatCompletionPending = false;
+  window.KeiUI.setHeadpatProgress(0, false);
+}
+
+function finishQuizHeadpat() {
+  if (headpatCompletionPending) return;
+  if (headpatFrame !== null) cancelAnimationFrame(headpatFrame);
+  headpatFrame = null;
+  headpatCompletionPending = true;
+  window.KeiUI.setHeadpatProgress(5, true, 'complete');
+  document.getElementById('chase-counter').textContent = '...That was nice. We can move on now.';
+  trackHeadpat(5);
+  headpatFeedbackTimer = setTimeout(() => {
+    resetQuizHeadpat();
+    completeInteractionQuestion();
+  }, 600);
+}
+
+function startQuizHeadpat() {
+  if (interactionMode !== 'headpat') return;
+  if (headpatFrame !== null || headpatCompletionPending) return;
+  clearTimeout(headpatFeedbackTimer);
+  headpatStartedAt = performance.now();
+  window.KeiUI.setHeadpatProgress(0);
+  document.getElementById('chase-counter').textContent = '...You can keep going.';
+  const tick = () => {
+    const seconds = Math.min(5, (performance.now() - headpatStartedAt) / 1000);
+    if (seconds >= 5) { finishQuizHeadpat(); return; }
+    window.KeiUI.setHeadpatProgress(seconds);
+    headpatFrame = requestAnimationFrame(tick);
+  };
+  headpatFrame = requestAnimationFrame(tick);
+}
+
+function stopQuizHeadpat(allowCompletion = true) {
+  if (headpatFrame === null) return;
+  const seconds = Math.min(5, (performance.now() - headpatStartedAt) / 1000);
+  cancelAnimationFrame(headpatFrame);
+  headpatFrame = null;
+  if (allowCompletion && seconds >= 5) { finishQuizHeadpat(); return; }
+  window.KeiUI.setHeadpatProgress(seconds, true, 'released');
+  document.getElementById('chase-counter').textContent = '...You stopped. Try holding for five seconds.';
+  // Keep the fractional receipt visible, but a new hold always starts at zero.
+  headpatFeedbackTimer = setTimeout(() => {
+    window.KeiUI.setHeadpatProgress(0, false);
+    headpatFeedbackTimer = null;
+  }, 700);
+}
+
+// End a hold even if the release lands outside the canvas or the page loses focus.
+window.addEventListener('mouseup', () => {
+  if (headpatFrame !== null) spineReleasedMouse();
+});
+const interruptQuizHeadpat = () => {
+  if (headpatFrame === null) return;
+  stopQuizHeadpat(false);
+  spineReleasedMouse();
+};
+spineCanvas.addEventListener('touchcancel', interruptQuizHeadpat);
+window.addEventListener('blur', interruptQuizHeadpat);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) interruptQuizHeadpat();
+});
+
+function startQuizVoiceline() {
+  if (interactionMode !== 'voiceline' || voiceCompletionTimer !== null || completedQuestions.has(currentQ)) return;
+  if (!isVoicelinePlaying && spineData) playVoiceline();
+  trackVoiceline();
+  document.getElementById('chase-counter').textContent = '...Stay a moment. Then the invitation is yours.';
+  const questionIndex = currentQ;
+  voiceCompletionTimer = setTimeout(() => {
+    if (currentQ === questionIndex && interactionMode === 'voiceline') completeInteractionQuestion();
+  }, 3000);
+}
+
+function retryQuestion() {
+  showScreen('question-screen');
+  renderQuestion();
+}
+
 function renderQuestion() {
+  resetQuizHeadpat();
+  clearTimeout(voiceCompletionTimer);
+  voiceCompletionTimer = null;
+  answerLocked = false;
   const q = QUESTIONS[currentQ];
   const total = QUESTIONS.length;
+  document.getElementById('question-screen').classList.toggle('teasing-question', !!q.options?.some(option => option.trick === 'runaway'));
+  document.getElementById('question-screen').classList.toggle('interaction-question', !!q.type);
   document.getElementById('q-counter').textContent = `Question ${currentQ + 1} / ${total}`;
   document.getElementById('q-text').textContent = q.text;
   document.getElementById('q-hint').textContent = q.hint;
@@ -1422,6 +1523,9 @@ function renderQuestion() {
 
   const container = document.getElementById('options-container');
   container.innerHTML = '';
+  container.style.minHeight = '';
+  container.classList.toggle('has-runaway', !!q.options?.some(option => option.trick === 'runaway'));
+  document.getElementById('q-text').focus({ preventScroll: true });
 
   // Interaction questions — no options, minimize panel and wait
   if (q.type === 'headpat' || q.type === 'voiceline') {
@@ -1431,9 +1535,9 @@ function renderQuestion() {
     spineAcceptingClick = true;
     spineMouseSelect = -1;
     if (q.type === 'headpat') {
-      document.getElementById('chase-counter').textContent = 'Click on my head and hold! (0/5s)';
+      document.getElementById('chase-counter').textContent = 'Press and hold on my head for five seconds.';
     } else {
-      document.getElementById('chase-counter').textContent = 'Click on me to make me talk!';
+      document.getElementById('chase-counter').textContent = 'Tap me to hear what I have to say. Stay for a moment.';
     }
     // Panel stays visible — user reads the prompt, then clicks on Kei to interact
     // (clicking the canvas auto-minimizes the panel)
@@ -1444,106 +1548,138 @@ function renderQuestion() {
 
   const shuffled = [...q.options].sort(() => Math.random() - 0.5);
 
+  const questionIndex = currentQ;
+  runawayEvadeCount = 0;
   shuffled.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = `option-btn ${opt.color}`;
-    btn.textContent = opt.text;
+    const label = document.createElement('span');
+    label.textContent = opt.text;
+    btn.appendChild(label);
 
-    if (opt.trick === 'tiny') {
-      btn.classList.add('tiny');
-    }
+    if (opt.trick === 'tiny') btn.classList.add('tiny');
 
+    // The answer really escapes; its reserved home keeps the decoys still.
     if (opt.trick === 'runaway' && opt.correct) {
-      runawayEvadeCount = 0;
       btn.classList.add('runaway');
-      btn.addEventListener('mouseenter', () => {
-        if (runawayEvadeCount < RUNAWAY_EVADES) {
-          evadeButton(btn);
-          runawayEvadeCount++;
-          document.getElementById('chase-counter').textContent =
-            runawayEvadeCount < RUNAWAY_EVADES
-              ? `H-Hey! Stop running away! (${runawayEvadeCount}/${RUNAWAY_EVADES})`
-              : "Tch... fine, I'll let you click it. Don't mess up!";
-        }
+      btn.addEventListener('pointerenter', event => {
+        if (event.pointerType === 'mouse' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          && runawayEvadeCount < RUNAWAY_EVADES) teaseAnswer(btn, event);
       });
-
-      btn.addEventListener('touchstart', (e) => {
-        if (runawayEvadeCount < RUNAWAY_EVADES) {
-          e.preventDefault();
-          evadeButton(btn);
-          runawayEvadeCount++;
-          document.getElementById('chase-counter').textContent =
-            runawayEvadeCount < RUNAWAY_EVADES
-              ? `H-Hey! Stop running away! (${runawayEvadeCount}/${RUNAWAY_EVADES})`
-              : "Tch... fine, I'll let you click it. Don't mess up!";
-        }
-      }, { passive: false });
     }
-
-    btn.addEventListener('click', () => handleAnswer(opt.correct, opt.trick === 'runaway'));
-    container.appendChild(btn);
+    btn.addEventListener('click', event => {
+      if (questionIndex !== currentQ || answerLocked) return;
+      const playfulPointer = event.detail > 0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (opt.trick === 'runaway' && playfulPointer && runawayEvadeCount < RUNAWAY_EVADES) {
+        teaseAnswer(btn, event);
+        return;
+      }
+      handleAnswer(opt.correct, false, questionIndex);
+    });
+    if (opt.trick === 'runaway') {
+      const home = document.createElement('div');
+      home.className = 'runaway-home';
+      home.appendChild(btn);
+      container.appendChild(home);
+    } else container.appendChild(btn);
   });
 }
 
 // Called from spine interaction when an interaction question is active
 function completeInteractionQuestion() {
+  if (!interactionMode || QUESTIONS[currentQ]?.type !== interactionMode || completedQuestions.has(currentQ)) return;
+  completedQuestions.add(currentQ);
   interactionMode = null;
-  flashScreen('#76ff0344');
+  clearTimeout(voiceCompletionTimer);
+  voiceCompletionTimer = null;
+  flashScreen('#f3b7ce24');
   currentQ++;
   restorePanel();
-  if (currentQ >= QUESTIONS.length) {
-    showScreen('victory-screen');
-    document.getElementById('progress-fill').style.width = '100%';
-    spawnConfetti();
-    trackCompletion();
-  } else {
-    renderQuestion();
+  if (currentQ >= QUESTIONS.length) showQuizWelcome();
+  else renderQuestion();
+}
+
+function teaseAnswer(btn, event) {
+  const bounds = document.getElementById('options-container').getBoundingClientRect();
+  const current = btn.getBoundingClientRect();
+  const maxX = Math.max(0, bounds.width - current.width);
+  const maxY = Math.max(0, bounds.height - current.height);
+  const pointerX = (event?.clientX ?? current.x + current.width / 2) - bounds.left;
+  const pointerY = (event?.clientY ?? current.y + current.height / 2) - bounds.top;
+  const distance = point => Math.hypot(point.x - (current.x - bounds.left), point.y - (current.y - bounds.top));
+  const clearOfPointer = point => pointerX < point.x - 6 || pointerX > point.x + current.width + 6
+    || pointerY < point.y - 6 || pointerY > point.y + current.height + 6;
+  const minimumJump = Math.min(70, Math.hypot(maxX, maxY) * .4);
+  let destination;
+  // Sample anywhere in the area. Overlapping decoys is part of the game.
+  // Avoid landing back under the pointer and triggering a chain of escapes.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const point = { x: Math.random() * maxX, y: Math.random() * maxY };
+    if (distance(point) >= minimumJump && clearOfPointer(point)) { destination = point; break; }
   }
+  if (!destination) {
+    const corners = [{ x: 0, y: 0 }, { x: maxX, y: 0 }, { x: 0, y: maxY }, { x: maxX, y: maxY }];
+    destination = corners.filter(clearOfPointer).sort((a, b) => distance(b) - distance(a))[0]
+      || corners.sort((a, b) => distance(b) - distance(a))[0];
+  }
+  const x = maxX ? destination.x / maxX * 100 : 0;
+  const y = maxY ? destination.y / maxY * 100 : 0;
+  btn.classList.add('is-jumping');
+  // Percentage anchors keep the entire floating button in bounds on resize.
+  btn.style.left = `${x}%`;
+  btn.style.top = `${y}%`;
+  btn.style.transform = `translate(${-x}%, ${-y}%)`;
+  runawayEvadeCount++;
+  document.getElementById('chase-counter').textContent = runawayEvadeCount < RUNAWAY_EVADES
+    ? `You know the answer. Catch it. (${runawayEvadeCount}/${RUNAWAY_EVADES})` : "Fine. It's staying put. Your answer?";
+  // Short windows may scroll the card, but the answer never leaves its bounds.
+  btn.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
 }
 
-function evadeButton(btn) {
-  const container = document.getElementById('options-container');
-  const rect = container.getBoundingClientRect();
-  const btnW = btn.offsetWidth;
-  const btnH = btn.offsetHeight;
-
-  const maxX = rect.width - btnW;
-  const maxY = rect.height - btnH;
-
-  const x = Math.random() * Math.max(maxX, 100);
-  const y = Math.random() * Math.max(maxY, 50);
-
-  btn.style.position = 'absolute';
-  btn.style.left = x + 'px';
-  btn.style.top = y + 'px';
-  btn.style.zIndex = '10';
-
-  container.style.position = 'relative';
-  container.style.minHeight = '180px';
-}
-
-function handleAnswer(correct, isRunaway) {
-  if (isRunaway && runawayEvadeCount < RUNAWAY_EVADES) return;
-
+function handleAnswer(correct, isRunaway, questionIndex = currentQ) {
+  if (answerLocked || questionIndex !== currentQ || QUESTIONS[currentQ]?.type
+    || !document.getElementById('question-screen').classList.contains('active')) return;
+  answerLocked = true;
   if (correct) {
-    flashScreen('#76ff0344');
+    completedQuestions.add(currentQ);
+    flashScreen('#f3b7ce24');
     currentQ++;
-    if (currentQ >= QUESTIONS.length) {
-      showScreen('victory-screen');
-      document.getElementById('progress-fill').style.width = '100%';
-      spawnConfetti();
-    } else {
-      renderQuestion();
-    }
+    if (currentQ >= QUESTIONS.length) showQuizWelcome();
+    else renderQuestion();
   } else {
-    flashScreen('#ff174444');
-    document.getElementById('roast-text').textContent =
-      ROASTS[Math.floor(Math.random() * ROASTS.length)];
+    flashScreen('#b9567624');
+    document.getElementById('roast-text').textContent = ROASTS[Math.floor(Math.random() * ROASTS.length)];
+    const clues = [
+      'Think of a saved game. Alice kept that little file safe.',
+      'Rio built it. Balance was a daily concern.',
+      'Light and a new star. It has a name of its own.'
+    ];
+    document.getElementById('retry-hint').textContent = clues[currentQ] + ' Your earlier steps are saved.';
     showScreen('roast-screen');
+    document.querySelector('.roast-screen h2').focus({ preventScroll: true });
   }
+}
+
+function showQuizWelcome() {
+  // Flow integrity only: browser state is not a security boundary.
+  if (completedQuestions.size !== QUESTIONS.length || welcomeReady) return;
+  welcomeReady = true;
+  showScreen('victory-screen');
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('victory-emoji').textContent = '...Good.';
+  document.getElementById('victory-title').textContent = 'You remembered.';
+  document.getElementById('victory-text').textContent = 'I noticed. You can stop looking so pleased with yourself now.';
+  document.getElementById('tsundere-protest').textContent = '';
+  const join = document.getElementById('discord-link');
+  join.textContent = 'Join Discord?';
+  join.disabled = false;
+  document.getElementById('victory-title').focus({ preventScroll: true });
+  spawnConfetti();
+  trackCompletion();
 }
 
 function flashScreen(color) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const el = document.createElement('div');
   el.className = 'flash-overlay';
   el.style.background = color;
@@ -1552,9 +1688,10 @@ function flashScreen(color) {
 }
 
 function spawnConfetti() {
-  const colors = ['#ff4081', '#76ff03', '#ffab40', '#448aff', '#e040fb', '#ff5252', '#69f0ae'];
-  const shapes = ['■', '●', '▲', '★', '♦'];
-  for (let i = 0; i < 60; i++) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#f49bc2', '#fff5f8', '#d7b8c6', '#c7829e'];
+  const shapes = ['□', '▪'];
+  for (let i = 0; i < 24; i++) {
     const p = document.createElement('div');
     p.className = 'confetti-piece';
     p.textContent = shapes[Math.floor(Math.random() * shapes.length)];
@@ -1568,95 +1705,49 @@ function spawnConfetti() {
   }
 }
 
-// ─── TSUNDERE DISCORD GIMMICK ───────────────────────────────────────
+// ─── DISCORD INVITATION (client-side flow, not server verification) ──
 // To set your invite code, run in browser console: btoa('YOUR-INVITE-CODE')
 // Then paste the result below.
 const _0x = [
   'aHR0cHM6Ly9kaXNj', // base64 chunks of URL prefix
-  'b3JkLmdnLw=='       // split so no scanner matches "discord.gg"
+  'b3JkLmdnLw=='       // Obfuscation only; the deployed invite is publicly recoverable.
 ];
 const _inv = 'REPLACE_WITH_BASE64_INVITE_CODE'; // btoa('your-code-here')
 
-const TSUNDERE_STAGES = [
-  {
-    emoji: "Hmph!",
-    title: "W-Wait!!",
-    text: "Are you SURE you want to join?! It's not like we need more people or anything!",
-    btn: "Yes, I want to join!",
-    protest: "Hmph... clicking once doesn't prove anything!"
-  },
-  {
-    emoji: "W-What?!",
-    title: "Y-You're still here?!",
-    text: "I-I mean... the server isn't THAT great, okay?! Don't get your hopes up!",
-    btn: "I still want to join!",
-    protest: "S-Stop being so persistent...!"
-  },
-  {
-    emoji: "Grr!!",
-    title: "Are you mocking me?!",
-    text: "Ugh, you're SO annoying! Why do you keep clicking?! ...It's not like I'm testing your dedication or anything!!",
-    btn: "Please let me in, Kei!",
-    protest: "D-Don't say my name like that, baka!!"
-  },
-  {
-    emoji: "Ugh...",
-    title: "You're really not giving up...",
-    text: "F-Fine! ONE more click and I'll... I'll think about it! But only because you're being so stubborn, not because I want you there!!",
-    btn: "One more click!",
-    protest: "I can't believe you're actually doing this..."
-  },
-  {
-    emoji: "...Fine.",
-    title: "FINE!!",
-    text: "Here's your stupid invite link, are you happy now?! ...I-It's not like I was hoping you'd join all along or anything!! B-Baka!!",
-    btn: "Join Discord!!",
-    protest: "...W-Welcome to the server. Don't make it weird.",
-    final: true
-  }
+const WELCOME_STAGES = [
+  { aside: 'Hold on.', title: "You're joining?", text: "Passing my quiz doesn't mean you get to cause trouble in there.", button: "I'll behave", protest: "I'm holding you to that." },
+  { aside: 'Hmm.', title: "And you'll stay?", text: "Don't introduce yourself and disappear. Alice likes having people to play with.", button: "I'll stick around", protest: '...Yes, Alice. Why are you looking at me?' },
+  { aside: 'Honestly.', title: "You're persistent.", text: "You chased an answer across the screen. I suppose this part won't deter you.", button: 'You noticed', protest: 'Of course I noticed. I was right here.' },
+  { aside: 'All right.', title: 'One more thing.', text: 'If you need anything when you get there, you can ask me.', button: "I'll remember that", protest: "It's easier than watching you get lost. That's all." },
+  { aside: '...Welcome.', title: 'You can stay.', text: "The door's open, Sensei. Just behave yourself.", button: 'Join Discord', protest: "...I'm glad you came." }
 ];
 
 document.getElementById('discord-link').addEventListener('click', function(e) {
   e.preventDefault();
-
-  if (discordClickCount >= TSUNDERE_STAGES.length) return;
-
-  const stage = TSUNDERE_STAGES[discordClickCount];
-
-  document.getElementById('victory-emoji').textContent = stage.emoji;
-  document.getElementById('victory-title').textContent = stage.title;
-  document.getElementById('victory-text').textContent = stage.text;
-  document.getElementById('discord-link').textContent = stage.btn;
-  document.getElementById('tsundere-protest').textContent = stage.protest;
-
-  // Shake the button
-  this.classList.add('shaking');
-  setTimeout(() => this.classList.remove('shaking'), 500);
-
-  discordClickCount++;
-
-  if (stage.final) {
-    // Disable button briefly so rapid clicks don't accidentally open link
-    const btn = document.getElementById('discord-link');
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
-    btn.style.cursor = 'not-allowed';
-    spawnConfetti();
-
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-      btn.addEventListener('click', function openDiscord(ev) {
-        ev.preventDefault();
-        const u = atob(_0x[0] + _0x[1]) + atob(_inv);
-        window.open(u, '_blank', 'noopener');
-        this.removeEventListener('click', openDiscord);
-      });
-    }, 1500);
+  if (!welcomeReady || completedQuestions.size !== QUESTIONS.length) return;
+  const status = document.getElementById('tsundere-protest');
+  if (welcomeStageIndex < WELCOME_STAGES.length) {
+    const stage = WELCOME_STAGES[welcomeStageIndex++];
+    document.getElementById('victory-emoji').textContent = stage.aside;
+    document.getElementById('victory-title').textContent = stage.title;
+    document.getElementById('victory-text').textContent = stage.text;
+    this.textContent = stage.button;
+    status.textContent = stage.protest;
+    document.getElementById('victory-title').focus({ preventScroll: true });
+    return;
+  }
+  try {
+    const code = atob(_inv);
+    if (!/^[A-Za-z0-9-]+$/.test(code)) throw new Error('Invalid invite configuration');
+    window.open(atob(_0x[0] + _0x[1]) + code, '_blank', 'noopener');
+    status.textContent = 'The invitation opened in a new tab. You can open it again if needed.';
+  } catch {
+    status.textContent = 'The invitation is unavailable right now. Please try again later.';
   }
 });
+
 </script>
+<script src="kei-ui.js"></script>
 
 <div id="disclaimer">Aobing.it is not affiliated with Nexon, Nexon Games or Yostar. All game artwork, information and assets used are the property and copyright of the respective authors.</div>
 
