@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-09-20. This is the current design contract for the game shell,
+Last updated: 2026-09-23. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -140,6 +140,85 @@ off the right when the player enters, then a camera push reveals the game.
   approaches produced the jarring slowdown and jagged motion the owner rejected.
 - Honor `prefers-reduced-motion` in both CSS and JavaScript: skip decorative
   loops, train travel, and camera movement while keeping entry functional.
+
+## Kei Discord page
+
+- The Discord quiz page at `discord/index.html` opens with a Kei-specific intro
+  layered over its existing animated Spine scene. The intro shows **KEI** and
+  **ケイ**, with a hand-drawn SVG of Kei's halo behind the title, echoing the
+  homepage's crisp vector logo treatment. Use `discord/assets/kei-halo.svg`,
+  referenced from the isolated [wiki halo image](https://bluearchive.fandom.com/wiki/File:Kei_Halo.png)
+  and checked against the [character portrait](https://bluearchive.wikiru.jp/?%E3%82%B1%E3%82%A4).
+  Preserve the overlapping square frames, small upper-left block, stepped crown,
+  upright orientation, and pink color. Do not restore the atlas crop or substitute
+  circular rings. The halo floats gently without rotating, with a static soft
+  glow and a separate entrance reveal; reduced motion disables both animations.
+- Use Kei's white, soft coral/pink, and warm plum palette. Keep the character
+  visible through the intro, and echo the home page's word reveal, restrained
+  idle float, and short camera-push departure. The quiz should feel playful and
+  approachable: rounded controls, soft light panels, and simple friendly type.
+  Avoid sharp asymmetric borders, heavy slanted display type, and interface
+  labels that make the page feel too severe for a quiz.
+- Enter reveals the existing interactive Kei scene and a restyled Start Quiz
+  card. Keep the intro
+  markup, styles, and transition in `discord/index.html`, `discord/kei-ui.css`,
+  and `discord/kei-ui.js`, separate from the quiz logic.
+- Honor reduced motion, keep the intro as the active keyboard surface until
+  Enter, and review desktop, narrow mobile, and short landscape layouts.
+- Carry one clean, slightly rounded font stack (`--kei-font`) through the timer,
+  loading screen, minimized quiz bar, settings, stats, and results. Do not restore
+  Gaegu / Patrick Hand or neon orange/green feedback. Use tabular numerals for
+  counters; the headpat HUD is a small translucent card beside the character,
+  with `0.0 / 5s` and five square markers. On press, show the HUD and highlight
+  the active marker immediately. Use elapsed time and animation-frame updates to
+  fill each square continuously; display tenths without rounding up to completion.
+  A short release leaves its fractional progress visible for 700 ms, then clears;
+  a new hold starts at zero. Completion still requires one uninterrupted five-second
+  hold and keeps the full receipt visible for 600 ms before advancing once. Cancel
+  active holds on release outside the canvas, touch cancellation, blur, or hiding
+  the page. Reduced motion retains this essential progress feedback.
+- Kei's voice is composed, precise, and a little prickly, with reluctant warmth.
+  Prefer dry observations and brief affectionate moments over constant shouting,
+  stuttering, insults, or repeated "baka". Questions retain their subjects and
+  answers. All five steps remain required. A wrong answer gives a clue and retries
+  the current step, keeping earlier progress. The owner explicitly wants the
+  **impossible-game tricks preserved**: a genuinely small answer and a runaway
+  button that jumps away five times, rather than cosmetic nudges. Tiny text and a
+  small button are intentional; keep a 44px minimum touch height on coarse pointers
+  and normal keyboard focus. The runaway floats above the other answers and jumps
+  to random positions anywhere in the answer area, intentionally overlapping the
+  decoys. Do not confine it to fixed landing spots, corners, or a separate lane.
+  Keep its whole target within the card and avoid landing under the triggering
+  pointer; preserve the original grid slot so decoys do not reflow. Touch taps
+  trigger escapes; keyboard and reduced motion may answer without
+  chasing. Usability improvements must preserve this mischievous game identity.
+- The headpat step requires pressing and holding directly on Kei's head in the
+  character scene. The owner explicitly rejected the hold-to-pat button because
+  it removes the game interaction: do not restore a separate headpat button or
+  generic hold shortcut. Preserve the smooth fractional timer, five-second hold,
+  interruption handling, and mouse/touch support. The voice step requires tapping
+  Kei directly, with a three-second listening step. The owner also rejected the
+  Hear Kei button: do not add separate shortcut buttons for either character
+  interaction. Shift focus to the new question or result.
+- After all five steps, restore Kei's five-part reluctant invite exchange, gradually
+  warming from "Hold on" to "You can stay". This is part of the playful game, not
+  extra bot verification. A separate final Join click opens the invitation. Guard duplicate completions and stale
+  answer callbacks, and keep Join disabled until all steps finish in the normal
+  UI flow. Invite configuration failures display a readable message.
+- The owner uses this page as the Discord entry point and a bot filter. The current
+  GitHub Pages deployment injects a Base64 invite into public JavaScript, so the
+  quiz is only a casual obstacle, not a security boundary. Client-side timing,
+  answer state, and obfuscation cannot secure that invite. Effective enforcement
+  requires server-side challenge verification and invite delivery; do not describe
+  the usability pass as adding that protection or silently weaken required steps.
+- Echo the halo in the loading artwork, small card ornament, segmented progress,
+  and restrained square confetti. Pair white surfaces and plum text with charcoal
+  utility panels and pink accents. Motion uses quick answer transitions, a small
+  mistake nudge, and a softer success settle. Reduced motion removes these effects,
+  confetti, and screen flashes without changing the quiz's interaction rules.
+  In short landscape windows, place the quiz card on the left with internal
+  scrolling so Kei remains visible on the right; narrow portrait keeps the card
+  at the bottom and utility panels below their buttons.
 
 ## Lobby, game library, and settings
 
