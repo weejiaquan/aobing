@@ -253,7 +253,9 @@ After a new manual Standard/Mania run in a guild Activity, results include **Sha
 replay**. Click it and keep the Activity visible during export. The client renders
 H.264/AAC MP4 directly from timestamped frames using WebCodecs and a locally
 vendored Mediabunny muxer; it no longer waits for the song to play in real time.
-Kei posts the file to the score's original channel. Nothing uploads automatically.
+Kei posts a replay card with an inline playable attachment, player/song/result
+and a link to the original score when available. The destination remains the
+score's original channel. Nothing uploads automatically.
 Web play, autoplay and forfeits have no Share button; old scores cannot be replayed.
 
 The exporter reuses the live game renderer and the run's actual skin, circle
@@ -262,7 +264,9 @@ HUD/key counters. Recorded input timing and emitted custom/map hitsounds are
 preserved; no re-judging occurs. A standardized 16:9 layout fits the gameplay
 without distortion on the left, with larger stats/key counters in a right sidebar.
 Output targets 720p/60 fps, adapting down to 540p or 360p/30 fps for smaller
-budgets (compressed video, not a lossless or sub-frame-accurate screen recording).
+budgets. The video target is capped at 1.8 Mbps plus 128 kbps stereo audio
+(about 21 MiB for 90 seconds at target rates, actual bytes vary), even on boosted
+servers (compressed video, not a lossless or sub-frame-accurate screen recording).
 Pauses are omitted and
 intro skips are respected. State and audio stay local until explicit sharing.
 
@@ -271,7 +275,10 @@ limit: 20 MiB base, 50 MiB at boost level 2, 100 MiB at level 3. The bot's serve
 limit applies, not the viewer's personal Nitro allowance. The server rechecks the
 limit during upload. Finalized MP4 bytes are checked before upload, with up to
 four automatic compression attempts and displayed file size/limit. Uploads use
-512 KiB chunks, SHA-256 integrity checking and idempotent finalization. Lost
+512 KiB chunks with four concurrent parts after the initial reservation,
+SHA-256 integrity checking and idempotent finalization. Transfer rate and ETA
+use acknowledged bytes; upload finalization and Discord delivery have separate
+status text. Lost
 chunk responses retry safely. This avoids sending the whole boosted-size file
 as one proxy request. Staging expires after 30 minutes and is capped at two
 active uploads/player and 1 GiB reserved globally. Limits also include ten

@@ -2760,6 +2760,10 @@
   Object.entries(dosCopy).forEach(([key, values]) => SUPPORTED.forEach((lang, i) => { T[lang]['dos.' + key] = values[i]; }));
   SUPPORTED.forEach(lang => { T[lang]['mode.doom'] = 'Doom'; });
   const replayCopy = {
+    finalizing:["Finishing upload…", "アップロードを確認中…", "업로드 마무리 중…", "正在完成上传…", "正在完成上傳…", "กำลังดำเนินการอัปโหลดให้เสร็จ…", "Đang hoàn tất tải lên…", "جارٍ إتمام الرفع…"],
+    sending:["Upload complete. Kei is sending the replay to Discord…", "アップロード完了。KeiがDiscordへ送信中…", "업로드 완료. Kei가 Discord로 전송 중…", "上传完成。Kei 正在发送到 Discord…", "上傳完成。Kei 正在傳送到 Discord…", "อัปโหลดเสร็จแล้ว Kei กำลังส่งไป Discord…", "Đã tải lên. Kei đang gửi bản phát lại tới Discord…", "اكتمل الرفع. يرسل Kei الإعادة إلى Discord…"],
+    transferInfo:["{rate} MiB/s · about {seconds}s left", "{rate} MiB/秒 · 残り約{seconds}秒", "{rate} MiB/초 · 약 {seconds}초 남음", "{rate} MiB/秒 · 约剩 {seconds} 秒", "{rate} MiB/秒 · 約剩 {seconds} 秒", "{rate} MiB/วินาที · เหลือประมาณ {seconds} วินาที", "{rate} MiB/giây · còn khoảng {seconds} giây", "{rate} MiB/ث · متبقٍ نحو {seconds} ث"],
+
     rateLimited:['Replay sharing is busy or its limit was reached. Try again later.','共有が混雑しているか上限に達しました。後でもう一度お試しください。','공유가 혼잡하거나 한도에 도달했습니다. 나중에 다시 시도하세요.','回放分享繁忙或已达上限，请稍后重试。','重播分享忙碌或已達上限，請稍後重試。','การแชร์กำลังใช้งานมากหรือถึงขีดจำกัดแล้ว ลองอีกครั้งภายหลัง','Chia sẻ đang bận hoặc đã đạt giới hạn. Hãy thử lại sau.','المشاركة مشغولة أو بلغت الحد المسموح. حاول لاحقاً.'],
     share:['Share replay','リプレイを共有','리플레이 공유','分享回放','分享重播','แชร์รีเพลย์','Chia sẻ bản phát lại','مشاركة الإعادة'],
     cancel:['Cancel','キャンセル','취소','取消','取消','ยกเลิก','Hủy','إلغاء'],

@@ -137,7 +137,10 @@
     if (signal.aborted) throw new Error('cancelled');
     // Ensure the completed score exists before uploading; runId deduplicates this
     // against the ordinary background score queue.
-    await request('score', {...run.result, session:run.session});
+    if(!run.replayPrepared){
+      await request('score', {...run.result, session:run.session});
+      run.replayPrepared=true;
+    }
     return replayStatus(run);
   }
   async function uploadReplay(run, blob, signal, onProgress=()=>{}) {
@@ -149,7 +152,9 @@
     const send=async(path,body,headers)=>{
       for(let attempt=0;attempt<3;attempt++){
         if(signal.aborted)throw new Error("cancelled");
-        const controller=new AbortController(),abort=()=>controller.abort();let timeout;
+        const controller=new AbortController();let timeout,rejectAbort;
+        const interrupted=new Promise((_,reject)=>{rejectAbort=reject;});
+        const abort=()=>{controller.abort();rejectAbort(new Error("cancelled"));};
         signal.addEventListener('abort',abort,{once:true});
         try {
           return await Promise.race([(async()=>{
@@ -163,7 +168,7 @@
                 {status:response.status,maxBytes:detail.maxBytes});
             }
             return result;
-          })(),new Promise((_,reject)=>{timeout=setTimeout(()=>{abort();reject(new Error('failed'));},60000);})]);
+          })(),interrupted,new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(new Error('failed'));},60000);})]);
         }catch(error){
           if(signal.aborted)throw new Error('cancelled');
           if(attempt===2||(error.status&&error.status<500&&![408,429].includes(error.status)))throw error;
@@ -175,14 +180,36 @@
       const result=await send('',blob,{'Content-Type':blob.type});onProgress(100);return result;
     }
     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');
-    const chunkBytes=Math.min(1024*1024,policy.chunkBytes);
-    for(let offset=0,part=0;offset<blob.size;offset+=chunkBytes,part++){
+    const chunkBytes=Math.min(1024*1024,policy.chunkBytes),parts=Math.ceil(blob.size/chunkBytes);
+    const callerSignal=signal,transfer=new AbortController(),abort=()=>transfer.abort();
+    callerSignal.addEventListener('abort',abort,{once:true});signal=transfer.signal;
+    let next=1,acknowledged=0,failure=null;const started=Date.now();
+    const progress=phase=>{
+      const seconds=Math.max(.001,(Date.now()-started)/1000),bytesPerSecond=acknowledged/seconds;
+      onProgress(Math.floor(acknowledged/blob.size*100),{phase,bytes:acknowledged,totalBytes:blob.size,bytesPerSecond,
+        remainingSeconds:bytesPerSecond?Math.ceil((blob.size-acknowledged)/bytesPerSecond):null});
+    };
+    const part=async index=>{
+      const offset=index*chunkBytes,body=blob.slice(offset,offset+chunkBytes);
+      await send('/chunks/'+index,body,{'Content-Type':blob.type,'X-Replay-Size':String(blob.size),'X-Replay-Digest':digest});
+      acknowledged+=body.size;progress('uploading');
+    };
+    try {
+      if(callerSignal.aborted)throw new Error('cancelled');
+      // Establish the upload session before the remaining parts race each other.
+      await part(0);
+      const workers=Array.from({length:Math.min(4,Math.max(1,policy.parallelChunks||1),parts-1)},async()=>{
+        try{while(next<parts&&!signal.aborted)await part(next++);}
+        catch(error){if(!failure)failure=error;transfer.abort();}
+      });
+      await Promise.all(workers);
+      if(failure)throw failure;
       if(signal.aborted)throw new Error('cancelled');
-      await send('/chunks/'+part,blob.slice(offset,offset+chunkBytes),{'Content-Type':blob.type,'X-Replay-Size':String(blob.size),'X-Replay-Digest':digest});
-      onProgress(Math.floor(Math.min(blob.size,offset+chunkBytes)/blob.size*100));
-    }
-    return send('/complete',JSON.stringify({digest}),{'Content-Type':'application/json'});
+      progress('finalizing');
+      return await send('/complete',JSON.stringify({digest}),{'Content-Type':'application/json'});
+    } finally {transfer.abort();callerSignal.removeEventListener('abort',abort);}
   }
+
   async function replayStatus(run) {
     if (run.uid !== activeUser()?.uid) throw new Error('failed');
     return request('replay/'+encodeURIComponent(run.id),null,10000,'GET');

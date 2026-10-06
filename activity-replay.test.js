@@ -64,3 +64,12 @@ test('sidebar shows gameplay accuracy and maps fractional Mania inputs to config
   draw(151);assert.equal(boxes.at(-4).color,'#193e5a');
   assert.equal(capture.data.frames[0][4].counts.perfect,1);
 });
+
+test('90-second boosted exports retain 720p60 without spending the full server allowance',()=>{
+  const {api}=fixture(),data={start:0,end:90000};
+  const plan=api.encodingPlan(data,100*1024*1024);
+  assert.equal(plan.width,1280);assert.equal(plan.fps,60);
+  assert.equal(plan.bitrate,1800000);
+  assert.ok((plan.bitrate+plan.audioBitrate)*90/8<22*1024*1024);
+  assert.ok(api.encodingPlan(data,100*1024*1024,1).bitrate<plan.bitrate);
+});

@@ -162,10 +162,16 @@ new uploads per hour; Kei supplies the destination guild's bot upload limit
 (20 MiB base, 50/100 MiB at boost levels 2/3), capped at 100 MiB server-side.
 Check finalized MP4 bytes, reserve container headroom, and automatically retry
 encoding at lower quality if needed (up to four attempts). Show compression,
-upload progress, file size and destination limit. Transfer in 512 KiB chunks
-with a content hash and idempotent completion so one oversized HTTP request
+upload progress with measured transfer rate/remaining time, file size and destination
+limit. Distinguish local upload finalization from Kei sending to Discord. Target
+1.8 Mbps video plus 128 kbps audio at 720p60 to favor faster sharing; a boosted
+attachment allowance is a ceiling, not a file-size target. Transfer in 512 KiB chunks
+with up to four parts in flight after the first part reserves the upload. Use
+a content hash and idempotent completion so one oversized HTTP request
 does not prevent boosted guild uploads. Kei relays the finished attachment and
-does no rendering/transcoding.
+does no rendering/transcoding. Replay Discord posts use a cyan Components V2
+container with player/mode, song/difficulty, result stats and a playable media
+gallery attachment. Include a link to the original score when its message exists.
 
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not

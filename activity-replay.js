@@ -128,7 +128,7 @@
     const budget=Math.floor(Math.max(1,limit-Math.max(32768,limit*.06))*8*.78*.58**attempt/(duration+.1));
     // Keep stereo AAC at a broadly supported rate (Windows rejects 64 kbps).
     const audioBitrate=128000;
-    const bitrate=Math.max(24000,Math.min(6000000,budget-audioBitrate));
+    const bitrate=Math.max(24000,Math.min(1800000*.58**attempt,budget-audioBitrate));
     const width=bitrate>=800000&&attempt===0?1280:bitrate>=350000&&attempt<2?960:640;
     return {limit,bitrate,audioBitrate,width,height:width*9/16,fps:bitrate>=1800000&&attempt===0?60:30,attempt};
   }
@@ -244,7 +244,10 @@
           size.textContent=text('fileInfo',{size:mib(encoded.size),limit:mib(limit)});
           status.textContent=text('uploadProgress',{n:0});
           try {
-            result=await root.ActivityGames.uploadReplay(data.owner,encoded,controller.signal,n=>status.textContent=text('uploadProgress',{n}));
+            result=await root.ActivityGames.uploadReplay(data.owner,encoded,controller.signal,(n,info)=>{
+              status.textContent=info?.phase==='finalizing'?text('finalizing'):text('uploadProgress',{n});
+              if(info?.bytesPerSecond>0)size.textContent=text('fileInfo',{size:mib(encoded.size),limit:mib(limit)})+' '+text('transferInfo',{rate:(info.bytesPerSecond/1024/1024).toFixed(2),seconds:info.remainingSeconds});
+            });
             break;
           }catch(error){
             // A guild limit may change between encoding and final acceptance.
@@ -252,7 +255,8 @@
             limit=error.maxBytes;encoded=null;
           }
         }
-        cancel.hidden=true;status.textContent=text('queued');
+        cancel.hidden=true;status.textContent=text('sending');
+        size.textContent=text('fileInfo',{size:mib(encoded.size),limit:mib(limit)});
         // Once accepted by Kei, leaving the screen does not cancel its durable
         // delivery. Poll briefly so permission errors can be retried from here.
         for(let i=0;i<12&&result.status==='pending';i++) {

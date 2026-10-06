@@ -26,6 +26,57 @@ function fixture({store=new Map(), activity=true}={}) {
 }
 const result=()=>({mode:'osu',chartHash:'a'.repeat(64),title:'Song',difficulty:'Hard',counts:{h300:1,h100:0,h50:0,miss:0},maxCombo:1});
 
+test('parallel upload reserves first, bounds concurrency, and counts out-of-order acknowledgements once',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  f.replayPolicy({maxBytes:50*1024*1024,chunkBytes:512*1024,parallelChunks:4});
+  const pending=new Map(),progress=[];let active=0,peak=0;
+  f.reply(url=>{
+    if(!url.includes('/chunks/'))return null;
+    const part=Number(url.split('/').at(-1));active++;peak=Math.max(peak,active);
+    return new Promise(resolve=>pending.set(part,()=>{active--;pending.delete(part);resolve({ok:true,json:async()=>({status:'uploading'})});}));
+  });
+  const size=6*512*1024+33,work=f.api.uploadReplay(run,new Blob([new Uint8Array(size)],{type:'video/mp4'}),new AbortController().signal,(n,info)=>progress.push({n,...info}));
+  for(let i=0;i<100&&!pending.size;i++)await new Promise(r=>setTimeout(r,2));assert.deepEqual([...pending.keys()],[0]);pending.get(0)();await settle();
+  assert.deepEqual([...pending.keys()],[1,2,3,4]);
+  pending.get(4)();await settle();assert.ok(pending.has(5));
+  pending.get(2)();await settle();assert.ok(pending.has(6));
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,0);
+  for(const part of [6,5,3,1])pending.get(part)();await work;
+  assert.equal(peak,4);assert.equal(progress.at(-1).bytes,size);assert.equal(progress.at(-1).phase,'finalizing');
+  assert.ok(progress.every((p,i)=>!i||p.n>=progress[i-1].n));
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,1);
+});
+
+test('parallel chunk failure aborts siblings and never finalizes a partial upload',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  f.replayPolicy({maxBytes:50*1024*1024,chunkBytes:512*1024,parallelChunks:4});
+  const signals=[];
+  f.reply((url,options)=>{
+    if(!url.includes('/chunks/')||url.endsWith('/chunks/0'))return null;
+    signals.push(options.signal);
+    if(url.endsWith('/chunks/1'))return {ok:false,status:413,json:async()=>({detail:{code:'replay_too_large',maxBytes:100}})};
+    return new Promise(()=>{}); // Cancellation must settle even a stalled response.
+  });
+  await assert.rejects(f.api.uploadReplay(run,new Blob([new Uint8Array(6*512*1024)]),new AbortController().signal),e=>e.message==='tooLarge');
+  assert.ok(signals.length>1&&signals.slice(1).every(s=>s.aborted));
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,0);
+});
+
+test('34 MiB upload latency benchmark retains the same bytes and completion',async t=>{
+  const timings=[];
+  for(const parallelChunks of [1,4]){
+    const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+    f.replayPolicy({maxBytes:50*1024*1024,chunkBytes:512*1024,parallelChunks});
+    f.reply(url=>url.includes('/chunks/')?new Promise(resolve=>setTimeout(()=>resolve({ok:true,json:async()=>({status:'uploading'})}),20)):null);
+    const size=34*1024*1024,started=Date.now();
+    await f.api.uploadReplay(run,new Blob([new Uint8Array(size)]),new AbortController().signal);
+    timings.push({parallelChunks,elapsedMs:Date.now()-started});
+    assert.equal(f.calls.filter(c=>c.url.includes('/chunks/')).reduce((sum,c)=>sum+c.body.size,0),size);
+    assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,1);
+  }
+  t.diagnostic('20 ms simulated request latency, no bandwidth cap: '+JSON.stringify(timings));
+});
+
 test('chunked replay retries a lost chunk response with the same hash and completes once',async()=>{
   const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
   f.replayPolicy({status:'missing',maxBytes:50*1024*1024,chunkBytes:512*1024});
@@ -70,6 +121,15 @@ test('cancelled replay share never starts an upload',async()=>{
   const controller=new AbortController();controller.abort();
   await assert.rejects(f.api.uploadReplay(run,new Blob(['video']),controller.signal));
   assert.equal(f.calls.filter(c=>c.url.includes('/replay/')).length,0);
+});
+
+test('upload preparation refreshes limits without reposting the already prepared score',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  await f.api.prepareReplay(run,new AbortController().signal);
+  const posted=f.calls.filter(c=>c.url.endsWith('/score')).length;
+  f.replayPolicy({maxBytes:123456,chunkBytes:512*1024,parallelChunks:4});
+  assert.equal((await f.api.prepareReplay(run,new AbortController().signal)).maxBytes,123456);
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/score')).length,posted);
 });
 
 test('ordinary web boot has no Discord routing, reporting, or polling',async()=>{
