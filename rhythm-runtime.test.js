@@ -45,6 +45,21 @@ function fixture(mode, width=1280, height=720, dpr=1) {
 }
 const stdChart=()=>require('./osustd').assembleChart('[General]\nMode:0\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\nSliderMultiplier:1\n[TimingPoints]\n0,500,4,1,0,100,1\n[HitObjects]\n100,100,1000,2,0,L|200:100,2,100\n300,200,2500,1,0\n256,192,3500,8,0,4500');
 const maniaChart=()=>require('./vsrg').parseOsu('[General]\nMode:3\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\n[TimingPoints]\n0,500,4,1,0,100,1\n1500,-50,4,1,0,100,0\n[HitObjects]\n64,0,1000,128,0,2000:0:0:0:0:\n192,0,2500,1,0');
+for (const mode of ['osu','vsrg']) {
+  test(mode+': Discord reporting fires once for a manual finish, never autoplay or teardown',async()=>{
+    const f=fixture(mode),reports=[];
+    f.window.ActivityGames={newRun:()=>({id:'run',uid:'player'}),complete:async(run,result)=>{reports.push({run,result});}};
+    await f.start(mode==='osu'?stdChart():maniaChart());
+    // Local PB storage is absent in this VM; reporting must happen before it.
+    await f.runtime.finishRun().catch(()=>{});
+    await f.runtime.finishRun().catch(()=>{});
+    assert.equal(reports.length,1);assert.equal(reports[0].result.mode,mode);
+    await f.start(mode==='osu'?stdChart():maniaChart(),true);
+    await f.runtime.finishRun();assert.equal(reports.length,1);
+    await f.start(mode==='osu'?stdChart():maniaChart());f.runtime.teardownRun();
+    assert.equal(reports.length,1);
+  });
+}
 for(const mode of ['osu','vsrg']) {
   test(mode+': full run setup, audio mute, pause and resume preserve song position',async()=>{
     const f=fixture(mode);await f.start(mode==='osu'?stdChart():maniaChart());

@@ -208,6 +208,30 @@ Before assuming a new feature works in Discord, ask:
 
 ---
 
+## Direct game launch and score posts (October 2026)
+
+Kei adds `/launch osu` and `/launch mania` in server channels. The Activity reads
+the game route from authenticated `/api/activity/game/context` after loading and
+opens song selection directly. Its existing Start Activity entry point is retained.
+`activity-games.js` handles routing, context renewal and a bounded persistent score
+queue; `game-shell.js` owns the direct reveal. Standard/Mania adapters report only
+completed manual runs, before awaiting local personal-best storage. Autoplay,
+abandoned runs and forfeited multiplayer results do not post.
+
+Kei posts the song, difficulty, score, accuracy and max combo to the originating
+command channel. New personal bests are compared in Postgres per server/player/
+game/chart, separately from browser-local bests. Scores are client-reported casual
+results, not official osu! rankings. Stable run IDs and a durable server outbox
+handle retries. The browser cannot supply a destination channel; signed context
+and server-side Discord Activity membership checks authorize it.
+
+Kei needs View Channel, Send Messages (or Send Messages in Threads), and Embed
+Links. No new OAuth scope or URL mapping is required. Existing open Activities
+check new commands every 15 seconds and defer game changes until an active round
+finishes. Live Discord launch/posting remains an acceptance check; automated tests
+use fake Discord responses and an isolated Postgres database.
+See `kei-bot/docs/activity-launch-and-scores.md` for delivery limits and operations.
+
 ## Status (as of 2026-06-16)
 
 The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The **in-Activity presence panel** (pure-RTDB, with active/Left sections) and the **dual-identity leaderboard photo picker** are live (§9). The web app is unchanged.

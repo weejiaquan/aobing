@@ -1212,6 +1212,7 @@ if (typeof document !== 'undefined') {
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       buildKeyOverlay();
       bindInput(true);
+      run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
       run.rafId = requestAnimationFrame(loop);
       updateHud();
     }
@@ -1730,6 +1731,12 @@ if (typeof document !== 'undefined') {
       if (active.multiplayer) reportMultiplayer('finished');
       active.finished = true; disarmQuickRestart(); pauseUI.hide(); cancelAnimationFrame(active.rafId); bindInput(false);
       try { active.src.stop(); } catch (e) {}
+      if (!active.auto && active.activityRun) {
+        void window.ActivityGames?.complete(active.activityRun, {
+          mode: 'osu', title: active.entry.title, difficulty: active.entry.diffName,
+          getText: () => active.entry.getOsuText(), counts: active.counts, maxCombo: active.maxCombo,
+        }).catch(() => {});
+      }
       const acc = accuracy();
       let prev = null, improved = false;
       if (!isAuto) {   // autoplay is a preview — never recorded as a personal best
@@ -1937,6 +1944,7 @@ if (typeof document !== 'undefined') {
       const c = run.counts, callback = run.multiplayer.onScore;
       run.mpLastReport = performance.now();
       const stats = {score: 300*c.h300 + 100*c.h100 + 50*c.h50, combo: run.maxCombo, acc: accuracy(), state};
+      if (state === 'forfeit') run.activityRun = null;
       if (state !== 'playing') run.multiplayer = null;
       try { callback(stats); } catch (_) { /* network failures never break single-player */ }
     }

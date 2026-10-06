@@ -2453,7 +2453,7 @@
   </div>
   <script src="i18n.js?v=multiplayer-2"></script>
   <script src="sky-time.js"></script>
-  <script src="game-shell.js"></script>
+  <script src="game-shell.js?v=activity-launch-1"></script>
 
   <!-- Speech stays separate from the character's bounce and image effects. -->
   <button id="idle-bubble" type="button" hidden aria-live="polite"><span id="idle-bubble-text" aria-hidden="true"></span></button>
@@ -3701,10 +3701,10 @@
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
         // window.__vsrgDeps. Inert on the web until the mode is opened.
-        .then(function () { return loadScript('vsrg.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('vsrg.js?v=activity-launch-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
-        .then(function () { return loadScript('osustd.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('osustd.js?v=activity-launch-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-2')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
@@ -3723,8 +3723,10 @@
         .then(function () { return loadScript('dos-bindings.js?v=1'); })
         .then(function () { return loadScript('dos-ui.js?v=4'); })
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () {
+        .then(function () { return loadScript('activity-games.js?v=1').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
+        .then(async function () {
           if (!window.__aobingAppReady) throw new Error('Game initialization failed');
+          await window.ActivityGames?.init();
           window.dispatchEvent(new Event('aobingready'));
         })
         .catch(function (e) { console.error('lib load failed', e); window.dispatchEvent(new Event('aobingloaderror')); });

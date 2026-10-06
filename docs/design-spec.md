@@ -117,6 +117,13 @@ reference provenance.
 The sequence is: train arrives from the left, idles behind the logo, accelerates
 off the right when the player enters, then a camera push reveals the game.
 
+Exception approved for Discord game commands: `/launch osu` and `/launch mania`
+resolve their server-authenticated destination while loading, then reveal that
+game's song selection directly, without showing Clicker or requiring ENTER GAME.
+The normal web/default entry keeps the train sequence. A chart still requires
+an explicit selection click to prepare/unlock audio. Commands received during an
+active round wait until the results/menu before switching games.
+
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not
   a foreground illustration. Use `currentColor` and cutout windows, subdued navy

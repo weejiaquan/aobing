@@ -145,7 +145,32 @@
     start.textContent = I18N.t('boot.enter');
     status.textContent = '';
     curtain.classList.add('boot-ready');
+    if (window.ActivityGames?.initialMode) window.GameShell.enterActivity(window.ActivityGames.initialMode);
   }, { once: true });
+  window.GameShell.enterActivity = (mode) => {
+    if (!ready || !['osu', 'vsrg'].includes(mode)) return false;
+    // A new slash command must not discard a song already in progress. The
+    // bridge retries the route after this round has reached its results/menu.
+    if (document.querySelector(':is(#osu-panel,#vsrg-panel,#divaft-panel).open [id$="-game"]:not([hidden]),#dos-panel:not([hidden])[data-state="playing"]')) return false;
+    if (started && curtain.isConnected) return false; // ordinary boot departure owns its focus
+    if (!started) {
+      started = true;
+      trainArrival?.cancel();
+      window.dispatchEvent(new Event('aobingstart'));
+      // Resolve the destination behind the loading curtain; never reveal Clicker.
+      window.dispatchEvent(new CustomEvent('aobinglaunch', {detail: mode}));
+      document.body.classList.remove('is-booting');
+      document.body.classList.add('lobby-entered');
+      curtain.remove();
+      bootBackground.forEach(element => { element.inert = false; });
+    } else {
+      window.dispatchEvent(new CustomEvent('aobinglaunch', {detail: mode}));
+    }
+    const panel = document.getElementById(mode === 'osu' ? 'osu-select' : 'vsrg-select');
+    panel.tabIndex = -1;
+    panel.focus({preventScroll: true});
+    return true;
+  };
   window.addEventListener('aobingloaderror', () => {
     status.textContent = I18N.t('boot.error');
     start.disabled = false;

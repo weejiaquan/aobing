@@ -1015,6 +1015,7 @@ if (typeof document !== 'undefined') {
       src.onended = () => {};   // end is driven by song-time, not this event
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
+      run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
       run.rafId = requestAnimationFrame(loop);
       sizeCanvas();
       updateHud();
@@ -1426,6 +1427,12 @@ if (typeof document !== 'undefined') {
       cancelAnimationFrame(active.rafId);
       bindInput(false);
       try { active.src.stop(); } catch (e) {}
+      if (!active.auto && active.activityRun) {
+        void window.ActivityGames?.complete(active.activityRun, {
+          mode: 'vsrg', title: active.entry.title, difficulty: active.entry.diffName,
+          getText: () => active.entry.getOsuText(), counts: active.state.counts, maxCombo: active.state.maxCombo,
+        }).catch(() => {});
+      }
       const acc = accuracy(active.state.counts);
       // Autoplay is a preview — never recorded as a personal best.
       const pb = active.auto ? null : await savePersonalBest('classic-v2:' + active.entry.hash, {
