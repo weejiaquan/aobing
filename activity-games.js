@@ -15,7 +15,7 @@
     queue = queue.filter(item => now() - item.createdAt < maxAge && item.expiresAt * 1000 > now()).slice(-20);
     try { if (queueKey) localStorage.setItem(queueKey, JSON.stringify(queue)); } catch (_) {}
   }
-  async function request(path, data, timeoutMs = 10000) {
+  async function request(path, data, timeoutMs = 10000, method = 'POST') {
     const user = activeUser(), a = activity();
     if (!user || user.uid !== a?.uid) throw new Error('Activity identity changed');
     const controller = new AbortController();
@@ -25,8 +25,8 @@
         const token = await user.getIdToken();
         if (controller.signal.aborted || activeUser()?.uid !== user.uid) throw new Error('Activity identity changed');
         const response = await fetch((a.keiBase || 'https://kei.aobing.it') + '/api/activity/game/' + path, {
-          method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
-          body: JSON.stringify(data), signal: controller.signal,
+          method, headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
+          body: method === 'GET' ? undefined : JSON.stringify(data), signal: controller.signal,
         });
         if (!response.ok) { const error = new Error('Activity game HTTP ' + response.status); error.status = response.status; throw error; }
         return await response.json();
@@ -110,7 +110,12 @@
     // must not redirect this round's score or an older queued receipt.
     return {id: crypto.randomUUID(), uid: activity().uid, session: context.session, expiresAt: context.expiresAt};
   }
-  async function complete(run, result) {
+  function complete(run, result) {
+    const work = completeResult(run, result);
+    if (run) run.reportReady = work;
+    return work;
+  }
+  async function completeResult(run, result) {
     if (!run || run.uid !== activeUser()?.uid || run.uid !== activity()?.uid || !context) return;
     const chartText = result.getText ? await result.getText() : '';
     const chartHash = result.chartHash || [...new Uint8Array(await crypto.subtle.digest('SHA-256',
@@ -122,10 +127,34 @@
     const payload = {runId: run.id, mode: result.mode, chartHash, title: String(result.title || 'Untitled').slice(0,180),
       difficulty: String(result.difficulty || 'Standard').slice(0,100), counts: {...result.counts}, maxCombo: result.maxCombo};
     if (Number.isSafeInteger(setId) && setId > 0 && setId <= 2147483647) payload.beatmapSetId = setId;
+    run.result = payload;
     if (!queue.some(item => item.result.runId === run.id)) queue.push({createdAt: now(), session: run.session, expiresAt: run.expiresAt, result: payload});
     persist(); void flush();
   }
-  window.ActivityGames = {init, setMode, newRun, complete, get initialMode() { return initialMode; }};
+  async function uploadReplay(run, blob, signal) {
+    await run.reportReady;
+    if (!run.result || !activity()?.instanceId || run.uid !== activeUser()?.uid || run.uid !== activity().uid) throw new Error('failed');
+    if (signal.aborted) throw new Error('cancelled');
+    // Ensure the completed score exists before uploading; runId deduplicates this
+    // against the ordinary background score queue.
+    await request('score', {...run.result, session:run.session});
+    const controller=new AbortController(),abort=()=>controller.abort();
+    signal.addEventListener('abort',abort,{once:true});
+    const timeout=setTimeout(abort,120000);
+    try {
+      const token=await activeUser().getIdToken();
+      if(signal.aborted || run.uid!==activeUser()?.uid)throw new Error('cancelled');
+      const response=await fetch((activity().keiBase||'https://kei.aobing.it')+'/api/activity/game/replay/'+encodeURIComponent(run.id),{
+        method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':blob.type},body:blob,signal:controller.signal});
+      if(!response.ok)throw new Error(response.status===413?'tooLarge':response.status===429?'rateLimited':'failed');
+      return await response.json();
+    } finally {clearTimeout(timeout);signal.removeEventListener('abort',abort);}
+  }
+  async function replayStatus(run) {
+    if (run.uid !== activeUser()?.uid) throw new Error('failed');
+    return request('replay/'+encodeURIComponent(run.id),null,10000,'GET');
+  }
+  window.ActivityGames = {init, setMode, newRun, complete, uploadReplay, replayStatus, get initialMode() { return initialMode; }};
   window.addEventListener('online', () => { if (initialized) void flush(); });
   window.addEventListener('pagehide', () => { clearTimeout(timer); persist(); });
   window.addEventListener('pageshow', () => { if (initialized) { clearTimeout(timer); timer = setTimeout(tick, 1000); } });

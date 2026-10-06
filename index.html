@@ -2451,7 +2451,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=multiplayer-2"></script>
+  <script src="i18n.js?v=replay-1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3723,7 +3723,8 @@
         .then(function () { return loadScript('dos-bindings.js?v=1'); })
         .then(function () { return loadScript('dos-ui.js?v=4'); })
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('activity-games.js?v=3').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
+        .then(function () { return loadScript('activity-games.js?v=4').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
+        .then(function () { if (IN_ACTIVITY) return loadScript('activity-replay.js?v=1').catch(function (e) { console.warn('Activity replay unavailable', e); }); })
         .then(async function () {
           if (!window.__aobingAppReady) throw new Error('Game initialization failed');
           await window.ActivityGames?.init();

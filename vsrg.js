@@ -915,6 +915,7 @@ if (typeof document !== 'undefined') {
     // Fully stop and discard the current run (audio, RAF loop, input binding).
     function teardownRun() {
       if (!run) return;
+      run.disposeReplay?.();
       run.finished = true;
       pauseUI.hide();
       cancelAnimationFrame(run.rafId);
@@ -1016,6 +1017,7 @@ if (typeof document !== 'undefined') {
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
       run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
+      run.replay = window.ActivityReplay?.begin(run, 'vsrg', {constantScroll:settings.vsrgConstantScroll,upscroll:settings.vsrgUpscroll,receptor:Number(settings.vsrgReceptorPosition)||.85});
       run.rafId = requestAnimationFrame(loop);
       sizeCanvas();
       updateHud();
@@ -1035,6 +1037,10 @@ if (typeof document !== 'undefined') {
       if (run.auto) autoPlay(st);   // preview: hit each note on time, hold through tails
       sweepMisses(st);
       render(st + calOffset() + (Number(settings.vsrgVisualOffset) || 0));
+      if (run.replay) {
+        const held = Object.keys(heldLanes()).reduce((mask,lane)=>mask|(1<<Number(lane)),0);
+        run.replay.sample(st + calOffset(), st + calOffset() + (Number(settings.vsrgVisualOffset) || 0), null, held, run.state.counts, run.state.combo, run.approachMs);
+      }
       tickFps();
       updateSkip(st);
       if (st > run.lastNoteTime + END_PAD_MS) { finishRun(); return; }
@@ -1059,6 +1065,7 @@ if (typeof document !== 'undefined') {
       run.startCtx = when - run.skipTo / 1000; run.clock.reset(run.startCtx);               // songTimeNow now reads ~skipTo
       run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync input→ctx mapping
       run.skipped = true;
+      run.replay?.skip(run.skipTo);
       skipBtn.hidden = true;
     }
     // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
@@ -1088,6 +1095,7 @@ if (typeof document !== 'undefined') {
       const events = run.engine.takeEvents();
       for (const e of events) {
         if (e.kind === 'sound') { playHitsound(e.note); continue; }
+        run.replay?.mark(e.note, e.kind, e.tier, run.clock.at());
         if (Number.isFinite(e.error) && e.tier !== 'miss') recordError(e.error, e.tier);
         if (e.kind === 'judge') { flashJudge(e.tier); pushFx(e.note.lane, e.tier === 'miss' ? 'miss' : 'hit', TIER_COLORS[e.tier]); }
         else if (e.kind === 'break') { flashJudge('miss'); pushFx(e.note.lane, 'miss', TIER_COLORS.miss); }
@@ -1442,6 +1450,7 @@ if (typeof document !== 'undefined') {
       renderResults(active, acc, pb);
       if (run !== active) return;
       show('results');
+      window.ActivityReplay?.mount(resultsBody, active);
     }
 
     function renderResults(r, acc, pb) {

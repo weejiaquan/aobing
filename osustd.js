@@ -1122,6 +1122,7 @@ if (typeof document !== 'undefined') {
     // ---- Run lifecycle -------------------------------------------------------
     function teardownRun() {
       if (!run) return;
+      run.disposeReplay?.();
       if (!run.finished && run.multiplayer) reportMultiplayer('forfeit');
       run.finished = true;
       disarmQuickRestart();
@@ -1213,6 +1214,7 @@ if (typeof document !== 'undefined') {
       buildKeyOverlay();
       bindInput(true);
       run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
+      run.replay = window.ActivityReplay?.begin(run, 'osu');
       run.rafId = requestAnimationFrame(loop);
       updateHud();
     }
@@ -1236,6 +1238,7 @@ if (typeof document !== 'undefined') {
       updateSpinners(st);
       sweepMisses(st);
       render(st + calOffset() + (Number(settings.osuVisualOffset) || 0));
+      run.replay?.sample(st + calOffset(), st + calOffset() + (Number(settings.osuVisualOffset) || 0), cursor, heldAny() ? 1 : 0, run.counts, run.combo);
       run.history.prune(st - 5000);
       tickFps();
       updateSkip(st);
@@ -1262,6 +1265,7 @@ if (typeof document !== 'undefined') {
       run.startCtx = when - run.skipTo / 1000; run.clock.reset(run.startCtx);               // songTimeNow now reads ~skipTo
       run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync the input→ctx mapping
       run.skipped = true;
+      run.replay?.skip(run.skipTo);
       if (skipBtn) skipBtn.hidden = true;
     }
     // FPS counter: frames over the last ~half-second. The loop is a bare rAF, so
@@ -1374,17 +1378,21 @@ if (typeof document !== 'undefined') {
       for (const s of run.objs) {
         if (s.o.kind !== 'slider' || s.judged) continue;
         const history = run.auto ? { at: t => ({...sliderBallPos(s.o,t),held:true}) } : run.history;
-        if (S.processSlider(s, st, history, run.radius, (hit, kind, time, edge) => {
+        const headBefore = s.headJudged;
+        const ended = S.processSlider(s, st, history, run.radius, (hit, kind, time, edge) => {
           sliderPart(hit, kind);
           if (hit) {
             if (kind === 'tick') window.Hitsound.playTick(audioCtx, run.samples, R.soundSpec(run.chart,s.o,time));
             else playObjectSound(s.o, kind === 'repeat' ? 0.85 : 1, edge, time);
           }
-        })) finalizeSlider(s);
+        });
+        if (!headBefore && s.headJudged) run.replay?.mark(s.o, 'head', s.headResult, run.clock.at());
+        if (ended) finalizeSlider(s);
       }
     }
     function finalizeSlider(s) {
       const result = S.sliderResult(s);
+      run.replay?.mark(s.o, 'end', result, run.clock.at());
       s.judged = true; s.result = result;
       run.counts[result]++;
       bursts.push({ x: s.o.x, y: s.o.y, result: result, t: performance.now() });
@@ -1392,6 +1400,7 @@ if (typeof document !== 'undefined') {
     }
 
     function judgeResult(s, result) {
+      run.replay?.mark(s.o, 'end', result, run.clock.at());
       s.judged = true; s.result = result;
       const c = run.counts;
       if (result === 'miss') { c.miss++; run.combo = 0; }
@@ -1425,7 +1434,7 @@ if (typeof document !== 'undefined') {
       const rounded = Math.abs(Math.round(signed));
       const result = rounded < Math.trunc(w.h300) ? 'h300' : rounded < Math.trunc(w.h100) ? 'h100' : rounded < Math.trunc(w.h50) ? 'h50' : 'miss';
       if (result !== 'miss') { recordError(signed, result); playObjectSound(best.o); }
-      if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; sliderPart(result !== 'miss', 'head'); }  // body/tail scored later
+      if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; run.replay?.mark(best.o, 'head', result, run.clock.at()); sliderPart(result !== 'miss', 'head'); }  // body/tail scored later
       else judgeResult(best, result);
     }
     function bindInput(on) {
@@ -1767,6 +1776,7 @@ if (typeof document !== 'undefined') {
                         : '<div class="osu-res-pb">First clear — saved as your best.</div>'));
       if (run !== active) return;
       show('results');
+      window.ActivityReplay?.mount(resultsBody, active);
     }
     function quitToSelect() { loadGen++; teardownRun(); if (deps.resumeBgm) deps.resumeBgm(); show('select'); renderSongList(); }
 

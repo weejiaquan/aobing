@@ -247,6 +247,29 @@ comparison. `activity-games.js` extracts a bounded positive BeatmapSetID from th
 chart metadata for a public osu! mapset cover and link. No chart/audio/image upload
 or new Activity URL mapping is involved: Discord renders those images in chat.
 
+## Share replay (October 2026)
+
+After a new manual Standard/Mania run in a guild Activity, results include **Share
+replay**. Click it and keep the Activity visible while the client renders the run
+with song audio; this takes about the played song duration. Kei uploads the video
+to the score's original channel. No video is uploaded automatically. The button
+is absent on the ordinary website and for autoplay/forfeited runs. Replay data is
+discarded on leaving results or starting another run; old scores have no replay.
+
+The exporter uses a compact 640×480 replay presentation, not custom skins or
+custom hitsounds. Paused time is omitted; skipped intros start at the skip point.
+It prefers VP8/Opus WebM, feature-tests MP4 as a fallback, and shows an unsupported
+message if the browser cannot encode. Limits: ten minutes, 8 MiB per video and
+three new shares per player/hour. Kei needs **Attach Files** in addition to the
+existing channel permissions. An accepted upload survives navigation or restart.
+The client briefly checks delivery status; temporary outages remain queued.
+
+`activity-replay.js` loads only inside the Activity; its CSS uses the existing
+same-origin mapping. No new OAuth scope, Discord URL mapping or rendering service
+is needed. `scripts/test-activity-replay-browser.cjs` checks real encoding, video
+decoding, the Share button and cancellation in an isolated headless Chrome session.
+Live playback and posting in Discord still require a real Discord client check.
+
 ## Status (as of 2026-06-16)
 
 The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The **in-Activity presence panel** (pure-RTDB, with active/Left sections) and the **dual-identity leaderboard photo picker** are live (§9). The web app is unchanged.

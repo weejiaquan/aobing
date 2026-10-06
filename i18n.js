@@ -2759,6 +2759,23 @@
 };
   Object.entries(dosCopy).forEach(([key, values]) => SUPPORTED.forEach((lang, i) => { T[lang]['dos.' + key] = values[i]; }));
   SUPPORTED.forEach(lang => { T[lang]['mode.doom'] = 'Doom'; });
+  const replayCopy = {
+    rateLimited:['Replay sharing is busy or its limit was reached. Try again later.','共有が混雑しているか上限に達しました。後でもう一度お試しください。','공유가 혼잡하거나 한도에 도달했습니다. 나중에 다시 시도하세요.','回放分享繁忙或已达上限，请稍后重试。','重播分享忙碌或已達上限，請稍後重試。','การแชร์กำลังใช้งานมากหรือถึงขีดจำกัดแล้ว ลองอีกครั้งภายหลัง','Chia sẻ đang bận hoặc đã đạt giới hạn. Hãy thử lại sau.','المشاركة مشغولة أو بلغت الحد المسموح. حاول لاحقاً.'],
+    share:['Share replay','リプレイを共有','리플레이 공유','分享回放','分享重播','แชร์รีเพลย์','Chia sẻ bản phát lại','مشاركة الإعادة'],
+    cancel:['Cancel','キャンセル','취소','取消','取消','ยกเลิก','Hủy','إلغاء'],
+    hint:['Creates a video on this device and sends it to Discord. Keep the Activity open; rendering takes about the song’s length.','この端末で動画を作成しDiscordへ送信します。曲と同じ程度の時間がかかります。アクティビティを開いたままにしてください。','이 기기에서 영상을 만들어 Discord로 보냅니다. 렌더링은 곡 길이만큼 걸립니다. 액티비티를 열어 두세요.','在此设备上生成视频并发送到 Discord。渲染约需歌曲时长，请保持活动打开。','在此裝置上產生影片並傳送到 Discord。算圖約需歌曲時長，請保持活動開啟。','สร้างวิดีโอบนอุปกรณ์นี้แล้วส่งไป Discord กรุณาเปิดกิจกรรมไว้ การเรนเดอร์ใช้เวลาประมาณความยาวเพลง','Tạo video trên thiết bị này rồi gửi lên Discord. Giữ Hoạt động mở; quá trình kết xuất mất khoảng thời lượng bài hát.','ينشئ فيديو على هذا الجهاز ويرسله إلى Discord. أبقِ النشاط مفتوحاً؛ يستغرق التصيير نحو مدة الأغنية.'],
+    rendering:['Rendering replay… {n}%','リプレイを作成中… {n}%','리플레이 렌더링 중… {n}%','正在渲染回放… {n}%','正在製作重播… {n}%','กำลังเรนเดอร์รีเพลย์… {n}%','Đang kết xuất bản phát lại… {n}%','جارٍ تصيير الإعادة… {n}%'],
+    uploading:['Uploading to Kei…','Keiにアップロード中…','Kei에 업로드 중…','正在上传到 Kei…','正在上傳到 Kei…','กำลังอัปโหลดไปยัง Kei…','Đang tải lên Kei…','جارٍ الرفع إلى Kei…'],
+    sent:['Replay sent to Discord.','Discordに送信しました。','Discord로 전송했습니다.','回放已发送到 Discord。','重播已傳送到 Discord。','ส่งรีเพลย์ไป Discord แล้ว','Đã gửi bản phát lại lên Discord.','أُرسلت الإعادة إلى Discord.'],
+    queued:['Replay uploaded. Kei will post it to the channel shortly.','アップロード完了。Keiがまもなくチャンネルに投稿します。','업로드했습니다. Kei가 곧 채널에 게시합니다.','回放已上传，Kei 即将在频道中发布。','重播已上傳，Kei 即將在頻道中發布。','อัปโหลดแล้ว Kei จะโพสต์ในช่องเร็ว ๆ นี้','Đã tải lên. Kei sẽ sớm đăng vào kênh.','رُفعت الإعادة. سينشرها Kei في القناة قريباً.'],
+    shared:['Replay shared','共有済み','공유 완료','已分享回放','已分享重播','แชร์แล้ว','Đã chia sẻ','تمت المشاركة'],
+    failed:['Could not share the replay. Check your connection and Kei’s Attach Files permission, then retry.','共有できませんでした。接続とKeiのファイル添付権限を確認して再試行してください。','공유하지 못했습니다. 연결과 Kei의 파일 첨부 권한을 확인한 뒤 다시 시도하세요.','无法分享回放。请检查网络和 Kei 的附件权限后重试。','無法分享重播。請檢查網路和 Kei 的附加檔案權限後重試。','แชร์ไม่สำเร็จ ตรวจสอบการเชื่อมต่อและสิทธิ์แนบไฟล์ของ Kei แล้วลองใหม่','Không thể chia sẻ. Kiểm tra kết nối và quyền đính kèm tệp của Kei rồi thử lại.','تعذرت المشاركة. تحقق من الاتصال وإذن إرفاق الملفات لدى Kei ثم أعد المحاولة.'],
+    unsupported:['Video export is not supported in this Discord browser.','このDiscordブラウザは動画の書き出しに対応していません。','이 Discord 브라우저는 영상 내보내기를 지원하지 않습니다.','此 Discord 浏览器不支持视频导出。','此 Discord 瀏覽器不支援影片匯出。','เบราว์เซอร์ Discord นี้ไม่รองรับการส่งออกวิดีโอ','Trình duyệt Discord này không hỗ trợ xuất video.','متصفح Discord هذا لا يدعم تصدير الفيديو.'],
+    unavailable:['Replay unavailable. Complete a new manual run of up to 10 minutes.','リプレイを利用できません。10分以内の曲を手動で最後までプレイしてください。','리플레이를 사용할 수 없습니다. 10분 이내의 새 수동 플레이를 완료하세요.','回放不可用。请手动完成一首不超过 10 分钟的歌曲。','無法使用重播。請手動完成一首不超過 10 分鐘的歌曲。','ไม่มีรีเพลย์ กรุณาเล่นด้วยตนเองจนจบเพลงที่ยาวไม่เกิน 10 นาที','Không có bản phát lại. Hãy hoàn thành lượt chơi thủ công mới dài tối đa 10 phút.','الإعادة غير متاحة. أكمل جولة يدوية جديدة لا تتجاوز 10 دقائق.'],
+    tooLarge:['The video exceeds the upload limit. Try a shorter song.','動画がアップロード上限を超えました。短い曲をお試しください。','영상이 업로드 한도를 초과했습니다. 더 짧은 곡으로 시도하세요.','视频超过上传限制，请尝试较短的歌曲。','影片超過上傳限制，請嘗試較短的歌曲。','วิดีโอเกินขีดจำกัด ลองเพลงที่สั้นกว่า','Video vượt giới hạn tải lên. Hãy thử bài hát ngắn hơn.','يتجاوز الفيديو حد الرفع. جرّب أغنية أقصر.'],
+    cancelled:['Sharing cancelled. Keep the Activity visible while rendering.','共有をキャンセルしました。作成中はアクティビティを表示したままにしてください。','공유를 취소했습니다. 렌더링 중에는 액티비티가 보이도록 유지하세요.','分享已取消。渲染时请保持活动可见。','分享已取消。製作時請保持活動可見。','ยกเลิกการแชร์แล้ว กรุณาให้กิจกรรมแสดงอยู่ขณะเรนเดอร์','Đã hủy chia sẻ. Giữ Hoạt động hiển thị khi kết xuất.','أُلغيت المشاركة. أبقِ النشاط ظاهراً أثناء التصيير.'],
+  };
+  Object.entries(replayCopy).forEach(([key,values])=>SUPPORTED.forEach((lang,i)=>{T[lang]['replay.'+key]=values[i];}));
   let current = 'en';
 
   function detect(stored) {

@@ -17,7 +17,7 @@ function fixture(mode, width=1280, height=720, dpr=1) {
     querySelector(){return new Element();}querySelectorAll(){return [];}focus(){}setPointerCapture(){}
   }
   const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
-  const document={getElementById:get,querySelector:get,querySelectorAll:()=>[],createElement:()=>new Element(),addEventListener(){},body:new Element()};
+  const document={getElementById:get,querySelector:get,querySelectorAll:()=>[],createElement:()=>new Element(),addEventListener(){},body:new Element(),head:new Element()};
   let audio;
   class AudioContext {
     constructor(){audio=this;this.currentTime=10;this.outputLatency=0;this.state='running';this.destination={};}
@@ -41,10 +41,27 @@ function fixture(mode, width=1280, height=720, dpr=1) {
   const settings={musicVol:0,osuKeys:['z','x']};
   window[mode==='osu'?'OsuStdGame':'VsrgGame'].init({settings,saveSettings(){}});
   const runtime=window.__runtime;
-  return {window,runtime,settings,drawCalls,get,async start(chart,auto=false){await runtime.ensureCtx();runtime.setAuto(auto);runtime.startRun({title:'Test',diffName:'Test'},chart,{duration:60});},time(t){audio.currentTime=runtime.run.startCtx+t/1000;},event(key,extra={}){return {key,timeStamp:5000,preventDefault(){},...extra};}};
+  return {window,context,runtime,settings,drawCalls,get,async start(chart,auto=false){await runtime.ensureCtx();runtime.setAuto(auto);runtime.startRun({title:'Test',diffName:'Test'},chart,{duration:60});},time(t){audio.currentTime=runtime.run.startCtx+t/1000;},event(key,extra={}){return {key,timeStamp:5000,preventDefault(){},...extra};}};
 }
 const stdChart=()=>require('./osustd').assembleChart('[General]\nMode:0\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\nSliderMultiplier:1\n[TimingPoints]\n0,500,4,1,0,100,1\n[HitObjects]\n100,100,1000,2,0,L|200:100,2,100\n300,200,2500,1,0\n256,192,3500,8,0,4500');
 const maniaChart=()=>require('./vsrg').parseOsu('[General]\nMode:3\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\n[TimingPoints]\n0,500,4,1,0,100,1\n1500,-50,4,1,0,100,0\n[HitObjects]\n64,0,1000,128,0,2000:0:0:0:0:\n192,0,2500,1,0');
+for(const mode of ['osu','vsrg']) {
+  test(mode+': actual adapter records manual judgement events and frames only for Discord',async()=>{
+    const f=fixture(mode);vm.runInContext(fs.readFileSync('activity-replay.js','utf8'),f.context);
+    f.window.ActivityGames={newRun:()=>({id:'recorded-run'})};
+    await f.start(mode==='osu'?stdChart():maniaChart());assert.equal(f.runtime.run.replay,null);
+    f.window.__ACTIVITY__={instanceId:'discord'};
+    await f.start(mode==='osu'?stdChart():maniaChart(),true);assert.equal(f.runtime.run.replay,null);
+    await f.start(mode==='osu'?stdChart():maniaChart());
+    for(const t of [0,500,1000,1500,2200,2600,3000]){f.time(t);f.runtime.loop();}
+    const data=f.runtime.run.replay.finish(null);
+    assert.ok(data.frames.length>3);assert.ok(data.events.length>0);
+    assert.ok(data.events.some(e=>e[3]==='miss'));
+    assert.equal(data.owner.id,'recorded-run');
+    const drawn=f.window.ActivityReplay.renderer(f.get('replay-preview'),data);drawn(500);drawn(2500);
+    assert.ok(f.drawCalls.every(c=>c.slice(1).filter(x=>typeof x==='number').every(Number.isFinite)));
+  });
+}
 for (const mode of ['osu','vsrg']) {
   test(mode+': Discord reporting fires once for a manual finish, never autoplay or teardown',async()=>{
     const f=fixture(mode),reports=[];

@@ -15,7 +15,7 @@ function fixture({store=new Map(), activity=true}={}) {
   const context=vm.createContext({window,console,crypto:webcrypto,TextEncoder,AbortController,
     firebase:{auth:()=>({currentUser:user})},localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},
     setTimeout(fn,ms){const id=++timer;timers.set(id,{fn,ms});if(ms===400)setImmediate(fn);return id;},clearTimeout(id){timers.delete(id);},
-    fetch:async(url,options)=>{const body=JSON.parse(options.body);calls.push({url,body});
+    fetch:async(url,options)=>{const body=typeof options.body==='string'?JSON.parse(options.body):options.body;calls.push({url,body,headers:options.headers});
       if(fail) throw new Error('offline');
       return {ok:true,json:async()=>url.endsWith('/context')?response:{status:'pending'}};}});
   vm.runInContext(fs.readFileSync('activity-games.js','utf8'),context);
@@ -24,6 +24,25 @@ function fixture({store=new Map(), activity=true}={}) {
     async tick(){const item=[...timers.values()].find(t=>t.ms===15000);assert.ok(item);await item.fn();await settle();}};
 }
 const result=()=>({mode:'osu',chartHash:'a'.repeat(64),title:'Song',difficulty:'Hard',counts:{h300:1,h100:0,h50:0,miss:0},maxCombo:1});
+
+test('explicit replay share uploads binary video only after ensuring the owned original score',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  assert.equal(f.calls.filter(c=>c.url.includes('/replay/')).length,0);
+  const blob=new Blob(['video'],{type:'video/webm'});
+  await f.api.uploadReplay(run,blob,new AbortController().signal);
+  const sent=f.calls.at(-1);assert.ok(sent.url.endsWith('/replay/'+run.id));assert.equal(sent.body,blob);
+  assert.equal(sent.headers['Content-Type'],'video/webm');assert.equal(sent.headers.Authorization,'Bearer id-token');
+  assert.equal(f.calls.at(-2).body.session,'server-signed');
+  f.identity(null);await assert.rejects(f.api.uploadReplay(run,blob,new AbortController().signal));
+  assert.equal(f.calls.filter(c=>c.url.includes('/replay/')).length,1);
+});
+
+test('cancelled replay share never starts an upload',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  const controller=new AbortController();controller.abort();
+  await assert.rejects(f.api.uploadReplay(run,new Blob(['video']),controller.signal));
+  assert.equal(f.calls.filter(c=>c.url.includes('/replay/')).length,0);
+});
 
 test('ordinary web boot has no Discord routing, reporting, or polling',async()=>{
   const f=fixture({activity:false});await f.api.init();assert.equal(f.api.newRun(),null);

@@ -138,6 +138,19 @@ comparison. Standard may show its existing result grade. Do not invent pp, star
 difficulty, official ranking or other unavailable stats. Presence describes the
 Activity roster; it must not imply that everyone has joined the same match.
 
+Completed manual Standard/Mania results in the Discord Activity include **Share
+replay**. Ordinary web play and autoplay do not collect or expose replay sharing.
+Capture lightweight timeline data during play; encode only after the player clicks.
+Use an isolated 640×480 replay view with cursor/lane state, actual judgement events,
+accuracy/combo and song audio. It is not a pixel-perfect custom-skin recording and
+does not export custom hitsounds. Keep export progress, cancellation, error/retry
+and delivery feedback inside results, translated into all eight languages. Leaving
+results stops local export. Hiding the Activity cancels rendering; an upload already
+accepted by Kei continues delivery. Keep the Activity visible while exporting.
+Replay data is in memory for the current run; older scores cannot be reconstructed.
+The initial limits are ten minutes and 8 MiB per video, three new uploads per hour.
+Kei relays the encoded attachment to the saved score's channel without rendering it.
+
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not
   a foreground illustration. Use `currentColor` and cutout windows, subdued navy
