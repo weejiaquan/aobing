@@ -232,6 +232,17 @@ finishes. Live Discord launch/posting remains an acceptance check; automated tes
 use fake Discord responses and an isolated Postgres database.
 See `kei-bot/docs/activity-launch-and-scores.md` for delivery limits and operations.
 
+Launch commands also leave a persistent channel card with the current Activity
+roster and a Join button. Kei updates it in place and keeps it as an ended-session
+receipt when everyone leaves. Joining opens the selected game; Standard's shared
+multiplayer-room action still handles joining a match. If Discord places the
+Activity in a different channel, the card links to that channel.
+
+Score embeds include an Aobing thumbnail, judgement breakdown and personal-best
+comparison. `activity-games.js` extracts a bounded positive BeatmapSetID from the
+chart metadata for a public osu! mapset cover and link. No chart/audio/image upload
+or new Activity URL mapping is involved: Discord renders those images in chat.
+
 ## Status (as of 2026-06-16)
 
 The Activity is **live and functional** on desktop and mobile: it loads, signs into the unified account (App Check via kei-bot minting), runs the game, syncs RTDB (stats, leaderboard, global count), shows avatars via the image proxy, opens external links via `openExternalLink`, and cache-busts updates. The **in-Activity presence panel** (pure-RTDB, with active/Left sections) and the **dual-identity leaderboard photo picker** are live (§9). The web app is unchanged.

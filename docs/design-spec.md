@@ -124,6 +124,14 @@ The normal web/default entry keeps the train sequence. A chart still requires
 an explicit selection click to prepare/unlock audio. Commands received during an
 active round wait until the results/menu before switching games.
 
+Discord game launches also leave a persistent Kei channel card with current
+Activity participants and a Join action. Ended sessions stay visible with joining
+disabled. Score posts use a compact illustrated embed: mapset cover when available,
+Aobing thumbnail, actual judgement counts, score, accuracy, combo and personal-best
+comparison. Standard may show its existing result grade. Do not invent pp, star
+difficulty, official ranking or other unavailable stats. Presence describes the
+Activity roster; it must not imply that everyone has joined the same match.
+
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not
   a foreground illustration. Use `currentColor` and cutout windows, subdued navy

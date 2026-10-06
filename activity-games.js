@@ -100,11 +100,16 @@
   }
   async function complete(run, result) {
     if (!run || run.uid !== activeUser()?.uid || run.uid !== activity()?.uid || !context) return;
+    const chartText = result.getText ? await result.getText() : '';
     const chartHash = result.chartHash || [...new Uint8Array(await crypto.subtle.digest('SHA-256',
-      new TextEncoder().encode(await result.getText())))].map(n => n.toString(16).padStart(2, '0')).join('');
+      new TextEncoder().encode(chartText)))].map(n => n.toString(16).padStart(2, '0')).join('');
+    // Only accept the map's numeric set ID, never a client-supplied image URL.
+    const metadata = String(chartText).split(/^\s*\[Metadata\]\s*$/m)[1]?.split(/^\s*\[/m)[0] || '';
+    const setId = Number(metadata.match(/^BeatmapSetID\s*:\s*(\d+)\s*$/m)?.[1]);
     if (run.uid !== activeUser()?.uid || run.uid !== activity()?.uid) return;
     const payload = {runId: run.id, mode: result.mode, chartHash, title: String(result.title || 'Untitled').slice(0,180),
       difficulty: String(result.difficulty || 'Standard').slice(0,100), counts: {...result.counts}, maxCombo: result.maxCombo};
+    if (Number.isSafeInteger(setId) && setId > 0 && setId <= 2147483647) payload.beatmapSetId = setId;
     if (!queue.some(item => item.result.runId === run.id)) queue.push({createdAt: now(), session: run.session, expiresAt: run.expiresAt, result: payload});
     persist(); void flush();
   }

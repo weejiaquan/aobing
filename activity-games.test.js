@@ -58,6 +58,20 @@ test('a later launch context cannot redirect a score from a song already started
   await f.api.complete(run,result());await settle();
   assert.equal(f.calls.find(c=>c.url.endsWith('/score')).body.session,'server-signed');
 });
+
+test('cover metadata comes only from a positive bounded set ID in the chart metadata section',async()=>{
+  for (const [text,expected] of [
+    ['osu file format v14\r\n[Metadata]\r\nTitle:Song\r\nBeatmapSetID:123456\r\n[Difficulty]\r\nHPDrainRate:5',123456],
+    ['[Metadata]\nBeatmapSetID:-1',undefined],
+    ['[Metadata]\nBeatmapSetID:999999999999999999',undefined],
+    ['[Events]\nBeatmapSetID:123456',undefined],
+    ['[Metadata]\nTitle:Song\n[Events]\nBeatmapSetID:123456',undefined],
+  ]) {
+    const f=fixture();await f.api.init();
+    await f.api.complete(f.api.newRun(),{...result(),getText:async()=>text});await settle();
+    assert.equal(f.calls.find(c=>c.url.endsWith('/score')).body.beatmapSetId,expected);
+  }
+});
 test('a new explicit command retries routing after the current round, without routing other players',async()=>{
   const f=fixture();await f.api.init();const routes=[];let allow=false;
   f.window.GameShell.enterActivity=mode=>{routes.push(mode);return allow;};

@@ -3723,7 +3723,7 @@
         .then(function () { return loadScript('dos-bindings.js?v=1'); })
         .then(function () { return loadScript('dos-ui.js?v=4'); })
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('activity-games.js?v=1').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
+        .then(function () { return loadScript('activity-games.js?v=2').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
         .then(async function () {
           if (!window.__aobingAppReady) throw new Error('Game initialization failed');
           await window.ActivityGames?.init();
