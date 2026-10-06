@@ -916,6 +916,7 @@ if (typeof document !== 'undefined') {
     function teardownRun() {
       if (!run) return;
       run.disposeReplay?.();
+      if(audioCtx)audioCtx.__replaySound=null;
       run.finished = true;
       pauseUI.hide();
       cancelAnimationFrame(run.rafId);
@@ -1017,7 +1018,8 @@ if (typeof document !== 'undefined') {
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
       run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
-      run.replay = window.ActivityReplay?.begin(run, 'vsrg', {constantScroll:settings.vsrgConstantScroll,upscroll:settings.vsrgUpscroll,receptor:Number(settings.vsrgReceptorPosition)||.85});
+      run.replay = window.ActivityReplay?.begin(run, 'vsrg', {snapshot:captureReplayView,draw:render});
+      if(run.replay){run.replay.data.musicVolume=run.gain.gain.value;const capture=run.replay,clock=run.clock;audioCtx.__replaySound=sound=>capture.sound(clock.at(),sound);}
       run.rafId = requestAnimationFrame(loop);
       sizeCanvas();
       updateHud();
@@ -1137,6 +1139,7 @@ if (typeof document !== 'undefined') {
     // ---- Input -------------------------------------------------------------
     function onHit(lane, perfTs) {
       if (!run || run.finished || run.auto || run.paused) return;
+      run.replay?.input(inputSongTime(perfTs)+calOffset(),lane,true);
       run.engine.press(lane, inputSongTime(perfTs)); flushEngine();
     }
     function playHitsound(note) { if (window.Hitsound && audioCtx) window.Hitsound.playNote(audioCtx, run.samples, R.soundSpec(run.chart, note || {}, note ? note.time : songTimeNow())); }   // shared engine (hitsound.js)
@@ -1144,6 +1147,7 @@ if (typeof document !== 'undefined') {
     function onRelease(lane, perfTs) {
       if (!run || run.finished || run.auto || run.paused) return;
       if (heldLanes()[lane]) return;
+      run.replay?.input(inputSongTime(perfTs)+calOffset(),lane,false);
       run.engine.release(lane, inputSongTime(perfTs)); flushEngine();
     }
 
@@ -1226,9 +1230,27 @@ if (typeof document !== 'undefined') {
       return held;
     }
 
-    function render(st) {
+    function liveRenderView() {
+      return {canvas,ctx2d,run,dpr:canvas.width/canvas.getBoundingClientRect().width,now:performance.now(),
+        settings:{vsrgReceptorPosition:settings.vsrgReceptorPosition,vsrgConstantScroll:settings.vsrgConstantScroll,vsrgUpscroll:settings.vsrgUpscroll},
+        held:heldLanes(),style:noteStyle(),scale:noteScale(),colors:Array.from({length:run.keyCount},(_,i)=>laneColor(i)),hitFx,errTicks};
+    }
+    function captureReplayView(st) {
+      const v=liveRenderView(),hitY=canvas.height*(Number(settings.vsrgReceptorPosition)||.85);
+      const position=t=>settings.vsrgConstantScroll?t:R.scrollAt(run.chart.scroll,t);
+      const yAt=t=>hitY-(position(t)-position(st))/run.approachMs*hitY;
+      v.canvas={width:canvas.width,height:canvas.height};delete v.ctx2d;
+      v.run={keyCount:run.keyCount,chart:run.chart,approachMs:run.approachMs,artImg:run.artImg,windows:run.windows,
+        errors:{length:run.errors.length},errorMean:run.errorMean,
+        notes:run.notes.filter(n=>!(n.headJudged&&(n.endTime==null||n.tailJudged)) &&
+          (n.endTime!=null ? Math.min(yAt(n.endTime),n.holding?hitY:yAt(n.time))<canvas.height+36*v.dpr && Math.max(yAt(n.endTime),n.holding?hitY:yAt(n.time))>-36*v.dpr : yAt(n.time)>-36*v.dpr&&yAt(n.time)<canvas.height+18*v.dpr)).map(n=>({...n}))};
+      v.hitFx=hitFx.slice();v.errTicks=errTicks.slice();v.replay=true;
+      v.hud=window.ActivityReplay.captureHud(canvas,[comboEl,accEl,judgeEl,infoEl,fpsEl,skipBtn]);
+      return v;
+    }
+    function render(st, view=liveRenderView()) {
+      const {canvas,ctx2d,run,dpr,settings,hitFx,errTicks}=view;
       const W = canvas.width, H = canvas.height;
-      const dpr = canvas.width / canvas.getBoundingClientRect().width;
       const keyCount = run.keyCount;
       const laneW = W / keyCount;
       const hitY = H * (Number(settings.vsrgReceptorPosition) || 0.85);
@@ -1237,8 +1259,8 @@ if (typeof document !== 'undefined') {
       const flip = settings.vsrgUpscroll === true;
       const noteH = 18 * dpr;
       const recH = 22 * dpr;
-      const held = heldLanes();
-      const nowP = performance.now();
+      const held = view.held;
+      const nowP = view.now;
 
       ctx2d.clearRect(0, 0, W, H);
       ctx2d.save();
@@ -1263,10 +1285,10 @@ if (typeof document !== 'undefined') {
       ctx2d.fillStyle = '#4a5060'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
 
       // receptors (style-aware; filled + glowing while the lane key is held)
-      const style = noteStyle();
-      const scale = noteScale();
+      const style = view.style;
+      const scale = view.scale;
       for (let i = 0; i < keyCount; i++) {
-        const color = laneColor(i);
+        const color = view.colors[i];
         if (held[i]) drawReceptor(ctx2d, style, color, i * laneW, laneW, hitY, recH, dpr, arrowDir(i), true);
         drawReceptor(ctx2d, style, color, i * laneW, laneW, hitY, recH, dpr, arrowDir(i), false);
       }
@@ -1274,7 +1296,7 @@ if (typeof document !== 'undefined') {
       // notes (holds first so taps/caps draw on top)
       for (const n of run.notes) {
         if (n.headJudged && (n.endTime == null || n.tailJudged)) continue;
-        const color = laneColor(n.lane);
+        const color = view.colors[n.lane];
         const dir = arrowDir(n.lane);
         const laneX = n.lane * laneW;
         const yHead = yAt(n.time);
@@ -1293,7 +1315,7 @@ if (typeof document !== 'undefined') {
         const f = hitFx[i];
         const dur = f.kind === 'press' ? 130 : 280;
         const age = nowP - f.t;
-        if (age > dur) { hitFx.splice(i, 1); continue; }
+        if (age > dur) { if(!view.replay) hitFx.splice(i, 1); continue; }
         const k = age / dur;                       // 0..1 progress
         const cx = f.lane * laneW + laneW / 2;
         ctx2d.save();
@@ -1318,13 +1340,14 @@ if (typeof document !== 'undefined') {
       }
 
       ctx2d.restore();
-      drawErrorBar(W, H, dpr);
+      drawErrorBar(W, H, dpr, view);
     }
 
     // Unstable-rate / hit-error bar near the bottom: ticks left of centre = early,
     // right = late. Background zones show the perfect/great/good windows; a marker
     // shows the running mean. Ticks fade over ~2.5s.
-    function drawErrorBar(W, H, dpr) {
+    function drawErrorBar(W, H, dpr, view) {
+      const {ctx2d,run,errTicks}=view;
       const w = run.windows;
       const cx = W / 2, y = H - 46 * dpr, half = W * 0.34;
       const pxPerMs = half / (w.bad || 127);          // full bar = ±bad window
@@ -1339,11 +1362,11 @@ if (typeof document !== 'undefined') {
       ctx2d.fillStyle = 'rgba(255,255,255,0.6)';
       ctx2d.fillRect(cx - dpr, y - 9 * dpr, 2 * dpr, 18 * dpr);
       // ticks
-      const nowP = performance.now();
+      const nowP = view.now;
       for (let i = errTicks.length - 1; i >= 0; i--) {
         const e = errTicks[i];
         const age = nowP - e.t;
-        if (age > 2500) { errTicks.splice(i, 1); continue; }
+        if (age > 2500) { if(!view.replay) errTicks.splice(i, 1); continue; }
         const x = cx + Math.max(-half, Math.min(half, e.err * pxPerMs));
         ctx2d.globalAlpha = 1 - age / 2500;
         ctx2d.fillStyle = TIER_COLORS[e.tier] || '#fff';

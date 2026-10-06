@@ -32,9 +32,9 @@ test('explicit replay share uploads binary video only after ensuring the owned o
   await f.api.uploadReplay(run,blob,new AbortController().signal);
   const sent=f.calls.at(-1);assert.ok(sent.url.endsWith('/replay/'+run.id));assert.equal(sent.body,blob);
   assert.equal(sent.headers['Content-Type'],'video/webm');assert.equal(sent.headers.Authorization,'Bearer id-token');
-  assert.equal(f.calls.at(-2).body.session,'server-signed');
+  assert.equal(f.calls.at(-3).body.session,'server-signed');
   f.identity(null);await assert.rejects(f.api.uploadReplay(run,blob,new AbortController().signal));
-  assert.equal(f.calls.filter(c=>c.url.includes('/replay/')).length,1);
+  assert.equal(f.calls.filter(c=>c.url.includes('/replay/')&&c.body).length,1);
 });
 
 test('cancelled replay share never starts an upload',async()=>{

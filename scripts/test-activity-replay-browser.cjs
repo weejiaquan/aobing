@@ -7,9 +7,21 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{
   server=http.createServer((req,res)=>{
     const name=req.url.split('?')[0].slice(1);
-    if(['activity-replay.js','activity-replay.css','rhythm-core.js','rhythm-standard.js','i18n.js'].includes(name)){
+    if(name==='fidelity'){
+      let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+      html=html.replace('</body>','<script>window.requestAnimationFrame=()=>0;window.__replayRuntime={};window.RhythmUI={controls(){},pausePanel(){return {show(){},hide(){},cancelCountdown(){}}}};</script>'+['i18n.js','rhythm-core.js','rhythm-standard.js','rhythm-mania.js','hitsound.js','activity-replay.js','osustd.js','vsrg.js','scripts/replay-fidelity-fixture.js'].map(n=>'<script src="/'+n+'"></script>').join('')+'</body>');
+      res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;
+    }
+    if(name==='osustd.js'||name==='vsrg.js'){
+      const mode=name==='osustd.js'?'osu':'vsrg';
+      const hooks="window.__replayRuntime['"+mode+"']={parse:"+(mode==='osu'?'assembleChart':'parseOsu')+",ensureCtx,startRun,render,captureReplayView,liveRenderView,show,onKeyDown,teardownRun,get run(){return run;},skin(v){"+(mode==='osu'?'skin=v;':'')+"}};";
+      const source=fs.readFileSync(path.join(root,name),'utf8').replace("canvas.getContext('2d')","canvas.getContext('2d',{willReadFrequently:true})").replace('    function calOffset()',hooks+'\n    function calOffset()');
+      res.setHeader('Content-Type','application/javascript');res.end(source);return;
+    }
+    if(['activity-replay.js','activity-replay.css','rhythm-core.js','rhythm-standard.js','rhythm-mania.js','i18n.js','vendor/mediabunny-1.61.3.min.mjs','scripts/replay-fidelity-fixture.js','hitsound.js'].includes(name)){
       res.setHeader('Content-Type',name.endsWith('.css')?'text/css':'application/javascript');res.end(fs.readFileSync(path.join(root,name)));return;
     }
+    if(name&&name!=='favicon.ico'){res.writeHead(404);res.end();return;}
     res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<meta charset="utf-8"><body style="background:#0b1627"><script src="i18n.js"></script><script src="rhythm-core.js"></script><script src="rhythm-standard.js"></script><script src="activity-replay.js"></script><canvas id="preview" width="640" height="480"></canvas>');
   }).listen(0,'127.0.0.1');await new Promise(r=>server.on('listening',r));
   const url='http://127.0.0.1:'+server.address().port;
@@ -29,18 +41,20 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
     await ac.close();
     const o={kind:'circle',x:250,y:180,time:800};
     const run={activityRun:{id:'local-test'},audioBuf:audio,objs:[{o}],chart:{},entry:{title:'Replay browser verification',diffName:'Recorded manual hit'},radius:32,preempt:600};
-    const capture=ActivityReplay.begin(run,'osu');for(let t=0;t<=2000;t+=40)capture.sample(t,t,{x:250,y:180},t>700&&t<850?1:0,{h300:t>=800?1:0},t>=800?1:0);
+    const view={canvas:{width:640,height:480},dpr:1,hud:[]};
+    const capture=ActivityReplay.begin(run,'osu',{snapshot:()=>view,draw:(st,{g})=>{g.fillStyle='#102030';g.fillRect(0,0,640,480);g.fillStyle='#00ccff';g.beginPath();g.arc(250,180,32+st/1000,0,Math.PI*2);g.fill();g.fillStyle='#fff';g.font='24px sans-serif';g.fillText('1',243,188);}});for(let t=0;t<=2000;t+=40)capture.sample(t,t,{x:250,y:180},t>700&&t<850?1:0,{h300:t>=800?1:0},t>=800?1:0);
     capture.mark(o,'end','h300',800);const data=capture.finish(null),canvas=document.getElementById('preview');
-    const blob=await ActivityReplay.encode(data,canvas,new AbortController().signal,()=>{});
+    const started=performance.now();const blob=await ActivityReplay.encode(data,canvas,new AbortController().signal,()=>{});
+    const encodeMs=performance.now()-started;
     const video=document.createElement('video');video.muted=true;video.src=URL.createObjectURL(blob);document.body.appendChild(video);
     await new Promise((resolve,reject)=>{video.onloadeddata=resolve;video.onerror=()=>reject(new Error('Video decode failed'));video.load();});
     ActivityReplay.renderer(canvas,data)(600);
     const buffer=new Uint8Array(await blob.arrayBuffer());let binary='';for(const b of buffer)binary+=String.fromCharCode(b);
     window.__clip=btoa(binary);
     let uploads=0;
-    window.ActivityGames={uploadReplay:async(owner,blob)=>{if(!blob.size)throw new Error('Empty upload');uploads++;return {status:'sent'};},replayStatus:async()=>({status:'sent'})};
+    window.ActivityGames={prepareReplay:async()=>({maxBytes:50*1024*1024}),uploadReplay:async(owner,blob)=>{if(!blob.size)throw new Error('Empty upload');uploads++;return {status:'sent'};},replayStatus:async()=>({status:'sent'})};
     const maniaNote={lane:1,time:800,endTime:1500},maniaRun={activityRun:{id:'mania'},audioBuf:audio,notes:[maniaNote],keyCount:4,chart:{scroll:[]},entry:{title:'Mania replay',diffName:'4K'}};
-    maniaRun.replay=ActivityReplay.begin(maniaRun,'vsrg',{constantScroll:true});
+    maniaRun.replay=ActivityReplay.begin(maniaRun,'vsrg',capture.data.options);
     for(let t=0;t<=2000;t+=40)maniaRun.replay.sample(t,t,null,t>=800&&t<=1500?2:0,{marvelous:t>=1500?1:0},t>=1500?1:0,1000);
     maniaRun.replay.mark(maniaNote,'head','marvelous',800);maniaRun.replay.mark(maniaNote,'judge','marvelous',1500);
     const panel=document.createElement('div');document.body.appendChild(panel);ActivityReplay.mount(panel,maniaRun);
@@ -51,11 +65,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
     if(!panel.textContent.includes('Replay sent'))throw new Error('Missing upload receipt');
     maniaRun.disposeReplay();
     const cancelled=document.createElement('div');document.body.appendChild(cancelled);ActivityReplay.mount(cancelled,maniaRun);
-    cancelled.querySelector('button').click();setTimeout(()=>cancelled.querySelectorAll('button')[1].click(),100);
+    cancelled.querySelector('button').click();cancelled.querySelectorAll('button')[1].click();
     await new Promise(r=>setTimeout(r,500));
     if(uploads!==1||!cancelled.textContent.includes('Sharing cancelled'))throw new Error('Cancel failed');
     maniaRun.disposeReplay();
-    return {type:blob.type,size:blob.size,width:video.videoWidth,height:video.videoHeight,shareButton:'passed',cancel:'passed'};
+    return {encodeMs,type:blob.type,size:blob.size,width:video.videoWidth,height:video.videoHeight,shareButton:'passed',cancel:'passed'};
   })()`});
   if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
   if(result.result.value.width!==640 || result.result.value.size<1000)throw new Error('Invalid encoded video');
@@ -65,4 +79,10 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const videoPath=path.join(os.tmpdir(),'aobing-replay-browser.'+(result.result.value.type==='video/mp4'?'mp4':'webm'));
   fs.writeFileSync(videoPath,Buffer.from(clip.result.value,'base64'));
   console.log(JSON.stringify({...result.result.value,preview,videoPath}));
+  await call('Page.navigate',{url:url+'/fidelity'});
+  for(let i=0;i<100;i++){const r=await call('Runtime.evaluate',{expression:'!!window.checkReplayFidelity',returnByValue:true});if(r.result.value)break;await wait(100);}
+  const fidelity=await call('Runtime.evaluate',{expression:'checkReplayFidelity()',awaitPromise:true,returnByValue:true});
+  if(fidelity.exceptionDetails){const d=await call('Runtime.evaluate',{expression:'window.__diff',returnByValue:true});if(d.result.value)d.result.value.forEach((img,i)=>fs.writeFileSync(path.join(os.tmpdir(),'replay-diff-'+i+'.png'),Buffer.from(img.split(',')[1],'base64')));throw new Error(JSON.stringify(fidelity.exceptionDetails));}
+  console.log(JSON.stringify(fidelity.result.value));
+  for(const mode of ['osu','vsrg']){const shot=await call('Runtime.evaluate',{expression:JSON.stringify(mode)+" && document.getElementById('fidelity-"+mode+"').toDataURL()",returnByValue:true});fs.writeFileSync(path.join(os.tmpdir(),'aobing-replay-fidelity-'+mode+'.png'),Buffer.from(shot.result.value.split(',')[1],'base64'));}
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>{ws?.close();child?.kill();server?.close();});

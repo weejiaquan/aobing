@@ -141,15 +141,22 @@ Activity roster; it must not imply that everyone has joined the same match.
 Completed manual Standard/Mania results in the Discord Activity include **Share
 replay**. Ordinary web play and autoplay do not collect or expose replay sharing.
 Capture lightweight timeline data during play; encode only after the player clicks.
-Use an isolated 640×480 replay view with cursor/lane state, actual judgement events,
-accuracy/combo and song audio. It is not a pixel-perfect custom-skin recording and
-does not export custom hitsounds. Keep export progress, cancellation, error/retry
-and delivery feedback inside results, translated into all eight languages. Leaving
-results stops local export. Hiding the Activity cancels rendering; an upload already
-accepted by Kei continues delivery. Keep the Activity visible while exporting.
-Replay data is in memory for the current run; older scores cannot be reconstructed.
-The initial limits are ten minutes and 8 MiB per video, three new uploads per hour.
-Kei relays the encoded attachment to the saved score's channel without rendering it.
+Reuse the actual game renderer and snapshot the selected skin, visible object
+state, circle numbers, cursor/trail, held lanes, HUD text/key counters and effects.
+Record input timestamps and the actual emitted hitsounds/custom samples. Never
+re-judge or mutate the finished run to export. Composite the real HUD's measured
+geometry/styles over its canvas. Preserve the gameplay aspect ratio, up to 1080p
+and 60 fps; timing is preserved to video-frame precision, not a lossless screen capture.
+Use offline WebCodecs H.264/AAC MP4 with front-loaded metadata for Discord playback.
+Encode after click as fast as the device permits, without replaying in wall-clock
+time or encoding during gameplay. Unsupported browsers show a clear message.
+Keep progress, cancellation and delivery/retry feedback inside results, translated
+into all eight languages. Leaving results/hiding the Activity stops local export;
+an upload already accepted by Kei continues. Replay state is in memory for the
+current run only. Bound it to ten minutes/two million snapshot units. Keep three
+new uploads per hour; Kei supplies the destination guild's bot upload limit
+(20 MiB base, 50/100 MiB at boost levels 2/3), capped at 100 MiB server-side.
+Kei relays the finished attachment and does no rendering/transcoding.
 
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not

@@ -116,6 +116,7 @@
     playPreset(ctx, PRESETS[kind()] || PRESETS[DEFAULT_KIND], v);
   }
   function playPreset(ctx, p, v) {
+    ctx.__replaySound?.({type:'preset',args:[p,v],duration:p.dur+.02});
     const t = ctx.currentTime;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = p.type;
@@ -142,6 +143,7 @@
     } catch (e) { ctx.__hsDecoding = -1; }
   }
   function playBuffer(ctx, buf, v) {
+    ctx.__replaySound?.({type:'buffer',args:[buf,v],duration:buf.duration});
     const src = ctx.createBufferSource(), g = ctx.createGain();
     g.gain.value = Math.min(1, v / 100);
     src.buffer = buf; src.connect(g).connect(ctx.destination); src.start();
@@ -151,6 +153,10 @@
   // Distinct from the configured hit sound so the rhythm reads clearly over the slide.
   function tick(ctx) {
     const v = vol(); if (!ctx || !(v > 0)) return;
+    tickSound(ctx,v);
+  }
+  function tickSound(ctx,v) {
+    ctx.__replaySound?.({type:'tick',args:[v],duration:.05});
     const t = ctx.currentTime;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'triangle'; o.frequency.setValueAtTime(1750, t);
@@ -173,12 +179,14 @@
     ctx.__hsNoise = b; return b;
   }
   function blip(ctx, type, f0, f1, dur, peak) {
+    ctx.__replaySound?.({type:'blip',args:[type,f0,f1,dur,peak],duration:dur+.02});
     const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur * 0.7);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
   }
   function noiseHit(ctx, hp, dur, peak) {
+    ctx.__replaySound?.({type:'noise',args:[hp,dur,peak],noise:noiseBuf(ctx),duration:dur+.02});
     const t = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     src.buffer = noiseBuf(ctx); f.type = 'highpass'; f.frequency.value = hp;
     g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -259,6 +267,12 @@
     el.querySelector('#hs-test').addEventListener('click', () => preview());
   }
 
-  window.Hitsound = { init: init, play: play, tick: tick, prepare: prepare, playNote: playNote, playTick: playTick, playAdditions: playAdditions, preview: preview, renderControls: renderControls };
+  async function renderRecorded(sound) {
+    const ctx=new OfflineAudioContext(2,Math.max(1,Math.ceil(sound.duration*48000)),48000);
+    if(sound.noise)ctx.__hsNoise=sound.noise;
+    ({preset:playPreset,buffer:playBuffer,tick:tickSound,blip,noise:noiseHit})[sound.type](ctx,...sound.args);
+    return ctx.startRendering();
+  }
+  window.Hitsound = { renderRecorded, init: init, play: play, tick: tick, prepare: prepare, playNote: playNote, playTick: playTick, playAdditions: playAdditions, preview: preview, renderControls: renderControls };
   if (window.__hitsoundDeps) init(window.__hitsoundDeps);   // self-init (loaded after app.js sets deps)
 })();

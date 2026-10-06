@@ -1095,7 +1095,7 @@ if (typeof document !== 'undefined') {
     }
     // Multiply-tint a white/greyscale sprite by a combo colour, preserving alpha.
     function tintImage(key, img, color) {
-      const ck = key + '|' + color;
+      const ck = img.src + '|' + key + '|' + color;
       let c = tintCache.get(ck);
       if (c) return c;
       c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -1107,7 +1107,7 @@ if (typeof document !== 'undefined') {
       return c;
     }
     // Draw the combo number using the skin's default-0..9 digit sprites.
-    function drawSkinNumber(sc, number, rad) {
+    function drawSkinNumber(sc, number, rad, g, skin) {
       const digits = String(number || '').split('');
       const h = rad * 1.0;
       let widths = 0; const dims = digits.map((d) => {
@@ -1123,6 +1123,7 @@ if (typeof document !== 'undefined') {
     function teardownRun() {
       if (!run) return;
       run.disposeReplay?.();
+      if(audioCtx)audioCtx.__replaySound=null;
       if (!run.finished && run.multiplayer) reportMultiplayer('forfeit');
       run.finished = true;
       disarmQuickRestart();
@@ -1214,7 +1215,8 @@ if (typeof document !== 'undefined') {
       buildKeyOverlay();
       bindInput(true);
       run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
-      run.replay = window.ActivityReplay?.begin(run, 'osu');
+      run.replay = window.ActivityReplay?.begin(run, 'osu', {snapshot: captureReplayView, draw: render});
+      if(run.replay){run.replay.data.musicVolume=run.gain.gain.value;const capture=run.replay,clock=run.clock;audioCtx.__replaySound=sound=>capture.sound(clock.at(),sound);}
       run.rafId = requestAnimationFrame(loop);
       updateHud();
     }
@@ -1451,10 +1453,10 @@ if (typeof document !== 'undefined') {
     // Both mouse buttons tap (left = M1, right = M2, like osu); right-click's context
     // menu is suppressed on the canvas so it can be used as a button.
     function mouseBtn(e) { return e.button === 2 ? 'm2' : 'm1'; }
-    function onPointerDown(e) { if (!run || run.paused || e.pointerType === 'mouse') return; e.preventDefault(); updateCursorFromEvent(e); try { canvas.setPointerCapture(e.pointerId); } catch (_) {} run.pressed.m1 = true; pressKey('m1',true); rememberInput(e.timeStamp); onTap(e.timeStamp); }
-    function onPointerUp(e) { if (!run || e.pointerType === 'mouse') return; run.pressed.m1 = false; pressKey('m1',false); rememberInput(e.timeStamp); }
-    function onMouseDown(e) { if (!run || run.paused || ![0,2].includes(e.button)) return; e.preventDefault(); grabFocus(); updateCursorFromEvent(e); const b=mouseBtn(e); run.pressed[b]=true; pressKey(b,true); rememberInput(e.timeStamp); onTap(e.timeStamp); }
-    function onMouseUp(e) { if (!run || ![0,2].includes(e.button)) return; const b=mouseBtn(e); run.pressed[b]=false; pressKey(b,false); rememberInput(e.timeStamp); }
+    function onPointerDown(e) { if (!run || run.paused || e.pointerType === 'mouse') return; e.preventDefault(); updateCursorFromEvent(e); try { canvas.setPointerCapture(e.pointerId); } catch (_) {} run.pressed.m1 = true; pressKey('m1',true, e.timeStamp); rememberInput(e.timeStamp); onTap(e.timeStamp); }
+    function onPointerUp(e) { if (!run || e.pointerType === 'mouse') return; run.pressed.m1 = false; pressKey('m1',false, e.timeStamp); rememberInput(e.timeStamp); }
+    function onMouseDown(e) { if (!run || run.paused || ![0,2].includes(e.button)) return; e.preventDefault(); grabFocus(); updateCursorFromEvent(e); const b=mouseBtn(e); run.pressed[b]=true; pressKey(b,true, e.timeStamp); rememberInput(e.timeStamp); onTap(e.timeStamp); }
+    function onMouseUp(e) { if (!run || ![0,2].includes(e.button)) return; const b=mouseBtn(e); run.pressed[b]=false; pressKey(b,false, e.timeStamp); rememberInput(e.timeStamp); }
     function tapKeys() {
       const k = settings.osuKeys;
       return (Array.isArray(k) && k.length) ? k.map((x) => String(x).toLowerCase()) : ['z', 'x'];
@@ -1472,7 +1474,8 @@ if (typeof document !== 'undefined') {
         keysOverlayEl.appendChild(box); keyBoxes[k] = box; keyCounts[k] = 0;
       });
     }
-    function pressKey(k, on) {
+    function pressKey(k, on, perfTs) {
+      if(run&&!run.finished)run.replay?.input(inputSongTime(perfTs)+calOffset(),k,on);
       const box = keyBoxes[k]; if (!box) return;
       box.classList.toggle('active', on);
       if (on) { keyCounts[k] = (keyCounts[k] || 0) + 1; box.querySelector('.osu-key-count').textContent = keyCounts[k]; }
@@ -1515,9 +1518,9 @@ if (typeof document !== 'undefined') {
       if (run.paused) { const k=e.key.toLowerCase(); if(tapKeys().includes(k)) { run.pressed[k]=true; e.preventDefault(); } return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       const k = e.key.toLowerCase();
-      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true); e.preventDefault(); rememberInput(e.timeStamp); onTap(e.timeStamp); }
+      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true, e.timeStamp); e.preventDefault(); rememberInput(e.timeStamp); onTap(e.timeStamp); }
     }
-    window.addEventListener('keyup', (e) => { if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; } const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); rememberInput(e.timeStamp); } });
+    window.addEventListener('keyup', (e) => { if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; } const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false, e.timeStamp); rememberInput(e.timeStamp); } });
 
     // ---- Render --------------------------------------------------------------
     function accuracy() {
@@ -1525,21 +1528,37 @@ if (typeof document !== 'undefined') {
       if (!total) return 100;
       return Math.round(((300 * c.h300 + 100 * c.h100 + 50 * c.h50) / (300 * total)) * 10000) / 100;
     }
-    function render(st) {
-      const W = canvas.width, H = canvas.height, dpr = W / canvas.getBoundingClientRect().width;
-      const tf = transform();
+    function liveRenderView() {
+      return {canvas, g, run, skin, tf:transform(), dpr:canvas.width/canvas.getBoundingClientRect().width,
+        brightness:bgBrightness(), cScale:cursorScale(), cursor, trail, bursts, errTicks, now:performance.now()};
+    }
+    function captureReplayView(st) {
+      const v=liveRenderView();
+      // Static geometry/images are shared; only visible mutable state is copied.
+      v.canvas={width:canvas.width,height:canvas.height}; delete v.g;
+      v.run={radius:run.radius,preempt:run.preempt,fadeIn:run.fadeIn,windows:run.windows,artImg:run.artImg,
+        connections:run.chart.objects,errors:{length:run.errors.length},errorMean:run.errorMean,
+        objs:run.objs.filter(s=>!s.judged && st>=s.o.time-Math.max(run.preempt,300)).map(s=>({...s,checkpoints:s.checkpoints?.map(cp=>({...cp}))}))};
+      v.cursor={...cursor};v.trail=trail.slice();v.bursts=bursts.slice();v.errTicks=errTicks.slice();v.replay=true;
+      v.hud=window.ActivityReplay.captureHud(canvas,[comboEl,accEl,judgeEl,fpsEl,skipBtn,...Object.values(keyBoxes)]);
+      return v;
+    }
+    function render(st, view=liveRenderView()) {
+      const {canvas,g,run,skin,tf,dpr,cursor,trail,bursts,errTicks,now}=view;
+      const W = canvas.width, H = canvas.height;
       g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
       if (run.artImg) {
         const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
-        if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = bgBrightness(); g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
+        if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = view.brightness; g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
       }
       // playfield border
       const p0 = osuToScreen(0, 0, tf), p1 = osuToScreen(PLAY_W, PLAY_H, tf);
       g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1 * dpr; g.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
       const rad = run.radius * tf.scale;
       // Connections respect combo boundaries and start at a slider's final end.
-      for (let i=1;i<run.objs.length;i++) {
-        const a=run.objs[i-1].o, b=run.objs[i].o;
+      const connections=run.connections || run.chart.objects;
+      for (let i=1;i<connections.length;i++) {
+        const a=connections[i-1], b=connections[i];
         if (a.kind==='spinner' || b.kind==='spinner' || b.newCombo || st<b.time-run.preempt || st>b.time) continue;
         const start=a.kind==='slider'?sliderBallPos(a,a.endTime):a;
         const length=dist(start,b); if(length<run.radius*3) continue;
@@ -1627,7 +1646,7 @@ if (typeof document !== 'undefined') {
           const d = rad * 2;
           g.drawImage(tintImage('hc', skin.images.hitcircle, s.color), sc.x - rad, sc.y - rad, d, d);
           if (skin.images.hitcircleoverlay) g.drawImage(skin.images.hitcircleoverlay, sc.x - rad, sc.y - rad, d, d);
-          if (skin.images.digits.length) drawSkinNumber(sc, s.number, rad);
+          if (skin.images.digits.length) drawSkinNumber(sc, s.number, rad, g, skin);
           else { g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(s.number || ''), sc.x, sc.y); }
           if (ap > 0) {
             const ar = rad * (1 + ap * 3);
@@ -1644,10 +1663,10 @@ if (typeof document !== 'undefined') {
         g.globalAlpha = 1;
       }
       // hit-feedback bursts at the circle position (expanding ring + judgement)
-      const nowB = performance.now();
+      const nowB = view.now;
       for (let i = bursts.length - 1; i >= 0; i--) {
         const b = bursts[i]; const age = nowB - b.t;
-        if (age > 350) { bursts.splice(i, 1); continue; }
+        if (age > 350) { if(!view.replay) bursts.splice(i, 1); continue; }
         const k = age / 350, sc = osuToScreen(b.x, b.y, tf), col = JUDGE_COLORS[b.result] || '#fff';
         g.globalAlpha = 1 - k; g.strokeStyle = col; g.lineWidth = 3 * dpr;
         g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + k * 0.8), 0, Math.PI * 2); g.stroke();
@@ -1655,7 +1674,7 @@ if (typeof document !== 'undefined') {
         g.globalAlpha = 1;
       }
       // cursor trail — skin sprite if provided, else the built-in glow line
-      const nowC = performance.now();
+      const nowC = view.now;
       if (skin && skin.images.cursortrail) {
         const im = skin.images.cursortrail, ts = (30 * dpr) / Math.max(im.width, im.height), tw = im.width * ts, th = im.height * ts;
         for (let i = 0; i < trail.length; i++) {
@@ -1673,7 +1692,7 @@ if (typeof document !== 'undefined') {
       g.globalAlpha = 1;
       // cursor — skin sprite if provided, else the built-in glowing dot (× user size)
       const cs = osuToScreen(cursor.x, cursor.y, tf);
-      const cScale = cursorScale();
+      const cScale = view.cScale;
       if (skin && skin.images.cursor) {
         const im = skin.images.cursor, csz = (44 * dpr * cScale) / Math.max(im.width, im.height), cw = im.width * csz, ch = im.height * csz;
         g.drawImage(im, cs.x - cw / 2, cs.y - ch / 2, cw, ch);
@@ -1685,13 +1704,14 @@ if (typeof document !== 'undefined') {
         g.beginPath(); g.arc(cs.x, cs.y, 12 * dpr * cScale, 0, Math.PI * 2); g.stroke();
         g.restore();
       }
-      drawErrorBar(W, H, dpr);
+      drawErrorBar(W, H, dpr, view);
     }
 
     // Hit-error bar near the bottom: ticks left of centre = early, right = late.
     // Background zones show the 300/100/50 windows; a marker tracks the running
     // mean. Ticks fade over ~2.5s. Mirrors osu!mania's bar.
-    function drawErrorBar(W, H, dpr) {
+    function drawErrorBar(W, H, dpr, view) {
+      const {g,run,errTicks}=view;
       const w = run.windows;
       const cx = W / 2, y = H - 30 * dpr, half = W * 0.22;
       const pxPerMs = half / (w.h50 || 100);            // full bar = ±50 (widest) window
@@ -1700,10 +1720,10 @@ if (typeof document !== 'undefined') {
       zone(w.h100, 'rgba(57,217,138,0.24)');
       zone(w.h300, 'rgba(86,160,255,0.30)');
       g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(cx - dpr, y - 9 * dpr, 2 * dpr, 18 * dpr);   // centre line
-      const nowP = performance.now();
+      const nowP = view.now;
       for (let i = errTicks.length - 1; i >= 0; i--) {
         const e = errTicks[i], age = nowP - e.t;
-        if (age > 2500) { errTicks.splice(i, 1); continue; }
+        if (age > 2500) { if(!view.replay) errTicks.splice(i, 1); continue; }
         const x = cx + Math.max(-half, Math.min(half, e.err * pxPerMs));
         g.globalAlpha = 1 - age / 2500; g.fillStyle = JUDGE_COLORS[e.result] || '#fff';
         g.fillRect(x - dpr, y - 8 * dpr, 2 * dpr, 16 * dpr); g.globalAlpha = 1;

@@ -250,25 +250,34 @@ or new Activity URL mapping is involved: Discord renders those images in chat.
 ## Share replay (October 2026)
 
 After a new manual Standard/Mania run in a guild Activity, results include **Share
-replay**. Click it and keep the Activity visible while the client renders the run
-with song audio; this takes about the played song duration. Kei uploads the video
-to the score's original channel. No video is uploaded automatically. The button
-is absent on the ordinary website and for autoplay/forfeited runs. Replay data is
-discarded on leaving results or starting another run; old scores have no replay.
+replay**. Click it and keep the Activity visible during export. The client renders
+H.264/AAC MP4 directly from timestamped frames using WebCodecs and a locally
+vendored Mediabunny muxer; it no longer waits for the song to play in real time.
+Kei posts the file to the score's original channel. Nothing uploads automatically.
+Web play, autoplay and forfeits have no Share button; old scores cannot be replayed.
 
-The exporter uses a compact 640×480 replay presentation, not custom skins or
-custom hitsounds. Paused time is omitted; skipped intros start at the skip point.
-It prefers VP8/Opus WebM, feature-tests MP4 as a fallback, and shows an unsupported
-message if the browser cannot encode. Limits: ten minutes, 8 MiB per video and
-three new shares per player/hour. Kei needs **Attach Files** in addition to the
-existing channel permissions. An accepted upload survives navigation or restart.
-The client briefly checks delivery status; temporary outages remain queued.
+The exporter reuses the live game renderer and the run's actual skin, circle
+numbers, slider/spinner progress, cursor/trail, lane style/holds, error bar and
+HUD/key counters. Recorded input timing and emitted custom/map hitsounds are
+preserved; no re-judging occurs. DOM HUD geometry/fonts/colors are composited on
+its canvas. Output preserves aspect ratio up to 1080p at 60 fps (compressed video,
+not a lossless or sub-frame-accurate screen recording). Pauses are omitted and
+intro skips are respected. State and audio stay local until explicit sharing.
 
-`activity-replay.js` loads only inside the Activity; its CSS uses the existing
-same-origin mapping. No new OAuth scope, Discord URL mapping or rendering service
-is needed. `scripts/test-activity-replay-browser.cjs` checks real encoding, video
-decoding, the Share button and cancellation in an isolated headless Chrome session.
-Live playback and posting in Discord still require a real Discord client check.
+Kei needs **Attach Files**. Before export, it reports the saved score's guild upload
+limit: 20 MiB base, 50 MiB at boost level 2, 100 MiB at level 3. The bot's server
+limit applies, not the viewer's personal Nitro allowance. The server rechecks the
+limit during upload. Limits also include ten minutes, bounded snapshot memory,
+and three new shares/player/hour. Accepted uploads survive navigation/restart.
+MP4 encoding must be supported by the Activity browser; no unreliable WebM fallback
+is silently sent. No new OAuth scope, URL mapping or server renderer is needed.
+
+`scripts/test-activity-replay-browser.cjs` verifies H.264/AAC encoding, decoding,
+Share/cancellation, and actual renderer comparisons (allowing tiny canvas
+antialiasing differences) with a custom Standard skin and Mania arrow style.
+Its isolated 640x480 30-second fixtures encoded in roughly 2.5-3.2 seconds on the
+development machine; device/resolution/map complexity affect throughput. Real
+Discord inline playback still needs a live client acceptance check.
 
 ## Status (as of 2026-06-16)
 

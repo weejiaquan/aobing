@@ -1,137 +1,167 @@
-/* Discord-only run capture, isolated replay renderer, and client video export. */
+/* Discord-only capture of the real game presentation and offline MP4 export. */
 (function(root) {
   'use strict';
-  const MAX_BYTES=8*1024*1024, MAX_MS=600000;
-  const colors=['#56baff','#ff82bd','#f5bd67','#86e6cd'];
-  const labels={h300:'300',h100:'100',h50:'50',marvelous:'MAX',perfect:'300',great:'200',good:'100',bad:'50',miss:'MISS'};
+  const MAX_BYTES=100*1024*1024, MAX_MS=600000, FPS=60;
   const text=(key,vars)=>root.I18N.t('replay.'+key,vars);
-  let activeExport=null;
+  let activeExport=null, mediaModule;
+  const media=()=>mediaModule||(mediaModule=import('./vendor/mediabunny-1.61.3.min.mjs'));
+  const supported=()=>!!(root.VideoEncoder&&root.AudioEncoder);
 
-  function begin(run, mode, options={}) {
-    if (!root.__ACTIVITY__?.instanceId || !run.activityRun || run.auto) return null;
+  function begin(run,mode,options={}) {
+    if(!root.__ACTIVITY__?.instanceId||!run.activityRun||run.auto)return null;
     const objects=mode==='osu'?run.objs.map(s=>s.o):run.notes;
     const indices=new Map(objects.map((o,i)=>[o,i]));
-    const data={mode,objects,options,scroll:run.chart.scroll,frames:[],events:[],start:0,end:0,audio:run.audioBuf,
-      title:run.entry.title,difficulty:run.entry.diffName,keys:run.keyCount||0,
-      radius:run.radius||32,preempt:run.preempt||1200,art:null,owner:run.activityRun,disabled:false};
-    return {
-      data,
+    const data={mode,objects,options,frames:[],events:[],inputs:[],sounds:[],start:null,end:0,audio:run.audioBuf,
+      owner:run.activityRun,disabled:false,snapshotUnits:0};
+    const disable=()=>{data.disabled=true;data.frames=[];data.events=[];data.inputs=[];data.sounds=[];};
+    return {data,
       sample(raw,visual,cursor,held,counts,combo,approach) {
-        if(data.disabled || !Number.isFinite(raw) || raw<0) return;
-        if(raw-data.start>MAX_MS) { data.disabled=true;data.frames=[];data.events=[];return; }
-        if(data.frames.length && raw-data.frames.at(-1)[0]<1000/30) return;
-        const weights=mode==='osu'?{h300:300,h100:100,h50:50,miss:0}:{marvelous:320,perfect:300,great:200,good:100,bad:50,miss:0};
-        let points=0,total=0;for(const k in weights){points+=(counts[k]||0)*weights[k];total+=counts[k]||0;}
-        data.frames.push([raw,visual,cursor?.x||0,cursor?.y||0,held,combo,total?100*points/(total*(mode==='osu'?300:320)):100,approach||1200]);
-        data.end=raw;
+        if(data.disabled||!Number.isFinite(raw))return;
+        if(data.start===null)data.start=Math.min(0,raw);
+        if(raw-data.start>MAX_MS){disable();return;}
+        if(data.frames.length&&raw-data.frames.at(-1)[0]<1000/FPS-1)return;
+        const view=options.snapshot?.(visual);
+        data.snapshotUnits+=1+(view?.run?.objs?.length||0)+(view?.run?.notes?.length||0)+(view?.hud?.length||0);
+        // Bound the in-memory timeline as well as its duration on dense maps.
+        if(data.snapshotUnits>2000000){disable();return;}
+        data.frames.push([raw,visual,view,run.gain?.gain.value??data.musicVolume??1]);data.end=raw;
       },
       mark(object,kind,tier,raw) {
-        if(data.disabled || !indices.has(object)) return;
-        if(data.events.length>=200000) {data.disabled=true;data.frames=[];data.events=[];return;}
+        if(data.disabled||!indices.has(object))return;
+        if(data.events.length>=200000){disable();return;}
         data.events.push([raw,indices.get(object),kind,tier]);
       },
-      skip(raw) {data.start=Math.max(0,raw);data.frames=data.frames.filter(f=>f[0]>=data.start);},
-      finish(art) {data.art=art;data.events.sort((a,b)=>a[0]-b[0]);return data;},
+      sound(raw,sound) {
+        if(data.disabled)return;
+        if(data.sounds.length>=200000){disable();return;}
+        data.sounds.push({raw,...sound});
+      },
+      input(raw,key,down) {
+        if(data.disabled||!Number.isFinite(raw))return;
+        if(data.inputs.length>=200000){disable();return;}
+        data.inputs.push([raw,key,down]);
+      },
+      skip(raw){data.start=Math.max(0,raw);data.frames=data.frames.filter(f=>f[0]>=data.start);},
+      finish(){return data;},
     };
   }
 
-  function renderer(canvas,data) {
-    const g=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
-    let frame=0,event=0;const ended=new Map(),heads=new Set();
-    return time=>{
-      while(frame+1<data.frames.length && data.frames[frame+1][0]<=time) frame++;
-      while(event<data.events.length && data.events[event][0]<=time) {
-        const e=data.events[event++];if(e[2]==='end'||e[2]==='judge')ended.set(e[1],e);else if(e[2]==='head'||e[2]==='break')heads.add(e[1]);
-      }
-      const f=data.frames[frame],next=data.frames[Math.min(frame+1,data.frames.length-1)];
-      const mix=next[0]>f[0]?Math.max(0,Math.min(1,(time-f[0])/(next[0]-f[0]))):0;
-      const visual=f[1]+time-f[0];
-      g.fillStyle='#0b1627';g.fillRect(0,0,W,H);
-      if(data.art){g.globalAlpha=.17;g.drawImage(data.art,0,0,W,H);g.globalAlpha=1;}
-      const top=68,bottom=H-42,scale=Math.min(W/640,(bottom-top)/384),ox=(W-512*scale)/2,oy=top;
-      if(data.mode==='osu') {
-        const radius=data.radius*scale;
-        for(let i=data.objects.length-1;i>=0;i--){
-          const o=data.objects[i],end=ended.get(i);
-          if(end){if(time-end[0]<350 && o.x!=null){g.fillStyle=end[3]==='miss'?'#ff6682':'#a5efff';g.font='bold 18px sans-serif';g.fillText(labels[end[3]]||'',ox+o.x*scale,oy+o.y*scale);}continue;}
-          if(visual<o.time-data.preempt||visual>(o.endTime||o.time)+300)continue;
-          const color=colors[i%colors.length];g.strokeStyle=color;g.fillStyle=color;
-          if(o.kind==='spinner') {g.lineWidth=4;g.beginPath();g.arc(W/2,(top+bottom)/2,90*scale,0,Math.PI*2);g.stroke();continue;}
-          const x=ox+o.x*scale,y=oy+o.y*scale;
-          if(o.kind==='slider' && o.path?.length){
-            g.lineWidth=radius*1.6;g.lineCap='round';g.globalAlpha=.35;g.beginPath();
-            o.path.forEach((p,j)=>j?g.lineTo(ox+p.x*scale,oy+p.y*scale):g.moveTo(ox+p.x*scale,oy+p.y*scale));g.stroke();g.globalAlpha=1;
-            if(visual>=o.time && visual<=o.endTime && root.RhythmStandard){const p=root.RhythmStandard.ball(o,visual);g.fillStyle='#fff';g.beginPath();g.arc(ox+p.x*scale,oy+p.y*scale,radius*.65,0,Math.PI*2);g.fill();}
-          }
-          if(!heads.has(i)){g.lineWidth=2;g.beginPath();g.arc(x,y,radius,0,Math.PI*2);g.stroke();g.globalAlpha=.2;g.fill();g.globalAlpha=1;
-            if(visual<o.time){g.beginPath();g.arc(x,y,radius*(1+3*(o.time-visual)/data.preempt),0,Math.PI*2);g.stroke();}}
-        }
-        g.fillStyle=f[4]?'#f5bd67':'#fff';g.beginPath();g.arc(ox+(f[2]+(next[2]-f[2])*mix)*scale,oy+(f[3]+(next[3]-f[3])*mix)*scale,6,0,Math.PI*2);g.fill();
-      } else {
-        const laneW=Math.min(64,(W-80)/data.keys),left=(W-laneW*data.keys)/2,hit=top+(bottom-top)*(data.options.receptor||.85);
-        const position=t=>data.options.constantScroll||!root.RhythmCore?t:root.RhythmCore.scrollAt(data.scroll,t);
-        g.save();if(data.options.upscroll){g.translate(0,top+bottom);g.scale(1,-1);}
-        for(let lane=0;lane<data.keys;lane++){g.fillStyle=f[4]&(1<<lane)?'#244f6a':'#132338';g.fillRect(left+lane*laneW,top,laneW-2,hit-top+14);}
-        g.fillStyle='#a5efff';g.fillRect(left,hit,data.keys*laneW,3);
-        for(let i=0;i<data.objects.length;i++) {
-          const o=data.objects[i];if(ended.has(i))continue;
-          const y=hit-(position(o.time)-position(visual))/f[7]*(hit-top),tail=hit-(position(o.endTime??o.time)-position(visual))/f[7]*(hit-top);
-          if(y<top-20 || tail>bottom+20)continue;
-          g.fillStyle=colors[o.lane%colors.length];const x=left+o.lane*laneW+4;
-          if(o.endTime!=null){g.globalAlpha=.45;g.fillRect(x,Math.max(top,tail),laneW-8,Math.max(0,Math.min(hit,y)-Math.max(top,tail)));g.globalAlpha=1;}
-          if(!heads.has(i))g.fillRect(x,y,laneW-8,12);
-        }
-        g.restore();
-        const last=data.events[event-1];if(last && time-last[0]<300){g.fillStyle=last[3]==='miss'?'#ff6682':'#a5efff';g.font='bold 22px sans-serif';g.fillText(labels[last[3]]||'',W/2-25,H/2);}
-      }
-      g.fillStyle='#091222';g.fillRect(0,0,W,58);g.fillRect(0,H-34,W,34);
-      g.fillStyle='#fff';g.font='bold 17px sans-serif';g.textAlign='left';g.fillText(String(data.title).slice(0,70),18,24,W-36);
-      g.fillStyle='#a5efff';g.font='13px sans-serif';g.fillText(String(data.difficulty).slice(0,80),18,45,W-200);
-      g.textAlign='right';g.fillText(f[6].toFixed(2)+'%   '+f[5]+'×',W-18,45);g.textAlign='left';
-      g.fillStyle='#b5cbe0';g.fillText('AOBING IT! · '+(data.mode==='osu'?'Standard':'Mania')+' · REPLAY',18,H-12);
-      g.fillStyle='#009fe8';g.fillRect(0,H-3,W*Math.min(1,(time-data.start)/Math.max(1,data.end-data.start)),3);
+  // Snapshot the real HUD's text, geometry, colors, opacity and key counters.
+  // The canvas renderer owns the playfield; DOM overlays are composited on top.
+  function captureHud(canvas,elements) {
+    if(!root.getComputedStyle)return [];
+    const base=canvas.getBoundingClientRect(),items=[];
+    if(!base.width)return items;
+    const visit=(el,parentOpacity=1)=>{
+      if(!el||el.hidden)return;
+      const r=el.getBoundingClientRect(),c=root.getComputedStyle(el);
+      if(!r.width||!r.height||c.display==='none'||c.visibility==='hidden')return;
+      const opacity=parentOpacity*Number(c.opacity);
+      const scale=el.offsetHeight?r.height/el.offsetHeight:1;
+      if(opacity<=0)return;
+      items.push({x:r.left-base.left,y:r.top-base.top,w:r.width,h:r.height,opacity,
+        background:c.backgroundColor,border:c.borderTopColor,borderWidth:parseFloat(c.borderTopWidth)||0,
+        radius:(parseFloat(c.borderTopLeftRadius)||0)*scale,color:c.color,font:[c.fontStyle,c.fontWeight,(parseFloat(c.fontSize)*scale)+'px',c.fontFamily].join(' '),
+        align:c.textAlign,padLeft:parseFloat(c.paddingLeft)||0,padRight:parseFloat(c.paddingRight)||0,
+        text:el.children.length?'':el.textContent});
+      for(const child of el.children)visit(child,opacity);
     };
+    elements.forEach(el=>visit(el));return items;
   }
-
-  function mimeType() {
-    return ['video/webm;codecs=vp8,opus','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/webm'].find(m=>root.MediaRecorder?.isTypeSupported(m));
-  }
-  async function encode(data,canvas,signal,progress) {
-    if(!mimeType()||!canvas.captureStream)throw new Error('unsupported');
-    if(data.disabled||data.frames.length<2||data.end-data.start>MAX_MS)throw new Error('unavailable');
-    const ac=new (root.AudioContext||root.webkitAudioContext)();
-    let stream,recorder,source,raf=0,watchdog=0;
-    try {
-      await ac.resume();if(signal.aborted)throw new Error('cancelled');
-      const duration=(data.end-data.start)/1000,draw=renderer(canvas,data),dest=ac.createMediaStreamDestination();
-      stream=canvas.captureStream(30);dest.stream.getAudioTracks().forEach(track=>stream.addTrack(track));
-      source=ac.createBufferSource();source.buffer=data.audio;source.connect(dest);
-      const budget=Math.floor(MAX_BYTES*8*.72/(duration+1));
-      recorder=new root.MediaRecorder(stream,{mimeType:mimeType(),videoBitsPerSecond:Math.min(1800000,Math.max(40000,budget-64000)),audioBitsPerSecond:64000});
-      const chunks=[];let size=0;
-      const blob=await new Promise((resolve,reject)=>{
-        let failure=null;const stop=error=>{failure=error||failure;if(recorder.state!=='inactive')recorder.stop();else if(failure)reject(failure);};
-        const abort=()=>stop(new Error('cancelled'));
-        signal.addEventListener('abort',abort,{once:true});
-        recorder.ondataavailable=e=>{if(e.data.size){size+=e.data.size;if(size>MAX_BYTES)stop(new Error('tooLarge'));else chunks.push(e.data);}};
-        recorder.onerror=()=>stop(new Error('encodeFailed'));
-        recorder.onstop=()=>{signal.removeEventListener('abort',abort);failure?reject(failure):resolve(new Blob(chunks,{type:recorder.mimeType.split(';')[0]}));};
-        draw(data.start);recorder.start(1000);
-        const start=ac.currentTime;
-        if(data.start/1000<data.audio.duration)source.start(start,Math.max(0,data.start/1000));
-        const frame=()=>{if(signal.aborted)return;const elapsed=ac.currentTime-start;
-          draw(Math.min(data.end,data.start+elapsed*1000));progress(Math.min(100,Math.floor(elapsed/duration*100)));
-          if(elapsed>=duration){stop();return;}raf=requestAnimationFrame(frame);};
-        raf=requestAnimationFrame(frame);
-        watchdog=setTimeout(()=>stop(new Error('encodeFailed')),(duration+20)*1000);
-      });
-      if(blob.size>MAX_BYTES)throw new Error('tooLarge');return blob;
-    } finally {
-      cancelAnimationFrame(raf);clearTimeout(watchdog);
-      try{source?.stop();}catch(_){}
-      if(recorder?.state!=='inactive'){try{recorder?.stop();}catch(_){}}
-      stream?.getTracks().forEach(t=>t.stop());await ac.close();
+  function drawHud(g,view) {
+    g.save();g.scale(view.dpr,view.dpr);
+    for(const h of view.hud||[]) {
+      g.globalAlpha=h.opacity;
+      g.beginPath();g.roundRect(h.x,h.y,h.w,h.h,h.radius);
+      g.fillStyle=h.background;g.fill();
+      if(h.borderWidth){g.lineWidth=h.borderWidth;g.strokeStyle=h.border;g.stroke();}
+      if(h.text){g.fillStyle=h.color;g.font=h.font;g.textBaseline='middle';
+        g.textAlign=h.align==='center'?'center':h.align==='right'?'right':'left';
+        const x=h.align==='center'?h.x+h.w/2:h.align==='right'?h.x+h.w-h.padRight:h.x+h.padLeft;
+        g.fillText(h.text,x,h.y+h.h/2);}
     }
+    g.restore();
+  }
+  function renderer(canvas,data) {
+    const g=canvas.getContext('2d');let index=0;
+    return time=>{
+      while(index+1<data.frames.length&&data.frames[index+1][0]<=time)index++;
+      const [,visual,view]=data.frames[index];
+      if(!view||!data.options.draw)throw new Error('unavailable');
+      g.save();g.scale(canvas.width/view.canvas.width,canvas.height/view.canvas.height);
+      data.options.draw(visual,{...view,g,ctx2d:g});drawHud(g,view);g.restore();
+    };
+  }
+  function dimensions(data) {
+    const original=data.frames[0]?.[2]?.canvas||{width:1280,height:720};
+    const scale=Math.min(1,1920/original.width,1080/original.height);
+    return {width:Math.max(2,Math.round(original.width*scale/2)*2),height:Math.max(2,Math.round(original.height*scale/2)*2)};
+  }
+  async function encode(data,canvas,signal,progress,maxBytes=20*1024*1024) {
+    if(!supported())throw new Error('unsupported');
+    if(data.disabled||data.frames.length<2||data.end-data.start>MAX_MS)throw new Error('unavailable');
+    const M=await media(),duration=(data.end-data.start)/1000;
+    const {width,height}=dimensions(data);canvas.width=width;canvas.height=height;
+    const limit=Math.min(MAX_BYTES,maxBytes),budget=Math.floor(limit*8*.85/(duration+1));
+    const bitrate=Math.min(12000000,Math.max(100000,budget-160000));
+    const config={width,height,bitrate,fullCodecString:'avc1.42002a'};
+    if(!await M.canEncodeVideo('avc',config)||!await M.canEncodeAudio('aac',{sampleRate:48000,numberOfChannels:2,bitrate:160000}))throw new Error('unsupported');
+    if(signal.aborted)throw new Error('cancelled');
+    const output=new M.Output({format:new M.Mp4OutputFormat({fastStart:'in-memory'}),target:new M.BufferTarget()});
+    let bytes=0,failure=null;
+    const count=packet=>{bytes+=packet.byteLength;if(bytes>limit)failure=new Error('tooLarge');};
+    const video=new M.CanvasSource(canvas,{codec:'avc',fullCodecString:config.fullCodecString,bitrate,keyFrameInterval:2,onEncodedPacket:count});
+    const audio=new M.AudioBufferSource({codec:'aac',bitrate:160000,transform:{sampleRate:48000,numberOfChannels:2},onEncodedPacket:count});
+    output.addVideoTrack(video,{frameRate:FPS});output.addAudioTrack(audio);
+    const abort=()=>{void output.cancel().catch(()=>{});};signal.addEventListener('abort',abort,{once:true});
+    const check=()=>{if(signal.aborted)throw new Error('cancelled');if(failure)throw failure;};
+    try {
+      await output.start();const draw=renderer(canvas,data),total=Math.ceil(duration*FPS);
+      const soundCache=new Map(),bufferIds=new WeakMap();let nextId=0;
+      const sounds=[];let volumeFrame=0;
+      for(const sound of data.sounds||[]){
+        check();if(sound.raw/1000+sound.duration<data.start/1000||sound.raw>data.end)continue;
+        const key=JSON.stringify([sound.type,sound.noise,...sound.args],(_,v)=>{
+          if(v&&typeof v.getChannelData==='function'){if(!bufferIds.has(v))bufferIds.set(v,++nextId);return {buffer:bufferIds.get(v)};}return v;
+        });
+        if(!soundCache.has(key))soundCache.set(key,await root.Hitsound.renderRecorded(sound));
+        sounds.push({raw:sound.raw,buffer:soundCache.get(key)});
+      }
+      // Interleave one-second audio/video batches to bound encoder and mux queues.
+      for(let batch=0;batch<duration;batch++) {
+        check();const seconds=Math.min(1,duration-batch);
+        const buffer=new AudioBuffer({length:Math.max(1,Math.round(seconds*data.audio.sampleRate)),numberOfChannels:data.audio.numberOfChannels,sampleRate:data.audio.sampleRate});
+        const offset=Math.round((data.start/1000+batch)*data.audio.sampleRate);
+        for(let ch=0;ch<buffer.numberOfChannels;ch++){
+          const source=data.audio.getChannelData(ch),dest=buffer.getChannelData(ch),from=Math.max(0,offset),to=Math.min(source.length,offset+dest.length);
+          if(to>from)dest.set(source.subarray(from,to),Math.max(0,-offset));
+          let vf=volumeFrame;
+          for(let i=0;i<dest.length;i++){const time=data.start+batch*1000+i/buffer.sampleRate*1000;while(vf+1<data.frames.length&&data.frames[vf+1][0]<=time)vf++;dest[i]*=data.frames[vf][3];}
+          if(ch===buffer.numberOfChannels-1)volumeFrame=vf;
+        }
+        // Mix the exact sounds emitted by gameplay, including custom/map samples.
+        for(const sound of sounds){
+          const offsetSeconds=(data.start/1000+batch)-sound.raw/1000;
+          if(offsetSeconds>=sound.buffer.duration||offsetSeconds+seconds<=0)continue;
+          for(let ch=0;ch<buffer.numberOfChannels;ch++){
+            const dest=buffer.getChannelData(ch),source=sound.buffer.getChannelData(Math.min(ch,sound.buffer.numberOfChannels-1));
+            const from=Math.max(0,Math.ceil(-offsetSeconds*buffer.sampleRate));
+            const to=Math.min(dest.length,Math.ceil((sound.buffer.duration-offsetSeconds)*buffer.sampleRate));
+            for(let i=from;i<to;i++){const at=(offsetSeconds+i/buffer.sampleRate)*sound.buffer.sampleRate,lo=Math.max(0,Math.floor(at)),hi=Math.min(source.length-1,lo+1);dest[i]+=source[lo]+(source[hi]-source[lo])*(at-lo);}
+          }
+        }
+        await audio.add(buffer);check();
+        for(let frame=batch*FPS;frame<Math.min(total,(batch+1)*FPS);frame++) {
+          check();draw(data.start+frame/FPS*1000);
+          await video.add(frame/FPS,Math.min(1/FPS,duration-frame/FPS));
+          if(frame%12===0){progress(Math.floor(frame/total*100));await new Promise(r=>setTimeout(r,0));}
+        }
+      }
+      check();await output.finalize();check();
+      const blob=new Blob([output.target.buffer],{type:'video/mp4'});
+      if(blob.size>limit)throw new Error('tooLarge');progress(100);return blob;
+    } catch(error){await output.cancel().catch(()=>{});throw error;}
+    finally {signal.removeEventListener('abort',abort);}
   }
 
   function mount(parent,run) {
@@ -140,7 +170,7 @@
     const share=document.createElement('button'),cancel=document.createElement('button'),status=document.createElement('p');
     share.type=cancel.type='button';share.textContent=text('share');cancel.textContent=text('cancel');cancel.hidden=true;
     status.setAttribute('role','status');status.textContent=text('hint');box.append(share,cancel,status);parent.appendChild(box);
-    if(!mimeType()||data.disabled||data.frames.length<2){share.disabled=true;status.textContent=text(!mimeType()?'unsupported':'unavailable');return;}
+    if(!supported()||data.disabled||data.frames.length<2){share.disabled=true;status.textContent=text(!supported()?'unsupported':'unavailable');return;}
     let encoded=null,controller=null;
     run.disposeReplay=()=>{controller?.abort();box.remove();encoded=null;};
     cancel.onclick=()=>controller?.abort();
@@ -151,7 +181,9 @@
       box.appendChild(canvas);
       const onHide=()=>{if(document.hidden)controller.abort();};document.addEventListener('visibilitychange',onHide);
       try {
-        encoded=encoded||await encode(data,canvas,controller.signal,n=>status.textContent=text('rendering',{n}));
+        status.textContent=text('rendering',{n:0});
+        const policy=await root.ActivityGames.prepareReplay(data.owner,controller.signal);
+        encoded=encoded||await encode(data,canvas,controller.signal,n=>status.textContent=text('rendering',{n}),policy.maxBytes);
         status.textContent=text('uploading');
         let result=await root.ActivityGames.uploadReplay(data.owner,encoded,controller.signal);
         cancel.hidden=true;status.textContent=text('queued');
@@ -171,9 +203,9 @@
       } finally {cancel.hidden=true;canvas.remove();document.removeEventListener('visibilitychange',onHide);activeExport=null;}
     };
   }
-  const api={begin,mount,encode,renderer,MAX_BYTES};
+  const api={begin,mount,encode,renderer,captureHud,dimensions,MAX_BYTES};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else {
     root.ActivityReplay=api;
-    const css=document.createElement('link');css.rel='stylesheet';css.href='activity-replay.css?v=1';document.head.appendChild(css);
+    const css=document.createElement('link');css.rel='stylesheet';css.href='activity-replay.css?v=2';document.head.appendChild(css);
   }
 })(typeof window!=='undefined'?window:globalThis);

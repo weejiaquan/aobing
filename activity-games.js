@@ -131,16 +131,20 @@
     if (!queue.some(item => item.result.runId === run.id)) queue.push({createdAt: now(), session: run.session, expiresAt: run.expiresAt, result: payload});
     persist(); void flush();
   }
-  async function uploadReplay(run, blob, signal) {
+  async function prepareReplay(run, signal) {
     await run.reportReady;
     if (!run.result || !activity()?.instanceId || run.uid !== activeUser()?.uid || run.uid !== activity().uid) throw new Error('failed');
     if (signal.aborted) throw new Error('cancelled');
     // Ensure the completed score exists before uploading; runId deduplicates this
     // against the ordinary background score queue.
     await request('score', {...run.result, session:run.session});
+    return replayStatus(run);
+  }
+  async function uploadReplay(run, blob, signal) {
+    await prepareReplay(run, signal);
     const controller=new AbortController(),abort=()=>controller.abort();
     signal.addEventListener('abort',abort,{once:true});
-    const timeout=setTimeout(abort,120000);
+    const timeout=setTimeout(abort,210000);
     try {
       const token=await activeUser().getIdToken();
       if(signal.aborted || run.uid!==activeUser()?.uid)throw new Error('cancelled');
@@ -154,7 +158,7 @@
     if (run.uid !== activeUser()?.uid) throw new Error('failed');
     return request('replay/'+encodeURIComponent(run.id),null,10000,'GET');
   }
-  window.ActivityGames = {init, setMode, newRun, complete, uploadReplay, replayStatus, get initialMode() { return initialMode; }};
+  window.ActivityGames = {init, setMode, newRun, complete, prepareReplay, uploadReplay, replayStatus, get initialMode() { return initialMode; }};
   window.addEventListener('online', () => { if (initialized) void flush(); });
   window.addEventListener('pagehide', () => { clearTimeout(timer); persist(); });
   window.addEventListener('pageshow', () => { if (initialized) { clearTimeout(timer); timer = setTimeout(tick, 1000); } });

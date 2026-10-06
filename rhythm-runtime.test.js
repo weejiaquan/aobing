@@ -46,6 +46,27 @@ function fixture(mode, width=1280, height=720, dpr=1) {
 const stdChart=()=>require('./osustd').assembleChart('[General]\nMode:0\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\nSliderMultiplier:1\n[TimingPoints]\n0,500,4,1,0,100,1\n[HitObjects]\n100,100,1000,2,0,L|200:100,2,100\n300,200,2500,1,0\n256,192,3500,8,0,4500');
 const maniaChart=()=>require('./vsrg').parseOsu('[General]\nMode:3\n[Difficulty]\nCircleSize:4\nOverallDifficulty:5\n[TimingPoints]\n0,500,4,1,0,100,1\n1500,-50,4,1,0,100,0\n[HitObjects]\n64,0,1000,128,0,2000:0:0:0:0:\n192,0,2500,1,0');
 for(const mode of ['osu','vsrg']) {
+  test(mode+': replay captures fractional input timing and freezes render state without re-judging',async()=>{
+    const f=fixture(mode);vm.runInContext(fs.readFileSync('activity-replay.js','utf8'),f.context);
+    f.window.__ACTIVITY__={instanceId:'discord'};f.window.ActivityGames={newRun:()=>({id:'run'})};
+    await f.start(mode==='osu'?stdChart():maniaChart());f.time(1000.25);
+    const key=mode==='osu'?'z':f.runtime.run.keys[0];
+    f.runtime.onKeyDown(f.event(key,{timeStamp:4999.25}));
+    const capture=f.runtime.run.replay;
+    assert.ok(Math.abs(capture.data.inputs[0][0]-999.5)<1e-6);
+    assert.equal(capture.data.inputs[0][2],true);
+    f.runtime.loop();const view=capture.data.frames[0][2];
+    const before=JSON.stringify(mode==='osu'?f.runtime.run.counts:f.runtime.run.state);
+    f.window.ActivityReplay.renderer(f.get('replay-preview'),capture.data)(1000.25);
+    assert.equal(JSON.stringify(mode==='osu'?f.runtime.run.counts:f.runtime.run.state),before);
+    if(mode==='osu'){
+      const old=view.run.objs[0].headJudged;f.runtime.run.objs[0].headJudged=!old;
+      assert.equal(view.run.objs[0].headJudged,old);assert.equal(view.run.objs[0].number,1);
+    }else{
+      const old=view.run.notes[0].holding;f.runtime.run.notes[0].holding=!old;
+      assert.equal(view.run.notes[0].holding,old);
+    }
+  });
   test(mode+': actual adapter records manual judgement events and frames only for Discord',async()=>{
     const f=fixture(mode);vm.runInContext(fs.readFileSync('activity-replay.js','utf8'),f.context);
     f.window.ActivityGames={newRun:()=>({id:'recorded-run'})};

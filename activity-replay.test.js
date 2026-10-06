@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),vm=requir
 function fixture(){
   class Element{constructor(){this.children=[];this.attrs={};}append(...nodes){this.children.push(...nodes);}appendChild(n){this.append(n);}setAttribute(k,v){this.attrs[k]=v;}remove(){this.removed=true;}}
   const document={head:new Element(),createElement:()=>new Element(),addEventListener(){},removeEventListener(){}};
-  const window={I18N:require('./i18n'),__ACTIVITY__:{instanceId:'test'},MediaRecorder:{isTypeSupported:()=>true}};
+  const window={I18N:require('./i18n'),__ACTIVITY__:{instanceId:'test'},VideoEncoder:class{},AudioEncoder:class{}};
   const context=vm.createContext({window,document,console,AbortController,setTimeout,clearTimeout});
   vm.runInContext(fs.readFileSync('activity-replay.js','utf8'),context);
   const o={kind:'circle',x:100,y:100,time:1000};
@@ -13,7 +13,7 @@ function fixture(){
 test('capture stays bounded, drops skipped intro and never starts an encoder during gameplay',()=>{
   const f=fixture(),capture=f.api.begin(f.run,'osu');
   for(let t=0;t<1000;t++)capture.sample(t,t,{x:t,y:1},0,{h300:1},1);
-  assert.ok(capture.data.frames.length<=30);
+  assert.ok(capture.data.frames.length<=64);
   capture.skip(1200);assert.equal(capture.data.frames.length,0);
   capture.sample(1200,1200,{x:100,y:100},1,{h300:1},1);
   capture.mark(f.o,'end','h300',1300);assert.equal(capture.data.events.length,1);
