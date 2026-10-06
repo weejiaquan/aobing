@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-09-23. This is the current design contract for the game shell,
+Last updated: 2026-10-05. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -228,7 +228,7 @@ spacious cards, fine borders, asymmetric corners, and blurred modal backdrop for
 shop, settings, characters, rankings, statistics, profile, and confirmation dialogs.
 Carry the same colors and controls into typing, fishing/Fishdex, and rhythm menus,
 imports, customization, and results. Preserve gameplay canvas geometry and timing
-except for Fishing, whose new interaction flow is specified below.
+except for the accepted Fishing and rhythm changes specified below.
 
 - Settings is a centered window with Sound & atmosphere, Play & display, and
   General sections; keep controls aligned, labeled, and comfortably spaced.
@@ -260,6 +260,24 @@ except for Fishing, whose new interaction flow is specified below.
   readable in the night theme as well as daytime.
 - Standard's Multiplayer entry lives in its song-selection header and opens a
   matching native dialog. Preserve this entry when changing library navigation.
+- Multiplayer uses inline lobby-name, password, visibility and room-code fields
+  inside that dialog; avoid browser prompts, which are unreliable in the Discord
+  iframe. Closing the dialog preserves a joined room. Leaving the room or changing
+  game mode disconnects it; closing an unjoined browser releases its connection.
+- A selected chart must be downloaded, verified and its audio prepared before the
+  player can become Ready. Players can sit out a round. The host starts only when
+  everyone is ready or sitting out. The same Discord Activity instance has an
+  unlisted shared-room action using the existing authenticated connection.
+- Standard multiplayer schedules a common audio start and uses manual play.
+  Skip and quick restart are unavailable during the race. Pause, blur, hiding the
+  tab or leaving forfeits that player's network result; local pause behavior is
+  retained. The small standings overlay passes gameplay pointer input through;
+  its lobby button appears after results. Use the existing panel colors and eight
+  language dictionaries for multiplayer controls and status.
+- Round points are the sum of the engine's 300/100/50 object judgements, ordered
+  by points, accuracy, then maximum combo; forfeits sort last. This is a casual
+  score race, with client-reported scores, rather than native osu! score-v1 or a
+  server-validated ranking. Gameplay and network controllers stay separate.
 - Panel windows close with their close button, Escape, or backdrop. Trap focus,
   make the background inert, and restore focus to the opener. After closing the
   shop, return focus to the dropdown control. Nested confirmations keep the
@@ -342,6 +360,73 @@ except for Fishing, whose new interaction flow is specified below.
   licenses and corresponding engine sources in `games/dos/`; maintain its README,
   checksums and `scripts/vendor-dos.py`. Additional DOS games need their own
   licensed bundles, controls, save patterns and verification.
+
+### Standard and Mania gameplay
+
+The owner approved the October 2026 gameplay audit and implementation, including
+logic changes. **osu!stable is the compatibility target**, rather than mixing
+classic, ScoreV2 and custom long-note rules. This supersedes the earlier v1
+decisions to ignore Mania SV and break combo on a 50. This remains a browser
+implementation, not a claim of bit-for-bit osu! emulation or equivalent ranked
+scores. Retain no-fail play and the existing library, imports and Multiplayer entry.
+
+- `rhythm-core.js` owns audible-output clock mapping, timestamped cursor/button
+  history, sample metadata, and continuous BPM/SV scroll distance. Use
+  `getOutputTimestamp()` when available, with a refreshed audio-clock fallback;
+  do not subtract output latency twice. Judge key events at their event timestamps.
+  Input calibration affects judgement; the separate **Visual offset** setting
+  affects drawing only. Calibration uses the same audible clock as gameplay.
+- `rhythm-standard.js` owns stacking (including negative slider-tail stacks),
+  slider checkpoints, aggregate slider accuracy and spinner helpers. Slider heads,
+  ticks, repeats and tails increment combo individually; missed heads/ticks/repeats
+  break combo, missed tails do not. Final slider accuracy does not add another
+  combo. Check the legacy tail slightly early (36ms, protected by the midpoint),
+  using cursor/key history at checkpoint time. A long frame must not substitute
+  the latest cursor for every intervening checkpoint. Spinners require held input,
+  use timestamped pointer samples and reject centre jitter. Their angular-speed
+  cap is a browser approximation; native spinner inertia is not fully emulated.
+- Standard renders follow points inside combo sets and arrows at upcoming slider
+  reversals. Stack offsets apply to both hit testing and slider paths. Both mouse
+  buttons are independent; mouse releases outside the canvas clear only that
+  button. Coalesced pointer events feed motion history. Use the actual canvas
+  backing/CSS ratio for stroke and cursor sizes, not uncapped device pixel ratio.
+- `rhythm-mania.js` owns note ordering, classic tap windows and hold state. Each
+  long note receives one accuracy judgement combining head and release errors.
+  Late releases have real penalties; overholding past the late window misses.
+  A dropped/missed hold can be picked up again, with its grade capped at 50.
+  A successful 50 tap keeps combo. A press targets the oldest eligible lane head.
+  Keep key repeat suppression and multi-pointer lane input.
+- Mania uses integrated chart BPM/SV scrolling by default. **Constant scroll
+  speed** is an explicit option. Appearance includes saved lane width, judgement
+  position, upward scrolling and visual offset. Centre notes on their receptors.
+  Keep all geometry valid at narrow widths and high DPR.
+- Decode custom and imported beatmap samples before the lead-in. Preserve normal,
+  soft and drum sets, timing-point volume/index, additions, custom filenames and
+  slider-edge overrides through folder/OSZ imports, cache and chart transfer.
+  The existing **Use map hitsounds** preference controls playback; unavailable
+  samples fall back to the configured/synthesised sound. Previously cached maps
+  require reimport to acquire samples their old records did not contain.
+- Escape, blur, hidden-page and modal opening pause play and clear input. Provide
+  a native modal with Resume, Retry and Back to songs. Resume has a one-second
+  preparation interval during which players can re-hold active note keys. Stop
+  and recreate the music source at the frozen audible position; never auto-resume
+  on focus. Keep modal focus containment and all new copy translated into eight
+  languages. Honor reduced motion for decorative judgement effects.
+- New personal bests use the `classic-v2:` namespace. Keep old records intact;
+  never compare the new slider/hold combo and accuracy rules against legacy PBs.
+- `osustd.js` / `vsrg.js` remain browser adapters; `rhythm-ui.js` owns shared
+  gameplay options and pause controls; `hitsound.js` owns sample decoding/playback.
+  Load the shared modules before the adapters. Keep shell and economy untouched.
+
+References: [Standard judgement](https://osu.ppy.sh/wiki/en/Gameplay/Judgement/osu!),
+[Mania judgement](https://osu.ppy.sh/wiki/en/Gameplay/Judgement/osu!mania),
+[map format](https://osu.ppy.sh/wiki/en/Client/File_formats/osu_(file_format)), and
+[osu! stacking implementation](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Beatmaps/OsuBeatmapProcessor.cs).
+Tests in `rhythm-gameplay.test.js` cover timing, holds, sliders, stacking and scroll
+distance; `rhythm-runtime.test.js` exercises actual adapters with mocked audio/DOM
+at desktop, portrait, landscape and multiple DPRs. These do **not** establish
+visual smoothness or physical audio latency. Interactive browser QA remains
+required before describing those as verified.
 
 ### Fishing
 

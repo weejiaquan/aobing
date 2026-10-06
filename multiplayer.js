@@ -17,23 +17,15 @@
   function buildRelay(toUid, body) { return { type: 'relay', to_uid: toUid, body: body }; }
 
   function applyServerMessage(state, msg) {
-    const next = { status: state.status, uid: state.uid,
-                   lobby: state.lobby, error: state.error,
-                   currentMap: state.currentMap };
-    switch (msg.type) {
-      case 'auth_ok':
-        next.status = 'online'; next.uid = msg.uid; break;
-      case 'lobby_state':
-      case 'member_joined':
-      case 'member_left':
-        next.lobby = msg.lobby; break;
-      case 'error':
-        next.error = msg.code; break;
-      case 'map_selected':
-        next.currentMap = msg.map; break;
-      default:
-        break;
+    const next = Object.assign({}, state);
+    if (msg.type === 'auth_ok') { next.status = 'online'; next.uid = msg.uid; next.error = null; next.protocol = msg.protocol || 1; }
+    if (['lobby_state','member_joined','member_left','countdown'].includes(msg.type) || msg.lobby) {
+      next.lobby = msg.lobby || null;
+      next.currentMap = next.lobby ? next.lobby.current_map : null;
+      next.error = null;
     }
+    if (msg.type === 'error') next.error = msg.code;
+    if (msg.type === 'map_selected') next.currentMap = msg.map;
     return next;
   }
 
@@ -62,6 +54,7 @@
       osuText: record.osuText,
       audio: u8ToB64(record.audio),
       art: record.art ? u8ToB64(record.art) : null,
+      samples: (record.samples || []).map(s => ({name:s.name,bytes:u8ToB64(s.bytes)})),
     });
   }
 
@@ -71,12 +64,14 @@
       osuText: o.osuText,
       audio: b64ToU8(o.audio),
       art: o.art ? b64ToU8(o.art) : null,
+      samples: (o.samples || []).map(s => ({name:s.name,bytes:b64ToU8(s.bytes)})),
       hash: o.meta.hash, title: o.meta.title, artist: o.meta.artist,
       diffName: o.meta.diffName, stars: o.meta.stars, length: o.meta.length,
     };
   }
 
   function chunkString(str, size) {
+    if (!Number.isInteger(size) || size < 1) throw new Error('invalid chunk size');
     const frames = [];
     if (str.length === 0) return [{ seq: 0, total: 1, data: '' }];
     const total = Math.ceil(str.length / size);
@@ -89,11 +84,21 @@
   function createReassembler() {
     let total = null;
     const parts = {}; // seq -> data
-    let count = 0;
+    let count = 0, bytes = 0;
     return {
       add: function (frame) {
+        if (!frame || !Number.isInteger(frame.total) || frame.total < 1 || frame.total > 16384 ||
+            !Number.isInteger(frame.seq) || frame.seq < 0 || frame.seq >= frame.total ||
+            typeof frame.data !== 'string' || frame.data.length > 49152) throw new Error('invalid frame');
         if (total == null) total = frame.total;
-        if (!(frame.seq in parts)) { parts[frame.seq] = frame.data; count++; }
+        if (frame.seq in parts) {
+          if (parts[frame.seq] !== frame.data) throw new Error('conflicting frame');
+          return count === total;
+        }
+        if (frame.total !== total) throw new Error('inconsistent frame');
+        bytes += frame.data.length;
+        if (bytes > 64 * 1024 * 1024) throw new Error('transfer too large');
+        parts[frame.seq] = frame.data; count++;
         return total != null && count === total;
       },
       isComplete: function () { return total != null && count === total; },
@@ -108,58 +113,172 @@
     };
   }
 
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  async function digest(value) {
+    const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
+    return Array.from(new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2,'0')).join('');
+  }
+  async function contentDigest(encoded) {
+    const o = JSON.parse(encoded);
+    return digest(JSON.stringify({osuText:o.osuText,audio:o.audio,art:o.art || null,samples:o.samples || []}));
+  }
+  async function verifyTransfer(encoded, map) {
+    if (typeof encoded !== 'string' || encoded.length > 64 * 1024 * 1024 || await contentDigest(encoded) !== map.contentHash) throw new Error('corrupted');
+    const rec = decodeChartTransfer(encoded);
+    if (rec.hash !== map.hash || await digest(rec.osuText) !== map.hash || !rec.audio.length ||
+        rec.samples.length > 512 || rec.samples.some(s => typeof s.name !== 'string' || s.name.length > 256)) throw new Error('corrupted');
+    return rec;
+  }
   function createConnection(opts) {
-    const WS = opts.WebSocketImpl ||
-      (typeof WebSocket !== 'undefined' ? WebSocket : null);
-    const timeoutMs = opts.connectTimeoutMs || 8000;
-    let state = { status: 'connecting', uid: null, lobby: null, error: null, currentMap: null };
-    let ws = null;
-    let authed = false;
-    let timer = null;
-    let closed = false;
-
-    function emit() { if (opts.onState) opts.onState(state); }
-    function setStatus(s) { state = Object.assign({}, state, { status: s }); emit(); }
-    function fail() {
-      if (closed) return;
-      if (timer) { clearTimeout(timer); timer = null; }
-      setStatus('offline');
+    const WS = opts.WebSocketImpl || globalThis.WebSocket;
+    let state = {status:'connecting',uid:null,lobby:null,error:null,currentMap:null};
+    let ws, stopped = false, timer, heartbeat, lastMessage = Date.now(), pending = [], chain = Promise.resolve();
+    let bestRtt = Infinity, offset = 0;
+    const emit = () => { if (opts.onState) opts.onState(state); };
+    function stop(error, notify = true) {
+      if (stopped) return;
+      stopped = true; clearTimeout(timer); clearInterval(heartbeat); pending = [];
+      if (ws) { ws.onclose = ws.onerror = ws.onmessage = ws.onopen = null; try { ws.close(); } catch (_) {} }
+      state = Object.assign({},state,{status:'offline',lobby:null,currentMap:null,error:error || state.error});
+      if (notify) emit();
     }
-
-    emit(); // initial 'connecting'
-    timer = setTimeout(function () { if (!authed) fail(); }, timeoutMs);
-
-    Promise.resolve(opts.getToken()).then(function (token) {
-      if (closed) return;
+    function send(msg) {
+      if (stopped) return false;
+      if (state.status !== 'online') {
+        if (['create_lobby','join_lobby','join_activity'].includes(msg.type) && !pending.length) { pending.push(msg); return true; }
+        return false;
+      }
+      if (!ws || ws.readyState !== 1 || ws.bufferedAmount > 2 * 1024 * 1024) return false;
+      try { ws.send(JSON.stringify(msg)); return true; } catch (_) { stop('lost_connection'); return false; }
+    }
+    emit();
+    timer = setTimeout(() => stop('timeout'), opts.connectTimeoutMs || 8000);
+    Promise.resolve().then(() => opts.getToken()).then(token => {
+      if (stopped) return;
+      if (!token) throw new Error('auth_required');
       ws = new WS(opts.url);
-      ws.onopen = function () { ws.send(JSON.stringify(buildAuth(token))); };
-      ws.onmessage = function (ev) {
-        const msg = JSON.parse(ev.data);
-        if (opts.onMessage) opts.onMessage(msg);
+      ws.onopen = () => { if (!stopped) { try { ws.send(JSON.stringify(buildAuth(token))); } catch (_) { stop('lost_connection'); } } };
+      ws.onmessage = ev => {
+        if (stopped) return;
+        let msg;
+        try { msg = JSON.parse(ev.data); if (!msg || typeof msg.type !== 'string') throw new Error(); }
+        catch (_) { stop('invalid_message'); return; }
+        lastMessage = Date.now();
+        state = applyServerMessage(state,msg);
         if (msg.type === 'auth_ok') {
-          authed = true;
-          if (timer) { clearTimeout(timer); timer = null; }
+          clearTimeout(timer);
+          pending.splice(0).forEach(send);
+          if (state.protocol >= 2) {
+            send({type:'ping',sent:Date.now()});
+            heartbeat = setInterval(() => {
+              if (Date.now() - lastMessage > 45000) { stop('timeout'); return; }
+              send({type:'ping',sent:Date.now()});
+            },10000);
+          }
         }
-        state = applyServerMessage(state, msg);
-        emit();
+        if (msg.type === 'pong' && Number.isFinite(msg.sent) && Number.isFinite(msg.server_time)) {
+          const rtt = Date.now() - msg.sent;
+          if (rtt >= 0 && rtt < bestRtt) { bestRtt = rtt; offset = msg.server_time - (Date.now() + msg.sent)/2; }
+          return;
+        }
+        if (msg.type === 'error' && state.status !== 'online') { stop(msg.code); return; }
+        emit(); // callbacks always see the new lobby/host/map
+        if (opts.onMessage) opts.onMessage(msg);
       };
-      ws.onclose = function () { fail(); };
-      ws.onerror = function () { fail(); };
-    }).catch(function () { fail(); });
-
+      ws.onclose = ws.onerror = () => stop('lost_connection');
+    }).catch(() => stop('auth_required'));
     return {
-      send: function (msg) { if (ws && authed) ws.send(JSON.stringify(msg)); },
-      close: function () {
-        closed = true;
-        if (timer) { clearTimeout(timer); timer = null; }
-        if (ws) ws.close();
-      },
-      getState: function () { return state; },
+      send, close: () => stop(null,false), getState: () => state, serverNow: () => Date.now() + offset,
+      sendChunk(msg, valid = () => true) {
+        const work = chain.then(async () => {
+          const deadline = Date.now() + 15000;
+          while (!stopped && valid() && ws && ws.bufferedAmount > 256 * 1024 && Date.now() < deadline) await delay(25);
+          if (stopped || !valid() || Date.now() >= deadline || !send(msg)) throw new Error('transfer stopped');
+          await delay(Math.max(35, new TextEncoder().encode(JSON.stringify(msg)).length / 700)); // aggregate pacing below 1 MB/s
+        });
+        chain = work.catch(() => {});
+        return work;
+      }
     };
   }
 
+  // One peer session per transfer; WebRTC is only an optimization. Caller owns fallback.
+  function createPeerSession(opts) {
+    const PC = opts.RTCPeerConnectionImpl || globalThis.RTCPeerConnection;
+    let pc, channel, stopped = false, open = false, ice = [], outboundIce = [], descriptionSent = false, timer;
+    const later = opts.setTimeoutImpl || setTimeout, cancel = opts.clearTimeoutImpl || clearTimeout;
+    function close() {
+      if (stopped) return;
+      stopped = true; cancel(timer); ice = []; outboundIce = [];
+      if (channel) { channel.onclose = channel.onerror = channel.onmessage = channel.onopen = null; try { channel.close(); } catch (_) {} }
+      if (pc) { pc.onicecandidate = pc.onconnectionstatechange = pc.ondatachannel = null; try { pc.close(); } catch (_) {} }
+    }
+    function fail() { if (!stopped) { close(); opts.onFailure(); } }
+    function touch() { cancel(timer); timer = later(fail,open ? 20000 : 5000); }
+    function publishDescription(kind) {
+      if (stopped) return;
+      opts.signal({kind,data:pc.localDescription});
+      descriptionSent = true;
+      for (const data of outboundIce.splice(0)) opts.signal({kind:'ice',data});
+    }
+    function bind(dc) {
+      if (stopped) { dc.close(); return; }
+      channel = dc;
+      dc.onopen = () => { if (stopped) return; open = true; touch(); if (opts.onOpen) opts.onOpen(api); };
+      dc.onmessage = ev => { if (stopped) return; touch(); try { opts.onFrame(JSON.parse(ev.data)); } catch (_) { fail(); } };
+      dc.onclose = dc.onerror = fail;
+    }
+    const api = {
+      close,
+      async signal(msg) {
+        if (stopped || !pc) return;
+        try {
+          if (msg.kind === 'ice') {
+            if (ice.length >= 128) throw new Error('too many candidates');
+            if (pc.remoteDescription) await pc.addIceCandidate(msg.data); else ice.push(msg.data);
+          } else if ((msg.kind === 'offer' && !opts.offerer) || (msg.kind === 'answer' && opts.offerer)) {
+            await pc.setRemoteDescription(msg.data);
+            for (const candidate of ice.splice(0)) await pc.addIceCandidate(candidate);
+            if (!opts.offerer) { await pc.setLocalDescription(await pc.createAnswer()); publishDescription('answer'); }
+          }
+        } catch (_) { fail(); }
+      },
+      async send(encoded) {
+        for (const frame of chunkString(encoded, 8192)) {
+          const end = Date.now() + 15000;
+          while (!stopped && channel && channel.bufferedAmount > 256 * 1024 && Date.now() < end) await delay(20);
+          if (stopped || !channel || channel.readyState !== 'open' || Date.now() >= end) throw new Error('peer closed');
+          channel.send(JSON.stringify(frame)); touch();
+        }
+      }
+    };
+    Promise.resolve().then(async () => {
+      if (stopped) return;
+      pc = new PC({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+      touch();
+      pc.onicecandidate = ev => {
+        if (stopped || !ev.candidate) return;
+        try {
+          const data = ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate;
+          if (descriptionSent) opts.signal({kind:'ice',data});
+          else if (outboundIce.length < 128) outboundIce.push(data);
+          else fail();
+        } catch (_) { fail(); }
+      };
+      pc.onconnectionstatechange = () => { if (['failed','closed'].includes(pc.connectionState)) fail(); };
+      pc.ondatachannel = ev => bind(ev.channel);
+      if (opts.offerer) {
+        bind(pc.createDataChannel('chart'));
+        await pc.setLocalDescription(await pc.createOffer());
+        publishDescription('offer');
+      }
+      if (opts.offer) await api.signal(opts.offer);
+    }).catch(fail);
+    return api;
+  }
+
   const ENGINE = {
-    MP_ENGINE: true,
+    MP_ENGINE: true, digest, contentDigest, verifyTransfer, createPeerSession,
     buildAuth: buildAuth, buildCreate: buildCreate,
     buildJoin: buildJoin, buildLeave: buildLeave,
     buildSelectMap: buildSelectMap, buildRelay: buildRelay,
@@ -174,198 +293,337 @@
   if (typeof window !== 'undefined') window.MpEngine = ENGINE;
 })();
 
-// =========================================================================
-// Browser wiring — window.MpUI.open(container). Lobby browser + in-lobby view.
-// Isolated: never imported by osustd.js; failures here stay contained.
-if (typeof document !== 'undefined') {
-  const KEI = (typeof KEI_BASE !== 'undefined') ? KEI_BASE : 'https://kei.aobing.it';
-  let conn = null;
-  let lastStatus = '';
-  const CHUNK = 48 * 1024;
-  const transfers = {}; // hash -> { ra, fromName }
-
-  function el(tag, props, children) {
-    const n = document.createElement(tag);
-    Object.assign(n, props || {});
-    (children || []).forEach(function (c) { n.appendChild(c); });
-    return n;
+// Browser controller: all asynchronous work is scoped to a connection and map generation.
+if (typeof document !== 'undefined') (function () {
+  const KEI = typeof KEI_BASE !== 'undefined' ? KEI_BASE : 'https://kei.aobing.it';
+  const M = window.MpEngine;
+  const t = (key, args) => I18N.t(key, args);
+  let container, conn, browseGen = 0, epoch = 0, mapKey = '', hostUid = null, status = '', prepared = null;
+  let serverErrorShown = false;
+  let haveMap = false, preparing = false, receiver = null, encodedCache = null, round = null;
+  const peers = new Map(), uploads = new Map();
+  const dialog = () => document.getElementById('multiplayer-dialog');
+  const game = () => window.OsuStdGame;
+  function node(tag, props, children = []) {
+    const n = document.createElement(tag); Object.assign(n, props || {});
+    children.forEach(c => n.appendChild(c)); return n;
   }
-
-  function getToken() { return firebase.auth().currentUser.getIdToken(); }
-
-  function statusLine(container, text) {
-    lastStatus = text;
-    let el2 = container.querySelector('#mp-xfer-status');
-    if (!el2) { el2 = el('p', { id: 'mp-xfer-status' }); container.appendChild(el2); }
-    el2.textContent = text;
+  function button(label, action, disabled = false) {
+    return node('button', {type:'button',textContent:label,disabled,onclick: () => Promise.resolve().then(action).catch(() => message(t('mp.action_failed')))});
   }
-
-  function onRelay(container, fromUid, body) {
-    if (!body || !conn) return;
-    if (body.t === 'need_map') {
-      // Host side: stream the requested chart to the requester.
-      const lobby = conn.getState().lobby || {};
-      if (conn.getState().uid !== lobby.host_uid) return; // only the host serves charts
-      OsuStdGame.getChartRecord(body.hash).then(function (rec) {
-        if (!rec) return; // host somehow lacks it; nothing to send
-        const frames = MpEngine.chunkString(MpEngine.encodeChartTransfer(rec), CHUNK);
-        frames.forEach(function (f) {
-          conn.send(MpEngine.buildRelay(fromUid, { t: 'chunk', hash: body.hash,
-            seq: f.seq, total: f.total, data: f.data }));
-        });
-      });
-    } else if (body.t === 'chunk') {
-      // Requester side: accumulate and save on completion.
-      let tr = transfers[body.hash];
-      if (!tr) {
-        const lob = conn.getState().lobby || {};
-        const mem = (lob.members || {})[fromUid] || {};
-        tr = transfers[body.hash] = { ra: MpEngine.createReassembler(), fromName: mem.name || '' };
-      }
-      const done = tr.ra.add({ seq: body.seq, total: body.total, data: body.data });
-      statusLine(container, I18N.t('mp.downloading', { received: tr.ra.received(), total: tr.ra.total() }));
-      if (done) {
-        delete transfers[body.hash];
-        let rec;
-        try {
-          rec = MpEngine.decodeChartTransfer(tr.ra.result());
-        } catch (e) {
-          statusLine(container, I18N.t('mp.corrupted'));
-          return;
-        }
-        const lobbyName = (conn.getState().lobby || {}).name || '';
-        OsuStdGame.importForeignCharts([{ osuText: rec.osuText, audio: rec.audio,
-          art: rec.art, origin: { type: 'received', fromName: tr.fromName || '',
-            lobby: lobbyName, receivedAt: new Date().toISOString() } }])
-          .then(function () { statusLine(container, I18N.t('mp.saved')); })
-          .catch(function () { statusLine(container, I18N.t('mp.save_failed')); });
-      }
+  function message(value) {
+    status = value;
+    const line = container && container.querySelector('#mp-xfer-status');
+    if (line) line.textContent = value;
+  }
+  function getState() { return conn ? conn.getState() : {}; }
+  function currentMap() { return getState().currentMap; }
+  function resetTransfer(keepPrepared = false) {
+    epoch++; preparing = false; encodedCache = null;
+    if (!keepPrepared) { prepared = null; haveMap = false; }
+    if (receiver) { clearTimeout(receiver.timer); clearTimeout(receiver.deadline); receiver = null; }
+    peers.forEach(p => p.close()); peers.clear(); uploads.clear();
+  }
+  function teardown() {
+    browseGen++; resetTransfer(); mapKey = ''; hostUid = null; round = null;
+    if (conn) conn.close(); conn = null;
+    if (game() && game().detachMultiplayer) game().detachMultiplayer();
+    const hud = document.getElementById('mp-scoreboard'); if (hud) hud.remove();
+  }
+  function send(msg) { if (!conn || !conn.send(msg)) throw new Error('offline'); }
+  function stateMessage(state) {
+    const map = currentMap(); if (map) send({type:'member_state',contentHash:map.contentHash,state});
+  }
+  async function encodedMap(map) {
+    if (!encodedCache) encodedCache = game().getChartRecord(map.hash).then(rec => {
+      if (!rec) throw new Error('missing map');
+      return M.encodeChartTransfer(rec);
+    });
+    const pending = encodedCache;
+    try {
+      const encoded = await pending;
+      if (encoded.length > 64*1024*1024 || await M.contentDigest(encoded) !== map.contentHash) throw new Error('wrong map');
+      return encoded;
+    } catch (error) {
+      if (encodedCache === pending) encodedCache = null;
+      throw error;
     }
   }
-
-  function onMapSelected(container, map) {
-    if (!map || !conn) return;
-    const st = conn.getState();
-    const lobby = st.lobby || {};
-    const hostUid = lobby.host_uid;
-    if (st.uid === hostUid) return; // host already has it
-    OsuStdGame.hasChart(map.hash).then(function (have) {
-      if (have) { statusLine(container, I18N.t('mp.already_have', { title: map.title || I18N.t('mp.untitled_map') })); return; }
-      if (transfers[map.hash]) return; // download already in flight
-      statusLine(container, I18N.t('mp.requesting', { title: map.title || I18N.t('mp.untitled_map') }));
-      conn.send(MpEngine.buildRelay(hostUid, { t: 'need_map', hash: map.hash }));
-    });
+  function transferBody(map, id, extra) { return Object.assign({hash:map.hash,contentHash:map.contentHash,transferId:id},extra); }
+  function relay(uid, body) { send(M.buildRelay(uid,body)); }
+  function receiverFailed() {
+    if (!receiver) return;
+    clearTimeout(receiver.timer); clearTimeout(receiver.deadline);
+    const peer = peers.get(receiver.host); if (peer) peer.close(); peers.delete(receiver.host);
+    receiver = null; message(t('mp.transfer_failed'));
+    try { stateMessage('spectator'); } catch (_) {}
+    renderLobby(getState());
   }
-
-  function renderMapPicker(container) {
-    OsuStdGame.listCharts().then(function (charts) {
-      const box = el('div', { id: 'mp-map-picker' });
-      box.appendChild(el('h4', { textContent: I18N.t('mp.pick_map_title') }));
-      if (!charts.length) {
-        box.appendChild(el('p', { textContent: I18N.t('mp.library_empty') }));
-      }
-      charts.forEach(function (m) {
-        box.appendChild(el('button', {
-          textContent: I18N.t('mp.map_row', { title: m.title, diff: m.diffName }),
-          onclick: function () {
-            conn.send(MpEngine.buildSelectMap({ hash: m.hash, title: m.title,
-              artist: m.artist, diffName: m.diffName, stars: m.stars, length: m.length }));
-            box.remove();
-            statusLine(container, I18N.t('mp.selected', { title: m.title }));
-          },
-        }));
-      });
-      const existing = container.querySelector('#mp-map-picker');
-      if (existing) existing.remove();
-      container.appendChild(box);
-    });
+  function armReceiver() {
+    if (!receiver) return;
+    const tr = receiver;
+    clearTimeout(tr.timer);
+    tr.timer = setTimeout(() => {
+      if (receiver !== tr) return;
+      // An open DataChannel can still stall before its first byte. Relay remains
+      // the correctness path, including when this watchdog beats the peer timer.
+      if (!tr.relay && !tr.completing) fallback();
+      else receiverFailed();
+    },20000);
   }
-
-  function renderOffline(container, why) {
-    container.innerHTML = '';
-    container.appendChild(el('p', { textContent: I18N.t('mp.offline') }));
-    container.appendChild(el('p', { textContent: why || '', className: 'mp-sub' }));
+  function fallback() {
+    if (!receiver || receiver.relay || receiver.completing) return;
+    const peer = peers.get(receiver.host); if (peer) peer.close(); peers.delete(receiver.host);
+    receiver.relay = true; receiver.ra = M.createReassembler(); armReceiver();
+    try { relay(receiver.host,transferBody(receiver.map,receiver.id,{t:'need_map'})); }
+    catch (_) { receiverFailed(); }
   }
-
-  function renderLobby(container, state) {
-    container.innerHTML = '';
-    const lobby = state.lobby;
-    container.appendChild(el('h3', { textContent: lobby.name }));
-    const list = el('ul', {});
-    Object.keys(lobby.members).forEach(function (uid) {
-      const m = lobby.members[uid];
-      list.appendChild(el('li', { textContent: (uid === lobby.host_uid)
-        ? I18N.t('mp.member_host', { name: m.name }) : m.name }));
-    });
-    container.appendChild(list);
-    container.appendChild(el('button', {
-      textContent: I18N.t('mp.leave'), onclick: function () {
-        conn.send(MpEngine.buildLeave()); conn.close(); conn = null;
-        for (const k in transfers) delete transfers[k];
-        lastStatus = '';
-        openBrowser(container);
-      },
-    }));
-    if (state.uid === lobby.host_uid) {
-      container.appendChild(el('button', {
-        textContent: I18N.t('mp.pick_map'),
-        onclick: function () { renderMapPicker(container); },
-      }));
-    }
-    if (lastStatus) { container.appendChild(el('p', { id: 'mp-xfer-status', textContent: lastStatus })); }
+  async function acceptFrame(from, body, frame, viaRelay) {
+    const tr = receiver;
+    if (!tr || tr.completing || tr.host !== from || tr.id !== body.transferId || tr.map.contentHash !== body.contentHash || tr.map.hash !== body.hash || tr.relay !== viaRelay) return;
+    try {
+      armReceiver();
+      const done = tr.ra.add(frame);
+      message(t('mp.downloading',{received:tr.ra.received(),total:tr.ra.total()}));
+      if (!done) return;
+      tr.completing = true;
+      clearTimeout(tr.timer);
+      tr.timer = setTimeout(() => { if (receiver === tr) receiverFailed(); },30000);
+      const peer = peers.get(from); if (peer) peer.close(); peers.delete(from);
+      const rec = await M.verifyTransfer(tr.ra.result(),tr.map);
+      if (receiver !== tr) return;
+      const count = await game().importForeignCharts([Object.assign(rec,{origin:{type:'received',fromName:tr.fromName,lobby:tr.lobby,receivedAt:new Date().toISOString()}})]);
+      if (receiver !== tr) return;
+      if (count !== 1) throw new Error('unsupported chart');
+      clearTimeout(tr.timer); clearTimeout(tr.deadline);
+      receiver = null; haveMap = true; message(t('mp.saved')); renderLobby(getState());
+    } catch (_) { if (receiver === tr) receiverFailed(); }
   }
-
-  function onState(container, state) {
-    if (state.status === 'offline') {
-      for (const k in transfers) delete transfers[k];
-      lastStatus = '';
-      renderOffline(container, I18N.t('mp.lost_connection'));
+  function requestMap(map, host, generation) {
+    if (generation !== epoch || !conn) return;
+    const lobby = getState().lobby;
+    const id = globalThis.crypto.randomUUID();
+    receiver = {map,host,id,ra:M.createReassembler(),relay:false,fromName:(lobby.members[host] || {}).name || '',lobby:lobby.name};
+    receiver.deadline = setTimeout(receiverFailed,1200000);
+    message(t('mp.requesting',{title:map.title})); armReceiver();
+    const base = transferBody(map,id,{});
+    const peer = M.createPeerSession({offerer:true,
+      signal: msg => { if (generation === epoch) relay(host,Object.assign({},base,msg,{t:'rtc'})); },
+      onFrame: frame => { acceptFrame(host,base,frame,false); }, onFailure:fallback});
+    peers.set(host,peer);
+  }
+  async function mapChanged(map) {
+    resetTransfer(); status = ''; const generation = epoch;
+    if (!map || !game()) return;
+    try {
+      const rec = await game().getChartRecord(map.hash);
+      if (generation !== epoch) return;
+      const have = !!rec && await M.contentDigest(M.encodeChartTransfer(rec)) === map.contentHash;
+      if (generation !== epoch) return;
+      haveMap = have;
+      if (haveMap) message(t('mp.already_have',{title:map.title}));
+      else if (getState().uid !== getState().lobby.host_uid) requestMap(map,getState().lobby.host_uid,generation);
+      else { message(t('mp.transfer_failed')); stateMessage('spectator'); }
+      renderLobby(getState());
+    } catch (_) { if (generation === epoch) { message(t('mp.save_failed')); try { stateMessage('spectator'); } catch (_) {} renderLobby(getState()); } }
+  }
+  async function onRelay(from, body) {
+    const st = getState(), lobby = st.lobby, map = currentMap();
+    if (!lobby || !map || !body || !lobby.members[from] || body.hash !== map.hash || body.contentHash !== map.contentHash || typeof body.transferId !== 'string') return;
+    if (st.uid !== lobby.host_uid) {
+      if (from !== lobby.host_uid || !receiver || receiver.id !== body.transferId) return;
+      if (body.t === 'chunk') await acceptFrame(from,body,body,true);
+      else if (body.t === 'transfer_error') receiverFailed();
+      else if (body.t === 'rtc' && peers.has(from)) await peers.get(from).signal(body);
       return;
     }
-    if (state.lobby) { renderLobby(container, state); }
+    const generation = epoch;
+    const valid = () => generation === epoch && !!getState().lobby && !!getState().lobby.members[from];
+    const base = transferBody(map,body.transferId,{});
+    if (body.t === 'need_map') {
+      if (uploads.has(from)) return;
+      uploads.set(from,body.transferId);
+      const peer = peers.get(from); if (peer) peer.close(); peers.delete(from);
+      try {
+        const encoded = await encodedMap(map);
+        for (const frame of M.chunkString(encoded,16384)) {
+          if (!valid() || uploads.get(from) !== body.transferId) return;
+          await conn.sendChunk(M.buildRelay(from,Object.assign({},base,frame,{t:'chunk'})), () => valid() && uploads.get(from) === body.transferId);
+        }
+      } catch (_) { if (valid()) relay(from,Object.assign({},base,{t:'transfer_error'})); }
+      finally { if (uploads.get(from) === body.transferId) uploads.delete(from); }
+    } else if (body.t === 'rtc') {
+      if (body.kind === 'offer') {
+        if (peers.has(from)) peers.get(from).close();
+        const peer = M.createPeerSession({offerer:false,offer:body,
+          signal: msg => { if (valid()) relay(from,Object.assign({},base,msg,{t:'rtc'})); },
+          onFrame: () => {}, onFailure: () => {},
+          onOpen: session => { encodedMap(map).then(encoded => { if (valid()) return session.send(encoded); }).catch(() => session.close()); }});
+        peer.transferId = body.transferId; peers.set(from,peer);
+      } else if (peers.has(from) && peers.get(from).transferId === body.transferId) await peers.get(from).signal(body);
+    }
   }
-
-  function ensureConn(container) {
-    if (conn) return conn;
-    conn = MpEngine.createConnection({
-      url: KEI.replace(/^http/, 'ws') + '/api/mp/ws',
-      getToken: getToken,
-      onState: function (s) { onState(container, s); },
-      onMessage: function (m) {
-        if (m.type === 'relay') onRelay(container, m.from_uid, m.body);
-        else if (m.type === 'map_selected') onMapSelected(container, m.map);
-      },
-    });
-    return conn;
+  function scoreboard(lobby, target) {
+    target.replaceChildren();
+    const heading = node('strong',{textContent:t(lobby.phase === 'results' ? 'mp.results' : 'mp.standings')});
+    target.appendChild(heading);
+    const list = node('ol');
+    Object.values(lobby.members).sort((a,b) => (a.state === 'forfeit')-(b.state === 'forfeit') || b.score-a.score || b.acc-a.acc || b.combo-a.combo).forEach(m => {
+      list.appendChild(node('li',{textContent:m.name + ' · ' + m.score + ' · ' + Number(m.acc).toFixed(2) + '% · ' + t('mp.state_'+m.state)}));
+    }); target.appendChild(list);
   }
-
-  function openBrowser(container) {
-    container.innerHTML = '';
-    container.appendChild(el('h3', { textContent: I18N.t('mp.lobbies_title') }));
-    fetch(KEI + '/api/mp/lobbies').then(function (r) { return r.json(); })
-      .then(function (body) {
-        const create = el('button', {
-          textContent: I18N.t('mp.create_lobby'),
-          onclick: function () {
-            const name = prompt(I18N.t('mp.lobby_name_prompt')) || I18N.t('mp.lobby_default_name');
-            ensureConn(container).send(MpEngine.buildCreate({ name: name }));
-          },
-        });
-        container.appendChild(create);
-        body.lobbies.forEach(function (row) {
-          const label = I18N.t('mp.lobby_row', { name: row.name, host: row.hostName,
-            players: row.playerCount, cap: row.cap }) + (row.hasPassword ? ' 🔒' : '');
-          container.appendChild(el('button', {
-            textContent: label,
-            onclick: function () {
-              const pw = row.hasPassword ? (prompt(I18N.t('mp.password_prompt')) || '') : undefined;
-              ensureConn(container).send(MpEngine.buildJoin(row.id, pw));
-            },
-          }));
-        });
-      })
-      .catch(function () { renderOffline(container, I18N.t('mp.no_server')); });
+  function updateHud(lobby) {
+    let hud = document.getElementById('mp-scoreboard');
+    if (!lobby || !['countdown','racing','results'].includes(lobby.phase)) { if (hud) hud.remove(); return; }
+    if (!hud) { hud = node('aside',{id:'mp-scoreboard'}); document.body.appendChild(hud); }
+    scoreboard(lobby,hud);
+    if (lobby.phase === 'results') hud.appendChild(button(t('mp.title'),() => { if (!dialog().open) dialog().showModal(); renderLobby(getState()); }));
   }
-
-  window.MpUI = { open: openBrowser };
-}
+  function launch(lobby) {
+    if (!lobby.round_id || round === lobby.round_id) return;
+    round = lobby.round_id;
+    const roundId = round, connection = conn, map = lobby.current_map;
+    const mine = lobby.members[getState().uid];
+    if (!mine || mine.state !== 'playing') return;
+    const report = stats => {
+      if (conn === connection && getState().lobby && getState().lobby.round_id === roundId) connection.send(Object.assign({type:'score',round_id:roundId},stats));
+    };
+    try {
+      if (!prepared || prepared.contentHash !== map.contentHash || document.hidden) throw new Error('not prepared');
+      dialog().close();
+      game().startMultiplayer(prepared.value,{startAt:performance.now() + lobby.start_at_epoch_ms - conn.serverNow(),onScore:report});
+    } catch (_) { report({score:0,combo:0,acc:0,state:'forfeit'}); message(t('mp.start_failed')); }
+    prepared = null;
+  }
+  function onState(state) {
+    if (state.status === 'offline') {
+      resetTransfer(); mapKey = ''; hostUid = null; updateHud(null);
+      if (game() && game().detachMultiplayer) game().detachMultiplayer();
+      renderOffline(state.error); return;
+    }
+    if (state.error) { message(t('mp.server_error',{code:state.error})); serverErrorShown = true; }
+    else if (serverErrorShown) { message(''); serverErrorShown = false; }
+    if (!state.lobby) return;
+    const key = state.lobby.id + ':' + (state.currentMap ? state.currentMap.contentHash : '');
+    const hostChanged = hostUid !== state.lobby.host_uid;
+    hostUid = state.lobby.host_uid;
+    if (key !== mapKey) { mapKey = key; mapChanged(state.currentMap); }
+    else if (hostChanged) {
+      // Ready audio belongs to the map, not its previous host. Retain it while
+      // cancelling old-host transfers; otherwise the server still says Ready but
+      // the next countdown would have no prepared audio and forfeit everyone.
+      if (haveMap) resetTransfer(true);
+      else mapChanged(state.currentMap);
+    }
+    for (const [uid,peer] of peers) if (!state.lobby.members[uid]) { peer.close(); peers.delete(uid); uploads.delete(uid); }
+    if (state.lobby.phase === 'countdown') launch(state.lobby);
+    updateHud(state.lobby);
+    if (dialog().open) renderLobby(state);
+  }
+  function ensureConnection() {
+    if (conn && getState().status !== 'offline') return;
+    if (conn) teardown();
+    conn = M.createConnection({url:KEI.replace(/^http/,'ws')+'/api/mp/ws',
+      getToken: async () => {
+        const user = firebase.auth().currentUser;
+        if (!user || user.isAnonymous) throw new Error('auth_required');
+        return user.getIdToken();
+      }, onState,
+      onMessage: msg => { if (msg.type === 'relay') onRelay(msg.from_uid,msg.body).catch(() => message(t('mp.transfer_failed'))); }});
+  }
+  function renderOffline(code) {
+    if (!container) return;
+    container.replaceChildren(node('p',{textContent:code === 'auth_required' ? t('mp.sign_in') : t('mp.offline')}),node('p',{textContent:code ? t('mp.server_error',{code}) : ''}),button(t('mp.retry'),() => { teardown(); openBrowser(); }));
+  }
+  async function ready() {
+    if (preparing || !haveMap) return;
+    const generation = epoch, map = currentMap(); preparing = true; renderLobby(getState());
+    try {
+      const value = await game().prepareMultiplayer(map.hash);
+      const rec = await game().getChartRecord(map.hash);
+      if (!rec || await M.contentDigest(M.encodeChartTransfer(rec)) !== map.contentHash) throw new Error('map changed');
+      if (generation !== epoch) return;
+      prepared = {value,contentHash:map.contentHash}; stateMessage('ready'); message('');
+    } catch (_) { if (generation === epoch) message(t('mp.start_failed')); }
+    finally { if (generation === epoch) { preparing = false; renderLobby(getState()); } }
+  }
+  function renderLobby(state) {
+    const lobby = state.lobby; if (!lobby || !container) return;
+    container.replaceChildren(node('h3',{textContent:lobby.name + ' · ' + lobby.id}));
+    const busy = ['countdown','racing'].includes(lobby.phase);
+    if (lobby.current_map) container.appendChild(node('p',{textContent:lobby.current_map.title + ' · ' + lobby.current_map.diffName}));
+    const list = node('ul');
+    Object.entries(lobby.members).forEach(([uid,m]) => list.appendChild(node('li',{textContent:(uid === lobby.host_uid ? t('mp.member_host',{name:m.name}) : m.name) + ' · ' + t('mp.state_'+m.state)})));
+    container.appendChild(list);
+    const line = node('p',{id:'mp-xfer-status',textContent:status}); line.setAttribute('role','status'); container.appendChild(line);
+    if (lobby.phase === 'results') { const scores = node('div'); scoreboard(lobby,scores); container.appendChild(scores); }
+    if (!busy && state.uid === lobby.host_uid) container.appendChild(button(t('mp.pick_map'),pickMap));
+    if (!busy && lobby.current_map) {
+      container.appendChild(button(t('mp.ready'),ready,!haveMap || preparing || lobby.members[state.uid].state === 'ready'));
+      container.appendChild(button(t('mp.spectate'),() => { prepared = null; stateMessage('spectator'); }));
+      if (!haveMap && !receiver) container.appendChild(button(t('mp.retry'),() => mapChanged(currentMap())));
+      if (state.uid === lobby.host_uid) container.appendChild(button(t('mp.start'),() => send({type:'start'}),!Object.values(lobby.members).some(m => m.state === 'ready') || Object.values(lobby.members).some(m => !['ready','spectator'].includes(m.state))));
+    }
+    container.appendChild(button(t('mp.leave'),() => { if (conn) conn.send(M.buildLeave()); teardown(); openBrowser(); }));
+  }
+  async function pickMap() {
+    const generation = epoch, charts = await game().listCharts();
+    if (generation !== epoch || !getState().lobby) return;
+    const existing = container.querySelector('#mp-map-picker'); if (existing) existing.remove();
+    const box = node('div',{id:'mp-map-picker'},[node('h4',{textContent:t('mp.pick_map_title')})]);
+    if (!charts.length) box.appendChild(node('p',{textContent:t('mp.library_empty')}));
+    charts.forEach(map => box.appendChild(button(t('mp.map_row',{title:map.title,diff:map.diffName}),async () => {
+      const rec = await game().getChartRecord(map.hash), encoded = M.encodeChartTransfer(rec);
+      if (encoded.length > 64*1024*1024) throw new Error('map too large');
+      const contentHash = await M.contentDigest(encoded);
+      const duration = window.OsuStdEngine.assembleChart(rec.osuText).objects.reduce((end, o) => Math.max(end, o.endTime || o.time), 0);
+      if (generation !== epoch) return;
+      send(M.buildSelectMap(Object.assign({},map,{contentHash,duration})));
+      box.remove();
+    })));
+    container.appendChild(box);
+  }
+  function input(label, type = 'text', value = '') {
+    const field = node('input',{type,value,maxLength:type === 'password' ? 128 : 64});
+    return {field,label:node('label',{},[node('span',{textContent:label}),field])};
+  }
+  async function openBrowser() {
+    if (!container) return;
+    if (getState().lobby) { renderLobby(getState()); return; }
+    const generation = ++browseGen;
+    container.replaceChildren(node('h3',{textContent:t('mp.lobbies_title')}),node('p',{textContent:t('mp.loading')}));
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(),8000);
+    try {
+      const response = await fetch(KEI+'/api/mp/lobbies',{signal:controller.signal,cache:'no-store'});
+      if (!response.ok) throw new Error('offline');
+      const body = await response.json();
+      if (generation !== browseGen || getState().lobby) return;
+      if (!Array.isArray(body.lobbies) || body.protocol !== 2) throw new Error('server update required');
+      container.replaceChildren(node('h3',{textContent:t('mp.lobbies_title')}));
+      if (!firebase.auth().currentUser || firebase.auth().currentUser.isAnonymous) { renderOffline('auth_required'); return; }
+      ensureConnection();
+      container.appendChild(node('p',{id:'mp-xfer-status',textContent:status}));
+      if (window.__ACTIVITY__ && window.__ACTIVITY__.instanceId) container.appendChild(button(t('mp.play_activity'),() => send({type:'join_activity',instance_id:window.__ACTIVITY__.instanceId})));
+      const name = input(t('mp.lobby_name_prompt'),'text',t('mp.lobby_default_name'));
+      const password = input(t('mp.password_optional'),'password');
+      const listed = input(t('mp.listed'),'checkbox'); listed.field.checked = true;
+      const form = node('form',{},[name.label,password.label,listed.label,node('button',{type:'submit',textContent:t('mp.create_lobby')})]);
+      form.onsubmit = e => { e.preventDefault(); try { send(M.buildCreate({name:name.field.value.trim() || t('mp.lobby_default_name'),password:password.field.value,listed:listed.field.checked})); } catch (_) { message(t('mp.action_failed')); } };
+      container.appendChild(form);
+      const code = input(t('mp.room_code'));
+      container.appendChild(code.label);
+      container.appendChild(button(t('mp.join'),() => send(M.buildJoin(code.field.value.trim().toUpperCase(),password.field.value))));
+      body.lobbies.forEach(row => container.appendChild(button(t('mp.lobby_row',{name:row.name,host:row.hostName,players:row.playerCount,cap:row.cap})+(row.hasPassword ? ' 🔒' : ''),() => send(M.buildJoin(row.id,password.field.value)))));
+      container.appendChild(button(t('mp.refresh'),openBrowser));
+    } catch (_) { if (generation === browseGen && !getState().lobby) renderOffline('no_server'); }
+    finally { clearTimeout(timer); }
+  }
+  window.MpUI = {open(target) { container = target; openBrowser(); },close:teardown,dismiss() { if (!getState().lobby) teardown(); }};
+  window.addEventListener('beforeunload',teardown);
+  window.addEventListener('gamemodechange',() => { if (conn) teardown(); });
+  window.addEventListener('i18nchange',() => { if (container && dialog().open) { if (getState().lobby) renderLobby(getState()); else openBrowser(); } });
+  // An account change must not leave the old identity authenticated on the socket.
+  if (typeof firebase !== 'undefined') firebase.auth().onAuthStateChanged(user => {
+    if (conn && getState().uid && (!user || user.uid !== getState().uid)) { teardown(); if (container) renderOffline('auth_required'); }
+  });
+})();

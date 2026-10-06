@@ -153,14 +153,14 @@ if (typeof document !== 'undefined') {
   function _rowHtml(deps, img, r) {
     var name1 = r.discordName || r.name || '—';
     var av1 = r.discordPhotoURL
-      ? '<img class="presence-av" src="' + img(r.discordPhotoURL) + '" alt="">'
+      ? '<img class="presence-av" src="' + _esc(deps, img(r.discordPhotoURL)) + '" alt="">'
       : '<div class="presence-av presence-av-ph">' + _esc(deps, (name1 || '?').slice(0, 1)) + '</div>';
     var youTag = r.isSelf ? '<span class="presence-you">you</span>' : '';
     // Row 2 = in-game identity, shown only when it differs from the Discord name.
     var row2 = '';
     if (r.name && r.name !== r.discordName) {
       var av2 = r.photoURL
-        ? '<img class="presence-av-sm" src="' + img(r.photoURL) + '" alt="">'
+        ? '<img class="presence-av-sm" src="' + _esc(deps, img(r.photoURL)) + '" alt="">'
         : '<div class="presence-av-sm presence-av-ph">' + _esc(deps, (r.name || '?').slice(0, 1)) + '</div>';
       row2 = '<div class="presence-row2">' + av2 +
         '<span class="presence-game-name">' + _esc(deps, r.name) + '</span></div>';
@@ -196,7 +196,8 @@ if (typeof document !== 'undefined') {
   }
 
   function _writeSelf(deps) {
-    if (!_state) return;
+    if (!_state || !_state.connected) return;
+    var session = _state;
     var s;
     try { s = deps.getSelfState ? deps.getSelfState() : null; } catch (e) { s = null; }
     if (!s) return;
@@ -216,7 +217,7 @@ if (typeof document !== 'undefined') {
     if (sig === _state.lastSig) return;
     // Optimistic dedup; clear on failure so the next tick retries.
     _state.lastSig = sig;
-    _state.selfRef.update(payload).catch(function () { if (_state) _state.lastSig = null; });
+    session.selfRef.update(payload).catch(function () { if (_state === session) session.lastSig = null; });
   }
 
   function _recompute() {
@@ -228,11 +229,13 @@ if (typeof document !== 'undefined') {
   function _destroy() {
     if (!_state) return;
     try { if (_state.timer) clearInterval(_state.timer); } catch (e) {}
+    try { if (_state.connectedRef) _state.connectedRef.off('value', _state.connectedCb); } catch (e) {}
     try { if (_state.nodesRef) _state.nodesRef.off('value', _state.nodesCb); } catch (e) {}
-    try { if (_state.selfRef) _state.selfRef.onDisconnect().cancel(); } catch (e) {}
+    try { if (_state.selfRef) Promise.resolve(_state.selfRef.onDisconnect().cancel()).catch(function() {}); } catch (e) {}
     // Mark left (not remove) so an explicit teardown still records the departure.
     try { if (_state.selfRef) _state.selfRef.update({ active: false, leftAt: _serverTs() }).catch(function () {}); } catch (e) {}
     _state = null;
+    var panel = document.getElementById('presence-panel'); if (panel) panel.style.display = 'none';
   }
 
   function init(deps) {
@@ -256,23 +259,36 @@ if (typeof document !== 'undefined') {
       nodes: {},
       lastSig: null,
       timer: null,
-      nodesCb: null,
+      nodesCb: null, connected: false, connectedRef: deps.db.ref('.info/connected'), connectedCb: null,
     };
 
-    // On disconnect, flip to active:false (+ leftAt) instead of removing, so the player
-    // moves to the "Left" section rather than disappearing.
-    try { selfRef.onDisconnect().update({ active: false, leftAt: _serverTs() }); } catch (e) {}
-    _writeSelf(deps);
-    _state.timer = setInterval(function () { _writeSelf(deps); }, 3000);
-
-    // Everyone's node in this instance (keyed by uid). This is the only data source.
-    _state.nodesCb = nodesRef.on('value', function (snap) {
-      var map = snap.val() || {};
-      if (_state) { _state.nodes = map; _recompute(); }
-    });
+    var session = _state;
+    // onDisconnect registrations are consumed on disconnect. Register again BEFORE
+    // publishing active after each connection, even when the visible counters did not change.
+    session.connectedCb = function(snap) {
+      if (_state !== session) return;
+      const version = session.connectionVersion = (session.connectionVersion || 0) + 1;
+      session.connected = false; session.lastSig = null;
+      if (snap.val() !== true) return;
+      Promise.resolve(selfRef.onDisconnect().update({active:false,leftAt:_serverTs()})).then(function() {
+        if (_state !== session || version !== session.connectionVersion) return;
+        session.connected = true; _writeSelf(deps);
+      }).catch(function() { /* next connection/tick retries registration */ });
+    };
+    session.connectedRef.on('value', session.connectedCb);
+    session.timer = setInterval(function() {
+      if (_state !== session) return;
+      if (session.connected) _writeSelf(deps);
+      else session.connectedRef.once('value').then(session.connectedCb).catch(function() {});
+    }, 3000);
+    session.nodesCb = function(snap) {
+      if (_state === session) { session.nodes = snap.val() || {}; _recompute(); }
+    };
+    nodesRef.on('value', session.nodesCb);
 
     _recompute();
   }
 
   window.Presence = { init: init, destroy: _destroy, _recompute: _recompute };
+  window.dispatchEvent(new Event('presenceavailable'));
 }

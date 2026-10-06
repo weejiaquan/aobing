@@ -17,6 +17,8 @@
  */
 
 (function () {
+const R = typeof module !== 'undefined' && module.exports ? require('./rhythm-core.js') : window.RhythmCore;
+const S = typeof module !== 'undefined' && module.exports ? require('./rhythm-standard.js') : window.RhythmStandard;
 
 // =========================================================================
 // .osu parsing (shared INI-ish helpers)
@@ -56,15 +58,18 @@ function parseBackground(text) {
 function parseStdMeta(text) {
   const s = splitSections(text);
   const g = keyValues(s.General), m = keyValues(s.Metadata), d = keyValues(s.Difficulty);
-  const od = parseFloat(d.OverallDifficulty);
+  const od = Number.isFinite(parseFloat(d.OverallDifficulty)) ? R.clamp(parseFloat(d.OverallDifficulty),0,10) : 5;
   const arRaw = d.ApproachRate;
   return {
     audioFile: g.AudioFilename || '',
-    mode: parseInt(g.Mode, 10),
+    mode: parseInt(g.Mode || '0', 10),
+    version: Number((String(text).match(/osu file format v(\d+)/) || [0,14])[1]),
+    stackLeniency: g.StackLeniency == null ? 0.7 : Math.max(0, Math.min(1, Number(g.StackLeniency))),
+    sampleSet: ({Normal:1,Soft:2,Drum:3})[g.SampleSet] || 1,
     title: m.Title || '', artist: m.Artist || '', diffName: m.Version || '',
-    cs: parseFloat(d.CircleSize),
+    cs: Number.isFinite(parseFloat(d.CircleSize)) ? R.clamp(parseFloat(d.CircleSize),0,10) : 5,
     od: od,
-    ar: (arRaw == null || arRaw === '') ? od : parseFloat(arRaw),
+    ar: Number.isFinite(parseFloat(arRaw)) ? R.clamp(parseFloat(arRaw),0,10) : od,
     sliderMultiplier: parseFloat(d.SliderMultiplier) || 1.4,
     sliderTickRate: parseFloat(d.SliderTickRate) || 1,
   };
@@ -128,7 +133,7 @@ function parseHitObjects(text) {
     const newCombo = !!(type & 4);   // bit 2 = start of a new combo (number resets, colour cycles)
     const hitSound = parseInt(p[4], 10) || 0;   // additions bitmask: 1 normal, 2 whistle, 4 finish, 8 clap
     if (type & 1) {
-      out.push({ kind: 'circle', x: x, y: y, time: time, newCombo: newCombo, hitSound: hitSound });
+      out.push({ kind: 'circle', x: x, y: y, time: time, newCombo: newCombo, hitSound: hitSound, sample: R.sample(p[5]) });
     } else if (type & 2) {
       const seg = String(p[5] || '').split('|');
       const curveType = seg[0] || 'L';
@@ -142,10 +147,11 @@ function parseHitObjects(text) {
       out.push({
         kind: 'slider', x: x, y: y, time: time, newCombo: newCombo, hitSound: hitSound,
         curveType: curveType, points: points, edgeSounds: edgeSounds,
+        edgeSets: String(p[9] || '').split('|').map(e => e.split(':').map(Number)), sample: R.sample(p[10]),
         slides: parseInt(p[6], 10) || 1, length: parseFloat(p[7]) || 0,
       });
     } else if (type & 8) {
-      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10), newCombo: newCombo, hitSound: hitSound });
+      out.push({ kind: 'spinner', time: time, endTime: parseInt(p[5], 10), newCombo: newCombo, hitSound: hitSound, sample: R.sample(p[6]) });
     }
   }
   out.sort((a, b) => a.time - b.time);
@@ -301,7 +307,15 @@ function pointAtLength(dense, length) {
 
 // Public: sampled slider path (array of {x,y}) following `curveType` up to `length`.
 function samplePath(curveType, points, length, spacing) {
-  return arcResample(densePath(curveType, points), length, spacing || 5);
+  const dense = densePath(curveType, points);
+  const actual = segLength(dense);
+  if (length > actual && dense.length > 1) {
+    let i = dense.length - 2, b = dense[dense.length - 1];
+    while (i > 0 && dist(dense[i], b) < 1e-7) i--;
+    const a = dense[i], d = dist(a,b);
+    if (d > 0) dense.push({x:b.x+(b.x-a.x)*(length-actual)/d,y:b.y+(b.y-a.y)*(length-actual)/d});
+  }
+  return arcResample(dense, length, spacing || 5);
 }
 
 // Rough osu!standard star estimate (osu doesn't store a star rating in the .osu).
@@ -340,7 +354,7 @@ function assembleChart(text) {
   const timing = parseTimingPoints((s.TimingPoints || []).join('\n'));
   const raw = parseHitObjects((s.HitObjects || []).join('\n'));
   if (raw.length === 0) throw new Error('Unsupported chart: no hit objects');
-  const objects = raw.map((o) => {
+  let objects = raw.map((o) => {
     if (o.kind !== 'slider') return o;
     const tm = timingAt(timing, o.time);
     const span = sliderSpanDuration(o.length, meta.sliderMultiplier, tm.sv, tm.beatLength);
@@ -352,6 +366,7 @@ function assembleChart(text) {
       endTime: o.time + span * o.slides,
     });
   });
+  objects = S.stack(objects, arPreempt(meta.ar), meta.stackLeniency, csRadius(meta.cs), meta.version);
   const firstT = objects[0].time;
   const lastT = objects.reduce((m, o) => Math.max(m, (o.endTime != null ? o.endTime : o.time)), 0);
   return {
@@ -360,6 +375,7 @@ function assembleChart(text) {
     sliderMultiplier: meta.sliderMultiplier, sliderTickRate: meta.sliderTickRate,
     backgroundFile: parseBackground((s.Events || []).join('\n')),
     timingPoints: timing,
+    sampleSet: meta.sampleSet, samplePoints: R.timingPoints(s.TimingPoints || []),
     objects: objects,
     stars: estimateStars(objects, meta.cs, meta.ar),
     length: Math.max(0, lastT - firstT),   // playable span (ms) for sorting/labels
@@ -385,6 +401,7 @@ function dedupeLibrary(entries) {
 // =========================================================================
 const ENGINE = {
   OSUSTD_ENGINE: true,
+  gameplay: S,
   splitSections: splitSections,
   estimateStars: estimateStars,
   parseStdMeta: parseStdMeta,
@@ -407,8 +424,7 @@ if (typeof window !== 'undefined') window.OsuStdEngine = ENGINE;
 
 // =========================================================================
 // Browser wiring — window.OsuStdGame.init(deps). Playfield + cursor + circles.
-// Sliders/spinners are parsed and drawn as simple placeholders here (Phase 2);
-// full slider/spinner judgement lands in later phases.
+// Browser adapter for the shared clock and pure Standard gameplay helpers.
 // =========================================================================
 if (typeof document !== 'undefined') {
   const api = { init: initBrowser };
@@ -475,6 +491,50 @@ if (typeof document !== 'undefined') {
     const thumbUrls = new Map();                      // entry.id -> object URL for its song-list thumbnail
     let thumbObserver = null;                         // lazy-loads thumbnails as rows scroll into view
 
+    const pauseUI = window.RhythmUI.pausePanel(panel, resumeRun, () => { if (run) loadAndPlay(run.entry); }, quitToSelect);
+    function pauseRun(present = true) {
+      if (!run || run.finished) return;
+      if (run.multiplayer) reportMultiplayer('forfeit');
+      if (run.paused) { if (present) pauseUI.cancelCountdown(); else pauseUI.hide(); return; }
+      run.pauseRaw = run.clock.pause();
+      updateSliders(run.pauseRaw - calOffset()); sweepMisses(run.pauseRaw - calOffset());
+      run.paused = true; run.pressed = {};
+      run.history.push(run.pauseRaw - calOffset(), {...cursor,held:false});
+      cancelAnimationFrame(run.rafId);
+      try { run.src.stop(); } catch (_) {}
+      disarmQuickRestart(); Object.keys(keyBoxes).forEach(k => pressKey(k,false));
+      if (present) pauseUI.show();
+    }
+    async function resumeRun() {
+      if (!run || !run.paused) return;
+      const active = run;
+      await ensureCtx();
+      if (run !== active || active.finished) return;
+      const ac = audioCtx, offset = Math.max(0, run.pauseRaw / 1000);
+      const when = ac.currentTime + 0.05 + Math.max(0, -run.pauseRaw / 1000);
+      const src = ac.createBufferSource(); src.buffer = run.audioBuf; src.connect(run.gain);
+      if (offset < run.audioBuf.duration) src.start(when, offset);
+      run.src = src; run.startCtx = when - offset; run.clock.reset(run.startCtx);
+      run.paused = false;
+      run.history.push(run.pauseRaw - calOffset(), {...cursor,held:heldAny()});
+      grabFocus(); run.rafId = requestAnimationFrame(loop);
+    }
+    window.addEventListener('blur', () => { if (run && !run.finished) pauseRun(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && run && !run.finished) pauseRun(); });
+    function syncModalPause() {
+      if (!run || run.finished) return;
+      const covered = document.body.classList.contains('ui-window-open') || document.querySelector('dialog[open]:not(.rhythm-pause)');
+      if (covered) pauseRun(false);
+      else if (run.paused) pauseUI.show();
+    }
+    new MutationObserver(syncModalPause).observe(document.body, {subtree:true,attributes:true,attributeFilter:['open']});
+    new MutationObserver(syncModalPause).observe(document.body, {attributes:true,attributeFilter:['class']});
+
+    window.RhythmUI.controls(document.querySelector('#osu-visual .hs-controls'),settings,deps.saveSettings,[
+
+      {key:'osuVisualOffset',label:'rhythm.visual_offset',min:-200,max:200,value:0,format:v=>v+' ms'}
+    ]);
+
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
     function cursorScale() { const s = Number(settings.osuCursorScale); return (s >= 0.5 && s <= 2) ? s : 1; }
     function bgBrightness() { const d = Number(settings.osuBgDim); return (1 - (isNaN(d) ? 80 : d) / 100); }   // 0 = black, 1 = full art
@@ -487,26 +547,29 @@ if (typeof document !== 'undefined') {
       return Math.sqrt(v) * 10;
     }
     function recordError(errMs, result) {
-      if (run) run.errors.push(errMs);
+      if (run) {
+        run.errors.push(errMs);
+        const n=run.errors.length, delta=errMs-(run.errorMean || 0);
+        run.errorMean=(run.errorMean || 0)+delta/n;
+        run.errorM2=(run.errorM2 || 0)+delta*(errMs-run.errorMean);
+      }
       errTicks.push({ err: errMs, result: result, t: performance.now() });
       if (errTicks.length > 64) errTicks.shift();
     }
     function playHitsound(scale) { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx, scale); }   // shared engine (hitsound.js)
     // Sound for a hit object: the map's per-note additions (whistle/finish/clap) when
     // 'Use map hitsounds' is on, otherwise the player's chosen preset/custom sound.
-    function playObjectSound(obj, scale) {
-      if (settings.hitsoundUseMap && window.Hitsound && window.Hitsound.playAdditions && audioCtx) {
-        window.Hitsound.playAdditions(audioCtx, (obj && obj.hitSound) || 0, scale);
-      } else playHitsound(scale);
+    function playObjectSound(obj, scale, edge = 0, time = obj.time) {
+      if (window.Hitsound && audioCtx && run) window.Hitsound.playNote(audioCtx,run.samples,R.soundSpec(run.chart,obj,time,edge),scale);
     }
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
-    function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
+    function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh()); }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
 
     function ensureCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:'interactive'});
       if (audioCtx.state !== 'running') return audioCtx.resume().then(() => audioCtx);
       return Promise.resolve(audioCtx);
     }
@@ -798,13 +861,13 @@ if (typeof document !== 'undefined') {
     }
     // Build a portable record of a chart this mode can't play, so the OTHER mode
     // (mania) can store it — getU8(name) returns the file's bytes as a Uint8Array.
-    async function buildForeign(osuText, getU8) {
+    async function buildForeign(osuText, getU8, sampleNames) {
       const meta = parseStdMeta(osuText);
       const audio = await getU8(String(meta.audioFile).toLowerCase());
       if (!audio) return null;
       const bg = parseBackground((splitSections(osuText).Events || []).join('\n'));
       const art = bg ? await getU8(bg.toLowerCase()) : null;
-      return { osuText: osuText, audio: audio, art: art || null };
+      return { osuText: osuText, audio: audio, art: art || null, samples: await R.collectSamples(sampleNames, getU8, meta.audioFile) };
     }
     // Hand collected non-standard charts to mania; returns how many it accepted.
     async function routeForeign(list) {
@@ -823,6 +886,7 @@ if (typeof document !== 'undefined') {
       }
       const out = [], foreign = []; let scanned = 0;
       for (const files of byDir.values()) {
+        const sampleNames = [...files.keys()];
         const getU8 = async (nm) => { const f = files.get(nm); return f ? new Uint8Array(await f.arrayBuffer()) : null; };
         for (const [name, f] of files) {
           if (!name.endsWith('.osu')) continue;
@@ -831,21 +895,21 @@ if (typeof document !== 'undefined') {
           let chart;
           try { chart = assembleChart(osuText); }
           catch (e) {   // not osu!standard — collect for mania routing instead of dropping it
-            try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+            try { const rec = await buildForeign(osuText, getU8, sampleNames); if (rec) foreign.push(rec); } catch (_) {}
             continue;
           }
           const audio = files.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
           const art = chart.backgroundFile ? (files.get(chart.backgroundFile.toLowerCase()) || null) : null;
-          out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => artBlob(art)));
+          out.push(makeEntry('local', osuText, chart, () => f.text(), () => audio.arrayBuffer(), () => artBlob(art), () => R.collectSamples(sampleNames, getU8, chart.audioFile)));
         }
       }
       return { entries: out, scanned: scanned, foreign: foreign };
     }
-    function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt) {
+    function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt, getSamples) {
       return { id: source + ':' + chart.title + ':' + chart.diffName, source: source,
         title: chart.title, artist: chart.artist, diffName: chart.diffName,
         stars: chart.stars, length: chart.length,   // chart = assembled chart, or a stored osz record carrying these
-        getOsuText: getOsuText, getAudio: getAudio, getArt: getArt };
+        getOsuText: getOsuText, getAudio: getAudio, getArt: getArt, getSamples: getSamples };
     }
 
     async function handleOszFiles(fileList) {
@@ -855,22 +919,22 @@ if (typeof document !== 'undefined') {
         for (const file of fileList) {
           setImportStatus('Reading ' + file.name + '…');
           let entries; try { entries = await unzip(await file.arrayBuffer()); } catch (e) { continue; }
-          const byName = new Map();
-          for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          let byName = new Map(), sampleNames = [];
           const getU8 = (nm) => byName.get(nm) || null;
           for (const [nm, bytes] of entries) {
             if (!nm.toLowerCase().endsWith('.osu')) continue;
+            byName = R.archiveFiles(entries,nm); sampleNames = [...byName.keys()];
             scanned++;
             const osuText = new TextDecoder().decode(bytes); let chart;
             try { chart = assembleChart(osuText); }
             catch (e) {   // not osu!standard — collect for mania routing instead of dropping it
-              try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+              try { const rec = await buildForeign(osuText, getU8, sampleNames); if (rec) foreign.push(rec); } catch (_) {}
               continue;
             }
             const audio = byName.get(String(chart.audioFile).toLowerCase()); if (!audio) continue;
             const art = chart.backgroundFile ? (byName.get(chart.backgroundFile.toLowerCase()) || null) : null;
             const hash = await sha256(osuText);
-            await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: osuText, audio: audio, art: art });
+            await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: osuText, audio: audio, art: art, samples: await R.collectSamples(sampleNames,getU8,chart.audioFile) });
             imported++;
           }
         }
@@ -883,7 +947,7 @@ if (typeof document !== 'undefined') {
     async function loadCachedOsz() {
       const all = await idbGetAll('osz');
       return (all || []).map((s) => makeEntry('osz', s.osuText, s, () => Promise.resolve(s.osuText),
-        () => Promise.resolve(s.audio.slice().buffer), () => Promise.resolve(s.art ? new Blob([s.art]) : null)));
+        () => Promise.resolve(s.audio.slice().buffer), () => Promise.resolve(s.art ? new Blob([s.art]) : null), () => Promise.resolve(s.samples || [])));
     }
     async function unzip(arrayBuffer) {
       const dv = new DataView(arrayBuffer), u8 = new Uint8Array(arrayBuffer), n = dv.byteLength;
@@ -1054,7 +1118,10 @@ if (typeof document !== 'undefined') {
     // ---- Run lifecycle -------------------------------------------------------
     function teardownRun() {
       if (!run) return;
+      if (!run.finished && run.multiplayer) reportMultiplayer('forfeit');
       run.finished = true;
+      disarmQuickRestart();
+      pauseUI.hide();
       cancelAnimationFrame(run.rafId);
       bindInput(false);
       try { run.src.stop(); } catch (e) {}
@@ -1070,14 +1137,15 @@ if (typeof document !== 'undefined') {
         const osuText = await entry.getOsuText();
         const chart = assembleChart(osuText);
         const ac = await ensureCtx();
-        const audioBuf = await ac.decodeAudioData(await entry.getAudio());
+        const [audioBuf, samples] = await Promise.all([ac.decodeAudioData(await entry.getAudio()), window.Hitsound.prepare(ac, entry.getSamples ? await entry.getSamples() : [])]);
         if (gen !== loadGen || !panelOpen) return;
         startRun(entry, chart, audioBuf);
+        run.samples = samples;
       } catch (e) { try { console.error('[osustd] load', e); } catch (_) {} }
       finally { loading = false; }
     }
 
-    function startRun(entry, chart, audioBuf) {
+    function startRun(entry, chart, audioBuf, multiplayer) {
       teardownRun();
       if (deps.pauseBgm) deps.pauseBgm();
       show('game'); grabFocus(); sizeCanvas();
@@ -1099,20 +1167,20 @@ if (typeof document !== 'undefined') {
           st.color = colors[colorIdx % colors.length];
         } else if (o.kind === 'spinner') { forceNew = true; }
         if (o.kind === 'slider') {
-          st.headJudged = false; st.headResult = null; st.checkpoints = buildSliderCheckpoints(o, chart);
+          st.hitWindow = windows.h50; st.headJudged = false; st.headResult = null; st.checkpoints = buildSliderCheckpoints(o, chart);
         }
         if (o.kind === 'spinner') {
           const dur = o.endTime - o.time;
-          const rps = 2 + (chart.od || 5) * 0.2;          // required spins/sec scales with OD
+          const rps = S.spinnerRequired(dur, chart.od) / (dur / 1000 || 1);          // required spins/sec scales with OD
           st.requiredRad = (dur / 1000) * rps * 2 * Math.PI;
           st.rot = 0; st.lastAngle = null;
         }
         return st;
       });
-      const startCtx = ac.currentTime + LEAD_IN_MS / 1000;
+      const startCtx = multiplayer ? ac.currentTime + (multiplayer.startAt - performance.now()) / 1000 : ac.currentTime + Math.max(LEAD_IN_MS, preempt) / 1000;
       const src = ac.createBufferSource();
       const gain = ac.createGain();
-      gain.gain.value = Math.max(0, Math.min(1, (Number(settings.musicVol) || 0) / 100)) || 0.6;
+      gain.gain.value = Math.max(0, Math.min(1, Number.isFinite(Number(settings.musicVol)) ? Number(settings.musicVol) / 100 : 0.6));
       src.buffer = audioBuf; src.connect(gain).connect(ac.destination); src.start(startCtx);
       const lastTime = chart.objects.reduce((m, o) => Math.max(m, o.endTime || o.time), 0);
       const firstTime = chart.objects.length ? chart.objects[0].time : 0;
@@ -1122,10 +1190,12 @@ if (typeof document !== 'undefined') {
         preempt: preempt, fadeIn: fadeIn, radius: radius, windows: windows,
         counts: { h300: 0, h100: 0, h50: 0, miss: 0 }, combo: 0, maxCombo: 0,
         lastTime: lastTime, finished: false, rafId: 0, artImg: null, pressed: {},
+        clock: R.createClock(ac, startCtx), history: R.createHistory(cursor), paused: false,
         errors: [],   // signed hit-timing errors (ms, +late/-early) for UR + the error bar
         // Skip target: jump to ~1.5s before the first object if the intro is long enough.
         firstTime: firstTime, skipTo: Math.max(0, firstTime - 1500), skipped: false,
-        auto: autoplay, waypoints: autoplay ? buildAutoWaypoints(chart) : null,
+        multiplayer: multiplayer || null, mpLastReport: 0,
+        auto: multiplayer ? false : autoplay, waypoints: !multiplayer && autoplay ? buildAutoWaypoints(chart) : null,
       };
       errTicks = [];
       if (entry.getArt) entry.getArt().then((b) => {
@@ -1146,14 +1216,11 @@ if (typeof document !== 'undefined') {
     // audio the user actually HEARS, i.e. shifted back by the output latency. This
     // makes the default feel right across devices; calOffset is then a small
     // personal fine-tune rather than a per-device latency band-aid.
-    function songTimeNow() { return (audioCtx.currentTime - run.startCtx - audioLatency()) * 1000; }
-    function inputSongTime(perfTs) {
-      const ctxAtInput = run.t0ctx + (perfTs - run.t0perf) / 1000;
-      return (ctxAtInput - run.startCtx - audioLatency()) * 1000 - calOffset();
-    }
+    function songTimeNow() { return run.clock.at() - calOffset(); }
+    function inputSongTime(perfTs) { return run.clock.at(R.eventTime(perfTs)) - calOffset(); }
 
     function loop() {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.paused) return;
       const st = songTimeNow();
       if (run.auto) {   // preview: drive cursor (+ trail) + auto-hit
         cursor = autoCursor(st);
@@ -1163,9 +1230,11 @@ if (typeof document !== 'undefined') {
       updateSliders(st);
       updateSpinners(st);
       sweepMisses(st);
-      render(st);
+      render(st + calOffset() + (Number(settings.osuVisualOffset) || 0));
+      run.history.prune(st - 5000);
       tickFps();
       updateSkip(st);
+      if (run.multiplayer && st >= 0 && performance.now() - run.mpLastReport >= 250) reportMultiplayer('playing');
       if (st > run.lastTime + END_PAD_MS) { finishRun(); return; }
       run.rafId = requestAnimationFrame(loop);
     }
@@ -1173,11 +1242,11 @@ if (typeof document !== 'undefined') {
     // ~1.5s before the first object (like osu's Skip).
     function updateSkip(st) {
       if (!skipBtn) return;
-      const show = !run.skipped && run.skipTo > 800 && st < run.skipTo - 100;
+      const show = !run.multiplayer && !run.skipped && run.skipTo > 800 && st < run.skipTo - 100;
       if (skipBtn.hidden === show) skipBtn.hidden = !show;
     }
     function doSkip() {
-      if (!run || run.finished || run.skipped) return;
+      if (!run || run.finished || run.multiplayer || run.skipped) return;
       if (songTimeNow() >= run.skipTo - 50) return;
       const ac = audioCtx, when = ac.currentTime;
       try { run.src.stop(); } catch (e) {}
@@ -1185,7 +1254,7 @@ if (typeof document !== 'undefined') {
       src.buffer = run.audioBuf; src.connect(run.gain);     // gain is already wired to destination
       src.start(when, run.skipTo / 1000);                    // play from the skip offset
       run.src = src;
-      run.startCtx = when - run.skipTo / 1000;               // songTimeNow now reads ~skipTo
+      run.startCtx = when - run.skipTo / 1000; run.clock.reset(run.startCtx);               // songTimeNow now reads ~skipTo
       run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync the input→ctx mapping
       run.skipped = true;
       if (skipBtn) skipBtn.hidden = true;
@@ -1223,47 +1292,23 @@ if (typeof document !== 'undefined') {
       for (const s of run.objs) {
         if (s.o.kind !== 'spinner' || s.judged) continue;
         const o = s.o;
-        if (st >= o.time && st <= o.endTime) {
-          const ang = Math.atan2(cursor.y - PLAY_H / 2, cursor.x - PLAY_W / 2);
-          if (s.lastAngle !== null) {
-            let d = ang - s.lastAngle;
-            while (d > Math.PI) d -= 2 * Math.PI;
-            while (d < -Math.PI) d += 2 * Math.PI;
-            s.rot += Math.abs(d);
-          }
-          s.lastAngle = ang;
-        }
+        if (run.auto && st >= o.time) s.rot = Math.max(0, Math.min(st,o.endTime)-o.time) / 1000 * Math.PI * 12;
         if (st > o.endTime) {
-          const p = s.requiredRad > 0 ? s.rot / s.requiredRad : 1;
-          const result = p >= 1 ? 'h300' : p >= 0.9 ? 'h100' : p >= 0.5 ? 'h50' : 'miss';
-          s.judged = true; s.result = result;
-          const c = run.counts;
-          if (result === 'miss') { c.miss++; run.combo = 0; }
-          else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
-          bursts.push({ x: PLAY_W / 2, y: PLAY_H / 2, result: result, t: performance.now() });
-          if (result !== 'miss') playObjectSound(s.o);   // spinner clear
-          flashJudge(result); updateHud();
+          const result = S.spinnerResult(s.rot / (2*Math.PI), s.requiredRad / (2*Math.PI));
+          judgeResult(s, result);
+          if (result !== 'miss') playObjectSound(o);
         }
       }
+    }
+    function rememberInput(perfTs) {
+      if (!run || run.paused || run.auto) return;
+      const time = inputSongTime(perfTs), input = {...cursor, held:heldAny()};
+      run.history.push(time, input);
+      for (const s of run.objs) if (s.o.kind === 'spinner' && !s.judged && time >= s.o.time && time <= s.o.endTime) S.spinSample(s,input,time);
     }
 
     // ---- Sliders -------------------------------------------------------------
-    function buildSliderCheckpoints(o, chart) {
-      const tm = timingAt(chart.timingPoints, o.time);
-      const tickSpacing = Math.max(60, tm.beatLength / (chart.sliderTickRate || 1));
-      const pts = [];
-      for (let span = 0; span < o.slides; span++) {
-        const spanStart = o.time + span * o.spanDuration;
-        const reverse = (span % 2) === 1;
-        for (let t = tickSpacing; t < o.spanDuration - 10; t += tickSpacing) {
-          const fr = reverse ? 1 - t / o.spanDuration : t / o.spanDuration;
-          pts.push({ time: spanStart + t, frac: fr, kind: 'tick', hit: false, ev: false });
-        }
-        pts.push({ time: spanStart + o.spanDuration, frac: reverse ? 0 : 1,
-          kind: span === o.slides - 1 ? 'tail' : 'repeat', hit: false, ev: false });
-      }
-      return pts;
-    }
+    function buildSliderCheckpoints(o, chart) { return S.checkpoints(o, chart); }
     function pointAtFrac(path, frac) {
       if (!path.length) return { x: 0, y: 0 };
       const f = Math.max(0, Math.min(1, frac)) * (path.length - 1);
@@ -1271,14 +1316,7 @@ if (typeof document !== 'undefined') {
       const a = path[i], b = path[Math.min(path.length - 1, i + 1)];
       return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
     }
-    function sliderBallPos(o, st) {
-      let local = st - o.time; if (local < 0) local = 0;
-      let span = Math.floor(local / o.spanDuration);
-      if (span >= o.slides) span = o.slides - 1;
-      let fr = (local - span * o.spanDuration) / o.spanDuration;
-      if ((span % 2) === 1) fr = 1 - fr;
-      return pointAtFrac(o.path, fr);
-    }
+    function sliderBallPos(o, st) { return S.ball(o, st); }
     function heldAny() { return (run && run.auto) || tapKeys().some((k) => run.pressed[k]) || !!run.pressed.m1 || !!run.pressed.m2; }
 
     // ---- Autoplay (preview): drive the cursor + auto-hit; no score saved -------
@@ -1317,46 +1355,33 @@ if (typeof document !== 'undefined') {
         if (headDone) continue;
         if (st < o.time) break;                          // this (and later) objects aren't due yet
         recordError(0, 'h300'); playObjectSound(o);
-        if (o.kind === 'slider') { s.headJudged = true; s.headResult = 'h300'; }
+        if (o.kind === 'slider') { s.headJudged = true; s.headResult = 'h300'; sliderPart(true, 'head'); }
         else judgeResult(s, 'h300');
       }
     }
 
+    function sliderPart(hit, kind) {
+      if (hit) { run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
+      else if (kind !== 'tail') { run.combo = 0; flashJudge('miss'); }
+      updateHud();
+    }
     function updateSliders(st) {
-      const followR = run.radius * 2.4;
       for (const s of run.objs) {
         if (s.o.kind !== 'slider' || s.judged) continue;
-        const o = s.o;
-        if (!s.headJudged && st > o.time + run.windows.h50) { s.headJudged = true; s.headResult = 'miss'; run.combo = 0; updateHud(); }
-        if (st >= o.time && st <= o.endTime + 30) {
-          const ball = sliderBallPos(o, st);
-          s.following = heldAny() && dist(cursor, ball) <= followR;
-          for (const cp of s.checkpoints) if (!cp.ev && st >= cp.time) {
-            cp.ev = true; cp.hit = s.following;
-            // sound each slider event the player is following: beat-synced ticks use
-            // the dedicated slidertick blip; reverse-arrows medium, the tail full.
-            if (cp.hit) {
-              if (cp.kind === 'tick') { if (window.Hitsound && window.Hitsound.tick && audioCtx) window.Hitsound.tick(audioCtx); }
-              else playObjectSound(o, cp.kind === 'repeat' ? 0.85 : 1);
-            }
+        const history = run.auto ? { at: t => ({...sliderBallPos(s.o,t),held:true}) } : run.history;
+        if (S.processSlider(s, st, history, run.radius, (hit, kind, time, edge) => {
+          sliderPart(hit, kind);
+          if (hit) {
+            if (kind === 'tick') window.Hitsound.playTick(audioCtx, run.samples, R.soundSpec(run.chart,s.o,time));
+            else playObjectSound(s.o, kind === 'repeat' ? 0.85 : 1, edge, time);
           }
-        }
-        if (st > o.endTime + 30) {
-          for (const cp of s.checkpoints) if (!cp.ev) { cp.ev = true; cp.hit = false; }
-          finalizeSlider(s);
-        }
+        })) finalizeSlider(s);
       }
     }
     function finalizeSlider(s) {
-      const headOk = (s.headJudged && s.headResult !== 'miss') ? 1 : 0;
-      const collected = headOk + s.checkpoints.filter((c) => c.hit).length;
-      const total = 1 + s.checkpoints.length;
-      const frac = total ? collected / total : 0;
-      const result = frac >= 1 ? 'h300' : frac >= 0.5 ? 'h100' : frac > 0 ? 'h50' : 'miss';
+      const result = S.sliderResult(s);
       s.judged = true; s.result = result;
-      const c = run.counts;
-      if (result === 'miss') { c.miss++; run.combo = 0; }
-      else { c[result]++; run.combo++; run.maxCombo = Math.max(run.maxCombo, run.combo); }
+      run.counts[result]++;
       bursts.push({ x: s.o.x, y: s.o.y, result: result, t: performance.now() });
       flashJudge(result); updateHud();
     }
@@ -1374,8 +1399,9 @@ if (typeof document !== 'undefined') {
 
     // ---- Input ---------------------------------------------------------------
     function onTap(perfTs) {
-      if (!run || run.finished || run.auto) return;   // autoplay drives hits itself
+      if (!run || run.finished || run.auto || run.paused) return;
       const st = inputSongTime(perfTs);
+      updateSliders(st); sweepMisses(st);
       // earliest object whose head is still unhit, within the catchable window
       let best = null;
       for (const s of run.objs) {
@@ -1383,35 +1409,38 @@ if (typeof document !== 'undefined') {
         if (o.kind === 'spinner') continue;
         const headDone = o.kind === 'circle' ? s.judged : s.headJudged;
         if (headDone) continue;
-        if (st < o.time - run.windows.h50) break;            // next ones are later — too early
+        if (st < o.time - 400) break;            // next ones are later — too early
         if (st <= o.time + run.windows.h50) { best = s; break; }
       }
       if (!best) return;
       // cursor must be over the head
       if (dist(cursor, { x: best.o.x, y: best.o.y }) > run.radius) return;   // missed aim
       const signed = st - best.o.time;                     // +late / -early
-      const err = Math.abs(signed);
       const w = run.windows;
-      const result = err <= w.h300 ? 'h300' : err <= w.h100 ? 'h100' : 'h50';
-      recordError(signed, result);                         // feeds the UR + error bar (heads only, like osu)
-      playObjectSound(best.o);
-      if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; }  // body/tail scored later
+      const rounded = Math.abs(Math.round(signed));
+      const result = rounded < Math.trunc(w.h300) ? 'h300' : rounded < Math.trunc(w.h100) ? 'h100' : rounded < Math.trunc(w.h50) ? 'h50' : 'miss';
+      if (result !== 'miss') { recordError(signed, result); playObjectSound(best.o); }
+      if (best.o.kind === 'slider') { best.headJudged = true; best.headResult = result; sliderPart(result !== 'miss', 'head'); }  // body/tail scored later
       else judgeResult(best, result);
     }
     function bindInput(on) {
       const fn = on ? 'addEventListener' : 'removeEventListener';
       canvas[fn]('pointermove', onPointerMove);
       canvas[fn]('pointerdown', onPointerDown);
-      canvas[fn]('pointerup', onPointerUp);
+      canvas[fn]('mousedown', onMouseDown);
+      window[fn]('pointerup', onPointerUp);
+      window[fn]('mouseup', onMouseUp);
       canvas[fn]('pointercancel', onPointerUp);
       window[fn]('keydown', onKeyDown);
     }
-    function onPointerMove(e) { updateCursorFromEvent(e); }
+    function onPointerMove(e) { if (!run) return; const events = e.getCoalescedEvents ? e.getCoalescedEvents() : []; for (const p of events.length ? events : [e]) { updateCursorFromEvent(p); rememberInput(p.timeStamp); } }
     // Both mouse buttons tap (left = M1, right = M2, like osu); right-click's context
     // menu is suppressed on the canvas so it can be used as a button.
     function mouseBtn(e) { return e.button === 2 ? 'm2' : 'm1'; }
-    function onPointerDown(e) { e.preventDefault(); grabFocus(); updateCursorFromEvent(e); const b = mouseBtn(e); if (run) run.pressed[b] = true; pressKey(b, true); onTap(e.timeStamp); }
-    function onPointerUp(e) { if (run) { run.pressed.m1 = run.pressed.m2 = false; } pressKey('m1', false); pressKey('m2', false); }
+    function onPointerDown(e) { if (!run || run.paused || e.pointerType === 'mouse') return; e.preventDefault(); updateCursorFromEvent(e); try { canvas.setPointerCapture(e.pointerId); } catch (_) {} run.pressed.m1 = true; pressKey('m1',true); rememberInput(e.timeStamp); onTap(e.timeStamp); }
+    function onPointerUp(e) { if (!run || e.pointerType === 'mouse') return; run.pressed.m1 = false; pressKey('m1',false); rememberInput(e.timeStamp); }
+    function onMouseDown(e) { if (!run || run.paused || ![0,2].includes(e.button)) return; e.preventDefault(); grabFocus(); updateCursorFromEvent(e); const b=mouseBtn(e); run.pressed[b]=true; pressKey(b,true); rememberInput(e.timeStamp); onTap(e.timeStamp); }
+    function onMouseUp(e) { if (!run || ![0,2].includes(e.button)) return; const b=mouseBtn(e); run.pressed[b]=false; pressKey(b,false); rememberInput(e.timeStamp); }
     function tapKeys() {
       const k = settings.osuKeys;
       return (Array.isArray(k) && k.length) ? k.map((x) => String(x).toLowerCase()) : ['z', 'x'];
@@ -1461,19 +1490,20 @@ if (typeof document !== 'undefined') {
       if (e.key.length === 1 || e.key === ' ') applyRebind(e.key.toLowerCase());
     }, true);
     function armQuickRestart() {
-      if (!run || run.finished || run.restartTimer) return;   // run.restartTimer also guards key auto-repeat
+      if (!run || run.finished || run.multiplayer || run.restartTimer) return;   // run.restartTimer also guards key auto-repeat
       run.restartTimer = setTimeout(() => { if (run) run.restartTimer = null; if (run && run.entry) loadAndPlay(run.entry); }, 1500);
     }
     function disarmQuickRestart() { if (run && run.restartTimer) { clearTimeout(run.restartTimer); run.restartTimer = null; } }
     function onKeyDown(e) {
       if (!run || run.finished) return;
       if (e.key === '`' || e.code === 'Backquote') { e.preventDefault(); armQuickRestart(); return; }   // hold ~1.5s → quick restart
-      if (e.key === 'Escape') { quitToSelect(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); if (!run.paused) pauseRun(); return; }
+      if (run.paused) { const k=e.key.toLowerCase(); if(tapKeys().includes(k)) { run.pressed[k]=true; e.preventDefault(); } return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       const k = e.key.toLowerCase();
-      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true); e.preventDefault(); onTap(e.timeStamp); }
+      if (tapKeys().indexOf(k) >= 0) { if (run.pressed[k]) return; run.pressed[k] = true; pressKey(k, true); e.preventDefault(); rememberInput(e.timeStamp); onTap(e.timeStamp); }
     }
-    window.addEventListener('keyup', (e) => { if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; } const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); } });
+    window.addEventListener('keyup', (e) => { if (e.key === '`' || e.code === 'Backquote') { disarmQuickRestart(); return; } const k = e.key.toLowerCase(); if (run) { run.pressed[k] = false; pressKey(k, false); rememberInput(e.timeStamp); } });
 
     // ---- Render --------------------------------------------------------------
     function accuracy() {
@@ -1482,7 +1512,7 @@ if (typeof document !== 'undefined') {
       return Math.round(((300 * c.h300 + 100 * c.h100 + 50 * c.h50) / (300 * total)) * 10000) / 100;
     }
     function render(st) {
-      const W = canvas.width, H = canvas.height, dpr = window.devicePixelRatio || 1;
+      const W = canvas.width, H = canvas.height, dpr = W / canvas.getBoundingClientRect().width;
       const tf = transform();
       g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
       if (run.artImg) {
@@ -1493,6 +1523,19 @@ if (typeof document !== 'undefined') {
       const p0 = osuToScreen(0, 0, tf), p1 = osuToScreen(PLAY_W, PLAY_H, tf);
       g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1 * dpr; g.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
       const rad = run.radius * tf.scale;
+      // Connections respect combo boundaries and start at a slider's final end.
+      for (let i=1;i<run.objs.length;i++) {
+        const a=run.objs[i-1].o, b=run.objs[i].o;
+        if (a.kind==='spinner' || b.kind==='spinner' || b.newCombo || st<b.time-run.preempt || st>b.time) continue;
+        const start=a.kind==='slider'?sliderBallPos(a,a.endTime):a;
+        const length=dist(start,b); if(length<run.radius*3) continue;
+        g.save(); g.fillStyle='#fff'; g.globalAlpha=Math.min(0.4,Math.max(0,(st-(b.time-run.preempt))/300));
+        for(let d=run.radius*1.5;d<length-run.radius*1.5;d+=24) {
+          const p=osuToScreen(start.x+(b.x-start.x)*d/length,start.y+(b.y-start.y)*d/length,tf);
+          g.beginPath();g.arc(p.x,p.y,2*dpr,0,Math.PI*2);g.fill();
+        }
+        g.restore();
+      }
       // draw objects latest-first so earlier (upcoming) circles sit on top
       for (let i = run.objs.length - 1; i >= 0; i--) {
         const s = run.objs[i], o = s.o;
@@ -1514,7 +1557,7 @@ if (typeof document !== 'undefined') {
           g.beginPath(); g.moveTo(ctr.x, ctr.y); g.lineTo(ctr.x + Math.cos(sp) * baseR * 0.8, ctr.y + Math.sin(sp) * baseR * 0.8); g.stroke();
           // text
           g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.font = (28 * dpr) + 'px system-ui'; g.fillText(prog >= 1 ? 'CLEAR!' : 'SPIN!', ctr.x, ctr.y);
+          g.font = (28 * dpr) + 'px system-ui'; g.fillText(window.I18N.t(prog >= 1 ? 'rhythm.clear' : 'rhythm.spin'), ctr.x, ctr.y);
           g.font = (16 * dpr) + 'px system-ui'; g.fillStyle = '#9aa0ab';
           g.fillText(Math.round(prog * 100) + '%', ctr.x, ctr.y + 30 * dpr);
           g.restore();
@@ -1532,12 +1575,20 @@ if (typeof document !== 'undefined') {
           g.beginPath();
           for (let j = 0; j < o.path.length; j++) { const pp = osuToScreen(o.path[j].x, o.path[j].y, tf); j ? g.lineTo(pp.x, pp.y) : g.moveTo(pp.x, pp.y); }
           g.stroke();
-          g.strokeStyle = s.color + '99'; g.lineWidth = rad * 1.6; g.stroke();
+          g.strokeStyle = s.color; g.globalAlpha = fade * 0.55; g.lineWidth = rad * 1.6; g.stroke(); g.globalAlpha = fade;
           // ticks
           for (const cp of s.checkpoints) {
             if (cp.kind !== 'tick' || cp.ev) continue;
             const tp = osuToScreen(pointAtFrac(o.path, cp.frac).x, pointAtFrac(o.path, cp.frac).y, tf);
             g.fillStyle = '#fff'; g.beginPath(); g.arc(tp.x, tp.y, 3 * dpr, 0, Math.PI * 2); g.fill();
+          }
+          // Point the next repeat arrow back along the upcoming span.
+          const repeat = s.checkpoints.find(cp => cp.kind==='repeat' && cp.time>=st);
+          if (repeat) {
+            const p=pointAtFrac(o.path,repeat.frac), inside=pointAtFrac(o.path,repeat.frac ? 0.95 : 0.05);
+            const sp=osuToScreen(p.x,p.y,tf), angle=Math.atan2(inside.y-p.y,inside.x-p.x);
+            g.save();g.translate(sp.x,sp.y);g.rotate(angle);g.strokeStyle='#fff';g.lineWidth=4*dpr;
+            g.beginPath();g.moveTo(-rad*0.25,-rad*0.4);g.lineTo(rad*0.25,0);g.lineTo(-rad*0.25,rad*0.4);g.stroke();g.restore();
           }
           // tail cap
           const tail = osuToScreen(o.path[o.path.length - 1].x, o.path[o.path.length - 1].y, tf);
@@ -1644,7 +1695,7 @@ if (typeof document !== 'undefined') {
         g.fillRect(x - dpr, y - 8 * dpr, 2 * dpr, 16 * dpr); g.globalAlpha = 1;
       }
       if (run.errors.length >= 3) {                     // running-mean marker (small triangle under the bar)
-        const mean = run.errors.reduce((a, b) => a + b, 0) / run.errors.length;
+        const mean = run.errorMean || 0;
         const mx = cx + Math.max(-half, Math.min(half, mean * pxPerMs));
         g.fillStyle = '#9be7ff';
         g.beginPath(); g.moveTo(mx, y + 9 * dpr); g.lineTo(mx - 4 * dpr, y + 15 * dpr); g.lineTo(mx + 4 * dpr, y + 15 * dpr); g.closePath(); g.fill();
@@ -1662,7 +1713,7 @@ if (typeof document !== 'undefined') {
     function updateHud() {
       if (comboEl) comboEl.textContent = run.combo > 1 ? run.combo + 'x' : '';
       if (accEl) {
-        const ur = unstableRate(run.errors);
+        const ur = run.errors.length > 1 ? Math.sqrt((run.errorM2 || 0) / run.errors.length) * 10 : 0;
         accEl.textContent = accuracy().toFixed(2) + '%' + (ur ? '  ·  UR ' + Math.round(ur) : '');
       }
     }
@@ -1670,35 +1721,40 @@ if (typeof document !== 'undefined') {
     // ---- Results / PB --------------------------------------------------------
     async function finishRun() {
       if (!run || run.finished) return;
-      const isAuto = run.auto;
-      run.finished = true; cancelAnimationFrame(run.rafId); bindInput(false);
-      try { run.src.stop(); } catch (e) {}
+      const active = run;
+      const isAuto = active.auto;
+      if (active.multiplayer) reportMultiplayer('finished');
+      active.finished = true; disarmQuickRestart(); pauseUI.hide(); cancelAnimationFrame(active.rafId); bindInput(false);
+      try { active.src.stop(); } catch (e) {}
       const acc = accuracy();
       let prev = null, improved = false;
       if (!isAuto) {   // autoplay is a preview — never recorded as a personal best
-        const hash = await sha256(await run.entry.getOsuText());
+        const hash = 'classic-v2:' + await sha256(await active.entry.getOsuText());
         prev = await idbGet('osu-pb', hash);
-        improved = !prev || acc > prev.accuracy;
-        if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: run.maxCombo, date: new Date().toISOString() });
+        improved = !prev || acc > prev.accuracy || (acc === prev.accuracy && active.maxCombo > prev.maxCombo);
+        if (improved) await idbPut('osu-pb', hash, { accuracy: acc, maxCombo: active.maxCombo, date: new Date().toISOString() });
       }
-      const c = run.counts;
+      if (run !== active) return;
+      const c = active.counts;
       const total = c.h300 + c.h100 + c.h50 + c.miss;
       const grade = c.miss === 0 && acc === 100 ? 'SS' : acc >= 95 && c.miss === 0 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
       const gradeColor = { SS: '#ffd166', S: '#ffd166', A: '#39d98a', B: '#56a0ff', C: '#b06bff', D: '#ff5470' }[grade];
-      const fc = c.miss === 0 ? '<span class="osu-res-fc">Full Combo!</span>' : '';
+      const possibleCombo = active.objs.reduce((n,s) => n + (s.o.kind === 'slider' ? 1+s.checkpoints.length : 1),0);
+      const fc = c.miss === 0 && active.maxCombo === possibleCombo ? '<span class="osu-res-fc">Full Combo!</span>' : '';
       const cell = (label, val, col) => '<div class="osu-res-cell"><div class="osu-res-cn" style="color:' + col + '">' + val + '</div><div class="osu-res-cl">' + label + '</div></div>';
       resultsBody.innerHTML =
-        '<div class="osu-res-title">' + escapeH(run.entry.title) + ' · ' + escapeH(run.entry.diffName) + '</div>' +
+        '<div class="osu-res-title">' + escapeH(active.entry.title) + ' · ' + escapeH(active.entry.diffName) + '</div>' +
         '<div class="osu-res-grade" style="color:' + gradeColor + '">' + grade + '</div>' +
         '<div class="osu-res-acc">' + acc.toFixed(2) + '%</div>' +
         '<div class="osu-res-grid">' +
           cell('300', c.h300, '#56a0ff') + cell('100', c.h100, '#39d98a') +
           cell('50', c.h50, '#ffd166') + cell('Miss', c.miss, '#ff5470') +
         '</div>' +
-        '<div class="osu-res-combo">Max combo ' + run.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects &nbsp;·&nbsp; UR ' + Math.round(unstableRate(run.errors)) + ' ' + fc + '</div>' +
+        '<div class="osu-res-combo">Max combo ' + active.maxCombo + 'x &nbsp;·&nbsp; ' + total + ' objects &nbsp;·&nbsp; UR ' + Math.round(unstableRate(active.errors)) + ' ' + fc + '</div>' +
         (isAuto ? '<div class="osu-res-pb">Autoplay preview — not saved.</div>'
                 : (prev ? '<div class="osu-res-pb">Previous best: ' + prev.accuracy.toFixed(2) + '%' + (improved ? ' — <b>new best!</b>' : '') + '</div>'
                         : '<div class="osu-res-pb">First clear — saved as your best.</div>'));
+      if (run !== active) return;
       show('results');
     }
     function quitToSelect() { loadGen++; teardownRun(); if (deps.resumeBgm) deps.resumeBgm(); show('select'); renderSongList(); }
@@ -1712,11 +1768,11 @@ if (typeof document !== 'undefined') {
     }
     function registerTap(perfTs) {
       if (!tapState) return;
-      const tapCtx = tapState.tc0 + (perfTs - tapState.tp0) / 1000;
+      const tapCtx = R.createClock(audioCtx,0).at(R.eventTime(perfTs)) / 1000;
       const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
       if (k < 0) return;                                   // before the first beat
       const beat = tapState.baseTick + k * tapState.period;
-      const errMs = (tapCtx - beat - audioLatency()) * 1000;       // vs the HEARD beep (same shift as gameplay)
+      const errMs = (tapCtx - beat) * 1000;       // vs the HEARD beep (same shift as gameplay)
       if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
       tapState.errors.push(errMs);
       const need = 12;
@@ -1765,7 +1821,7 @@ if (typeof document !== 'undefined') {
           if (cctx) {
             // Phase from the HEARD beep (baseTick + output latency), with calOffset
             // applied — same shift as gameplay; wrap negatives into [0,period).
-            const rel = ac.currentTime - baseTick - audioLatency() - calOffset() / 1000;
+            const rel = R.createClock(ac,baseTick).at() / 1000 - calOffset() / 1000;
             const phase = (((rel % period) + period) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
@@ -1872,6 +1928,39 @@ if (typeof document !== 'undefined') {
     if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; canvas.style.cursor = 'none'; canvas.addEventListener('contextmenu', (e) => e.preventDefault()); }
     if (panel) panel.addEventListener('pointerdown', grabFocus);
 
+    function reportMultiplayer(state) {
+      if (!run || !run.multiplayer) return;
+      const c = run.counts, callback = run.multiplayer.onScore;
+      run.mpLastReport = performance.now();
+      const stats = {score: 300*c.h300 + 100*c.h100 + 50*c.h50, combo: run.maxCombo, acc: accuracy(), state};
+      if (state !== 'playing') run.multiplayer = null;
+      try { callback(stats); } catch (_) { /* network failures never break single-player */ }
+    }
+    api.prepareMultiplayer = async function(hash) {
+      if (!panelOpen || loading) throw new Error('game_busy');
+      if (run && !run.finished) {
+        if (run.multiplayer || !run.paused) throw new Error('game_busy');
+        // Ready explicitly replaces a forfeited, paused local attempt for the next round.
+        teardownRun(); show('select');
+      }
+      const ac = await ensureCtx();
+      if (ac.state !== 'running') throw new Error('audio_suspended');
+      const rec = await idbGet('osz', hash);
+      if (!rec) throw new Error('missing_map');
+      const chart = assembleChart(rec.osuText);
+      const entry = makeEntry('osz', rec.osuText, chart, async () => rec.osuText,
+        async () => rec.audio.slice().buffer, async () => rec.art ? new Blob([rec.art]) : null, async () => rec.samples || []);
+      const [audioBuf, samples] = await Promise.all([ac.decodeAudioData(await entry.getAudio()), window.Hitsound.prepare(ac, rec.samples || [])]);
+      return {entry, chart, audioBuf, samples};
+    };
+    api.startMultiplayer = function(prepared, options) {
+      if (!panelOpen || !prepared || audioCtx.state !== 'running' || options.startAt - performance.now() < 100 || options.startAt - performance.now() > 15000) throw new Error('missed_start');
+      loadGen++;
+      startRun(prepared.entry, prepared.chart, prepared.audioBuf, options);
+      run.samples = prepared.samples;
+    };
+    api.detachMultiplayer = function() { if (run) run.multiplayer = null; };
+
     api.open = open; api.close = close;
     // Cross-mode hooks (called by vsrg.js when a mania-side import finds standard
     // charts, or a skin to apply): store Mode-0 charts / load a .osk skin here.
@@ -1881,7 +1970,7 @@ if (typeof document !== 'undefined') {
       for (const r of records) {
         let chart; try { chart = assembleChart(r.osuText); } catch (e) { continue; }   // accept Mode-0 only
         const hash = await sha256(r.osuText);
-        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null, origin: r.origin || { type: 'imported' } });
+        await idbPut('osz', hash, { title: chart.title, artist: chart.artist, diffName: chart.diffName, stars: chart.stars, length: chart.length, hash: hash, osuText: r.osuText, audio: r.audio, art: r.art || null, samples: r.samples || [], origin: r.origin || { type: 'imported' } });
         n++;
       }
       if (n && panelOpen) await refreshLibrary();

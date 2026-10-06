@@ -19,6 +19,8 @@
  */
 
 (function () {
+const R = typeof module !== 'undefined' && module.exports ? require('./rhythm-core.js') : window.RhythmCore;
+const M = typeof module !== 'undefined' && module.exports ? require('./rhythm-mania.js') : window.RhythmMania;
 
 // =========================================================================
 // .osu parser
@@ -62,7 +64,7 @@ function parseMeta(text) {
     artist: meta.Artist || '',
     diffName: meta.Version || '',
     keyCount: parseInt(diff.CircleSize, 10),
-    overallDifficulty: parseFloat(diff.OverallDifficulty),
+    overallDifficulty: Number.isFinite(parseFloat(diff.OverallDifficulty)) ? parseFloat(diff.OverallDifficulty) : 5,
   };
 }
 
@@ -78,7 +80,7 @@ function parseHitObjects(text, keyCount) {
     const x = parseInt(p[0], 10);
     const time = parseInt(p[2], 10);
     const type = parseInt(p[3], 10);
-    const lane = Math.floor((x * keyCount) / 512);
+    const lane = Math.max(0, Math.min(keyCount - 1, Math.floor((x * keyCount) / 512)));
     let endTime = null;
     if (type & 128) {
       // Hold: extra params live in p[5] as "endTime:hitSample..."
@@ -86,7 +88,8 @@ function parseHitObjects(text, keyCount) {
       if (!Number.isFinite(endTime)) endTime = null;
     }
     if (!Number.isFinite(time) || !Number.isFinite(lane)) continue;
-    notes.push({ time: time, lane: lane, endTime: endTime });
+    if (endTime != null && endTime <= time) endTime = null;
+    notes.push({ time: time, lane: lane, endTime: endTime, hitSound: Number(p[4]) || 0, sample: R.sample(endTime != null ? String(p[5]).split(':').slice(1).join(':') : p[5]) });
   }
   notes.sort((a, b) => a.time - b.time);
   return notes;
@@ -150,6 +153,9 @@ function parseOsu(text) {
     bpm: timing.bpm,
     offset: timing.offset,
     notes: notes,
+    sampleSet: ({Normal:1,Soft:2,Drum:3})[keyValues(sections.General).SampleSet] || 1,
+    samplePoints: R.timingPoints(sections.TimingPoints || []),
+    scroll: R.scrollTimeline(R.timingPoints(sections.TimingPoints || []), notes.reduce((m,n) => Math.max(m,n.endTime || n.time),0)),
   };
 }
 
@@ -180,29 +186,13 @@ function difficultyStars(chart) {
 // osu!mania timing windows (half-windows, ms) for a given OverallDifficulty.
 // A hit within ±window[tier] of the note time earns that tier. Beyond `bad`
 // it is a MISS. MARVELOUS is fixed; the rest tighten by 3ms per OD point.
-function windowsForOD(od) {
-  return {
-    marvelous: 16.5,
-    perfect: 64 - 3 * od,
-    great: 97 - 3 * od,
-    good: 127 - 3 * od,
-    bad: 151 - 3 * od,
-  };
-}
+function windowsForOD(od) { return M.windows(od); }
 
 // Judge a hit against a note time. Returns { tier, errorMs } where errorMs is
 // signed (hit - note): negative = early, positive = late. `tier` is one of
 // marvelous|perfect|great|good|bad|miss.
 function judge(noteTimeMs, hitTimeMs, windows) {
-  const errorMs = hitTimeMs - noteTimeMs;
-  const abs = Math.abs(errorMs);
-  let tier = 'miss';
-  if (abs <= windows.marvelous) tier = 'marvelous';
-  else if (abs <= windows.perfect) tier = 'perfect';
-  else if (abs <= windows.great) tier = 'great';
-  else if (abs <= windows.good) tier = 'good';
-  else if (abs <= windows.bad) tier = 'bad';
-  return { tier: tier, errorMs: errorMs };
+  return {tier:M.tapTier(hitTimeMs-noteTimeMs,windows),errorMs:hitTimeMs-noteTimeMs};
 }
 
 // osu!mania accuracy %: weighted hit value over the max possible (300 each).
@@ -221,9 +211,8 @@ function accuracy(counts) {
 // Run state — pure reducer over judgements
 // =========================================================================
 
-// Tiers that keep a combo going. Per the project's chosen rule, `bad` (50)
-// breaks combo (only marvelous/perfect/great/good continue it).
-const COMBO_TIERS = { marvelous: true, perfect: true, great: true, good: true };
+// Every successful tap, including a 50, continues a classic combo.
+const COMBO_TIERS = { marvelous: true, perfect: true, great: true, good: true, bad: true };
 
 function createRunState(chart) {
   return {
@@ -253,6 +242,7 @@ function applyJudgement(state, tier) {
 // =========================================================================
 const ENGINE = {
   VSRG_ENGINE: true,
+  createSession: M.createSession,
   splitSections: splitSections,
   parseMeta: parseMeta,
   parseHitObjects: parseHitObjects,
@@ -301,7 +291,6 @@ if (typeof document !== 'undefined') {
   const ARROW_DIRS = ['left', 'down', 'up', 'right'];
   const TIER_COLORS = { marvelous: '#9be7ff', perfect: '#39d98a', great: '#ffd166', good: '#f59e0b', bad: '#ff8c5a', miss: '#ff5470' };
   const APPROACH_MS = 1600;   // base approach time (1.0x speed); scaled by scroll-speed setting
-  const RELEASE_SCALE = 1.5;  // hold releases use windows 1.5x wider than taps (osu!mania-style)
   const LEAD_IN_MS = 2000;    // silence/scroll before the song's audio starts
   const END_PAD_MS = 2000;    // wait after the last note before results
 
@@ -382,6 +371,54 @@ if (typeof document !== 'undefined') {
     // Active run (null when not playing)
     let run = null;
 
+    const pauseUI = window.RhythmUI.pausePanel(panel, resumeRun, () => { if (run) loadAndPlay(run.entry); }, quitToSelect);
+    function pauseRun(present = true) {
+      if (!run || run.finished) return;
+      if (run.paused) { if (present) pauseUI.cancelCountdown(); else pauseUI.hide(); return; }
+      run.pauseRaw = run.clock.pause();
+      run.engine.advance(run.pauseRaw - calOffset()); flushEngine();
+      run.paused = true; run.pressed = {};
+      cancelAnimationFrame(run.rafId);
+      try { run.src.stop(); } catch (_) {}
+      run.engine.held.clear();
+      if (present) pauseUI.show();
+    }
+    async function resumeRun() {
+      if (!run || !run.paused) return;
+      const active = run;
+      await ensureCtx();
+      if (run !== active || active.finished) return;
+      const ac = audioCtx, offset = Math.max(0, run.pauseRaw / 1000);
+      const when = ac.currentTime + 0.05 + Math.max(0, -run.pauseRaw / 1000);
+      const src = ac.createBufferSource(); src.buffer = run.audioBuf; src.connect(run.gain);
+      if (offset < run.audioBuf.duration) src.start(when, offset);
+      run.src = src; run.startCtx = when - offset; run.clock.reset(run.startCtx);
+      run.paused = false;
+      for (const n of run.notes) if (n.holding && !heldLanes()[n.lane]) {
+        n.holding = false; n.broken = true; run.state.combo = 0;
+      }
+      for (const lane of Object.keys(heldLanes())) run.engine.held.add(Number(lane));
+      grabFocus(); run.rafId = requestAnimationFrame(loop);
+    }
+    window.addEventListener('blur', () => { if (run && !run.finished) pauseRun(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && run && !run.finished) pauseRun(); });
+    function syncModalPause() {
+      if (!run || run.finished) return;
+      const covered = document.body.classList.contains('ui-window-open') || document.querySelector('dialog[open]:not(.rhythm-pause)');
+      if (covered) pauseRun(false);
+      else if (run.paused) pauseUI.show();
+    }
+    new MutationObserver(syncModalPause).observe(document.body, {subtree:true,attributes:true,attributeFilter:['open']});
+    new MutationObserver(syncModalPause).observe(document.body, {attributes:true,attributeFilter:['class']});
+
+    window.RhythmUI.controls(document.querySelector('#vsrg-appearance .vsrg-appear-controls'),settings,deps.saveSettings,[
+      {key:'vsrgLaneWidth',label:'rhythm.lane_width',min:32,max:110,value:72,format:v=>v+' px'},
+      {key:'vsrgReceptorPosition',label:'rhythm.receptor',min:0.6,max:0.92,step:0.01,value:0.85,format:v=>Math.round(v*100)+'%'},
+      {key:'vsrgUpscroll',label:'rhythm.upscroll',type:'checkbox',value:false},
+      {key:'vsrgConstantScroll',label:'rhythm.constant_scroll',type:'checkbox',value:false},
+      {key:'vsrgVisualOffset',label:'rhythm.visual_offset',min:-200,max:200,value:0,format:v=>v+' ms'}
+    ]);
+
     function calOffset() { return Number(settings.vsrgCalibrationOffset) || 0; }
     // Scroll speed: higher multiplier -> shorter approach time -> faster notes.
     // Uncapped on top (some players want 10x+); floored at 0.5 to stay sane.
@@ -455,7 +492,7 @@ if (typeof document !== 'undefined') {
 
     // Draw a lane receptor at the judgement line, matching the note style.
     function drawReceptor(g, style, color, laneX, laneW, hitY, recH, dpr, dir, glow) {
-      const cx = laneX + laneW / 2, cy = hitY + recH / 2;
+      const cx = laneX + laneW / 2, cy = hitY;
       g.save();
       if (glow) { g.shadowColor = color; g.shadowBlur = 20 * dpr; g.globalAlpha = 0.9; g.fillStyle = color; }
       else { g.globalAlpha = 1; g.strokeStyle = color; g.lineWidth = 2 * dpr; g.fillStyle = 'transparent'; }
@@ -468,7 +505,7 @@ if (typeof document !== 'undefined') {
         else { g.globalAlpha = 0.5; drawTapOutlineArrow(g, color, laneX, laneW, cy, dpr, dir); }
       } else {
         const x = laneX + 4 * dpr, w = laneW - 8 * dpr;
-        if (glow) g.fillRect(x, hitY, w, recH); else g.strokeRect(x, hitY, w, recH);
+        if (glow) g.fillRect(x, hitY - recH / 2, w, recH); else g.strokeRect(x, hitY - recH / 2, w, recH);
       }
       g.restore();
     }
@@ -484,6 +521,7 @@ if (typeof document !== 'undefined') {
     // ---- Screen management -------------------------------------------------
     function show(name) {
       for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
+      panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
     }
 
     // Pull keyboard focus into this window/iframe. In the Discord Activity the
@@ -496,7 +534,7 @@ if (typeof document !== 'undefined') {
 
     // ---- Audio -------------------------------------------------------------
     function ensureCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:'interactive'});
       if (audioCtx.state !== 'running') return audioCtx.resume().then(() => audioCtx);
       return Promise.resolve(audioCtx);
     }
@@ -546,7 +584,7 @@ if (typeof document !== 'undefined') {
       const items = library.filter(passesFilter);
       if (items.length === 0) {
         songlistEl.innerHTML = '<div class="vsrg-empty">' +
-          escapeH(t('vsrg.noSongs') || 'No songs. Import your osu! Songs folder to add maps.') + '</div>';
+          escapeH(t('mp.library_empty') || 'No songs. Import your osu! Songs folder to add maps.') + '</div>';
         return;
       }
       songlistEl.innerHTML = items.map((e, i) =>
@@ -640,6 +678,7 @@ if (typeof document !== 'undefined') {
       const out = [], foreign = [];
       const stats = { scanned: 0, skippedNonMania: 0, skippedKeys: 0, skippedNoAudio: 0 };
       for (const files of byDir.values()) {
+        const sampleNames = [...files.keys()];
         const getU8 = async (nm) => { const ff = files.get(nm); return ff ? new Uint8Array(await ff.arrayBuffer()) : null; };
         for (const [name, f] of files) {
           if (!name.endsWith('.osu')) continue;
@@ -651,7 +690,7 @@ if (typeof document !== 'undefined') {
           try { chart = parseOsu(osuText); }
           catch (e) {   // not osu!mania — collect for standard routing instead of dropping it
             stats.skippedNonMania++;
-            try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+            try { const rec = await buildForeign(osuText, getU8, sampleNames); if (rec) foreign.push(rec); } catch (_) {}
             continue;
           }
           if (!KEY_MAPS[chart.keyCount]) { stats.skippedKeys++; continue; }
@@ -667,6 +706,7 @@ if (typeof document !== 'undefined') {
             stars: difficultyStars(chart),
             getOsuText: () => f.text(),
             getAudio: () => audio.arrayBuffer(),
+            getSamples: () => R.collectSamples(sampleNames,getU8,chart.audioFile),
             getArt: () => Promise.resolve(art),    // File (Blob) or null
           });
         }
@@ -675,13 +715,13 @@ if (typeof document !== 'undefined') {
     }
     // Build a portable record of a chart this mode can't play, so the OTHER mode
     // (osu!standard) can store it — getU8(name) returns the file's bytes (Uint8Array).
-    async function buildForeign(osuText, getU8) {
+    async function buildForeign(osuText, getU8, sampleNames) {
       const meta = parseMeta(osuText);
       const audio = await getU8(String(meta.audioFile).toLowerCase());
       if (!audio) return null;
       const bg = parseBackground((splitSections(osuText).Events || []).join('\n'));
       const art = bg ? await getU8(bg.toLowerCase()) : null;
-      return { osuText: osuText, audio: audio, art: art || null };
+      return { osuText: osuText, audio: audio, art: art || null, samples: await R.collectSamples(sampleNames, getU8, meta.audioFile) };
     }
     // Hand collected non-mania charts to osu!standard; returns how many it accepted.
     async function routeForeign(list) {
@@ -702,17 +742,17 @@ if (typeof document !== 'undefined') {
           try { entries = await unzip(await file.arrayBuffer()); }
           catch (e) { failed++; setOszStatus('Could not read ' + file.name + ': ' + ((e && e.message) || e)); continue; }
           // index entry files by base filename (lower-cased) for sibling lookup
-          const byName = new Map();
-          for (const [nm, bytes] of entries) byName.set(nm.toLowerCase().split('/').pop(), bytes);
+          let byName = new Map(), sampleNames = [];
           const getU8 = (nm) => byName.get(nm) || null;
           for (const [nm, bytes] of entries) {
             if (!nm.toLowerCase().endsWith('.osu')) continue;
+            byName = R.archiveFiles(entries,nm); sampleNames = [...byName.keys()];
             scanned++;
             const osuText = new TextDecoder().decode(bytes);
             let chart;
             try { chart = parseOsu(osuText); }
             catch (e) {   // not osu!mania — collect for standard routing instead of counting it skipped
-              try { const rec = await buildForeign(osuText, getU8); if (rec) foreign.push(rec); } catch (_) {}
+              try { const rec = await buildForeign(osuText, getU8, sampleNames); if (rec) foreign.push(rec); } catch (_) {}
               continue;
             }
             if (!KEY_MAPS[chart.keyCount]) { skipped++; continue; }
@@ -724,7 +764,7 @@ if (typeof document !== 'undefined') {
               title: chart.title, artist: chart.artist, diffName: chart.diffName,
               keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
               stars: difficultyStars(chart),
-              osuText: osuText, audio: audio, art: art,    // Uint8Arrays (structured-cloned)
+              osuText: osuText, audio: audio, art: art, samples: await R.collectSamples(sampleNames,getU8,chart.audioFile),    // Uint8Arrays (structured-cloned)
             });
             imported++;
           }
@@ -750,6 +790,7 @@ if (typeof document !== 'undefined') {
         keyCount: s.keyCount, od: s.od, hash: s.hash,
         stars: (typeof s.stars === 'number') ? s.stars : difficultyStars(parseOsu(s.osuText)),
         getOsuText: () => Promise.resolve(s.osuText),
+        getSamples: () => Promise.resolve(s.samples || []),
         getAudio: () => Promise.resolve(s.audio.slice().buffer),     // fresh copy each play
         getArt: () => Promise.resolve(s.art ? new Blob([s.art]) : null),
       }));
@@ -844,11 +885,11 @@ if (typeof document !== 'undefined') {
     }
     function registerTap(perfTs) {
       if (!tapState) return;
-      const tapCtx = tapState.tc0 + (perfTs - tapState.tp0) / 1000;
+      const tapCtx = R.createClock(audioCtx,0).at(R.eventTime(perfTs)) / 1000;
       const k = Math.round((tapCtx - tapState.baseTick) / tapState.period);
       const beat = tapState.baseTick + k * tapState.period;
       if (k < 0) return;                                  // before the first beat
-      const errMs = (tapCtx - beat - audioLatency()) * 1000;       // vs the HEARD beep (same shift as gameplay)
+      const errMs = (tapCtx - beat) * 1000;       // vs the HEARD beep (same shift as gameplay)
       if (Math.abs(errMs) > tapState.period * 1000 / 2) return;   // not near any beat
       tapState.errors.push(errMs);
       const need = 12;
@@ -874,6 +915,7 @@ if (typeof document !== 'undefined') {
     function teardownRun() {
       if (!run) return;
       run.finished = true;
+      pauseUI.hide();
       cancelAnimationFrame(run.rafId);
       bindInput(false);
       try { run.src.stop(); } catch (e) {}
@@ -893,9 +935,10 @@ if (typeof document !== 'undefined') {
         const osuText = await entry.getOsuText();
         const chart = parseOsu(osuText);
         const ac = await ensureCtx();
-        const audioBuf = await ac.decodeAudioData(await entry.getAudio());
+        const [audioBuf, samples] = await Promise.all([ac.decodeAudioData(await entry.getAudio()), window.Hitsound.prepare(ac, entry.getSamples ? await entry.getSamples() : [])]);
         if (gen !== loadGen || !panelOpen) return;   // user left during the load
         startRun(entry, chart, audioBuf);
+        run.samples = samples;
       } finally {
         loading = false;
       }
@@ -921,19 +964,15 @@ if (typeof document !== 'undefined') {
       const keyCount = chart.keyCount;
       const keys = laneKeyMap(keyCount);
 
-      // Build per-note play state. Holds carry a tail.
-      const notes = chart.notes.map((n) => ({
-        time: n.time, lane: n.lane, endTime: n.endTime,
-        headJudged: false, tailJudged: false, holding: false, headTier: null,
-      }));
-      const holdCount = notes.filter((n) => n.endTime != null).length;
-      const totalJudgements = notes.length + holdCount;   // head + tail for holds
+      const engine = M.createSession(chart);
+      const notes = engine.notes;
+      const totalJudgements = notes.length;
 
       // Schedule audio: source starts LEAD_IN after now.
       const startCtx = ac.currentTime + LEAD_IN_MS / 1000;
       const src = ac.createBufferSource();
       const gain = ac.createGain();
-      gain.gain.value = Math.max(0, Math.min(1, (Number(settings.musicVol) || 0) / 100)) || 0.6;
+      gain.gain.value = Math.max(0, Math.min(1, Number.isFinite(Number(settings.musicVol)) ? Number(settings.musicVol) / 100 : 0.6));
       src.buffer = audioBuf;
       src.connect(gain).connect(ac.destination);
       src.start(startCtx);
@@ -944,10 +983,11 @@ if (typeof document !== 'undefined') {
 
       const firstNoteTime = notes.reduce((m, n) => Math.min(m, n.time), Infinity);
       run = {
-        entry, chart, notes, keys, keyCount, windows, src, gain, audioBuf,
+        entry, chart, notes, keys, keyCount, windows, src, gain, audioBuf, engine,
+        clock: R.createClock(ac, startCtx), paused: false,
         startCtx, t0perf, t0ctx, totalJudgements,
         approachMs: approachMs(),     // visual scroll speed, snapshot at run start
-        state: createRunState({ notes: notes }),
+        state: engine.state,
         lastNoteTime: notes.reduce((m, n) => Math.max(m, n.endTime || n.time), 0),
         finished: false, rafId: 0, pressed: {},
         errors: [],                   // signed hit-timing errors (ms) for UR + the bar
@@ -975,6 +1015,7 @@ if (typeof document !== 'undefined') {
       fpsFrames = 0; fpsLast = performance.now(); fpsPrev = 0; fpsMaxDt = 0;
       bindInput(true);
       run.rafId = requestAnimationFrame(loop);
+      sizeCanvas();
       updateHud();
     }
 
@@ -982,21 +1023,16 @@ if (typeof document !== 'undefined') {
     // Measured against the audio the user actually HEARS (shifted back by output
     // latency) so the default timing matches osu across devices; calOffset is then
     // a small personal fine-tune, not a per-device latency band-aid.
-    function songTimeNow() {
-      return (audioCtx.currentTime - run.startCtx - audioLatency()) * 1000;
-    }
+    function songTimeNow() { return run.clock.at() - calOffset(); }
     // Map an input performance.now() timestamp to song time (with calibration).
-    function inputSongTime(perfTs) {
-      const ctxAtInput = run.t0ctx + (perfTs - run.t0perf) / 1000;
-      return (ctxAtInput - run.startCtx - audioLatency()) * 1000 - calOffset();
-    }
+    function inputSongTime(perfTs) { return run.clock.at(R.eventTime(perfTs)) - calOffset(); }
 
     function loop() {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.paused) return;
       const st = songTimeNow();
       if (run.auto) autoPlay(st);   // preview: hit each note on time, hold through tails
       sweepMisses(st);
-      render(st);
+      render(st + calOffset() + (Number(settings.vsrgVisualOffset) || 0));
       tickFps();
       updateSkip(st);
       if (st > run.lastNoteTime + END_PAD_MS) { finishRun(); return; }
@@ -1018,7 +1054,7 @@ if (typeof document !== 'undefined') {
       src.buffer = run.audioBuf; src.connect(run.gain);     // gain already wired to destination
       src.start(when, run.skipTo / 1000);
       run.src = src;
-      run.startCtx = when - run.skipTo / 1000;               // songTimeNow now reads ~skipTo
+      run.startCtx = when - run.skipTo / 1000; run.clock.reset(run.startCtx);               // songTimeNow now reads ~skipTo
       run.t0ctx = ac.currentTime; run.t0perf = performance.now();   // re-sync input→ctx mapping
       run.skipped = true;
       skipBtn.hidden = true;
@@ -1043,47 +1079,33 @@ if (typeof document !== 'undefined') {
     }
 
     // Mark notes whose hit window has fully passed as misses.
-    function sweepMisses(st) {
-      const badMs = run.windows.bad;
-      for (const n of run.notes) {
-        if (!n.headJudged && st > n.time + badMs) {
-          n.headJudged = true;
-          if (n.endTime != null) n.holding = false;
-          applyTier('miss', n.lane, true);
-        }
-        // Tail window fully passed and still unjudged:
-        if (n.endTime != null && n.headJudged && !n.tailJudged && st > n.endTime + badMs * RELEASE_SCALE) {
-          n.tailJudged = true;
-          if (n.holding) { n.holding = false; applyTier('good', n.lane, false); }  // held all the way through -> credit
-          else { applyTier('miss', n.lane, true); }                                // head missed / let go early -> miss
-        }
+    function sweepMisses(st) { run.engine.advance(st); flushEngine(); }
+
+    // Deliver the pure engine's events to audio and UI once per update.
+    function flushEngine() {
+      const events = run.engine.takeEvents();
+      for (const e of events) {
+        if (e.kind === 'sound') { playHitsound(e.note); continue; }
+        if (Number.isFinite(e.error) && e.tier !== 'miss') recordError(e.error, e.tier);
+        if (e.kind === 'judge') { flashJudge(e.tier); pushFx(e.note.lane, e.tier === 'miss' ? 'miss' : 'hit', TIER_COLORS[e.tier]); }
+        else if (e.kind === 'break') { flashJudge('miss'); pushFx(e.note.lane, 'miss', TIER_COLORS.miss); }
+        else if (e.kind === 'head') pushFx(e.note.lane, 'hit', TIER_COLORS[e.tier]);
       }
+      if (events.length) updateHud();
     }
 
-    // Hold tail tier from how EARLY the release was (lateness is free — holding
-    // long enough is full credit). Uses release-widened windows.
-    function tierForRelease(earlyMs) {
-      const w = run.windows;
-      if (earlyMs <= w.marvelous * RELEASE_SCALE) return 'marvelous';
-      if (earlyMs <= w.perfect * RELEASE_SCALE) return 'perfect';
-      if (earlyMs <= w.great * RELEASE_SCALE) return 'great';
-      if (earlyMs <= w.good * RELEASE_SCALE) return 'good';
-      if (earlyMs <= w.bad * RELEASE_SCALE) return 'bad';
-      return 'miss';
-    }
 
-    function applyTier(tier, lane, isMiss) {
-      run.state = applyJudgement(run.state, tier);
-      flashJudge(tier);
-      pushFx(lane, isMiss ? 'miss' : 'hit', TIER_COLORS[tier] || '#fff');
-      updateHud();
-    }
 
     // Record a signed timing error (negative = early, positive = late) for the
     // unstable-rate bar (live, fading ticks) and the run's UR stat.
     let errTicks = [];
     function recordError(errMs, tier) {
-      if (run) run.errors.push(errMs);
+      if (run) {
+        run.errors.push(errMs);
+        const n=run.errors.length, delta=errMs-(run.errorMean || 0);
+        run.errorMean=(run.errorMean || 0)+delta/n;
+        run.errorM2=(run.errorM2 || 0)+delta*(errMs-run.errorMean);
+      }
       errTicks.push({ err: errMs, tier: tier, t: performance.now() });
       if (errTicks.length > 64) errTicks.shift();
     }
@@ -1097,56 +1119,22 @@ if (typeof document !== 'undefined') {
 
     // ---- Autoplay (preview): hit every note perfectly, no score saved --------
     function autoPlay(st) {
-      for (const n of run.notes) {
-        if (!n.headJudged && st >= n.time) {           // tap / hold head — perfect on time
-          n.headJudged = true; n.headTier = 'marvelous';
-          recordError(0, 'marvelous'); playHitsound();
-          if (n.endTime != null) { n.holding = true; run.pressed[n.lane] = true; }   // light the lane for the hold's duration
-          pushFx(n.lane, 'press', '#ffffff');
-          applyTier('marvelous', n.lane, false);
-        }
-        if (n.endTime != null && n.holding && !n.tailJudged && st >= n.endTime) {   // release the hold on time
-          n.holding = false; n.tailJudged = true; run.pressed[n.lane] = false;
-          recordError(0, 'marvelous');
-          applyTier('marvelous', n.lane, false);
-        }
-      }
+      run.engine.auto(st);
+      run.pressed = Object.fromEntries([...run.engine.held].map(lane => [lane, true]));
+      flushEngine();
     }
 
     // ---- Input -------------------------------------------------------------
     function onHit(lane, perfTs) {
-      if (!run || run.finished || run.auto) return;   // autoplay drives hits itself
-      const st = inputSongTime(perfTs);
-      // nearest unhit head in this lane within the bad window
-      let best = null, bestErr = Infinity;
-      for (const n of run.notes) {
-        if (n.lane !== lane || n.headJudged) continue;
-        const err = Math.abs(st - n.time);
-        if (err < bestErr) { bestErr = err; best = n; }
-      }
-      if (!best || bestErr > run.windows.bad) return;  // nothing to hit
-      const res = judge(best.time, st, run.windows);
-      best.headJudged = true; best.headTier = res.tier;
-      if (best.endTime != null && res.tier !== 'miss') best.holding = true;
-      if (res.tier !== 'miss') { recordError(res.errorMs, res.tier); playHitsound(); }
-      applyTier(res.tier, lane, res.tier === 'miss');
+      if (!run || run.finished || run.auto || run.paused) return;
+      run.engine.press(lane, inputSongTime(perfTs)); flushEngine();
     }
-    function playHitsound() { if (window.Hitsound && audioCtx) window.Hitsound.play(audioCtx); }   // shared engine (hitsound.js)
+    function playHitsound(note) { if (window.Hitsound && audioCtx) window.Hitsound.playNote(audioCtx, run.samples, R.soundSpec(run.chart, note || {}, note ? note.time : songTimeNow())); }   // shared engine (hitsound.js)
 
     function onRelease(lane, perfTs) {
-      if (!run || run.finished || run.auto) return;
-      const st = inputSongTime(perfTs);
-      // find a hold currently being held in this lane
-      const n = run.notes.find((x) => x.lane === lane && x.holding && !x.tailJudged);
-      if (!n) return;
-      n.holding = false;
-      n.tailJudged = true;
-      // Only an EARLY release is penalised; releasing on time or a bit late is
-      // full credit (you held it long enough).
-      const early = Math.max(0, n.endTime - st);
-      const tier = tierForRelease(early);
-      if (tier !== 'miss') recordError(st - n.endTime, tier);   // signed release error
-      applyTier(tier, lane, tier === 'miss');
+      if (!run || run.finished || run.auto || run.paused) return;
+      if (heldLanes()[lane]) return;
+      run.engine.release(lane, inputSongTime(perfTs)); flushEngine();
     }
 
     // Input timestamps use e.timeStamp (when the event actually occurred, same
@@ -1154,7 +1142,8 @@ if (typeof document !== 'undefined') {
     // main-thread stall can't turn into bogus hit error.
     function onKeyDown(e) {
       if (!run || run.finished) return;
-      if (e.key === 'Escape') { quitToSelect(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); if (!run.paused) pauseRun(); return; }
+      if (run.paused) { const lane=run.keys.indexOf(e.key.toLowerCase()); if(lane>=0) { run.pressed[lane]=true; e.preventDefault(); } return; }
       if ((e.key === ' ' || e.code === 'Space') && skipBtn && !skipBtn.hidden) { e.preventDefault(); doSkip(); return; }
       if (handleControlKey(e.key)) { e.preventDefault(); return; }   // 1/2 speed, -/= offset
       const lane = run.keys.indexOf(e.key.toLowerCase());
@@ -1177,7 +1166,7 @@ if (typeof document !== 'undefined') {
       return Math.max(0, Math.min(run.keyCount - 1, Math.floor(x / (rect.width / run.keyCount))));
     }
     function onPointerDown(e) {
-      if (!run || run.finished) return;
+      if (!run || run.finished || run.paused) return;
       e.preventDefault();
       // Capture the pointer so pointerup/cancel still fire here even if the
       // finger slides off the canvas mid-hold (otherwise the hold tail auto-misses).
@@ -1198,7 +1187,8 @@ if (typeof document !== 'undefined') {
     // ---- Rendering ---------------------------------------------------------
     function sizeCanvas() {
       const r = panel.getBoundingClientRect();
-      const w = Math.min(560, r.width);
+      const laneSize = Number(settings.vsrgLaneWidth) || 72;
+      const w = Math.min(laneSize * (run ? run.keyCount : 4), r.width);
       // Cap backing-store resolution (≤1.5×) so high-DPR / 4K screens don't fill 2–4×
       // the pixels each frame — the usual cause of lag on weaker GPUs. CSS size is
       // unchanged, so layout/aim are unaffected; the canvas is just slightly softer.
@@ -1228,16 +1218,21 @@ if (typeof document !== 'undefined') {
 
     function render(st) {
       const W = canvas.width, H = canvas.height;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = canvas.width / canvas.getBoundingClientRect().width;
       const keyCount = run.keyCount;
       const laneW = W / keyCount;
-      const hitY = H - 90 * dpr;
+      const hitY = H * (Number(settings.vsrgReceptorPosition) || 0.85);
+      const position = time => settings.vsrgConstantScroll ? time : R.scrollAt(run.chart.scroll, time);
+      const yAt = time => hitY - (position(time) - position(st)) / run.approachMs * hitY;
+      const flip = settings.vsrgUpscroll === true;
       const noteH = 18 * dpr;
       const recH = 22 * dpr;
       const held = heldLanes();
       const nowP = performance.now();
 
       ctx2d.clearRect(0, 0, W, H);
+      ctx2d.save();
+      if (flip) { ctx2d.translate(0, H); ctx2d.scale(1, -1); }
       ctx2d.fillStyle = '#0e0f13'; ctx2d.fillRect(0, 0, W, H);
       // album art: cover-fit, heavily dimmed so notes stay readable
       if (run.artImg) {
@@ -1272,10 +1267,10 @@ if (typeof document !== 'undefined') {
         const color = laneColor(n.lane);
         const dir = arrowDir(n.lane);
         const laneX = n.lane * laneW;
-        const yHead = hitY - ((n.time - st) / run.approachMs) * hitY;
+        const yHead = yAt(n.time);
 
         if (n.endTime != null) {
-          const yTail = hitY - ((n.endTime - st) / run.approachMs) * hitY;
+          const yTail = yAt(n.endTime);
           drawHold(ctx2d, style, color, laneX, laneW, yHead, yTail, n.holding, hitY, scale, dpr, dir);
         }
         if (!n.headJudged && yHead > -noteH * 2 && yHead < H + noteH) {
@@ -1312,6 +1307,7 @@ if (typeof document !== 'undefined') {
         ctx2d.restore();
       }
 
+      ctx2d.restore();
       drawErrorBar(W, H, dpr);
     }
 
@@ -1346,7 +1342,7 @@ if (typeof document !== 'undefined') {
       }
       // running-mean marker (small triangle under the bar)
       if (run.errors.length >= 3) {
-        const mean = run.errors.reduce((a, b) => a + b, 0) / run.errors.length;
+        const mean = run.errorMean || 0;
         const mx = cx + Math.max(-half, Math.min(half, mean * pxPerMs));
         ctx2d.fillStyle = '#9be7ff';
         ctx2d.beginPath();
@@ -1355,7 +1351,7 @@ if (typeof document !== 'undefined') {
       }
     }
 
-    const JUDGE_LABELS = { marvelous: 'MARVELOUS', perfect: 'PERFECT', great: 'GREAT', good: 'GOOD', bad: 'BAD', miss: 'MISS' };
+    const JUDGE_LABELS = { marvelous: 'MAX', perfect: '300', great: '200', good: '100', bad: '50', miss: 'MISS' };
     function flashJudge(tier) {
       if (!judgeEl) return;
       judgeEl.textContent = JUDGE_LABELS[tier] || tier;
@@ -1398,11 +1394,14 @@ if (typeof document !== 'undefined') {
       if (comboEl) {
         comboEl.textContent = run.state.combo > 1 ? run.state.combo + 'x' : '';
         if (run.state.combo > 1) {                 // bump the combo on each gain
-          comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
+          if (comboEl.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            if (run.comboAnimation) run.comboAnimation.cancel();
+            run.comboAnimation = comboEl.animate([{transform:'scale(1.12)'},{transform:'scale(1)'}],{duration:140});
+          }
         }
       }
       if (accEl) {
-        const ur = unstableRate(run.errors);
+        const ur = run.errors.length > 1 ? Math.sqrt((run.errorM2 || 0) / run.errors.length) * 10 : 0;
         accEl.textContent = accuracy(run.state.counts).toFixed(2) + '%' +
           (ur ? '  ·  UR ' + Math.round(ur) : '');
       }
@@ -1420,17 +1419,20 @@ if (typeof document !== 'undefined') {
 
     async function finishRun() {
       if (!run || run.finished) return;
-      run.finished = true;
-      cancelAnimationFrame(run.rafId);
+      const active = run;
+      active.finished = true;
+      pauseUI.hide();
+      cancelAnimationFrame(active.rafId);
       bindInput(false);
-      try { run.src.stop(); } catch (e) {}
-      const acc = accuracy(run.state.counts);
+      try { active.src.stop(); } catch (e) {}
+      const acc = accuracy(active.state.counts);
       // Autoplay is a preview — never recorded as a personal best.
-      const pb = run.auto ? null : await savePersonalBest(run.entry.hash, {
-        accuracy: acc, maxCombo: run.state.maxCombo,
-        counts: run.state.counts, title: run.entry.title, diffName: run.entry.diffName,
+      const pb = active.auto ? null : await savePersonalBest('classic-v2:' + active.entry.hash, {
+        accuracy: acc, maxCombo: active.state.maxCombo,
+        counts: active.state.counts, title: active.entry.title, diffName: active.entry.diffName,
       });
-      renderResults(run, acc, pb);
+      renderResults(active, acc, pb);
+      if (run !== active) return;
       show('results');
     }
 
@@ -1441,8 +1443,8 @@ if (typeof document !== 'undefined') {
         '<div class="vsrg-res-acc">' + acc.toFixed(2) + '%</div>' +
         '<div class="vsrg-res-combo">' + r.state.maxCombo + 'x max combo · UR ' + Math.round(unstableRate(r.errors)) + '</div>' +
         '<div class="vsrg-res-breakdown">' +
-          'Marv ' + c.marvelous + ' · Perf ' + c.perfect + ' · Great ' + c.great +
-          ' · Good ' + c.good + ' · Bad ' + c.bad + ' · Miss ' + c.miss +
+          'MAX ' + c.marvelous + ' · 300 ' + c.perfect + ' · 200 ' + c.great +
+          ' · 100 ' + c.good + ' · 50 ' + c.bad + ' · Miss ' + c.miss +
         '</div>' +
         (r.auto ? '<div class="vsrg-res-pb">Autoplay preview — not saved.</div>'
           : (pb && pb.prev ? '<div class="vsrg-res-pb">Previous best: ' + pb.prev.accuracy.toFixed(2) + '%' +
@@ -1513,7 +1515,7 @@ if (typeof document !== 'undefined') {
             // Phase is measured from baseTick (when beeps actually fire), not the raw
             // ctx epoch, so flash and beep share a timeline. Same sign as gameplay
             // (inputSongTime subtracts calOffset), and we wrap negatives into [0,period).
-            const rel = ac.currentTime - baseTick - audioLatency() - calOffset() / 1000;
+            const rel = R.createClock(ac,baseTick).at() / 1000 - calOffset() / 1000;
             const phase = (((rel % period) + period) % period) / period;
             const flash = phase < 0.12 ? 1 : 0;
             cctx.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
@@ -1752,6 +1754,8 @@ if (typeof document !== 'undefined') {
     });
     if (appearResetBtn) appearResetBtn.addEventListener('click', () => {
       settings.vsrgNoteStyle = 'bar'; settings.vsrgNoteScale = 1.0;
+      settings.vsrgLaneWidth=72; settings.vsrgReceptorPosition=0.85; settings.vsrgUpscroll=false; settings.vsrgConstantScroll=false; settings.vsrgVisualOffset=0;
+      panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
       settings.vsrgColorPreset = 'default'; settings.vsrgLaneColors = []; settings.vsrgKeybinds = {};
       if (deps.saveSettings) deps.saveSettings(); renderAppearanceControls();
     });
@@ -1794,7 +1798,7 @@ if (typeof document !== 'undefined') {
         await idbPut('osz', hash, {
           title: chart.title, artist: chart.artist, diffName: chart.diffName,
           keyCount: chart.keyCount, od: chart.overallDifficulty, hash: hash,
-          stars: difficultyStars(chart), osuText: r.osuText, audio: r.audio, art: r.art || null,
+          stars: difficultyStars(chart), osuText: r.osuText, audio: r.audio, art: r.art || null, samples: r.samples || [],
         });
         n++;
       }

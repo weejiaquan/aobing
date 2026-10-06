@@ -28,18 +28,28 @@
     try {
       if (window.__ACTIVITY__) {
         const A = window.__ACTIVITY__;
-        let acToken = A.appCheckToken;
+        let acToken = A.appCheckToken, acRefresh = null;
         let acExpiry = Date.now() + (A.appCheckTtlMillis || 3600000) - 60000; // refresh 1 min early
         const provider = new firebase.appCheck.CustomProvider({
           getToken: async () => {
-            if (Date.now() >= acExpiry) {
-              // refresh via kei-bot using the current Firebase ID token
-              const idToken = await firebase.auth().currentUser.getIdToken();
-              const r = await fetch(A.keiBase + '/api/activity/appcheck-token', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }),
-              });
-              const d = await r.json();
-              acToken = d.appCheckToken; acExpiry = Date.now() + (d.appCheckTtlMillis || 3600000) - 60000;
+            if (!acToken || Date.now() >= acExpiry) {
+              if (!acRefresh) acRefresh = (async () => {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('Activity sign-in required');
+                const idToken = await user.getIdToken();
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 15000);
+                try {
+                  const r = await fetch(A.keiBase + '/api/activity/appcheck-token', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idToken}), signal:controller.signal,
+                  });
+                  if (!r.ok) throw new Error('App Check refresh HTTP ' + r.status);
+                  const d = await r.json();
+                  if (typeof d.appCheckToken !== 'string' || !d.appCheckToken || !Number.isFinite(d.appCheckTtlMillis) || d.appCheckTtlMillis <= 60000) throw new Error('Invalid App Check response');
+                  acToken = d.appCheckToken; acExpiry = Date.now() + d.appCheckTtlMillis - 60000;
+                } finally { clearTimeout(timer); }
+              })().finally(() => { acRefresh = null; });
+              await acRefresh;
             }
             return { token: acToken, expireTimeMillis: acExpiry };
           },
@@ -2650,6 +2660,10 @@
     }
 
     auth.onAuthStateChanged(async (user) => {
+      if (window.__ACTIVITY__ && (!user || user.uid !== window.__ACTIVITY__.uid)) {
+        if (window.Presence) window.Presence.destroy();
+        _presenceInited = false;
+      }
       subscribeUserData(user && !user.isAnonymous ? user.uid : null);
       // Drive profile init + photoURL reconciliation here, not (only) from the
       // signInWithPopup() handler. Cross-Origin-Opener-Policy on some browsers
@@ -3236,9 +3250,11 @@
     // profile (so the web picker has it), then start the presence panel once the
     // profile is loaded and presence.js is available.
     let _presenceInited = false;
+    window.addEventListener('presenceavailable', () => { maybeInitActivityPresence(); });
     async function maybeInitActivityPresence() {
       const A = window.__ACTIVITY__;
-      if (!A || !currentUser || !userProfile) return;
+      if (!A || !currentUser || !userProfile || currentUser.uid !== A.uid) return;
+      const presenceUid = currentUser.uid;
       try {
         const upd = {};
         const dName  = A.discordName ? String(A.discordName).slice(0, 64) : '';
@@ -3247,6 +3263,7 @@
         if (dPhoto && userProfile.discordPhotoURL !== dPhoto) upd.discordPhotoURL = dPhoto;
         if (Object.keys(upd).length) {
           await db.ref('users/' + currentUser.uid + '/profile').update(upd);
+          if (!currentUser || currentUser.uid !== presenceUid || !userProfile) return;
           Object.assign(userProfile, upd);
           renderPhotoPicker();
         }
@@ -3255,7 +3272,7 @@
       // identity check). Without it, skip the panel entirely rather than publish a
       // blank-id node that would collide with other id-less nodes — graceful
       // degradation for an older kei-bot that doesn't return discordId yet.
-      if (_presenceInited || !window.Presence || A.discordId == null) return;
+      if (_presenceInited || !window.Presence || A.discordId == null || !currentUser || currentUser.uid !== presenceUid) return;
       _presenceInited = true;
       window.Presence.init({
         db, activity: A, activityImg, escapeHtml,

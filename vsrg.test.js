@@ -177,10 +177,10 @@ test('difficultyStars: guards tiny/empty charts (no NaN, >= 0.5)', () => {
 test('windowsForOD: OD8 produces the standard mania half-windows (ms)', () => {
   const w = ENGINE.windowsForOD(8);
   assert.equal(w.marvelous, 16.5);
-  assert.equal(w.perfect, 64 - 3 * 8); // 40
-  assert.equal(w.great, 97 - 3 * 8);   // 73
-  assert.equal(w.good, 127 - 3 * 8);   // 103
-  assert.equal(w.bad, 151 - 3 * 8);    // 127
+  assert.equal(w.perfect, 64 - 3 * 8 + 0.5); // 40
+  assert.equal(w.great, 97 - 3 * 8 + 0.5);   // 73
+  assert.equal(w.good, 127 - 3 * 8 + 0.5);   // 103
+  assert.equal(w.bad, 151 - 3 * 8 + 0.5);    // 127
 });
 
 test('windowsForOD: windows widen as OD decreases', () => {
@@ -198,7 +198,7 @@ test('judge: classifies by absolute timing error against the windows', () => {
   assert.equal(ENGINE.judge(1000, 1010, w).tier, 'marvelous'); // 10ms <=16.5
   assert.equal(ENGINE.judge(1000, 1030, w).tier, 'perfect');   // 30ms <=40
   assert.equal(ENGINE.judge(1000, 1060, w).tier, 'great');     // 60ms <=73
-  assert.equal(ENGINE.judge(1000, 1110, w).tier, 'bad');       // 110ms >103 -> bad
+  assert.equal(ENGINE.judge(1000, 890, w).tier, 'bad');       // early 110ms; late 110ms is a miss in classic
 });
 
 test('judge: reports signed error (negative = early, positive = late)', () => {
@@ -261,12 +261,12 @@ test('applyJudgement: scoring tiers grow combo; miss resets it', () => {
   assert.equal(s.counts.miss, 1);
 });
 
-test('applyJudgement: bad counts as a hit but still breaks combo', () => {
+test('applyJudgement: bad counts as a hit and keeps combo', () => {
   const chart = ENGINE.parseOsu(FULL_OSU);
   let s = ENGINE.createRunState(chart);
   s = ENGINE.applyJudgement(s, 'great');
   s = ENGINE.applyJudgement(s, 'bad');
-  assert.equal(s.combo, 0);          // bad breaks combo (project rule)
+  assert.equal(s.combo, 2);          // every successful tap keeps combo
   assert.equal(s.counts.bad, 1);
 });
 

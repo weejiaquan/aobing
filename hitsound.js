@@ -28,6 +28,7 @@
   let deps = { settings: {}, saveSettings: function () {} };
   let customBytes = null, customName = '', customVer = 0;   // uploaded sound (bytes + cache version)
   let previewCtx = null;
+  let customReady = Promise.resolve();
 
   function settings() { return deps.settings || {}; }
   function kind() {
@@ -56,7 +57,56 @@
   async function loadCustom() {
     try { const rec = await idbGet('current'); if (rec && rec.bytes) { customBytes = rec.bytes; customName = rec.name || 'custom'; customVer++; } } catch (e) {}
   }
-  function init(d) { if (d) deps = d; loadCustom(); }
+  function init(d) { if (d) deps = d; customReady = loadCustom(); }
+
+  // Finish decoding before the lead-in so neither the first custom hit nor a
+  // map sample is lost. A broken optional sample falls back to the chosen sound.
+  async function prepare(ctx, files) {
+    await customReady;
+    if (customBytes && ctx.__hsVer !== customVer) {
+      try { ctx.__hsBuf = await ctx.decodeAudioData(customBytes.slice().buffer); ctx.__hsVer = customVer; } catch (_) {}
+    }
+    const bank = new Map();
+    // Bound parallel decoder work for sample-heavy maps.
+    const queue = Array.from(files || []);
+    await Promise.all(Array.from({length: Math.min(4, queue.length)}, async () => {
+      while (queue.length) {
+        const f = queue.shift();
+        try {
+          const bytes = f.bytes instanceof ArrayBuffer ? f.bytes.slice(0) : f.bytes.slice().buffer;
+          bank.set(f.name.toLowerCase().replace(/\\/g, '/'), await ctx.decodeAudioData(bytes));
+        } catch (_) {}
+      }
+    }));
+    return bank;
+  }
+  function findSample(bank, set, name, index) {
+    if (!bank) return null;
+    const prefix = ({1:'normal',2:'soft',3:'drum'})[set] || 'normal';
+    const stem = prefix + '-' + name + (index > 1 ? index : '');
+    for (const ext of ['wav','ogg','mp3']) if (bank.has(stem + '.' + ext)) return bank.get(stem + '.' + ext);
+    return null;
+  }
+  function playNote(ctx, bank, spec, scale = 1) {
+    if (!settings().hitsoundUseMap) { play(ctx, scale); return; }
+    const volume = vol() * scale * (spec.volume == null ? 1 : spec.volume / 100);
+    if (!(volume > 0)) return;
+    const custom = spec.filename && bank && bank.get(spec.filename.toLowerCase().replace(/\\/g, '/'));
+    const normal = custom || findSample(bank, spec.normalSet, 'hitnormal', spec.index);
+    if (normal) playBuffer(ctx, normal, volume); else playPreset(ctx, PRESETS.soft, volume);
+    for (const [bit,name] of [[2,'hitwhistle'],[4,'hitfinish'],[8,'hitclap']]) {
+      if (!(spec.bits & bit)) continue;
+      const buf = findSample(bank, spec.additionSet, name, spec.index);
+      if (buf) playBuffer(ctx, buf, volume);
+      else if (bit === 2) blip(ctx,'sine',1500,1400,0.08,volume/100*0.3);
+      else noiseHit(ctx,bit === 4 ? 3500 : 900,bit === 4 ? 0.2 : 0.05,volume/100*0.35);
+    }
+  }
+  function playTick(ctx, bank, spec) {
+    if (settings().hitsoundUseMap && spec.volume === 0) return;
+    const buf = settings().hitsoundUseMap && findSample(bank,spec.normalSet,'slidertick',spec.index);
+    if (buf) playBuffer(ctx,buf,vol() * (spec.volume == null ? 1 : spec.volume/100)); else tick(ctx);
+  }
 
   // ---- Playback ------------------------------------------------------------
   // scale (default 1) attenuates volume for softer events (e.g. slider ticks).
@@ -209,6 +259,6 @@
     el.querySelector('#hs-test').addEventListener('click', () => preview());
   }
 
-  window.Hitsound = { init: init, play: play, tick: tick, playAdditions: playAdditions, preview: preview, renderControls: renderControls };
+  window.Hitsound = { init: init, play: play, tick: tick, prepare: prepare, playNote: playNote, playTick: playTick, playAdditions: playAdditions, preview: preview, renderControls: renderControls };
   if (window.__hitsoundDeps) init(window.__hitsoundDeps);   // self-init (loaded after app.js sets deps)
 })();

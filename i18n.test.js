@@ -8,7 +8,7 @@ const I18N = require('./i18n.js');
 const PLACEHOLDER = /\{\w+\}/g;
 // Keys built at runtime from data ids (I18N.t('character.' + id + '.name')), so the
 // literal in the source is only a prefix and cannot be looked up as-is.
-const DYNAMIC_PREFIXES = ['character.', 'skin.', 'tag.', 'stats.source.', 'dos.'];
+const DYNAMIC_PREFIXES = ['character.', 'skin.', 'tag.', 'stats.source.', 'dos.', 'mp.state_'];
 
 function referencedKeys() {
   const keys = new Map(); // key -> where it came from
@@ -20,16 +20,18 @@ function referencedKeys() {
       keys.set(key, 'index.html data-i18n-attr');
     }
   }
-  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js', 'dos-ui.js']) {
+  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js', 'dos-ui.js', 'rhythm-ui.js', 'osustd.js', 'vsrg.js']) {
     const source = fs.readFileSync(file, 'utf8');
     for (const match of source.matchAll(/(?:I18N\.t|[^.\w]t)\(\s*'([a-z][\w.]*)'/g)) {
       keys.set(match[1], file);
     }
+    for (const match of source.matchAll(/'(rhythm\.[\w]+)'/g)) keys.set(match[1], file);
     // Phase prompts are selected from a table before being passed to t().
     if (file.startsWith('fishing-')) {
       for (const match of source.matchAll(/'(fishing\.[\w]+)'/g)) keys.set(match[1], file);
     }
   }
+  for (const state of ['idle','loading','ready','spectator','playing','finished','forfeit']) keys.set('mp.state_' + state, 'multiplayer.js');
   for (const action of require('./dos-bindings').actions) keys.set('dos.' + action, 'dos-bindings.js');
   return [...keys].filter(([key]) => !DYNAMIC_PREFIXES.includes(key));
 }

@@ -2067,6 +2067,19 @@
     },
   };
   // Fishing presentation copy, ordered by SUPPORTED language.
+  const rhythmKeys = ['paused','resume_hint','resume','retry','songs','lane_width','receptor','upscroll','constant_scroll','visual_offset','spin','clear'];
+  const rhythmCopy = {
+    en: ['Paused','Press Resume, then hold any active note keys during the countdown.','Resume','Retry','Back to songs','Lane width','Judgement position','Scroll upwards','Constant scroll speed','Visual offset','SPIN!','CLEAR!'],
+    ja: ['一時停止','再開を押し、カウントダウン中に長押し中のノーツのキーを押してください。','再開','リトライ','曲選択へ','レーン幅','判定位置','上方向スクロール','一定のスクロール速度','表示オフセット','回して！','クリア！'],
+    ko: ['일시 정지','재개를 누른 후 카운트다운 동안 진행 중인 롱 노트의 키를 누르세요.','재개','다시 시도','곡 선택으로','레인 너비','판정 위치','위로 스크롤','일정한 스크롤 속도','화면 오프셋','돌리세요!','클리어!'],
+    'zh-Hans': ['已暂停','点击继续，然后在倒计时期间按住尚未结束的长条音符按键。','继续','重试','返回选曲','轨道宽度','判定线位置','向上滚动','恒定滚动速度','视觉偏移','旋转！','完成！'],
+    'zh-Hant': ['已暫停','點擊繼續，然後在倒數期間按住尚未結束的長條音符按鍵。','繼續','重試','返回選曲','軌道寬度','判定線位置','向上捲動','固定捲動速度','視覺偏移','旋轉！','完成！'],
+    th: ['หยุดชั่วคราว','กดเล่นต่อ แล้วกดปุ่มโน้ตยาวที่ยังค้างอยู่ระหว่างนับถอยหลัง','เล่นต่อ','ลองใหม่','กลับไปเลือกเพลง','ความกว้างเลน','ตำแหน่งเส้นตัดสิน','เลื่อนขึ้น','ความเร็วเลื่อนคงที่','ชดเชยภาพ','หมุน!','สำเร็จ!'],
+    vi: ['Đã tạm dừng','Nhấn Tiếp tục rồi giữ phím của nốt dài đang chơi trong lúc đếm ngược.','Tiếp tục','Thử lại','Về chọn bài','Độ rộng làn','Vị trí phán định','Cuộn lên','Tốc độ cuộn cố định','Độ lệch hình ảnh','XOAY!','HOÀN THÀNH!'],
+    ar: ['متوقف مؤقتًا','اضغط متابعة، ثم اضغط باستمرار على مفاتيح النغمات الممتدة أثناء العد التنازلي.','متابعة','إعادة المحاولة','العودة للأغاني','عرض المسار','موضع خط الحكم','التمرير للأعلى','سرعة تمرير ثابتة','إزاحة العرض','دُر!','اكتمل!']
+  };
+  for (const lang of SUPPORTED) rhythmKeys.forEach((key,i) => { T[lang]['rhythm.'+key] = rhythmCopy[lang][i]; });
+
   const fishingCopy = {
     prepare: ['Hold to cast','長押しでキャスト','길게 눌러 던지기','按住抛竿','按住拋竿','กดค้างเพื่อเหวี่ยงเบ็ด','Giữ để buông cần','اضغط مطولاً للرمي'],
     charge_hint: ['Hold Space or the button. Release to cast.','スペースキーかボタンを長押し。離してキャスト。','스페이스나 버튼을 길게 누르고 놓으면 던집니다.','按住空格键或按钮，松开抛竿。','按住空白鍵或按鈕，放開拋竿。','กด Space หรือปุ่มค้างไว้ ปล่อยเพื่อเหวี่ยงเบ็ด','Giữ Space hoặc nút. Thả để buông cần.','اضغط مطولاً على المسافة أو الزر، ثم اتركه للرمي.'],
@@ -2797,6 +2810,19 @@
     apply();
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('i18nchange', { detail: { lang } }));
   }
+
+  const MP_KEYS = ['action_failed','transfer_failed','results','standings','state_idle','state_loading','state_ready','state_spectator','state_playing','state_finished','state_forfeit','start_failed','server_error','sign_in','retry','ready','spectate','start','play_activity','loading','password_optional','listed','room_code','join','refresh'];
+  const MP_TEXT = {
+    en: ['Action failed. Please retry.','Transfer failed. Retry or sit out this round.','Results','Standings','Waiting','Loading','Ready','Spectating','Playing','Finished','Forfeit','Could not prepare or start audio. Press Ready again before the next round.','Lobby error: {code}','Sign in before joining multiplayer.','Retry','Ready','Sit out','Start round','Play with this Activity','Loading…','Password (optional; also used when joining)','Show in lobby browser','Room code','Join','Refresh'],
+    ja: ['操作に失敗しました。再試行してください。','転送に失敗しました。再試行するか、このラウンドを見送ってください。','結果','順位','待機中','読込中','準備完了','観戦中','プレイ中','終了','棄権','音声の準備または開始に失敗しました。次のラウンド前にもう一度準備完了を押してください。','ロビーエラー：{code}','マルチプレイに参加するにはログインしてください。','再試行','準備完了','見送る','ラウンド開始','このアクティビティで遊ぶ','読込中…','パスワード（任意・参加時にも使用）','ロビー一覧に表示','ルームコード','参加','更新'],
+    ko: ['실패했습니다. 다시 시도해 주세요.','전송에 실패했습니다. 다시 시도하거나 이번 라운드를 쉬세요.','결과','순위','대기 중','불러오는 중','준비 완료','관전 중','플레이 중','완료','기권','오디오를 준비하거나 시작하지 못했습니다. 다음 라운드 전에 준비 완료를 다시 누르세요.','로비 오류: {code}','멀티플레이에 참여하려면 로그인하세요.','다시 시도','준비 완료','이번 판 쉬기','라운드 시작','이 활동에서 함께 플레이','불러오는 중…','비밀번호 (선택 사항, 참가 시에도 사용)','로비 목록에 표시','방 코드','참가','새로고침'],
+    'zh-Hans': ['操作失败，请重试。','传输失败。请重试或旁观本轮。','结果','排名','等待中','加载中','已准备','旁观中','游戏中','已结束','弃权','无法准备或启动音频。请在下一轮前再次点击准备。','大厅错误：{code}','请先登录再参加多人游戏。','重试','准备','旁观本轮','开始本轮','与此活动的玩家一起玩','加载中…','密码（可选，加入时也使用此密码）','在大厅列表中显示','房间码','加入','刷新'],
+    'zh-Hant': ['操作失敗，請重試。','傳輸失敗。請重試或旁觀本輪。','結果','排名','等待中','載入中','已準備','旁觀中','遊戲中','已結束','棄權','無法準備或啟動音訊。請在下一輪前再次點選準備。','大廳錯誤：{code}','請先登入再參加多人遊戲。','重試','準備','旁觀本輪','開始本輪','與此活動的玩家一起玩','載入中…','密碼（選填，加入時也使用此密碼）','在大廳列表中顯示','房間碼','加入','重新整理'],
+    th: ['ดำเนินการไม่สำเร็จ โปรดลองอีกครั้ง','ถ่ายโอนไม่สำเร็จ ลองอีกครั้งหรือพักรอบนี้','ผลลัพธ์','อันดับ','กำลังรอ','กำลังโหลด','พร้อม','กำลังชม','กำลังเล่น','จบแล้ว','สละสิทธิ์','เตรียมหรือเริ่มเสียงไม่สำเร็จ กดพร้อมอีกครั้งก่อนรอบถัดไป','ข้อผิดพลาดห้อง: {code}','เข้าสู่ระบบก่อนเข้าร่วมเล่นหลายคน','ลองอีกครั้ง','พร้อม','พักรอบนี้','เริ่มรอบ','เล่นกับผู้เล่นในกิจกรรมนี้','กำลังโหลด…','รหัสผ่าน (ไม่บังคับ ใช้เมื่อเข้าร่วมด้วย)','แสดงในรายการห้อง','รหัสห้อง','เข้าร่วม','รีเฟรช'],
+    vi: ['Thao tác thất bại. Vui lòng thử lại.','Truyền thất bại. Thử lại hoặc bỏ qua vòng này.','Kết quả','Xếp hạng','Đang chờ','Đang tải','Sẵn sàng','Đang xem','Đang chơi','Đã xong','Bỏ cuộc','Không thể chuẩn bị hoặc phát âm thanh. Nhấn Sẵn sàng lần nữa trước vòng tiếp theo.','Lỗi phòng: {code}','Đăng nhập trước khi tham gia nhiều người chơi.','Thử lại','Sẵn sàng','Bỏ qua vòng','Bắt đầu vòng','Chơi cùng người trong Hoạt động này','Đang tải…','Mật khẩu (tùy chọn; cũng dùng khi tham gia)','Hiện trong danh sách phòng','Mã phòng','Tham gia','Làm mới'],
+    ar: ['تعذّر تنفيذ الإجراء. حاول مجددًا.','فشل النقل. أعد المحاولة أو شاهد هذه الجولة.','النتائج','الترتيب','بانتظار اللاعبين','جارٍ التحميل','جاهز','يشاهد','يلعب','انتهى','انسحاب','تعذّر تجهيز الصوت أو تشغيله. اضغط جاهز مجددًا قبل الجولة التالية.','خطأ في الغرفة: {code}','سجّل الدخول قبل الانضمام للعب الجماعي.','إعادة المحاولة','جاهز','مشاهدة الجولة','بدء الجولة','العب مع المشاركين في هذا النشاط','جارٍ التحميل…','كلمة المرور (اختيارية وتُستخدم للانضمام أيضًا)','إظهار في قائمة الغرف','رمز الغرفة','انضمام','تحديث']
+  };
+  for (const lang of SUPPORTED) MP_KEYS.forEach((key, i) => { T[lang]['mp.' + key] = MP_TEXT[lang][i]; });
 
   const I18N = { SUPPORTED, NATIVE, T, t, set, detect, apply, get current() { return current; } };
 

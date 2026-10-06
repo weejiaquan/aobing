@@ -1,5 +1,11 @@
 # Discord Activity — Architecture & "Will my feature work in the Activity?" Guide
 
+For the local multiplayer protocol-2 implementation, recovery behavior, test
+commands, and live acceptance steps, see [Multiplayer operations](multiplayer-operations.md).
+That implementation is not yet a deployed/live-verified release. Activity
+presence now re-registers on every RTDB connection, and App Check refresh and
+boot waits have explicit failure handling.
+
 The aobing app runs in **two environments from one codebase**:
 
 1. **Web** — `https://aobing.it` (GitHub Pages), normal browser. Auth via Google/Discord, App Check via reCAPTCHA Enterprise.

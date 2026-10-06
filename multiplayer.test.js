@@ -246,3 +246,103 @@ test('createConnection: onMessage receives every raw incoming message', async ()
   assert.equal(conn.getState().currentMap, null); // initial state carries the field
   conn.close();
 });
+
+test('first Create/Join action waits for authentication and is delivered exactly once', async () => {
+  const {FakeWS,instances}=makeFakeWS();
+  const conn=MP.createConnection({url:'wss://test',getToken:async()=> 'token',WebSocketImpl:FakeWS});
+  assert.equal(conn.send(MP.buildJoin('ROOM')),true);
+  assert.equal(conn.send(MP.buildJoin('OTHER')),false);
+  await new Promise(r=>setImmediate(r)); const ws=instances[0]; ws._open();
+  assert.equal(ws.sent.length,1); ws._emit({type:'auth_ok',uid:'u'});
+  assert.equal(JSON.parse(ws.sent[1]).id,'ROOM'); assert.equal(ws.sent.length,2); conn.close();
+});
+
+test('timed-out token lookup cannot resurrect a connection',async()=>{
+  const {FakeWS,instances}=makeFakeWS(); let resolve;
+  const conn=MP.createConnection({url:'wss://test',getToken:()=>new Promise(r=>resolve=r),WebSocketImpl:FakeWS,connectTimeoutMs:5});
+  await new Promise(r=>setTimeout(r,15));resolve('late');await new Promise(r=>setImmediate(r));
+  assert.equal(conn.getState().status,'offline');assert.equal(instances.length,0);conn.close();
+});
+
+test('malformed incoming JSON closes socket and clears stale lobby',async()=>{
+  const {FakeWS,instances}=makeFakeWS();
+  const conn=MP.createConnection({url:'wss://test',getToken:async()=> 'token',WebSocketImpl:FakeWS});
+  await new Promise(r=>setImmediate(r));const ws=instances[0];ws._open();ws._emit({type:'auth_ok',uid:'u'});
+  ws._emit({type:'lobby_state',lobby:{id:'r',current_map:{hash:'a'}}});
+  ws.onmessage({data:'{broken'});
+  assert.equal(conn.getState().status,'offline');assert.equal(conn.getState().lobby,null);assert.equal(ws.readyState,3);
+});
+
+test('message callback reads the updated selected map and leave clears it',async()=>{
+  const {FakeWS,instances}=makeFakeWS();let seen;
+  const conn=MP.createConnection({url:'wss://test',getToken:async()=> 'token',WebSocketImpl:FakeWS,onMessage:m=>{if(m.type==='map_selected')seen=conn.getState().currentMap;}});
+  await new Promise(r=>setImmediate(r));const ws=instances[0];ws._open();ws._emit({type:'auth_ok',uid:'u'});
+  ws._emit({type:'map_selected',map:{hash:'a'}});assert.equal(seen.hash,'a');
+  ws._emit({type:'lobby_state',lobby:null});assert.equal(conn.getState().currentMap,null);conn.close();
+});
+
+test('transfer validates chart text, audio and samples, independently of derived metadata',async()=>{
+  const rec={osuText:'text',hash:await MP.digest('text'),title:'A',audio:new Uint8Array([1,2]),samples:[{name:'hit.wav',bytes:new Uint8Array([3,4])}]};
+  const encoded=MP.encodeChartTransfer(rec), map={hash:rec.hash,contentHash:await MP.contentDigest(encoded)};
+  assert.equal((await MP.verifyTransfer(encoded,map)).hash,rec.hash);
+  const derived=MP.encodeChartTransfer({...rec,title:'Renamed metadata'});
+  assert.equal(await MP.contentDigest(derived),map.contentHash);
+  for(const changed of [{...rec,audio:new Uint8Array([9])},{...rec,osuText:'wrong'},{...rec,samples:[]}]) {
+    await assert.rejects(MP.verifyTransfer(MP.encodeChartTransfer(changed),map),/corrupted/);
+  }
+  const dishonest=MP.encodeChartTransfer({...rec,hash:'f'.repeat(64)});
+  await assert.rejects(MP.verifyTransfer(dishonest,{hash:'f'.repeat(64),contentHash:await MP.contentDigest(dishonest)}),/corrupted/);
+});
+
+test('reassembly rejects unbounded, conflicting and invalid frame indices',()=>{
+  for(const frame of [{seq:-1,total:1,data:''},{seq:1,total:1,data:''},{seq:0,total:1e9,data:''},{seq:0,total:1,data:9},{seq:0,total:1,data:'a'.repeat(49153)}]) assert.throws(()=>MP.createReassembler().add(frame));
+  const ra=MP.createReassembler();ra.add({seq:0,total:2,data:'a'});
+  assert.throws(()=>ra.add({seq:0,total:2,data:'b'}));assert.throws(()=>ra.add({seq:1,total:3,data:'b'}));
+  assert.throws(()=>MP.chunkString('x',0));
+});
+
+test('peer setup failure triggers fallback exactly once and closes safely',async()=>{
+  let fallback=0;
+  const p=MP.createPeerSession({offerer:true,RTCPeerConnectionImpl:class {constructor(){throw Error('blocked');}},onFailure:()=>fallback++,signal(){}});
+  await new Promise(r=>setImmediate(r));await p.signal({kind:'ice',data:{}});p.close();assert.equal(fallback,1);
+});
+
+test('peer handshake buffers early ICE and timeout tears down without leaked callbacks',async()=>{
+  const pcs=[],timers=new Map();let next=0,failures=0;
+  class PC {constructor(){pcs.push(this);this.remoteDescription=null;this.candidates=[];}async setRemoteDescription(v){this.remoteDescription=v;}async addIceCandidate(v){this.candidates.push(v);}async createAnswer(){return {type:'answer',sdp:'x'};}async setLocalDescription(v){this.localDescription=v;}close(){this.closed=true;}}
+  const signals=[];const p=MP.createPeerSession({offerer:false,RTCPeerConnectionImpl:PC,setTimeoutImpl:f=>{timers.set(++next,f);return next;},clearTimeoutImpl:id=>timers.delete(id),signal:s=>signals.push(s),onFailure:()=>failures++});
+  await new Promise(r=>setImmediate(r));await p.signal({kind:'ice',data:{candidate:'x'}});assert.equal(pcs[0].candidates.length,0);
+  await p.signal({kind:'offer',data:{type:'offer',sdp:'o'}});assert.equal(pcs[0].candidates.length,1);assert.equal(signals[0].kind,'answer');
+  [...timers.values()][0]();assert.equal(failures,1);assert.equal(pcs[0].closed,true);assert.equal(timers.size,0);p.close();assert.equal(failures,1);
+});
+
+test('peer data channel transfers chunked Unicode payload and clears its watchdog on close',async()=>{
+  let dc,pc;const sent=[];let failures=0;
+  class PC {constructor(){pc=this;}createDataChannel(){return dc={readyState:'connecting',bufferedAmount:0,send:s=>sent.push(s),close(){this.readyState='closed';}};}async createOffer(){return {type:'offer',sdp:'o'};}async setLocalDescription(v){this.localDescription=v;}close(){this.closed=true;}}
+  const session=MP.createPeerSession({offerer:true,RTCPeerConnectionImpl:PC,signal(){},onFailure:()=>failures++});
+  await new Promise(r=>setImmediate(r));dc.readyState='open';dc.onopen();
+  const data='abc日本語'.repeat(4000);await session.send(data);
+  const ra=MP.createReassembler();sent.forEach(s=>ra.add(JSON.parse(s)));assert.equal(ra.result(),data);assert.ok(sent.length>1);
+  session.close();assert.equal(pc.closed,true);assert.equal(failures,0);
+});
+
+test('peer backpressure timeout rejects instead of adding unbounded queued data',async()=>{
+  let dc;const sent=[];
+  class PC {createDataChannel(){return dc={readyState:'open',bufferedAmount:1024*1024,send:s=>sent.push(s),close(){}};}async createOffer(){return {type:'offer',sdp:'o'};}async setLocalDescription(v){this.localDescription=v;}close(){}}
+  const session=MP.createPeerSession({offerer:true,RTCPeerConnectionImpl:PC,signal(){},onFailure(){}});
+  await new Promise(r=>setImmediate(r));const original=Date.now;let fakeTime=0;
+  try{Date.now=()=>fakeTime+=20000;await assert.rejects(session.send('data'),/peer closed/);assert.equal(sent.length,0);}
+  finally{Date.now=original;session.close();}
+});
+
+test('ICE discovered during setLocalDescription is sent after the offer so the host can route it',async()=>{
+  const signals=[];
+  class PC {
+    createDataChannel(){return {close(){}};}
+    async createOffer(){return {type:'offer',sdp:'offer'};}
+    async setLocalDescription(value){this.localDescription=value;this.onicecandidate({candidate:{candidate:'early'}});}
+    close(){}
+  }
+  const session=MP.createPeerSession({offerer:true,RTCPeerConnectionImpl:PC,signal:s=>signals.push(s),onFailure(){assert.fail('unexpected peer failure');}});
+  await new Promise(r=>setImmediate(r));assert.deepEqual(signals.map(s=>s.kind),['offer','ice']);session.close();
+});
