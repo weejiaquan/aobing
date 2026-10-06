@@ -7,23 +7,51 @@ const {webcrypto} = require('node:crypto');
 const settle = async () => { for(let i=0;i<8;i++) await new Promise(resolve=>setImmediate(resolve)); };
 
 function fixture({store=new Map(), activity=true}={}) {
-  const calls=[],timers=new Map(),events={};let timer=0,fail=false;
+  const calls=[],timers=new Map(),events={};let timer=0,fail=false,replayPolicy={status:"pending"},reply=null;
   let user={uid:'player',getIdToken:async()=> 'id-token'};
   let response={mode:'osu',session:'server-signed',expiresAt:Date.now()/1000+3600,revision:'launch-1',requestedBy:'111'};
   const window={__ACTIVITY__:activity?{uid:'player',discordId:'111',instanceId:'instance'}:null,
     addEventListener(k,fn){events[k]=fn;},GameShell:{enterActivity(){return false;}}};
   const context=vm.createContext({window,console,crypto:webcrypto,TextEncoder,AbortController,
     firebase:{auth:()=>({currentUser:user})},localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},
-    setTimeout(fn,ms){const id=++timer;timers.set(id,{fn,ms});if(ms===400)setImmediate(fn);return id;},clearTimeout(id){timers.delete(id);},
+    setTimeout(fn,ms){const id=++timer;timers.set(id,{fn,ms});if(ms===400||ms===800)setImmediate(fn);return id;},clearTimeout(id){timers.delete(id);},
     fetch:async(url,options)=>{const body=typeof options.body==='string'?JSON.parse(options.body):options.body;calls.push({url,body,headers:options.headers});
       if(fail) throw new Error('offline');
-      return {ok:true,json:async()=>url.endsWith('/context')?response:{status:'pending'}};}});
+      const custom=reply?.(url,options);if(custom)return custom;
+      return {ok:true,json:async()=>url.endsWith('/context')?response:url.includes('/replay/')?replayPolicy:{status:'pending'}};}});
   vm.runInContext(fs.readFileSync('activity-games.js','utf8'),context);
   return {api:window.ActivityGames,window,calls,timers,store,events,
-    offline(v){fail=v;},identity(v){user=v;},context(v){response={...response,...v};},
+    replayPolicy(v){replayPolicy=v;},reply(fn){reply=fn;},offline(v){fail=v;},identity(v){user=v;},context(v){response={...response,...v};},
     async tick(){const item=[...timers.values()].find(t=>t.ms===15000);assert.ok(item);await item.fn();await settle();}};
 }
 const result=()=>({mode:'osu',chartHash:'a'.repeat(64),title:'Song',difficulty:'Hard',counts:{h300:1,h100:0,h50:0,miss:0},maxCombo:1});
+
+test('chunked replay retries a lost chunk response with the same hash and completes once',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  f.replayPolicy({status:'missing',maxBytes:50*1024*1024,chunkBytes:512*1024});
+  let lost=true;f.reply(url=>{if(url.endsWith('/chunks/1')&&lost){lost=false;throw new Error('lost response');}});
+  const blob=new Blob([new Uint8Array(1024*1024+33)],{type:'video/mp4'}),progress=[];
+  await f.api.uploadReplay(run,blob,new AbortController().signal,n=>progress.push(n));
+  const chunks=f.calls.filter(c=>c.url.includes('/chunks/'));
+  assert.equal(chunks.length,4);assert.deepEqual(chunks.map(c=>c.body.size),[512*1024,512*1024,512*1024,33]);
+  assert.equal(new Set(chunks.map(c=>c.headers['X-Replay-Digest'])).size,1);
+  assert.match(chunks[0].headers['X-Replay-Digest'],/^[0-9a-f]{64}$/);
+  assert.ok(chunks.every(c=>c.headers['X-Replay-Size']===String(blob.size)&&c.headers.Authorization==='Bearer id-token'));
+  assert.equal(f.calls.at(-1).body.digest,chunks[0].headers['X-Replay-Digest']);
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,1);assert.equal(progress.at(-1),100);
+});
+
+test('oversized final files never upload and transport rejection differs from guild limits',async()=>{
+  const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();
+  f.replayPolicy({status:'missing',maxBytes:100,chunkBytes:512*1024});
+  await assert.rejects(f.api.uploadReplay(run,new Blob([new Uint8Array(101)]),new AbortController().signal),e=>e.message==='tooLarge'&&e.maxBytes===100);
+  assert.equal(f.calls.filter(c=>c.url.includes('/chunks/')).length,0);
+  for(const [detail,message] of [[{},'uploadTooLarge'],[{code:'replay_too_large',maxBytes:50},'tooLarge']]){
+    f.reply(url=>url.includes('/chunks/')?{ok:false,status:413,json:async()=>({detail})}:null);
+    await assert.rejects(f.api.uploadReplay(run,new Blob([new Uint8Array(100)]),new AbortController().signal),e=>e.message===message);
+  }
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/complete')).length,0);
+});
 
 test('explicit replay share uploads binary video only after ensuring the owned original score',async()=>{
   const f=fixture();await f.api.init();const run=f.api.newRun();await f.api.complete(run,result());await settle();

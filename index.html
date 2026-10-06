@@ -2451,7 +2451,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=replay-2"></script>
+  <script src="i18n.js?v=replay-3"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3704,7 +3704,7 @@
         .then(function () { return loadScript('vsrg.js?v=replay-2' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
-        .then(function () { return loadScript('osustd.js?v=replay-2' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('osustd.js?v=replay-3' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-2')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
@@ -3723,8 +3723,8 @@
         .then(function () { return loadScript('dos-bindings.js?v=1'); })
         .then(function () { return loadScript('dos-ui.js?v=4'); })
         .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('activity-games.js?v=5').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
-        .then(function () { if (IN_ACTIVITY) return loadScript('activity-replay.js?v=2').catch(function (e) { console.warn('Activity replay unavailable', e); }); })
+        .then(function () { return loadScript('activity-games.js?v=6').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
+        .then(function () { if (IN_ACTIVITY) return loadScript('activity-replay.js?v=3').catch(function (e) { console.warn('Activity replay unavailable', e); }); })
         .then(async function () {
           if (!window.__aobingAppReady) throw new Error('Game initialization failed');
           await window.ActivityGames?.init();

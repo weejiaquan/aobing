@@ -144,9 +144,13 @@ Capture lightweight timeline data during play; encode only after the player clic
 Reuse the actual game renderer and snapshot the selected skin, visible object
 state, circle numbers, cursor/trail, held lanes, HUD text/key counters and effects.
 Record input timestamps and the actual emitted hitsounds/custom samples. Never
-re-judge or mutate the finished run to export. Composite the real HUD's measured
-geometry/styles over its canvas. Preserve the gameplay aspect ratio, up to 1080p
-and 60 fps; timing is preserved to video-frame precision, not a lossless screen capture.
+re-judge or mutate the finished run to export. Use a standardized 16:9 replay
+layout: fit the skinned playfield without distortion in the left 960x720 area,
+with a 320px right sidebar for larger accuracy, combo, judgement totals, key
+presses/counters and timing. This accepted replay layout replaces the old DOM
+HUD compositing; the live game HUD stays unchanged. Target 1280x720 at 60 fps,
+reducing resolution/frame rate only when needed for the upload budget. Timing is
+preserved to video-frame precision, not a lossless screen capture.
 Use offline WebCodecs H.264/AAC MP4 with front-loaded metadata for Discord playback.
 Encode after click as fast as the device permits, without replaying in wall-clock
 time or encoding during gameplay. Unsupported browsers show a clear message.
@@ -156,7 +160,12 @@ an upload already accepted by Kei continues. Replay state is in memory for the
 current run only. Bound it to ten minutes/two million snapshot units. Keep three
 new uploads per hour; Kei supplies the destination guild's bot upload limit
 (20 MiB base, 50/100 MiB at boost levels 2/3), capped at 100 MiB server-side.
-Kei relays the finished attachment and does no rendering/transcoding.
+Check finalized MP4 bytes, reserve container headroom, and automatically retry
+encoding at lower quality if needed (up to four attempts). Show compression,
+upload progress, file size and destination limit. Transfer in 512 KiB chunks
+with a content hash and idempotent completion so one oversized HTTP request
+does not prevent boosted guild uploads. Kei relays the finished attachment and
+does no rendering/transcoding.
 
 - The train is a **large monotone silhouette**, centered behind the Aobing logo
   and atmospheric overlay, above the sky layer. It is part of the scenery, not

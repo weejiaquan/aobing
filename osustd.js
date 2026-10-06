@@ -1216,7 +1216,7 @@ if (typeof document !== 'undefined') {
       bindInput(true);
       run.activityRun = !run.auto ? window.ActivityGames?.newRun() : null;
       run.replay = window.ActivityReplay?.begin(run, 'osu', {snapshot: captureReplayView, draw: render});
-      if(run.replay){run.replay.data.musicVolume=run.gain.gain.value;const capture=run.replay,clock=run.clock;audioCtx.__replaySound=sound=>capture.sound(clock.at(),sound);}
+      if(run.replay){run.replay.data.keys=tapKeys().concat(['m1','m2']);run.replay.data.musicVolume=run.gain.gain.value;const capture=run.replay,clock=run.clock;audioCtx.__replaySound=sound=>capture.sound(clock.at(),sound);}
       run.rafId = requestAnimationFrame(loop);
       updateHud();
     }

@@ -1,4 +1,4 @@
-// Real MediaRecorder/Web Audio smoke test; isolated headless Chrome, no Discord calls.
+// Real WebCodecs/Web Audio smoke test; isolated headless Chrome, no Discord calls.
 const fs=require('node:fs'),http=require('node:http'),os=require('node:os'),path=require('node:path'),{spawn}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),profile=fs.mkdtempSync(path.join(os.tmpdir(),'aobing-replay-test-'));
 const chrome=process.env.CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -72,7 +72,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
     return {encodeMs,type:blob.type,size:blob.size,width:video.videoWidth,height:video.videoHeight,shareButton:'passed',cancel:'passed'};
   })()`});
   if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
-  if(result.result.value.width!==640 || result.result.value.size<1000)throw new Error('Invalid encoded video');
+  if(result.result.value.width!==1280 || result.result.value.size<1000)throw new Error('Invalid encoded video');
   const shot=await call('Page.captureScreenshot',{format:'png'});
   const preview=path.join(os.tmpdir(),'aobing-replay-preview.png');fs.writeFileSync(preview,Buffer.from(shot.data,'base64'));
   const clip=await call('Runtime.evaluate',{expression:'window.__clip',returnByValue:true});

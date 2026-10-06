@@ -140,19 +140,48 @@
     await request('score', {...run.result, session:run.session});
     return replayStatus(run);
   }
-  async function uploadReplay(run, blob, signal) {
-    await prepareReplay(run, signal);
-    const controller=new AbortController(),abort=()=>controller.abort();
-    signal.addEventListener('abort',abort,{once:true});
-    const timeout=setTimeout(abort,210000);
-    try {
-      const token=await activeUser().getIdToken();
-      if(signal.aborted || run.uid!==activeUser()?.uid)throw new Error('cancelled');
-      const response=await fetch((activity().keiBase||'https://kei.aobing.it')+'/api/activity/game/replay/'+encodeURIComponent(run.id),{
-        method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':blob.type},body:blob,signal:controller.signal});
-      if(!response.ok)throw new Error(response.status===413?'tooLarge':response.status===429?'rateLimited':'failed');
-      return await response.json();
-    } finally {clearTimeout(timeout);signal.removeEventListener('abort',abort);}
+  async function uploadReplay(run, blob, signal, onProgress=()=>{}) {
+    const policy=await prepareReplay(run,signal);
+    const tooLarge=()=>Object.assign(new Error('tooLarge'),{maxBytes:policy.maxBytes});
+    if(Number.isFinite(policy.maxBytes)&&blob.size>policy.maxBytes)throw tooLarge();
+    if(signal.aborted)throw new Error('cancelled');
+    const base=(activity().keiBase||'https://kei.aobing.it')+'/api/activity/game/replay/'+encodeURIComponent(run.id);
+    const send=async(path,body,headers)=>{
+      for(let attempt=0;attempt<3;attempt++){
+        if(signal.aborted)throw new Error("cancelled");
+        const controller=new AbortController(),abort=()=>controller.abort();let timeout;
+        signal.addEventListener('abort',abort,{once:true});
+        try {
+          return await Promise.race([(async()=>{
+            const token=await activeUser()?.getIdToken();
+            if(signal.aborted||controller.signal.aborted||run.uid!==activeUser()?.uid||run.uid!==activity()?.uid)throw new Error('cancelled');
+            const response=await fetch(base+path,{method:'POST',headers:{Authorization:'Bearer '+token,...headers},body,signal:controller.signal});
+            const result=await response.json().catch(()=>({}));
+            if(!response.ok){
+              const detail=result.detail||{};
+              throw Object.assign(new Error(response.status===413?(detail.code==='replay_too_large'?'tooLarge':'uploadTooLarge'):response.status===429?'rateLimited':'failed'),
+                {status:response.status,maxBytes:detail.maxBytes});
+            }
+            return result;
+          })(),new Promise((_,reject)=>{timeout=setTimeout(()=>{abort();reject(new Error('failed'));},60000);})]);
+        }catch(error){
+          if(signal.aborted)throw new Error('cancelled');
+          if(attempt===2||(error.status&&error.status<500&&![408,429].includes(error.status)))throw error;
+          await pause(400*2**attempt);
+        }finally{clearTimeout(timeout);signal.removeEventListener('abort',abort);}
+      }
+    };
+    if(!policy.chunkBytes){
+      const result=await send('',blob,{'Content-Type':blob.type});onProgress(100);return result;
+    }
+    const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');
+    const chunkBytes=Math.min(1024*1024,policy.chunkBytes);
+    for(let offset=0,part=0;offset<blob.size;offset+=chunkBytes,part++){
+      if(signal.aborted)throw new Error('cancelled');
+      await send('/chunks/'+part,blob.slice(offset,offset+chunkBytes),{'Content-Type':blob.type,'X-Replay-Size':String(blob.size),'X-Replay-Digest':digest});
+      onProgress(Math.floor(Math.min(blob.size,offset+chunkBytes)/blob.size*100));
+    }
+    return send('/complete',JSON.stringify({digest}),{'Content-Type':'application/json'});
   }
   async function replayStatus(run) {
     if (run.uid !== activeUser()?.uid) throw new Error('failed');

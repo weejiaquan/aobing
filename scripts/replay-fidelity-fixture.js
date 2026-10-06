@@ -40,9 +40,12 @@ window.checkReplayFidelity=async function(){
       if(mode==='osu'&&!view.hud.some(h=>h.text==='Z'))throw new Error('Key overlay missing');
       if(!view.hud.some(h=>h.text==='123x')||!view.hud.some(h=>h.text.includes('98.76%')))throw new Error('HUD missing');
     }
-    // Export a longer actual game scene to measure throughput, retaining skin/HUD.
-    for(let t=0;t<=30000;t+=1000/60)replay.sample(t,t,{},0,{},0);
-    replay.sample(30000,30000,{},0,{},0);
+    // Export actual game scenes with a readable sidebar and real recorded inputs.
+    const counts=mode==='osu'?{h300:122,h100:1,h50:0,miss:0}:{marvelous:120,perfect:2,great:1,good:0,bad:0,miss:0};
+    replay.input(200,mode==='osu'?'z':0,true);replay.input(700,mode==='osu'?'z':0,false);
+    if(mode==='osu')rt.run.maxCombo=123;else rt.run.state.maxCombo=123;
+    for(let t=0;t<=30000;t+=1000/60)replay.sample(t,t,{},0,counts,123);
+    replay.sample(30000,30000,{},0,counts,123);
     const out=document.createElement('canvas');out.id='fidelity-'+mode;document.body.prepend(out);
     const start=performance.now();
     const blob=await ActivityReplay.encode(replay.finish(),out,new AbortController().signal,()=>{},50*1024*1024);
@@ -54,7 +57,10 @@ window.checkReplayFidelity=async function(){
     for(let i=0;i<Math.floor(decoded.sampleRate*.4);i++)earlyPeak=Math.max(earlyPeak,Math.abs(decodedSamples[i]));
     for(let i=Math.floor(decoded.sampleRate*soundStart);i<Math.floor(decoded.sampleRate*(soundStart+.1));i++)peak=Math.max(peak,Math.abs(decodedSamples[i]));
     if(earlyPeak>.001||peak<.05)throw new Error('Hitsound timing/audio missing from MP4');
-    results.push({mode,pixelMatch:true,hitsoundTiming:true,durationSeconds:30,encodeMs,bytes:blob.size});
+    const small=document.createElement('canvas');
+    const smallBlob=await ActivityReplay.encode(replay.data,small,new AbortController().signal,()=>{},1024*1024);
+    if(smallBlob.size>1024*1024)throw new Error('Adaptive export exceeded its cap');
+    results.push({mode,smallBytes:smallBlob.size,pixelMatch:true,hitsoundTiming:true,durationSeconds:30,encodeMs,bytes:blob.size});
     ActivityReplay.renderer(out,replay.data)(600);
     rt.teardownRun();panel.hidden=true;
   }

@@ -259,15 +259,23 @@ Web play, autoplay and forfeits have no Share button; old scores cannot be repla
 The exporter reuses the live game renderer and the run's actual skin, circle
 numbers, slider/spinner progress, cursor/trail, lane style/holds, error bar and
 HUD/key counters. Recorded input timing and emitted custom/map hitsounds are
-preserved; no re-judging occurs. DOM HUD geometry/fonts/colors are composited on
-its canvas. Output preserves aspect ratio up to 1080p at 60 fps (compressed video,
-not a lossless or sub-frame-accurate screen recording). Pauses are omitted and
+preserved; no re-judging occurs. A standardized 16:9 layout fits the gameplay
+without distortion on the left, with larger stats/key counters in a right sidebar.
+Output targets 720p/60 fps, adapting down to 540p or 360p/30 fps for smaller
+budgets (compressed video, not a lossless or sub-frame-accurate screen recording).
+Pauses are omitted and
 intro skips are respected. State and audio stay local until explicit sharing.
 
 Kei needs **Attach Files**. Before export, it reports the saved score's guild upload
 limit: 20 MiB base, 50 MiB at boost level 2, 100 MiB at level 3. The bot's server
 limit applies, not the viewer's personal Nitro allowance. The server rechecks the
-limit during upload. Limits also include ten minutes, bounded snapshot memory,
+limit during upload. Finalized MP4 bytes are checked before upload, with up to
+four automatic compression attempts and displayed file size/limit. Uploads use
+512 KiB chunks, SHA-256 integrity checking and idempotent finalization. Lost
+chunk responses retry safely. This avoids sending the whole boosted-size file
+as one proxy request. Staging expires after 30 minutes and is capped at two
+active uploads/player and 1 GiB reserved globally. Limits also include ten
+minutes, bounded snapshot memory,
 and three new shares/player/hour. Accepted uploads survive navigation/restart.
 MP4 encoding must be supported by the Activity browser; no unreliable WebM fallback
 is silently sent. No new OAuth scope, URL mapping or server renderer is needed.
@@ -275,8 +283,8 @@ is silently sent. No new OAuth scope, URL mapping or server renderer is needed.
 `scripts/test-activity-replay-browser.cjs` verifies H.264/AAC encoding, decoding,
 Share/cancellation, and actual renderer comparisons (allowing tiny canvas
 antialiasing differences) with a custom Standard skin and Mania arrow style.
-Its isolated 640x480 30-second fixtures encoded in roughly 2.5-3.2 seconds on the
-development machine; device/resolution/map complexity affect throughput. Real
+It also verifies 30-second exports under a 1 MiB cap;
+device/resolution/map complexity affect throughput. Real
 Discord inline playback still needs a live client acceptance check.
 
 ## Status (as of 2026-06-16)

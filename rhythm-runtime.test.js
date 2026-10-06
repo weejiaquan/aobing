@@ -7,7 +7,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 function fixture(mode, width=1280, height=720, dpr=1) {
   const drawCalls=[];
-  const paint=new Proxy({}, {get:(o,k)=>k in o?o[k]:(...args)=>{drawCalls.push([k,...args]);return k==='createLinearGradient'?{addColorStop(){}}:undefined;},set:(o,k,v)=>(o[k]=v,true)});
+  const paint=new Proxy({}, {get:(o,k)=>k in o?o[k]:(...args)=>{drawCalls.push([k,...args]);return k==='createLinearGradient'?{addColorStop(){}}:k==='measureText'?{width:String(args[0]).length*8}:undefined;},set:(o,k,v)=>(o[k]=v,true)});
   class Element {
     constructor(){this.style={};this.dataset={};this.hidden=true;this.children=[];this.classList={add(){},remove(){},toggle(){},contains(){return false;}};this.listeners={};this.value='';this.width=width;this.height=height;}
     addEventListener(k,f){(this.listeners[k]??=[]).push(f);} removeEventListener(){}
