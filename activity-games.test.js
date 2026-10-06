@@ -14,7 +14,7 @@ function fixture({store=new Map(), activity=true}={}) {
     addEventListener(k,fn){events[k]=fn;},GameShell:{enterActivity(){return false;}}};
   const context=vm.createContext({window,console,crypto:webcrypto,TextEncoder,AbortController,
     firebase:{auth:()=>({currentUser:user})},localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},
-    setTimeout(fn,ms){const id=++timer;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);},
+    setTimeout(fn,ms){const id=++timer;timers.set(id,{fn,ms});if(ms===400)setImmediate(fn);return id;},clearTimeout(id){timers.delete(id);},
     fetch:async(url,options)=>{const body=JSON.parse(options.body);calls.push({url,body});
       if(fail) throw new Error('offline');
       return {ok:true,json:async()=>url.endsWith('/context')?response:{status:'pending'}};}});
@@ -36,6 +36,34 @@ test('Activity boot resolves the destination and sends a completed run with its 
   assert.equal(post.body.session,'server-signed');assert.equal(post.body.runId,run.id);
   assert.equal(post.body.counts.h300,1);assert.equal(post.body.channelId,undefined);
   assert.ok(![...f.store.values()].join('').includes('id-token'));
+});
+
+test('regular Start Activity keeps normal boot and reports library-selected Standard and Mania',async()=>{
+  const f=fixture();f.context({mode:null,revision:null,requestedBy:null});
+  const routes=[];f.window.GameShell.enterActivity=mode=>{routes.push(mode);return true;};
+  await f.api.init();assert.equal(f.api.initialMode,null);
+  for(const mode of ['osu','vsrg']) {
+    f.api.setMode(mode);await settle();
+    assert.equal(f.calls.filter(c=>c.url.endsWith('/context')).at(-1).body.playingMode,mode);
+    const run=f.api.newRun();assert.ok(run);
+    await f.api.complete(run,{...result(),mode});await settle();
+    assert.equal(f.calls.filter(c=>c.url.endsWith('/score')).at(-1).body.mode,mode);
+  }
+  await f.tick();assert.deepEqual(routes,[]);
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/context')).at(-1).body.playingMode,undefined);
+});
+
+test('regular boot can receive a later explicit launch without confusing it with presence',async()=>{
+  const f=fixture();f.context({mode:null,revision:null,requestedBy:null});await f.api.init();
+  f.api.setMode('osu');await settle();
+  const routes=[];f.window.GameShell.enterActivity=mode=>{routes.push(mode);return true;};
+  f.context({mode:'vsrg',revision:'command-1',requestedBy:'111'});await f.tick();
+  assert.deepEqual(routes,['vsrg']);
+});
+
+test('ordinary web mode selection does not create Discord presence or score requests',async()=>{
+  const f=fixture({activity:false});await f.api.init();f.api.setMode('osu');await settle();
+  assert.equal(f.calls.length,0);assert.equal(f.api.newRun(),null);
 });
 test('network failure persists the original run ID and reload retries the same receipt',async()=>{
   const f=fixture();await f.api.init();const run=f.api.newRun();f.offline(true);

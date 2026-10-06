@@ -213,6 +213,10 @@ Before assuming a new feature works in Discord, ask:
 Kei adds `/launch osu` and `/launch mania` in server channels. The Activity reads
 the game route from authenticated `/api/activity/game/context` after loading and
 opens song selection directly. Its existing Start Activity entry point is retained.
+Regular Start Activity receives a reporting session without a command route:
+players can enter normally, choose Standard/Mania in the library, and have manual
+scores posted to the channel Discord reports for that instance. Selecting a game
+also updates the presence card. The client cannot choose a destination channel.
 `activity-games.js` handles routing, context renewal and a bounded persistent score
 queue; `game-shell.js` owns the direct reveal. Standard/Mania adapters report only
 completed manual runs, before awaiting local personal-best storage. Autoplay,

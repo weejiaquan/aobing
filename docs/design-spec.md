@@ -124,6 +124,11 @@ The normal web/default entry keeps the train sequence. A chart still requires
 an explicit selection click to prepare/unlock audio. Commands received during an
 active round wait until the results/menu before switching games.
 
+Regular Discord Start Activity keeps the ordinary boot/library flow, but receives
+a verified channel reporting session without requiring a slash command. Selecting
+Standard or Mania from the library updates the Activity card and enables completed
+manual-score posts. Presence updates must never act as navigation commands.
+
 Discord game launches also leave a persistent Kei channel card with current
 Activity participants and a Join action. Automatically delete the presence card
 when everyone leaves to avoid channel clutter; keep score posts. Score posts use

@@ -3,6 +3,7 @@
   'use strict';
   let context = null, initialMode = null, revision = null, busy = false, timer = null;
   let queue = [], queueKey = null, initialized = false;
+  let selectedMode = null, reportedMode = null;
   const activity = () => window.__ACTIVITY__;
   const modes = new Set(['osu', 'vsrg']);
   const activeUser = () => typeof firebase !== 'undefined' ? firebase.auth().currentUser : null;
@@ -35,10 +36,21 @@
     } finally { clearTimeout(timeout); }
   }
   async function refresh(timeoutMs) {
-    const next = await request('context', {instanceId: activity().instanceId}, timeoutMs);
-    if (!modes.has(next.mode) || !next.session) return null;
+    const playingMode = selectedMode !== reportedMode ? selectedMode : null;
+    const next = await request('context', {instanceId: activity().instanceId,
+      ...(playingMode ? {playingMode} : {})}, timeoutMs);
+    // A normal Start Activity launch has a reporting session but no command
+    // destination. It must keep the ordinary boot/library flow.
+    if (!next.session || (next.mode !== null && !modes.has(next.mode))) return null;
     context = next;
+    if (playingMode) reportedMode = playingMode;
     return next;
+  }
+  function setMode(mode) {
+    const next = modes.has(mode) ? mode : null;
+    if (next === selectedMode) return;
+    selectedMode = next;
+    if (initialized && next) void refresh().then(flush).catch(() => {});
   }
   async function flush() {
     if (busy || !context || activeUser()?.uid !== activity()?.uid) return;
@@ -65,7 +77,7 @@
     clearTimeout(timer);
     try {
       const next = await refresh();
-      if (next && next.revision !== revision && next.requestedBy === activity().discordId) {
+      if (next && modes.has(next.mode) && next.revision !== revision && next.requestedBy === activity().discordId) {
         if (window.GameShell?.enterActivity(next.mode)) revision = next.revision;
       }
       await flush();
@@ -85,7 +97,7 @@
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         const next = await refresh(2500);
-        if (next) { initialMode = next.mode; revision = next.revision; break; }
+        if (next && modes.has(next.mode)) { initialMode = next.mode; revision = next.revision; break; }
       } catch (_) {}
       if (attempt < 3) await pause(400);
     }
@@ -113,7 +125,7 @@
     if (!queue.some(item => item.result.runId === run.id)) queue.push({createdAt: now(), session: run.session, expiresAt: run.expiresAt, result: payload});
     persist(); void flush();
   }
-  window.ActivityGames = {init, newRun, complete, get initialMode() { return initialMode; }};
+  window.ActivityGames = {init, setMode, newRun, complete, get initialMode() { return initialMode; }};
   window.addEventListener('online', () => { if (initialized) void flush(); });
   window.addEventListener('pagehide', () => { clearTimeout(timer); persist(); });
   window.addEventListener('pageshow', () => { if (initialized) { clearTimeout(timer); timer = setTimeout(tick, 1000); } });

@@ -5031,7 +5031,10 @@
         rearmAutoLoop();    // resume the live auto-click timer + coin floater
       }
     }
-    function syncMusicMode() { setMusicMode(['vsrg', 'osu', 'diva', 'fishing', 'doom'].includes(settings.gameMode)); }
+    function syncMusicMode() {
+      setMusicMode(['vsrg', 'osu', 'diva', 'fishing', 'doom'].includes(settings.gameMode));
+      window.ActivityGames?.setMode?.(settings.gameMode);
+    }
     window.addEventListener('gamemodechange', syncMusicMode);
     syncMusicMode();   // set the initial state to match the restored gameMode
     window.__aobingAppReady = true;
