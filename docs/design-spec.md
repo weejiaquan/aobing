@@ -125,8 +125,9 @@ an explicit selection click to prepare/unlock audio. Commands received during an
 active round wait until the results/menu before switching games.
 
 Discord game launches also leave a persistent Kei channel card with current
-Activity participants and a Join action. Ended sessions stay visible with joining
-disabled. Score posts use a compact illustrated embed: mapset cover when available,
+Activity participants and a Join action. Automatically delete the presence card
+when everyone leaves to avoid channel clutter; keep score posts. Score posts use
+a compact illustrated embed: mapset cover when available,
 Aobing thumbnail, actual judgement counts, score, accuracy, combo and personal-best
 comparison. Standard may show its existing result grade. Do not invent pp, star
 difficulty, official ranking or other unavailable stats. Presence describes the

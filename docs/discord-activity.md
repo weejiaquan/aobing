@@ -233,8 +233,8 @@ use fake Discord responses and an isolated Postgres database.
 See `kei-bot/docs/activity-launch-and-scores.md` for delivery limits and operations.
 
 Launch commands also leave a persistent channel card with the current Activity
-roster and a Join button. Kei updates it in place and keeps it as an ended-session
-receipt when everyone leaves. Joining opens the selected game; Standard's shared
+roster and a Join button. Kei updates it in place and deletes it when everyone
+leaves; score posts remain. Joining opens the selected game; Standard's shared
 multiplayer-room action still handles joining a match. If Discord places the
 Activity in a different channel, the card links to that channel.
 
