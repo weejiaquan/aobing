@@ -246,7 +246,10 @@
     let fpsFrames = 0, fpsLast = 0, fpsPrev = 0, fpsMaxDt = 0;
 
     function calOffset() { return Number(settings.divaCalibrationOffset) || 0; }
-    function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); }
+    function show(name) {
+      if (window.UIMotion) window.UIMotion.showScreen(panel, screens, name);
+      else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
+    }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
     function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
 
@@ -1024,7 +1027,7 @@
       loadGen++; if (run && !run.finished) quitToSelect();
       const im = document.getElementById('divaft-import-modal'); if (im) im.hidden = true;   // don't leave the import modal open
       calibGen++; if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; }
-      panel.classList.remove('open'); panelOpen = false;
+      panel.classList.remove('open'); window.UIMotion?.clear(panel); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
       if (settings.gameMode === 'diva') { settings.gameMode = 'clicker'; if (deps.saveSettings) deps.saveSettings(); window.dispatchEvent(new CustomEvent('gamemodechange')); }

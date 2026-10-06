@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-10-05. This is the current design contract for the game shell,
+Last updated: 2026-10-06. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -221,6 +221,34 @@ off the right when the player enters, then a camera push reveals the game.
   at the bottom and utility panels below their buttons.
 
 ## Lobby, game library, and settings
+
+### Gameplay focus and shared UI motion
+
+- Library and Shop must disappear from pointer hit testing and keyboard navigation
+  during Standard, Mania and Diva rounds/calibration, including paused rounds.
+  They return in song selection and results, using compact secondary buttons in
+  immersive modes. Doom hides those global buttons while playing; its own pause
+  and navigation controls remain available. Fishing retains its compact Library
+  and Shop controls. This supersedes showing the Shop chip during active rhythm
+  play; its identity and direct-to-shop behavior remain unchanged elsewhere.
+- Treat transitions as part of the game presentation. Use short menu crossfades,
+  staggered library/window content, responsive hover/press feedback, native-dialog
+  entry and exit, and a longer result reveal with a grade settle and staged stats.
+  Typing results and Doom overlays share the same motion language. Preserve the
+  existing boot, sky and Fishing scene animation direction.
+- Gameplay starts immediately with unchanged canvas geometry, input and audio
+  timing. Never transform the live canvas or cover early notes with a transition.
+  On departure, the frozen outgoing screen may fade for 240ms, but is hidden from
+  accessibility and inert immediately. Guard incoming menu clicks during the short
+  crossfade so the final gameplay tap cannot activate Retry. Results receive focus
+  on the screen itself, rather than a button that held keys could activate.
+- `ui-motion.js` owns cancellable screen transitions; adapters only call its
+  presentation hook. Cancel old animations/timers on rapid navigation, mode exit,
+  page hiding and reduced-motion changes. No perpetual decorative frame loop.
+  Pause only hidden lobby animation in immersive modes, not all site animations.
+- Reduced motion skips decorative motion without delaying game or menu access.
+  Results scroll at short viewport heights; secondary navigation has reserved
+  space below results on desktop and mobile.
 
 The owner selected the **game library as the reference for every UI surface**.
 Use its large italic headings, small cyan section labels, subtle SVG halo backdrop,

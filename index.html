@@ -320,10 +320,7 @@
     body.music-mode #click-counter,
     body.music-mode #combo-display,
     body.music-mode #system-time { display: none !important; }
-    body.music-mode * { animation-play-state: paused !important; }
-    body.music-mode #osu-panel, body.music-mode #osu-panel *,
-    body.music-mode #vsrg-panel, body.music-mode #vsrg-panel *,
-    body.music-mode #app-modal, body.music-mode #app-modal * { animation-play-state: running !important; }
+    body.music-mode :is(.lobby-atmosphere, .lobby-atmosphere *, #character, #particles *, #auto-cursor, #idle-bubble) { animation-play-state: paused !important; }
     .mp-label { color: var(--ba-text-muted); font-size: 12px; font-weight: 700; }
     .mp-action {
       display: flex; align-items: center; gap: 8px;
@@ -2277,7 +2274,7 @@
   </style>
 </head>
 <body class="is-booting" data-game-mode="clicker">
-  <link rel="stylesheet" href="game-shell.css?v=doom-perf-2">
+  <link rel="stylesheet" href="game-shell.css?v=ui-polish-1">
   <div class="lobby-atmosphere sky-scene" data-sky-scene aria-hidden="true"></div>
   <header class="hub-header">
     <div class="hub-brand">AOBING<em> IT!</em></div>
@@ -3590,8 +3587,9 @@
     </dialog>
   </section>
   <link rel="stylesheet" href="dos-ui.css?v=2">
-  <link rel="stylesheet" href="ui-panels.css?v=multiplayer-2">
+  <link rel="stylesheet" href="ui-panels.css?v=ui-polish-1">
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
+  <script src="ui-motion.js?v=1" defer></script>
   <script src="ui-panels.js" defer></script>
 
   <!-- Link-Discord toast -->
@@ -3703,10 +3701,10 @@
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
         // window.__vsrgDeps. Inert on the web until the mode is opened.
-        .then(function () { return loadScript('vsrg.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=rhythm-classic-2')); })
+        .then(function () { return loadScript('vsrg.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
-        .then(function () { return loadScript('osustd.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-2')); })
+        .then(function () { return loadScript('osustd.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-2')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
@@ -3717,7 +3715,7 @@
         .then(function () { return loadScript('cpk.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // phsong.js (Project Heartbeat song parser) feeds divaft.js's PH import.
         .then(function () { return loadScript('phsong.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('divaft.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('divaft.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
         // window.Presence.init(...) once the user's profile is ready. Inert on the web.
         .then(function () { return loadScript('dos-runtime.js?v=5'); })

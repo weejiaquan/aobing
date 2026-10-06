@@ -565,7 +565,11 @@ if (typeof document !== 'undefined') {
     // Combo colours come from the loaded skin's skin.ini [Colours] when present,
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
-    function show(name) { for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name); panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh()); }
+    function show(name) {
+      if (window.UIMotion) window.UIMotion.showScreen(panel, screens, name);
+      else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
+      panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
+    }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
 
     function ensureCtx() {
@@ -1850,7 +1854,7 @@ if (typeof document !== 'undefined') {
       loadGen++; if (run && !run.finished) quitToSelect();
       if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapState = null; }
       revokeThumbs();
-      panel.classList.remove('open'); panelOpen = false;
+      panel.classList.remove('open'); window.UIMotion?.clear(panel); panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
       if (settings.gameMode === 'osu') { settings.gameMode = 'clicker'; if (deps.saveSettings) deps.saveSettings(); window.dispatchEvent(new CustomEvent('gamemodechange')); }

@@ -520,7 +520,8 @@ if (typeof document !== 'undefined') {
 
     // ---- Screen management -------------------------------------------------
     function show(name) {
-      for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
+      if (window.UIMotion) window.UIMotion.showScreen(panel, screens, name);
+      else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
       panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
     }
 
@@ -1651,7 +1652,7 @@ if (typeof document !== 'undefined') {
       if (calibLoop) closeCalibration();
       if (appearRaf) { cancelAnimationFrame(appearRaf); appearRaf = 0; }
       stopSpeedPreview();
-      panel.classList.remove('open');
+      panel.classList.remove('open'); window.UIMotion?.clear(panel);
       panelOpen = false;
       if (deps.captureKeyboard) deps.captureKeyboard(false);  // release the keyboard
       if (deps.resumeBgm) deps.resumeBgm();

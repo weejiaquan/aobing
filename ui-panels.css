@@ -378,6 +378,150 @@ body[data-game-mode='typing'] #shop-panel .typing-shop-section { display: block;
   .hub-window,.skin-item,.shop-item { transition: none !important; }
 }
 
+/* Shared motion language: quick controls, soft menu settles, a longer result beat.
+   No layout, filters, or gameplay-canvas transforms are animated. */
+:root {
+  --ui-ease: cubic-bezier(.16,1,.3,1);
+  --ui-fast: 160ms;
+  --ui-enter: 320ms;
+}
+@keyframes ui-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ui-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-result-accent { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* The outgoing view is visual only. hidden/inert take effect immediately for
+   accessibility and input, while its last rendered frame fades away. */
+:is(.osu-screen,.vsrg-screen,.diva-screen).ui-screen-leaving[hidden] {
+  display: flex; pointer-events: none; z-index: 2;
+}
+
+/* These two global launchers used to sit above the canvas (z-index 245).
+   Visibility removes them from both hit testing and keyboard navigation;
+   :has follows the actual screen synchronously, including pause/retry/exit. */
+body:has(
+  :is(#osu-panel,#vsrg-panel,#divaft-panel).open :is([id$='-game'],[id$='-calib']):not([hidden]),
+  :is(#osu-panel,#vsrg-panel,#divaft-panel).open .ui-screen-leaving[id$='-game'],
+  #dos-panel:not([hidden])[data-state='playing']
+) :is(#hub-launch,#mode-menu) {
+  visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;
+  transition: none !important;
+}
+
+/* Keep secondary navigation small in immersive menus; Fishing retains access
+   to its shop/library, and Doom still has its own in-game navigation. */
+body.music-mode #hub-launch { width: 158px; height: 44px; right: 18px; bottom: 70px; padding: 10px 14px; }
+body.music-mode #hub-launch small { display: none; }
+body.music-mode #hub-launch strong { font-size: 16px; letter-spacing: -.3px; }
+body.music-mode #hub-launch b { right: 12px; top: 10px; font-size: 20px; }
+body.music-mode #mode-menu { width: 158px; right: 18px; bottom: 18px; }
+
+/* Native dialogs keep their native focus/close semantics. Browsers supporting
+   discrete transitions retain the top layer just long enough for an exit fade. */
+:is(#game-library,#multiplayer-dialog,#fishing-dex-panel,#fishing-inspect,#dos-controls-dialog) {
+  opacity: 0; transform: translateY(10px) scale(.985);
+  transition: opacity 180ms ease-out, transform 240ms var(--ui-ease),
+    display 240ms allow-discrete, overlay 240ms allow-discrete;
+}
+:is(#game-library,#multiplayer-dialog,#fishing-dex-panel,#fishing-inspect,#dos-controls-dialog)[open] {
+  opacity: 1; transform: translateY(0) scale(1);
+}
+dialog::backdrop {
+  transition: opacity 200ms ease-out, display 240ms allow-discrete, overlay 240ms allow-discrete;
+  opacity: 0;
+}
+dialog[open]::backdrop { opacity: 1; }
+/* Resume must uncover the canvas immediately; only pause entry is decorative. */
+.rhythm-pause[open] { animation: ui-rise 200ms var(--ui-ease) backwards; }
+.rhythm-pause::backdrop { transition: none; }
+@starting-style {
+  :is(#game-library,#multiplayer-dialog,#fishing-dex-panel,#fishing-inspect,#dos-controls-dialog)[open] {
+    opacity: 0; transform: translateY(10px) scale(.985);
+  }
+  dialog[open]::backdrop { opacity: 0; }
+}
+
+/* Open states replay their reveal; no perpetual shimmer or polling loop. */
+#game-library[open] .library-grid:not([hidden]) > .game-card,
+#library-typing:not([hidden]) > *,
+.hub-window.open > :not(.ui-window-head),
+#stats-modal.open .stats-tile,
+#leaderboard-modal.open .lb-row {
+  animation: ui-rise 380ms var(--ui-ease) backwards;
+}
+#game-library[open] .game-card:nth-child(2), .hub-window.open > :nth-child(3) { animation-delay: 35ms; }
+#game-library[open] .game-card:nth-child(3), .hub-window.open > :nth-child(4) { animation-delay: 70ms; }
+#game-library[open] .game-card:nth-child(4), .hub-window.open > :nth-child(5) { animation-delay: 105ms; }
+#game-library[open] .game-card:nth-child(n+5) { animation-delay: 140ms; }
+#ui-panel-backdrop:not([hidden]),
+:is(#stats-modal,#leaderboard-modal).open,
+#app-modal:not([hidden]), .diva-modal:not([hidden]),
+#dos-overlay:not([hidden]) { animation: ui-fade 200ms ease-out both; }
+#app-modal:not([hidden]) > *, .diva-modal:not([hidden]) > *,
+#dos-overlay:not([hidden]) > *, #dos-setup:not([hidden]) > * {
+  animation: ui-rise 320ms var(--ui-ease) both;
+}
+#typing-result:not([hidden]) { animation: ui-rise 420ms var(--ui-ease) both; }
+#typing-result:not([hidden]) > * { animation: ui-rise 480ms 80ms var(--ui-ease) both; }
+#typing-result:not([hidden]) > :nth-child(2) { animation-delay: 130ms; }
+#typing-result:not([hidden]) > :nth-child(n+3) { animation-delay: 180ms; }
+:is(#osu-panel,#vsrg-panel,#divaft-panel).open > [id$='-select']:not([hidden]) > * {
+  animation: ui-rise 320ms var(--ui-ease) backwards;
+}
+:is(#settings-panel,#skins-panel,#shop-panel,#profile-panel,#modifiers-panel):not(.open) {
+  opacity: 0; pointer-events: none;
+}
+
+/* Results have a distinct visual destination, without new copy or score rules. */
+:is(#osu-results,#vsrg-results,#divaft-results) {
+  padding-block: clamp(24px,5vh,64px); padding-bottom: 132px;
+  justify-content: safe center; isolation: isolate;
+}
+:is(#osu-results,#vsrg-results,#divaft-results)::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg,#009fe8,#9aefff 65%,#f5bd67);
+  transform-origin: left; pointer-events: none;
+}
+:is(#osu-results,#vsrg-results,#divaft-results):not([hidden])::before { animation: ui-result-accent 700ms var(--ui-ease) both; }
+:is(#osu-results-body,#vsrg-results-body,#divaft-results-body) { width: min(680px,100%); flex-shrink: 0; }
+:is(.osu-res-title,.vsrg-res-title,.diva-res-title) { overflow-wrap: anywhere; }
+:is(.osu-res-acc,.vsrg-res-acc,.diva-res-acc) {
+  color: var(--ui-text); font-variant-numeric: tabular-nums;
+  font-size: clamp(38px,7vw,68px); font-weight: 900; letter-spacing: -.04em;
+}
+.osu-res-grade { font-size: clamp(64px,11vw,112px); line-height: 1.05; margin-block: 12px; }
+:is(.osu-results-actions,.vsrg-results-actions) { gap: 12px; margin-top: 16px; flex-wrap: wrap; justify-content: center; flex-shrink: 0; }
+:is(.osu-results-actions,.vsrg-results-actions) button, #divaft-retry, #divaft-back { min-height: 44px; min-width: 130px; }
+:is(#osu-retry,#vsrg-retry,#divaft-retry) { background: #009fe8 !important; border-color: #009fe8 !important; color: white !important; }
+
+:is(.ui-close,#library-close,.panel-btn,#mode-chip,#modifiers-btn,.osu-select-actions button,.vsrg-select-actions button,.diva-select-actions button,.osu-results-actions button,.vsrg-results-actions button,#mp-panel button,.rhythm-pause button) {
+  transition: translate var(--ui-fast) var(--ui-ease), box-shadow var(--ui-fast), background-color 200ms, border-color 200ms;
+}
+@media (hover: hover) {
+  :is(.ui-close,#library-close,#mode-chip,#modifiers-btn,.osu-select-actions button,.vsrg-select-actions button,.diva-select-actions button,.osu-results-actions button,.vsrg-results-actions button,#mp-panel button,.rhythm-pause button):hover:not(:disabled) {
+    translate: 0 -2px; box-shadow: 0 5px 14px #12365320;
+  }
+}
+:is(.game-card,.panel-btn,#hub-launch,#mode-chip,.ui-close,#library-close,.osu-results-actions button,.vsrg-results-actions button,#mp-panel button,.rhythm-pause button):active:not(:disabled) { translate: 0 1px; }
+:is(.game-card,.panel-btn,#hub-launch,#mode-chip,.ui-close,#library-close,#mp-panel button):focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 4px; }
+@media (max-width: 760px) {
+  body.music-mode #hub-launch, body.music-mode #mode-menu { right: 12px; width: 140px; }
+  body.music-mode #hub-launch { bottom: 62px; height: 38px; }
+  body.music-mode #mode-menu { bottom: 12px; }
+  :is(#osu-results,#vsrg-results,#divaft-results) { padding-bottom: 118px; }
+}
+@media (max-height: 520px) {
+  :is(#osu-results,#vsrg-results,#divaft-results) { justify-content: flex-start; }
+  .osu-res-grade { font-size: 54px; margin-block: 4px; }
+  :is(.osu-res-acc,.vsrg-res-acc,.diva-res-acc) { font-size: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  :is(.ui-close,#library-close,#mode-chip,#modifiers-btn,.game-card,.panel-btn,#hub-launch,#mp-panel button):is(:hover,:active) { translate: none; }
+}
+
 .rhythm-options { display: grid; gap: 14px; width: 100%; margin: 18px 0; }
 .rhythm-options label { display: grid; grid-template-columns: minmax(120px,1fr) minmax(90px,1fr) 58px; gap: 12px; align-items: center; }
 .rhythm-options input { min-width: 0; width: 100%; accent-color: var(--hub-blue); }
