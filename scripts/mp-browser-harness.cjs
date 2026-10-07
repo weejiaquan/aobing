@@ -34,7 +34,7 @@ exports.createClient=function(base,uid,initial=[],activity=null,options={}){
   return {window,records,panel,dialog,launched,wire,waitFor,state:()=>window.__mpState(),
     open:()=>window.MpUI.open(panel),close:()=>window.MpUI.close(),
     async click(label){await waitFor(()=>panel.all().find(n=>n.tagName==='button'&&n.textContent===label&&!n.disabled));await panel.all().find(n=>n.tagName==='button'&&n.textContent===label&&!n.disabled).onclick();},
-    async create(){await waitFor(()=>panel.querySelector('form'));panel.querySelector('form').onsubmit({preventDefault(){}});await waitFor(()=>window.__mpState().lobby);},
-    async join(id){await waitFor(()=>panel.all().find(n=>n.tagName==='input'));const inputs=panel.all().filter(n=>n.tagName==='input');inputs.at(-1).value=id;await this.click('Join');await waitFor(()=>window.__mpState().lobby);}
+    async create(){await waitFor(()=>panel.querySelector('#mp-create-form'));panel.querySelector('#mp-create-form').onsubmit({preventDefault(){}});await waitFor(()=>window.__mpState().lobby);},
+    async join(id){await waitFor(()=>panel.querySelector('#mp-room-code'));panel.querySelector('#mp-room-code').value=id;panel.querySelector('#mp-join-form').onsubmit({preventDefault(){}});await waitFor(()=>window.__mpState().lobby);}
   };
 };

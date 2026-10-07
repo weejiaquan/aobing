@@ -2451,7 +2451,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=replay-4"></script>
+  <script src="i18n.js?v=mp-lobby-2"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3587,7 +3587,7 @@
     </dialog>
   </section>
   <link rel="stylesheet" href="dos-ui.css?v=2">
-  <link rel="stylesheet" href="ui-panels.css?v=ui-polish-1">
+  <link rel="stylesheet" href="ui-panels.css?v=mp-lobby-2">
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-motion.js?v=1" defer></script>
   <script src="ui-panels.js" defer></script>
@@ -3705,7 +3705,7 @@
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
         .then(function () { return loadScript('osustd.js?v=replay-3' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-2')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
+        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-3')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
         // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.

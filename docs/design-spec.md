@@ -348,6 +348,14 @@ except for the accepted Fishing and rhythm changes specified below.
   inside that dialog; avoid browser prompts, which are unreliable in the Discord
   iframe. Closing the dialog preserves a joined room. Leaving the room or changing
   game mode disconnects it; closing an unjoined browser releases its connection.
+- In Discord Activity, lead with a prominent **Join lobby** card explaining that
+  the current Activity's players can join without a password, room code or setup.
+  Keep other ways to play in a collapsed disclosure beneath it. Outside an Activity,
+  show separate Create lobby and Join with a room code cards, each with its own
+  password field. Public rooms show host, occupancy and password requirements;
+  locked rooms lead to the join form. Use clear roster status badges, a selected-map
+  panel and grouped room actions, with the shared day/night palette and all eight
+  languages. This presentation does not change room authentication or gameplay.
 - A selected chart must be downloaded, verified and its audio prepared before the
   player can become Ready. Players can sit out a round. The host starts only when
   everyone is ready or sitting out. The same Discord Activity instance has an

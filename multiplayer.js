@@ -549,22 +549,35 @@ if (typeof document !== 'undefined') (function () {
   }
   function renderLobby(state) {
     const lobby = state.lobby; if (!lobby || !container) return;
-    container.replaceChildren(node('h3',{textContent:lobby.name + ' · ' + lobby.id}));
+    container.replaceChildren(node('div',{className:'mp-room-head'},[
+      node('h3',{textContent:lobby.name}),
+      node('span',{className:'mp-room-code',textContent:t('mp.room_code') + ' · ' + lobby.id})
+    ]));
     const busy = ['countdown','racing'].includes(lobby.phase);
-    if (lobby.current_map) container.appendChild(node('p',{textContent:lobby.current_map.title + ' · ' + lobby.current_map.diffName}));
-    const list = node('ul');
-    Object.entries(lobby.members).forEach(([uid,m]) => list.appendChild(node('li',{textContent:(uid === lobby.host_uid ? t('mp.member_host',{name:m.name}) : m.name) + ' · ' + t('mp.state_'+m.state)})));
+    container.appendChild(node('div',{className:'mp-map-card'},[
+      node('span',{className:'mp-eyebrow',textContent:t('mp.selected_map')}),
+      node('p',{textContent:lobby.current_map ? lobby.current_map.title + ' · ' + lobby.current_map.diffName : t('mp.waiting_map')})
+    ]));
+    const list = node('ul',{className:'mp-members'});
+    Object.entries(lobby.members).forEach(([uid,m]) => {
+      const badge = node('span',{className:'mp-member-state',textContent:t('mp.state_'+m.state)});
+      badge.setAttribute('data-state',m.state);
+      list.appendChild(node('li',{},[node('span',{textContent:uid === lobby.host_uid ? t('mp.member_host',{name:m.name}) : m.name}),badge]));
+    });
     container.appendChild(list);
     const line = node('p',{id:'mp-xfer-status',textContent:status}); line.setAttribute('role','status'); container.appendChild(line);
     if (lobby.phase === 'results') { const scores = node('div'); scoreboard(lobby,scores); container.appendChild(scores); }
-    if (!busy && state.uid === lobby.host_uid) container.appendChild(button(t('mp.pick_map'),pickMap));
+    const actions = node('div',{className:'mp-room-actions'}); container.appendChild(actions);
+    if (!busy && state.uid === lobby.host_uid) actions.appendChild(button(t('mp.pick_map'),pickMap));
     if (!busy && lobby.current_map) {
-      container.appendChild(button(t('mp.ready'),ready,!haveMap || preparing || lobby.members[state.uid].state === 'ready'));
-      container.appendChild(button(t('mp.spectate'),() => { prepared = null; stateMessage('spectator'); }));
-      if (!haveMap && !receiver) container.appendChild(button(t('mp.retry'),() => mapChanged(currentMap())));
-      if (state.uid === lobby.host_uid) container.appendChild(button(t('mp.start'),() => send({type:'start'}),!Object.values(lobby.members).some(m => m.state === 'ready') || Object.values(lobby.members).some(m => !['ready','spectator'].includes(m.state))));
+      const readyButton = button(t('mp.ready'),ready,!haveMap || preparing || lobby.members[state.uid].state === 'ready');
+      readyButton.className = 'mp-primary'; actions.appendChild(readyButton);
+      actions.appendChild(button(t('mp.spectate'),() => { prepared = null; stateMessage('spectator'); }));
+      if (!haveMap && !receiver) actions.appendChild(button(t('mp.retry'),() => mapChanged(currentMap())));
+      if (state.uid === lobby.host_uid) actions.appendChild(button(t('mp.start'),() => send({type:'start'}),!Object.values(lobby.members).some(m => m.state === 'ready') || Object.values(lobby.members).some(m => !['ready','spectator'].includes(m.state))));
     }
-    container.appendChild(button(t('mp.leave'),() => { if (conn) conn.send(M.buildLeave()); teardown(); openBrowser(); }));
+    const footer = node('div',{className:'mp-room-footer'},[node('p',{textContent:t('mp.close_hint')}),button(t('mp.leave'),() => { if (conn) conn.send(M.buildLeave()); teardown(); openBrowser(); })]);
+    container.appendChild(footer);
   }
   async function pickMap() {
     const generation = epoch, charts = await game().listCharts();
@@ -599,22 +612,53 @@ if (typeof document !== 'undefined') (function () {
       const body = await response.json();
       if (generation !== browseGen || getState().lobby) return;
       if (!Array.isArray(body.lobbies) || body.protocol !== 2) throw new Error('server update required');
-      container.replaceChildren(node('h3',{textContent:t('mp.lobbies_title')}));
+      container.replaceChildren();
       if (!firebase.auth().currentUser || firebase.auth().currentUser.isAnonymous) { renderOffline('auth_required'); return; }
       ensureConnection();
-      container.appendChild(node('p',{id:'mp-xfer-status',textContent:status}));
-      if (window.__ACTIVITY__ && window.__ACTIVITY__.instanceId) container.appendChild(button(t('mp.play_activity'),() => send({type:'join_activity',instance_id:window.__ACTIVITY__.instanceId})));
+      const line = node('p',{id:'mp-xfer-status',textContent:status}); line.setAttribute('role','status'); container.appendChild(line);
+      const activity = window.__ACTIVITY__ && window.__ACTIVITY__.instanceId;
+      if (activity) {
+        const join = button(t('mp.join_lobby'),() => send({type:'join_activity',instance_id:activity}));
+        join.className = 'mp-primary'; join.setAttribute('aria-describedby','mp-activity-hint');
+        container.appendChild(node('section',{className:'mp-activity-card'},[
+          node('div',{},[
+            node('span',{className:'mp-eyebrow',textContent:t('mp.activity_connected')}),
+            node('h3',{textContent:t('mp.activity_title')}),
+            node('p',{id:'mp-activity-hint',textContent:t('mp.activity_hint')})
+          ]),join
+        ]));
+      }
+      const options = node(activity ? 'details' : 'div',{className:'mp-options'});
+      if (activity) options.appendChild(node('summary',{textContent:t('mp.other_lobbies')}));
+      container.appendChild(options);
+      const grid = node('div',{className:'mp-entry-grid'}); options.appendChild(grid);
       const name = input(t('mp.lobby_name_prompt'),'text',t('mp.lobby_default_name'));
-      const password = input(t('mp.password_optional'),'password');
+      const password = input(t('mp.create_password'),'password');
+      password.field.autocomplete = 'new-password';
       const listed = input(t('mp.listed'),'checkbox'); listed.field.checked = true;
-      const form = node('form',{},[name.label,password.label,listed.label,node('button',{type:'submit',textContent:t('mp.create_lobby')})]);
+      const form = node('form',{id:'mp-create-form',className:'mp-entry-card'},[node('h3',{textContent:t('mp.create_lobby')}),name.label,password.label,listed.label,node('button',{type:'submit',textContent:t('mp.create_lobby')})]);
       form.onsubmit = e => { e.preventDefault(); try { send(M.buildCreate({name:name.field.value.trim() || t('mp.lobby_default_name'),password:password.field.value,listed:listed.field.checked})); } catch (_) { message(t('mp.action_failed')); } };
-      container.appendChild(form);
+      grid.appendChild(form);
       const code = input(t('mp.room_code'));
-      container.appendChild(code.label);
-      container.appendChild(button(t('mp.join'),() => send(M.buildJoin(code.field.value.trim().toUpperCase(),password.field.value))));
-      body.lobbies.forEach(row => container.appendChild(button(t('mp.lobby_row',{name:row.name,host:row.hostName,players:row.playerCount,cap:row.cap})+(row.hasPassword ? ' 🔒' : ''),() => send(M.buildJoin(row.id,password.field.value)))));
-      container.appendChild(button(t('mp.refresh'),openBrowser));
+      code.field.id = 'mp-room-code'; code.field.required = true; code.field.autocomplete = 'off'; code.field.spellcheck = false;
+      const joinPassword = input(t('mp.join_password'),'password'); joinPassword.field.autocomplete = 'current-password';
+      const joinForm = node('form',{id:'mp-join-form',className:'mp-entry-card'},[node('h3',{textContent:t('mp.join_code')}),code.label,joinPassword.label,node('button',{type:'submit',textContent:t('mp.join')})]);
+      joinForm.onsubmit = e => { e.preventDefault(); if (!code.field.value.trim()) { code.field.focus(); return; } try { send(M.buildJoin(code.field.value.trim().toUpperCase(),joinPassword.field.value)); } catch (_) { message(t('mp.action_failed')); } };
+      grid.appendChild(joinForm);
+      const publicRooms = node('section',{className:'mp-public'},[
+        node('div',{className:'mp-section-head'},[node('h3',{textContent:t('mp.lobbies_title')}),button(t('mp.refresh'),openBrowser)])
+      ]);
+      if (!body.lobbies.length) publicRooms.appendChild(node('p',{className:'mp-empty',textContent:t('mp.no_lobbies')}));
+      body.lobbies.forEach(row => {
+        const join = button(t('mp.join'),() => {
+          if (row.hasPassword) { code.field.value = row.id; joinPassword.field.focus(); return; }
+          send(M.buildJoin(row.id,''));
+        },row.playerCount >= row.cap);
+        publicRooms.appendChild(node('div',{className:'mp-lobby-row'},[
+          node('div',{},[node('strong',{textContent:row.name}),node('p',{textContent:t('mp.room_details',{host:row.hostName,players:row.playerCount,cap:row.cap})}),node('span',{className:'mp-access',textContent:t(row.hasPassword ? 'mp.password_required' : 'mp.no_password')})]),join
+        ]));
+      });
+      options.appendChild(publicRooms);
     } catch (_) { if (generation === browseGen && !getState().lobby) renderOffline('no_server'); }
     finally { clearTimeout(timer); }
   }
