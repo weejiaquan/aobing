@@ -20,13 +20,14 @@ function referencedKeys() {
       keys.set(key, 'index.html data-i18n-attr');
     }
   }
-  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js', 'dos-ui.js', 'gems-ui.js', 'rhythm-ui.js', 'osustd.js', 'vsrg.js']) {
+  for (const file of ['app.js', 'game-shell.js', 'typing.js', 'ui-panels.js', 'multiplayer.js', 'fishing-ui.js', 'fishing-dex-ui.js', 'dos-ui.js', 'gems-ui.js', 'marble-ui.js', 'rhythm-ui.js', 'osustd.js', 'vsrg.js']) {
     const source = fs.readFileSync(file, 'utf8');
     for (const match of source.matchAll(/(?:I18N\.t|[^.\w]t)\(\s*'([a-z][\w.]*)'/g)) {
       keys.set(match[1], file);
     }
     for (const match of source.matchAll(/'(rhythm\.[\w]+)'/g)) keys.set(match[1], file);
     for (const match of source.matchAll(/'(gems\.[\w]+)'/g)) keys.set(match[1], file);
+    for (const match of source.matchAll(/'(marble\.[\w]+)'/g)) keys.set(match[1], file);
     // Phase prompts are selected from a table before being passed to t().
     if (file.startsWith('fishing-')) {
       for (const match of source.matchAll(/'(fishing\.[\w]+)'/g)) keys.set(match[1], file);

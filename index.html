@@ -2295,7 +2295,7 @@
   <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small data-i18n="library.launch_kicker">CHOOSE YOUR NEXT SIDE QUEST</small><strong data-i18n="library.launch_title">Game library</strong><b aria-hidden="true">↗</b></button>
   <dialog id="game-library" aria-labelledby="library-title">
     <div class="library-inner">
-      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 08 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
+      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 09 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
       <div class="library-grid" id="library-games">
         <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / <span data-i18n="library.tag.casual">CASUAL</span></span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.clicker.kicker">ONE MORE SQUEAK</small><strong data-i18n="mode.clicker">Clicker</strong><span data-i18n="library.card.clicker.desc">Tap, collect, and meet your favourites.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / <span data-i18n="library.tag.challenge">CHALLENGE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.typing.kicker">FIND YOUR FLOW</small><strong data-i18n="mode.typing">Typing</strong><span data-i18n="library.card.typing.desc">Casual practice or a ranked sprint.</span></span></button>
@@ -2305,6 +2305,7 @@
         <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.diva.kicker">TAKE THE STAGE</small><strong data-i18n="mode.diva">Diva</strong><span data-i18n="library.card.diva.desc">Your songs. Your spotlight.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="doom"><span class="card-number">07 / <span data-i18n="dos.tag">DOS CLASSIC</span></span><span class="card-symbol" aria-hidden="true">⊕</span><span class="card-copy"><small data-i18n="dos.card_kicker">LOCK AND LOAD</small><strong data-i18n="mode.doom">Doom</strong><span data-i18n="dos.card_desc">Play Freedoom or bring your own Doom.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="gems"><span class="card-number">08 / <span data-i18n="gems.tag">MATCH THREE</span></span><span class="card-symbol" aria-hidden="true">◆</span><span class="card-copy"><small data-i18n="gems.kicker">A LITTLE SPARK</small><strong data-i18n="mode.gems">Gem Rush</strong><span data-i18n="gems.description">Swap gems, spark cascades, chase your best.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="marble"><span class="card-number">09 / <span data-i18n="marble.tag">MARBLE SHOOTER</span></span><span class="card-symbol" aria-hidden="true">●</span><span class="card-copy"><small data-i18n="marble.kicker">KEEP THE CHAIN AT BAY</small><strong data-i18n="mode.marble">Marble Trail</strong><span data-i18n="marble.description">Aim, match, and stop the rolling chain.</span></span></button>
       </div>
       <section id="library-typing" hidden aria-label="Typing modes" data-i18n-attr="aria-label:library.typing_aria">
         <button id="library-back" class="library-back" type="button">← <span data-i18n="library.back">All games</span></button>
@@ -2452,7 +2453,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=gem-rush-1"></script>
+  <script src="i18n.js?v=marble-trail-1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3610,6 +3611,23 @@
 
   <link rel="stylesheet" href="ui-panels.css?v=mp-lobby-2">
   <link rel="stylesheet" href="gems-ui.css?v=1">
+  <link rel="stylesheet" href="marble-ui.css?v=1">
+  <section id="marble-panel" hidden aria-labelledby="marble-title">
+    <header class="marble-header"><div><p class="ui-kicker" data-i18n="marble.tag">MARBLE SHOOTER</p><h1 id="marble-title" data-i18n="mode.marble">Marble Trail</h1></div><div class="marble-actions"><button id="marble-swap" type="button" data-i18n="marble.swap">Swap marble</button><button id="marble-pause" type="button" data-i18n="marble.pause">Pause</button><button id="marble-restart" type="button" data-i18n="marble.restart">Restart</button></div></header>
+    <div class="marble-layout">
+      <div class="marble-arena">
+        <div class="marble-board"><canvas id="marble-canvas" width="900" height="620" tabindex="0" data-i18n-attr="aria-label:marble.canvas" aria-describedby="marble-controls"></canvas>
+          <div id="marble-overlay"><span class="marble-overlay-art" aria-hidden="true">●</span><h2 id="marble-overlay-title" tabindex="-1"></h2><p id="marble-overlay-hint"></p><button id="marble-play" type="button"></button></div>
+        </div>
+        <div class="marble-under"><p id="marble-status" role="status" aria-live="polite" data-i18n="marble.goal">Clear the chain before it reaches the exit.</p><div class="marble-ammo"><div><span data-i18n="marble.loaded">Loaded</span><b id="marble-loaded"></b></div><div><span data-i18n="marble.next">Next</span><b id="marble-next"></b></div></div></div>
+      </div>
+      <aside class="marble-sidebar"><div class="marble-stats"><span id="marble-level"></span><div class="marble-stat"><span data-i18n="gems.score">Score</span><strong id="marble-score">0</strong></div><div class="marble-stat"><span data-i18n="marble.left">Marbles left</span><strong id="marble-left">36</strong></div><div class="marble-stat"><span data-i18n="gems.best">Best score</span><strong id="marble-best">0</strong></div></div>
+        <details class="marble-help"><summary data-i18n="gems.how">How to play</summary><p data-i18n="marble.instructions">Aim and release to shoot. Match three or more of the same color to clear them.</p><p data-i18n="marble.help">Closing gaps can trigger combos up to ×5. Swap your loaded marble with the next one to set up a match.</p><p id="marble-controls" data-i18n="marble.controls">Mouse or touch: aim and release. Keyboard: ←/→ to aim, Space to shoot, X to swap, Escape to pause.</p></details>
+        <p id="marble-saved" data-i18n="marble.saved">Best score and level are saved on this device. Reloading restarts the level.</p>
+      </aside>
+    </div>
+    <dialog id="marble-confirm" aria-labelledby="marble-confirm-title"><h2 id="marble-confirm-title" data-i18n="marble.restart_title">Restart this level?</h2><p data-i18n="marble.restart_hint">The current chain and score will reset. Your best score stays.</p><div class="marble-actions"><button id="marble-cancel" type="button" data-i18n="marble.cancel" autofocus>Keep this round</button><button id="marble-confirm-restart" type="button" data-i18n="marble.restart">Restart</button></div></dialog>
+  </section>
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-motion.js?v=1" defer></script>
   <script src="ui-panels.js" defer></script>
@@ -3711,9 +3729,11 @@
         .then(function () { return loadScript('fishing-dex-ui.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('gems.js?v=1'); })
         .then(function () { return loadScript('gems-ui.js?v=1'); })
+        .then(function () { return loadScript('marble.js?v=1'); })
+        .then(function () { return loadScript('marble-ui.js?v=1'); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
-        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=gem-rush-1')); })
+        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=marble-trail-1')); })
         // hitsound.js (shared rhythm hitsound engine) loads after app.js and self-
         // initialises from window.__hitsoundDeps; vsrg.js/osustd.js call window.Hitsound.
         .then(function () { return loadScript('rhythm-core.js?v=2'); })

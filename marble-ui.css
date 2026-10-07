@@ -1,0 +1,82 @@
+.game-card[data-launch-mode='marble'] { background: linear-gradient(135deg,#b5e4ce,#cde9fb); }
+.game-card[data-launch-mode='marble'] .card-symbol { color: #37a797; text-shadow: -28px 22px 0 #e5b357,25px 22px 0 #8a85dc; }
+#marble-panel { position: fixed; inset: 0; z-index: 100; padding: 22px 28px 88px; overflow: auto; box-sizing: border-box; background: var(--ui-surface); background-color: var(--ui-paper); color: var(--ui-text); font: 14px/1.5 'Segoe UI',sans-serif; }
+#marble-panel[hidden], #marble-panel [hidden] { display: none !important; }
+.marble-header { max-width: 1120px; margin: 0 auto 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.marble-header h1 { font: italic 900 clamp(28px,4vw,40px)/1.15 'Arial Black','Segoe UI',sans-serif; letter-spacing: -1.5px; margin: 0; }
+.marble-header .ui-kicker { margin: 0 0 4px; }
+.marble-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#marble-panel button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--ui-border); border-radius: 4px 4px 14px 4px; background: var(--ui-card); color: var(--ui-text); font: 700 13px/1.4 'Segoe UI',sans-serif; cursor: pointer; }
+#marble-panel button:hover:not(:disabled) { border-color: var(--ui-accent); }
+#marble-panel button:disabled { opacity: .5; cursor: default; }
+#marble-panel :is(button,canvas,summary):focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 3px; }
+.marble-layout { max-width: 1120px; margin: auto; display: grid; grid-template-columns: minmax(0,880px) minmax(170px,210px); gap: 22px; align-items: start; }
+.marble-arena { min-width: 0; }
+.marble-board { position: relative; border: 1px solid var(--ui-border); border-radius: 8px 8px 26px 8px; overflow: hidden; background: var(--ui-soft); box-shadow: 0 14px 40px #10385020; }
+#marble-canvas { display: block; width: 100%; aspect-ratio: 900/620; touch-action: none; cursor: crosshair; }
+#marble-canvas:focus-visible { outline-offset: -4px !important; }
+#marble-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; background: #102e47e8; color: #e9faff; backdrop-filter: blur(5px); }
+.marble-overlay-art { color: #a7e8da; font-size: 38px; line-height: 1; text-shadow: -32px 8px 0 #ffd36b,32px 8px 0 #b89aff; }
+#marble-overlay-title { font: italic 900 clamp(23px,3.6vw,38px)/1.15 'Arial Black','Segoe UI',sans-serif; margin: 0; }
+#marble-overlay-hint { max-width: 43ch; margin: 0; color: #bcdbe9; line-height: 1.6; }
+#marble-panel #marble-play { background: #ddf7ef; color: #173e50; min-width: 140px; margin-top: 6px; }
+.marble-under { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-top: 14px; }
+#marble-status { margin: 0; min-height: 40px; color: var(--ui-muted); font-size: 12px; }
+.marble-ammo { display: flex; gap: 12px; flex: 0 0 auto; }
+.marble-ammo > div { display: flex; align-items: center; gap: 6px; color: var(--ui-muted); font-size: 12px; }
+.marble-ammo b { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; background: var(--marble-color); color: #17364d; border: 2px solid #244359; font-size: 17px; box-shadow: inset 2px 2px 5px #ffffff80; }
+.marble-sidebar { display: grid; gap: 16px; }
+.marble-stats, .marble-help { border: 1px solid var(--ui-border); border-radius: 4px 4px 18px 4px; background: var(--ui-card); padding: 20px; }
+#marble-level { color: var(--ui-accent); font-size: 12px; font-weight: 800; display: block; margin-bottom: 18px; }
+.marble-stat { display: flex; flex-direction: column; }
+.marble-stat + .marble-stat { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ui-border); }
+.marble-stat span { font-size: 12px; color: var(--ui-muted); }
+.marble-stat strong { font-size: 27px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+#marble-score { font-size: 38px; }
+.marble-help summary { font-weight: 800; cursor: pointer; }
+.marble-help p, #marble-saved { color: var(--ui-muted); font-size: 12px; }
+#marble-saved { margin: 0; }
+#marble-confirm { margin: auto; max-width: min(430px,calc(100vw - 32px)); box-sizing: border-box; padding: 26px; background: var(--ui-paper); color: var(--ui-text); border: 1px solid var(--ui-border); border-radius: 4px 4px 22px 4px; }
+#marble-confirm::backdrop { background: #102e4788; backdrop-filter: blur(8px); }
+#marble-confirm h2 { margin: 0; }
+body[data-game-mode='marble'] #hub-launch { bottom: 18px; right: auto; left: 24px; width: 166px; height: 44px; padding: 10px 12px; z-index: 150; }
+body[data-game-mode='marble'] #hub-launch small { display: none; }
+body[data-game-mode='marble'] #hub-launch strong { font-size: 15px; }
+body[data-game-mode='marble'] #hub-launch b { top: 9px; right: 10px; font-size: 18px; }
+body[data-game-mode='marble'] #mode-menu { bottom: 18px; right: 24px; width: 140px; z-index: 150; }
+#marble-panel::after { content: ''; position: fixed; inset: auto 0 0; height: 76px; background: var(--ui-paper); border-top: 1px solid var(--ui-border); pointer-events: none; }
+@media (max-width: 760px) {
+  #marble-panel { padding: 16px 12px 86px; }
+  .marble-header { align-items: flex-start; margin-bottom: 14px; }
+  .marble-header h1 { font-size: 28px; }
+  .marble-actions { justify-content: flex-end; }
+  #marble-panel .marble-actions button { padding: 8px 10px; font-size: 12px; }
+  .marble-layout { grid-template-columns: 1fr; gap: 12px; }
+  .marble-sidebar { display: contents; }
+  .marble-stats { grid-row: 1; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 12px 16px; }
+  #marble-level { grid-column: 1/-1; margin-bottom: 0; }
+  .marble-stat + .marble-stat { border: 0; margin: 0; padding: 0; }
+  .marble-stat strong, #marble-score { font-size: 24px; }
+  #marble-overlay { padding: 16px; gap: 8px; }
+  #marble-overlay-hint { font-size: 12px; line-height: 1.4; }
+  .marble-overlay-art { font-size: 26px; }
+  .marble-under { flex-wrap: wrap; gap: 6px; }
+  .marble-ammo { order: -1; width: 100%; }
+  .marble-help { padding: 14px 16px; }
+  body[data-game-mode='marble'] #hub-launch { left: 12px; bottom: 14px; width: 160px; }
+  body[data-game-mode='marble'] #mode-menu { right: 12px; bottom: 14px; width: 120px; }
+}
+@media (max-height: 520px) and (min-width: 620px) {
+  #marble-panel { padding: 10px 18px 82px; }
+  .marble-header { margin-bottom: 8px; }
+  .marble-header h1 { font-size: 25px; }
+  .marble-header .ui-kicker { display: none; }
+  .marble-layout { grid-template-columns: minmax(0,min(650px,calc((100dvh - 138px)*1.45))) minmax(130px,180px); justify-content: center; gap: 16px; }
+  .marble-sidebar { display: grid; }
+  .marble-stats { display: block; padding: 14px; }
+  #marble-level { margin-bottom: 10px; }
+  .marble-stat + .marble-stat { margin-top: 8px; }
+  #marble-overlay-hint { display: none; }
+  .marble-overlay-art { display: none; }
+  .marble-under { margin-top: 8px; }
+}

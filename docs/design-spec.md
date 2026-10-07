@@ -389,8 +389,8 @@ except for the accepted Fishing and rhythm changes specified below.
 - Keep the character central, profile toward the lower left, game launcher and
   Shop toward the lower right, and labeled utility controls along the
   bottom: Settings, Characters, Rankings, Statistics.
-- Preserve the native game-library dialog and eight choices: Clicker, Typing,
-  Fishing, Standard, Mania, Diva, Doom, and Gem Rush. Reuse existing mode switching
+- Preserve the native game-library dialog and nine choices: Clicker, Typing,
+  Fishing, Standard, Mania, Diva, Doom, Gem Rush, and Marble Trail. Reuse existing mode switching
   and settings.
 - Replace permanent marketing copy with the temporary greeting:
   **Welcome back, [username].** / **Hope you enjoy your stay.** Use the profile
@@ -436,6 +436,40 @@ except for the accepted Fishing and rhythm changes specified below.
 - Translate all copy in `i18n.js`. `gems.test.js` checks the engine; the real-browser
   fixture `scripts/test-gems-browser.cjs` uses the actual shell and app mode router
   with account/economy services omitted to check input, persistence and layouts.
+
+### Marble Trail
+
+- The owner requested Zuma-style play. **Marble Trail** is an original marble
+  shooter with a halo cannon and winding stone-garden tracks, drawn in canvas.
+  Preserve its place as the ninth game; do not present it as the official Zuma
+  game or reuse that game's artwork.
+- Aim around a fixed central cannon and fire into a moving chain. Shots insert
+  on the side they hit; runs of three or more of the same color clear. Leading
+  sections roll back into gaps, with matching joins triggering combos up to ×5.
+  Clear the entire wave to advance; reaching the marked exit loses the level.
+  Three track shapes cycle with gradually increasing wave length and speed.
+- Show loaded and next marbles, a Swap action, score, remaining marbles and level.
+  Ammo is drawn from colors remaining in the wave. Marble symbols supplement
+  their colors. Mouse/touch aim and release to fire; left/right arrows rotate,
+  Space/Enter fire, X or right-click swap, and Escape pauses. Pointer cancellation
+  and releases outside the board must not fire.
+- Start, Resume, Next level and Retry require a click/key activation. Pause on
+  window blur, hidden page, modal opening or game exit; no background simulation
+  or automatic resume. A long stalled frame also pauses rather than advancing
+  the chain into a surprise loss. Restart requires confirmation.
+- Save best score and current level locally. Leaving for another game preserves
+  the paused round in memory; reloading starts the saved level again. This is
+  explained in the UI. No account/economy rewards or multiplayer are added.
+- `marble.js` owns seeded chain state, arc-length paths, swept projectile hits,
+  insertion, collapse and outcomes. `marble-ui.js` / `marble-ui.css` own canvas
+  rendering, audio, input, layout and lifecycle. Draw only while playing or on
+  visible UI updates; bound effects, active projectiles and DPR. Respect saved
+  SFX volume and reduced motion for decorative clear effects. Keep gameplay
+  motion, the aiming guide, Library and Shop available.
+- Translate all copy in the eight `i18n.js` dictionaries. `marble.test.js` covers
+  simulation and collision rules; `scripts/test-marble-browser.cjs` exercises
+  the real shell/router and controller with local state fixtures and no account
+  services, including pause, input, win/loss, persistence and responsive layouts.
 
 ### Doom and DOS games
 

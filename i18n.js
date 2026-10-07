@@ -157,7 +157,7 @@
       // game library
       'library.launch_kicker':'CHOOSE YOUR NEXT SIDE QUEST',
       'library.launch_title':'Game library',
-      'library.eyebrow':'Game library / 08 games',
+      'library.eyebrow':'Game library / 09 games',
       'library.title':'Choose your play.',
       'library.close':'Close',
       'library.close_aria':'Close game library',
@@ -362,7 +362,7 @@
       // game library
       'library.launch_kicker':'次のサイドクエストを選ぼう',
       'library.launch_title':'ゲームライブラリ',
-      'library.eyebrow':'ゲームライブラリ / 8ゲーム',
+      'library.eyebrow':'ゲームライブラリ / 9ゲーム',
       'library.title':'遊ぶものを選ぼう。',
       'library.close':'閉じる',
       'library.close_aria':'ゲームライブラリを閉じる',
@@ -620,7 +620,7 @@
       // game library
       'library.launch_kicker':'다음 사이드 퀘스트를 골라요',
       'library.launch_title':'게임 라이브러리',
-      'library.eyebrow':'게임 라이브러리 / 게임 8개',
+      'library.eyebrow':'게임 라이브러리 / 게임 9개',
       'library.title':'무엇을 플레이할까요.',
       'library.close':'닫기',
       'library.close_aria':'게임 라이브러리 닫기',
@@ -878,7 +878,7 @@
       // game library
       'library.launch_kicker':'选择下一个支线任务',
       'library.launch_title':'游戏库',
-      'library.eyebrow':'游戏库 / 8 款游戏',
+      'library.eyebrow':'游戏库 / 9 款游戏',
       'library.title':'选择你的玩法。',
       'library.close':'关闭',
       'library.close_aria':'关闭游戏库',
@@ -1136,7 +1136,7 @@
       // game library
       'library.launch_kicker':'選擇下一個支線任務',
       'library.launch_title':'遊戲庫',
-      'library.eyebrow':'遊戲庫 / 8 款遊戲',
+      'library.eyebrow':'遊戲庫 / 9 款遊戲',
       'library.title':'選擇你的玩法。',
       'library.close':'關閉',
       'library.close_aria':'關閉遊戲庫',
@@ -1394,7 +1394,7 @@
       // game library
       'library.launch_kicker':'เลือกเควสต์เสริมถัดไป',
       'library.launch_title':'คลังเกม',
-      'library.eyebrow':'คลังเกม / 8 เกม',
+      'library.eyebrow':'คลังเกม / 9 เกม',
       'library.title':'เลือกเกมที่จะเล่น',
       'library.close':'ปิด',
       'library.close_aria':'ปิดคลังเกม',
@@ -1652,7 +1652,7 @@
       // game library
       'library.launch_kicker':'اختر مهمتك الجانبية التالية',
       'library.launch_title':'مكتبة الألعاب',
-      'library.eyebrow':'مكتبة الألعاب / 8 ألعاب',
+      'library.eyebrow':'مكتبة الألعاب / 9 ألعاب',
       'library.title':'اختر ما تريد لعبه.',
       'library.close':'إغلاق',
       'library.close_aria':'إغلاق مكتبة الألعاب',
@@ -1960,7 +1960,7 @@
       // game library
       'library.launch_kicker':'CHỌN NHIỆM VỤ PHỤ TIẾP THEO',
       'library.launch_title':'Thư viện game',
-      'library.eyebrow':'Thư viện game / 08 game',
+      'library.eyebrow':'Thư viện game / 09 game',
       'library.title':'Chọn cách chơi của bạn.',
       'library.close':'Đóng',
       'library.close_aria':'Đóng thư viện game',
@@ -2916,6 +2916,48 @@
     'gems.prism': ['Color prism','カラープリズム','컬러 프리즘','彩色棱镜','彩色稜鏡','ปริซึมสี','Lăng kính màu','منشور ألوان']
   };
   for (const [key, values] of Object.entries(GEM_COPY)) SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
+
+  const MARBLE_COPY = {
+    'mode.marble': ['Marble Trail','マーブルトレイル','마블 트레일','彩珠轨迹','彩珠軌跡','เส้นทางลูกแก้ว','Đường đua bi màu','مسار الكرات'],
+    'marble.tag': ['MARBLE SHOOTER','マーブルシューティング','구슬 슈팅','彩珠射击','彩珠射擊','ยิงลูกแก้ว','BẮN BI MÀU','تصويب الكرات'],
+    'marble.kicker': ['KEEP THE CHAIN AT BAY','連なる玉を食い止めよう','구슬 행렬을 막아라','阻止彩珠前进','阻止彩珠前進','หยุดขบวนลูกแก้ว','CHẶN CHUỖI BI','أوقف سلسلة الكرات'],
+    'marble.description': ['Aim, match, and stop the rolling chain.','狙ってそろえて、玉の行進を止めよう。','조준하고 맞춰 굴러오는 구슬을 막으세요.','瞄准、匹配，阻止滚动的彩珠。','瞄準、配對，阻止滾動的彩珠。','เล็ง จับคู่ และหยุดขบวนลูกแก้ว','Ngắm, ghép màu và chặn chuỗi bi đang lăn.','صوّب وطابق وأوقف سلسلة الكرات المتدحرجة.'],
+    'marble.swap': ['Swap marble','玉を入れ替える','구슬 교체','交换彩珠','交換彩珠','สลับลูกแก้ว','Đổi bi','بدّل الكرة'],
+    'marble.pause': ['Pause','一時停止','일시 정지','暂停','暫停','พัก','Tạm dừng','إيقاف مؤقت'],
+    'marble.restart': ['Restart','やり直す','다시 시작','重新开始','重新開始','เริ่มใหม่','Chơi lại','إعادة البدء'],
+    'marble.canvas': ['Marble shooter. Aim with arrow keys and shoot with Space.','マーブルシューティング。矢印キーで狙い、Spaceで発射。','구슬 슈팅. 화살표로 조준하고 Space로 발사하세요.','彩珠射击。用方向键瞄准，空格发射。','彩珠射擊。用方向鍵瞄準，空白鍵發射。','เกมยิงลูกแก้ว ใช้ลูกศรเล็งและ Space ยิง','Bắn bi màu. Dùng phím mũi tên để ngắm, Space để bắn.','تصويب الكرات. صوّب بالأسهم وأطلق بزر المسافة.'],
+    'marble.goal': ['Clear the chain before it reaches the exit.','出口に着く前に、すべての玉を消そう。','출구에 닿기 전에 모든 구슬을 없애세요.','在彩珠到达出口前清除整条珠链。','在彩珠到達出口前清除整條珠鏈。','กำจัดลูกแก้วทั้งหมดก่อนถึงทางออก','Xóa hết chuỗi bi trước khi nó đến lối ra.','امسح السلسلة قبل وصولها إلى المخرج.'],
+    'marble.loaded': ['Loaded','装填中','장전','当前','目前','พร้อมยิง','Đang nạp','الجاهزة'],
+    'marble.next': ['Next','次の玉','다음','下一颗','下一顆','ลูกถัดไป','Tiếp theo','التالية'],
+    'marble.left': ['Marbles left','残りの玉','남은 구슬','剩余彩珠','剩餘彩珠','ลูกแก้วที่เหลือ','Bi còn lại','الكرات المتبقية'],
+    'marble.instructions': ['Aim and release to shoot. Match three or more of the same color to clear them.','狙って離すと発射。同じ色を3つ以上そろえて消そう。','조준한 뒤 놓으면 발사돼요. 같은 색을 3개 이상 맞춰 없애세요.','瞄准并松开发射。同色彩珠连成三颗或更多即可消除。','瞄準並放開發射。同色彩珠連成三顆或更多即可消除。','เล็งแล้วปล่อยเพื่อยิง จับคู่สีเดียวกันอย่างน้อยสามลูกเพื่อกำจัด','Ngắm rồi thả để bắn. Ghép từ ba viên cùng màu để xóa.','صوّب ثم أفلت للإطلاق. طابق ثلاث كرات أو أكثر من اللون نفسه لمسحها.'],
+    'marble.help': ['Closing gaps can trigger combos up to ×5. Swap your loaded marble with the next one to set up a match.','隙間が閉じると最大5倍の連鎖が発生。装填中の玉と次の玉を入れ替えて狙おう。','틈이 닫히면 최대 5배 콤보가 생겨요. 장전된 구슬을 다음 구슬과 바꿔 매치를 준비하세요.','空隙合拢可触发最高5倍连击。交换当前和下一颗彩珠，准备更好的匹配。','空隙合攏可觸發最高5倍連擊。交換目前和下一顆彩珠，準備更好的配對。','ช่องว่างที่ปิดลงสร้างคอมโบได้สูงสุด ×5 สลับลูกที่พร้อมยิงกับลูกถัดไปเพื่อจับคู่','Các khoảng trống khép lại có thể tạo combo đến ×5. Đổi bi đang nạp với viên tiếp theo để ghép màu.','قد يؤدي إغلاق الفجوات إلى سلاسل حتى ×5. بدّل الكرة الجاهزة بالتالية لتجهيز تطابق.'],
+    'marble.controls': ['Mouse or touch: aim and release. Keyboard: ←/→ to aim, Space to shoot, X to swap, Escape to pause.','マウス・タッチ：狙って離す。キーボード：←/→で照準、Spaceで発射、Xで交換、Escapeで一時停止。','마우스/터치: 조준 후 놓기. 키보드: ←/→ 조준, Space 발사, X 교체, Escape 일시 정지.','鼠标或触屏：瞄准后松开。键盘：←/→瞄准，空格发射，X交换，Escape暂停。','滑鼠或觸控：瞄準後放開。鍵盤：←/→瞄準，空白鍵發射，X交換，Escape暫停。','เมาส์หรือสัมผัส: เล็งแล้วปล่อย แป้นพิมพ์: ←/→ เล็ง, Space ยิง, X สลับ, Escape พัก','Chuột hoặc cảm ứng: ngắm rồi thả. Phím: ←/→ ngắm, Space bắn, X đổi bi, Escape tạm dừng.','بالفأرة أو اللمس: صوّب ثم أفلت. باللوحة: ←/→ للتصويب، المسافة للإطلاق، X للتبديل، Escape للإيقاف.'],
+    'marble.saved': ['Best score and level are saved on this device. Reloading restarts the level.','ベストスコアとレベルはこの端末に保存。再読み込みすると現在のレベルを最初から始めます。','최고 점수와 레벨은 이 기기에 저장돼요. 새로고침하면 현재 레벨을 다시 시작해요.','最高分和关卡保存在此设备上。刷新后会重新开始当前关卡。','最高分和關卡儲存在此裝置上。重新整理後會重新開始目前關卡。','บันทึกคะแนนสูงสุดและด่านบนอุปกรณ์นี้ โหลดใหม่จะเริ่มด่านปัจจุบันใหม่','Điểm cao nhất và màn chơi được lưu trên thiết bị này. Tải lại sẽ bắt đầu lại màn hiện tại.','تُحفظ أفضل نتيجة والمستوى على هذا الجهاز. إعادة التحميل تبدأ المستوى من جديد.'],
+    'marble.restart_title': ['Restart this level?','このレベルをやり直しますか？','이 레벨을 다시 시작할까요?','重新开始本关？','重新開始本關？','เริ่มด่านนี้ใหม่ไหม?','Chơi lại màn này?','إعادة هذا المستوى؟'],
+    'marble.restart_hint': ['The current chain and score will reset. Your best score stays.','現在の玉とスコアをリセットします。ベストスコアは残ります。','현재 구슬과 점수가 초기화돼요. 최고 점수는 유지돼요.','当前珠链和分数将重置，最高分会保留。','目前珠鏈和分數將重設，最高分會保留。','ขบวนลูกแก้วและคะแนนจะเริ่มใหม่ แต่คะแนนสูงสุดยังอยู่','Chuỗi bi và điểm hiện tại sẽ đặt lại. Điểm cao nhất vẫn giữ nguyên.','ستُعاد السلسلة والنقاط الحالية. تبقى أفضل نتيجة محفوظة.'],
+    'marble.cancel': ['Keep this round','このラウンドを続ける','현재 라운드 유지','保留本轮','保留本輪','เก็บรอบนี้ไว้','Giữ ván này','احتفظ بهذه الجولة'],
+    'marble.ready': ['Hold the line.','玉の行進を止めよう。','구슬을 막아라.','守住出口。','守住出口。','ป้องกันทางออก','Giữ vững phòng tuyến.','احمِ المخرج.'],
+    'marble.paused': ['Paused','一時停止中','일시 정지됨','已暂停','已暫停','พักอยู่','Đã tạm dừng','متوقفة مؤقتًا'],
+    'marble.won': ['Chain cleared!','すべて消去！','구슬 제거 완료!','珠链已清除！','珠鏈已清除！','กำจัดหมดแล้ว!','Đã xóa hết bi!','مُسحت السلسلة!'],
+    'marble.lost': ['The chain reached the exit','玉が出口に到着しました','구슬이 출구에 닿았어요','珠链到达了出口','珠鏈到達了出口','ลูกแก้วถึงทางออกแล้ว','Chuỗi bi đã đến lối ra','وصلت السلسلة إلى المخرج'],
+    'marble.play': ['Start level','レベル開始','레벨 시작','开始关卡','開始關卡','เริ่มด่าน','Bắt đầu màn','ابدأ المستوى'],
+    'marble.resume': ['Resume','再開','계속하기','继续','繼續','เล่นต่อ','Tiếp tục','استئناف'],
+    'marble.next_level': ['Next level','次のレベル','다음 레벨','下一关','下一關','ด่านถัดไป','Màn tiếp','المستوى التالي'],
+    'marble.retry': ['Try again','もう一度','다시 도전','再试一次','再試一次','ลองอีกครั้ง','Thử lại','حاول مجددًا'],
+    'marble.level': ['Level {n}','レベル {n}','레벨 {n}','第{n}关','第{n}關','ด่าน {n}','Màn {n}','المستوى {n}'],
+    'marble.result': ['{score} points · best combo ×{combo}','{score}点 · 最大{combo}連鎖','{score}점 · 최고 {combo}콤보','{score}分 · 最高{combo}连击','{score}分 · 最高{combo}連擊','{score} คะแนน · คอมโบสูงสุด ×{combo}','{score} điểm · combo cao nhất ×{combo}','{score} نقطة · أفضل سلسلة ×{combo}'],
+    'marble.combo': ['Combo ×{n} · +{points}','{n}連鎖 · +{points}','{n}콤보 · +{points}','{n}连击 · +{points}','{n}連擊 · +{points}','คอมโบ ×{n} · +{points}','Combo ×{n} · +{points}','سلسلة ×{n} · +{points}'],
+    'marble.loaded_color': ['Loaded marble: {color}','装填中：{color}','장전된 구슬: {color}','当前彩珠：{color}','目前彩珠：{color}','ลูกพร้อมยิง: {color}','Bi đang nạp: {color}','الكرة الجاهزة: {color}'],
+    'marble.next_color': ['Next marble: {color}','次の玉：{color}','다음 구슬: {color}','下一颗彩珠：{color}','下一顆彩珠：{color}','ลูกถัดไป: {color}','Bi tiếp theo: {color}','الكرة التالية: {color}'],
+    'marble.storage_error': ['Device storage is unavailable. Progress lasts for this visit.','端末に保存できません。進捗はこのページを開いている間のみ保持されます。','기기에 저장할 수 없어요. 이번 방문 중에만 진행 상황이 유지돼요.','设备存储不可用，进度仅在本次访问期间保留。','裝置儲存空間無法使用，進度僅在本次造訪期間保留。','บันทึกบนอุปกรณ์ไม่ได้ ความคืบหน้าจะอยู่เฉพาะครั้งนี้','Không thể lưu trên thiết bị. Tiến độ chỉ giữ trong lần truy cập này.','التخزين غير متاح. يستمر التقدم خلال هذه الزيارة فقط.'],
+    'marble.red': ['Red diamond','赤いひし形','빨간 마름모','红色菱形','紅色菱形','ข้าวหลามตัดสีแดง','Hình thoi đỏ','مُعيّن أحمر'],
+    'marble.blue': ['Blue triangle','青い三角形','파란 삼각형','蓝色三角形','藍色三角形','สามเหลี่ยมสีน้ำเงิน','Tam giác xanh dương','مثلث أزرق'],
+    'marble.gold': ['Gold star','金色の星','금색 별','金色星形','金色星形','ดาวสีทอง','Ngôi sao vàng','نجمة ذهبية'],
+    'marble.green': ['Green square','緑の四角形','초록 사각형','绿色方形','綠色方形','สี่เหลี่ยมสีเขียว','Hình vuông xanh lá','مربع أخضر'],
+    'marble.purple': ['Purple circle','紫の丸','보라색 원','紫色圆形','紫色圓形','วงกลมสีม่วง','Hình tròn tím','دائرة بنفسجية']
+  };
+  for(const [key,values] of Object.entries(MARBLE_COPY))SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
 
   const I18N = { SUPPORTED, NATIVE, T, t, set, detect, apply, get current() { return current; } };
 
