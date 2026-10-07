@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-10-06. This is the current design contract for the game shell,
+Last updated: 2026-10-07. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -389,8 +389,9 @@ except for the accepted Fishing and rhythm changes specified below.
 - Keep the character central, profile toward the lower left, game launcher and
   Shop toward the lower right, and labeled utility controls along the
   bottom: Settings, Characters, Rankings, Statistics.
-- Preserve the native game-library dialog and seven choices: Clicker, Typing,
-  Fishing, Standard, Mania, Diva, and Doom. Reuse existing mode switching and settings.
+- Preserve the native game-library dialog and eight choices: Clicker, Typing,
+  Fishing, Standard, Mania, Diva, Doom, and Gem Rush. Reuse existing mode switching
+  and settings.
 - Replace permanent marketing copy with the temporary greeting:
   **Welcome back, [username].** / **Hope you enjoy your stay.** Use the profile
   display name safely through `textContent`, with “Sensei” as the fallback.
@@ -405,6 +406,36 @@ except for the accepted Fishing and rhythm changes specified below.
   the wordmark or making the entry button unreachable.
 
 ## Implementation map and interaction requirements
+
+### Gem Rush
+
+- The owner requested a Candy Crush / Bejeweled style game. **Gem Rush** is an
+  original match-three game with original faceted SVG gems; keep the other games'
+  names and artwork out of its public presentation.
+- Use an 8×8 board with six colors and distinct silhouettes, adjacent swaps,
+  cascading refills, 30 moves per level and increasing score targets. Invalid
+  swaps reverse without spending a move. Four in a line creates a line-clearing
+  gem, five creates a color prism, and intersecting matches create a 3×3 burst.
+  Matching special gems chains their effects; swapping a prism clears the chosen
+  color. Two prisms clear the board. Cascades increase points up to a ×5 multiplier.
+  Refresh boards with no legal move at no move cost.
+- Mouse/touch support both dragging and selecting two adjacent gems. Keyboard
+  arrows move focus, Enter/Space select, and Escape clears selection. Keep a
+  visible Hint action and expandable rules. Distinguish gems by shape as well as
+  color, and name position, gem and special effect for assistive technology.
+- Use the shared library palette and day/night surfaces, a dark framed board,
+  compact score/target/move metrics and clear level results. Keep Library and
+  Shop available below the game. Fit narrow portrait and short landscape layouts.
+  Honor reduced motion and saved SFX volume; do not run an idle animation loop.
+- `gems.js` is the deterministic, DOM-free rules engine. `gems-ui.js` and
+  `gems-ui.css` own presentation, input and local progress. Save complete turns
+  before animating so hiding, reloading or leaving mid-cascade cannot spend a
+  second move or retain an incomplete board. Preserve local best score when
+  starting over, and confirm replacement of an active board. No account, cloud
+  leaderboard, clicker-currency rewards or multiplayer are added by this mode.
+- Translate all copy in `i18n.js`. `gems.test.js` checks the engine; the real-browser
+  fixture `scripts/test-gems-browser.cjs` uses the actual shell and app mode router
+  with account/economy services omitted to check input, persistence and layouts.
 
 ### Doom and DOS games
 

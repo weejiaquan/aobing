@@ -2295,7 +2295,7 @@
   <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small data-i18n="library.launch_kicker">CHOOSE YOUR NEXT SIDE QUEST</small><strong data-i18n="library.launch_title">Game library</strong><b aria-hidden="true">↗</b></button>
   <dialog id="game-library" aria-labelledby="library-title">
     <div class="library-inner">
-      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 07 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
+      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 08 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
       <div class="library-grid" id="library-games">
         <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / <span data-i18n="library.tag.casual">CASUAL</span></span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.clicker.kicker">ONE MORE SQUEAK</small><strong data-i18n="mode.clicker">Clicker</strong><span data-i18n="library.card.clicker.desc">Tap, collect, and meet your favourites.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / <span data-i18n="library.tag.challenge">CHALLENGE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.typing.kicker">FIND YOUR FLOW</small><strong data-i18n="mode.typing">Typing</strong><span data-i18n="library.card.typing.desc">Casual practice or a ranked sprint.</span></span></button>
@@ -2304,6 +2304,7 @@
         <button class="game-card" type="button" data-launch-mode="vsrg"><span class="card-number">05 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><span class="card-symbol card-lanes" aria-hidden="true">▂▆▄▇</span><span class="card-copy"><small data-i18n="library.card.mania.kicker">EVERY KEY COUNTS</small><strong data-i18n="mode.mania">Mania</strong><span data-i18n="library.card.mania.desc">Find your rhythm. Chase the combo.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="diva"><span class="card-number">06 / <span data-i18n="library.tag.rhythm">RHYTHM</span></span><img src="assets/mariidol-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.diva.kicker">TAKE THE STAGE</small><strong data-i18n="mode.diva">Diva</strong><span data-i18n="library.card.diva.desc">Your songs. Your spotlight.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="doom"><span class="card-number">07 / <span data-i18n="dos.tag">DOS CLASSIC</span></span><span class="card-symbol" aria-hidden="true">⊕</span><span class="card-copy"><small data-i18n="dos.card_kicker">LOCK AND LOAD</small><strong data-i18n="mode.doom">Doom</strong><span data-i18n="dos.card_desc">Play Freedoom or bring your own Doom.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="gems"><span class="card-number">08 / <span data-i18n="gems.tag">MATCH THREE</span></span><span class="card-symbol" aria-hidden="true">◆</span><span class="card-copy"><small data-i18n="gems.kicker">A LITTLE SPARK</small><strong data-i18n="mode.gems">Gem Rush</strong><span data-i18n="gems.description">Swap gems, spark cascades, chase your best.</span></span></button>
       </div>
       <section id="library-typing" hidden aria-label="Typing modes" data-i18n-attr="aria-label:library.typing_aria">
         <button id="library-back" class="library-back" type="button">← <span data-i18n="library.back">All games</span></button>
@@ -2451,7 +2452,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=mp-lobby-2"></script>
+  <script src="i18n.js?v=gem-rush-1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3587,7 +3588,28 @@
     </dialog>
   </section>
   <link rel="stylesheet" href="dos-ui.css?v=2">
+  <section id="gems-panel" hidden aria-labelledby="gems-title">
+    <header class="gems-header"><div><p class="ui-kicker" data-i18n="gems.tag">MATCH THREE</p><h1 id="gems-title" data-i18n="mode.gems">Gem Rush</h1></div><button id="gems-new" type="button" data-i18n="gems.new">New game</button></header>
+    <div class="gems-layout">
+      <div class="gems-play">
+        <div class="gems-toolbar"><span id="gems-level"></span><button id="gems-hint" type="button" data-i18n="gems.hint">Hint</button></div>
+        <div class="gems-board-wrap">
+          <div id="gems-board" role="group" data-i18n-attr="aria-label:gems.board" aria-describedby="gems-status"></div>
+          <div id="gems-result" hidden><span class="gems-result-art" aria-hidden="true">◆</span><h2 id="gems-result-title" tabindex="-1"></h2><p id="gems-result-score"></p><button id="gems-continue" type="button"></button></div>
+        </div>
+        <p id="gems-status" role="status" aria-live="polite"></p>
+      </div>
+      <aside class="gems-sidebar">
+        <div class="gems-score-card"><span data-i18n="gems.score">Score</span><strong id="gems-score">0</strong><progress id="gems-progress" data-i18n-attr="aria-label:gems.progress" value="0" max="4000"></progress><p id="gems-target"></p><div class="gems-metrics"><div><span data-i18n="gems.moves">Moves left</span><strong id="gems-moves">30</strong></div><div><span data-i18n="gems.best">Best score</span><strong id="gems-best">0</strong></div></div></div>
+        <details class="gems-help"><summary data-i18n="gems.how">How to play</summary><p data-i18n="gems.help">Swap neighboring gems to match three or more. Reach the target before your 30 moves run out. Invalid swaps cost nothing.</p><ul><li data-i18n="gems.special_help">Match 4 for a line clear, 5 for a color prism, or a T/L for a burst. Match a special to activate it; swap a prism with any gem.</li><li data-i18n="gems.chain_help">Cascades multiply points, up to ×5. A board with no moves refreshes for free.</li><li data-i18n="gems.keyboard">Arrow keys move focus. Enter or Space selects a gem, then select its neighbor to swap.</li></ul></details>
+        <p id="gems-saved" data-i18n="gems.saved">Progress and best score are saved on this device.</p>
+      </aside>
+    </div>
+    <dialog id="gems-confirm" aria-labelledby="gems-confirm-title"><h2 id="gems-confirm-title" data-i18n="gems.restart_title">Start a new game?</h2><p data-i18n="gems.restart_hint">Your current board will be replaced. Your best score stays.</p><div class="gems-confirm-actions"><button id="gems-cancel" type="button" data-i18n="gems.cancel" autofocus>Keep playing</button><button id="gems-restart" type="button" data-i18n="gems.new">New game</button></div></dialog>
+  </section>
+
   <link rel="stylesheet" href="ui-panels.css?v=mp-lobby-2">
+  <link rel="stylesheet" href="gems-ui.css?v=1">
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-motion.js?v=1" defer></script>
   <script src="ui-panels.js" defer></script>
@@ -3687,9 +3709,11 @@
         .then(function () { return loadScript('fishing-ui.js?v=catch-notice-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         .then(function () { return loadScript('fishing-dex.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         .then(function () { return loadScript('fishing-dex-ui.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('gems.js?v=1'); })
+        .then(function () { return loadScript('gems-ui.js?v=1'); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
-        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
+        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=gem-rush-1')); })
         // hitsound.js (shared rhythm hitsound engine) loads after app.js and self-
         // initialises from window.__hitsoundDeps; vsrg.js/osustd.js call window.Hitsound.
         .then(function () { return loadScript('rhythm-core.js?v=2'); })

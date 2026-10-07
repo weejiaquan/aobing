@@ -157,7 +157,7 @@
       // game library
       'library.launch_kicker':'CHOOSE YOUR NEXT SIDE QUEST',
       'library.launch_title':'Game library',
-      'library.eyebrow':'Game library / 07 games',
+      'library.eyebrow':'Game library / 08 games',
       'library.title':'Choose your play.',
       'library.close':'Close',
       'library.close_aria':'Close game library',
@@ -362,7 +362,7 @@
       // game library
       'library.launch_kicker':'次のサイドクエストを選ぼう',
       'library.launch_title':'ゲームライブラリ',
-      'library.eyebrow':'ゲームライブラリ / 7ゲーム',
+      'library.eyebrow':'ゲームライブラリ / 8ゲーム',
       'library.title':'遊ぶものを選ぼう。',
       'library.close':'閉じる',
       'library.close_aria':'ゲームライブラリを閉じる',
@@ -620,7 +620,7 @@
       // game library
       'library.launch_kicker':'다음 사이드 퀘스트를 골라요',
       'library.launch_title':'게임 라이브러리',
-      'library.eyebrow':'게임 라이브러리 / 게임 7개',
+      'library.eyebrow':'게임 라이브러리 / 게임 8개',
       'library.title':'무엇을 플레이할까요.',
       'library.close':'닫기',
       'library.close_aria':'게임 라이브러리 닫기',
@@ -878,7 +878,7 @@
       // game library
       'library.launch_kicker':'选择下一个支线任务',
       'library.launch_title':'游戏库',
-      'library.eyebrow':'游戏库 / 7 款游戏',
+      'library.eyebrow':'游戏库 / 8 款游戏',
       'library.title':'选择你的玩法。',
       'library.close':'关闭',
       'library.close_aria':'关闭游戏库',
@@ -1136,7 +1136,7 @@
       // game library
       'library.launch_kicker':'選擇下一個支線任務',
       'library.launch_title':'遊戲庫',
-      'library.eyebrow':'遊戲庫 / 7 款遊戲',
+      'library.eyebrow':'遊戲庫 / 8 款遊戲',
       'library.title':'選擇你的玩法。',
       'library.close':'關閉',
       'library.close_aria':'關閉遊戲庫',
@@ -1394,7 +1394,7 @@
       // game library
       'library.launch_kicker':'เลือกเควสต์เสริมถัดไป',
       'library.launch_title':'คลังเกม',
-      'library.eyebrow':'คลังเกม / 7 เกม',
+      'library.eyebrow':'คลังเกม / 8 เกม',
       'library.title':'เลือกเกมที่จะเล่น',
       'library.close':'ปิด',
       'library.close_aria':'ปิดคลังเกม',
@@ -1652,7 +1652,7 @@
       // game library
       'library.launch_kicker':'اختر مهمتك الجانبية التالية',
       'library.launch_title':'مكتبة الألعاب',
-      'library.eyebrow':'مكتبة الألعاب / 7 ألعاب',
+      'library.eyebrow':'مكتبة الألعاب / 8 ألعاب',
       'library.title':'اختر ما تريد لعبه.',
       'library.close':'إغلاق',
       'library.close_aria':'إغلاق مكتبة الألعاب',
@@ -1960,7 +1960,7 @@
       // game library
       'library.launch_kicker':'CHỌN NHIỆM VỤ PHỤ TIẾP THEO',
       'library.launch_title':'Thư viện game',
-      'library.eyebrow':'Thư viện game / 07 game',
+      'library.eyebrow':'Thư viện game / 08 game',
       'library.title':'Chọn cách chơi của bạn.',
       'library.close':'Đóng',
       'library.close_aria':'Đóng thư viện game',
@@ -2867,6 +2867,55 @@
     ar: ['انضم إلى الغرفة','متصل عبر نشاط Discord','العب مع المشاركين في النشاط','اضغط على «انضم إلى الغرفة» للعب مع المشاركين في نشاط Discord هذا. لا حاجة إلى كلمة مرور أو رمز غرفة أو أي إعداد.','طرق أخرى للعب','كلمة المرور (اختيارية)','كلمة المرور (إذا كانت مطلوبة)','الانضمام برمز الغرفة','المضيف: {host} · {players}/{cap} لاعبين','كلمة المرور مطلوبة','لا حاجة إلى كلمة مرور','لا توجد غرف عامة بعد. أنشئ غرفة أو انضم باستخدام رمز الغرفة.','الخريطة المختارة','بانتظار اختيار المضيف لخريطة.','ستبقى في الغرفة عند إغلاق هذه النافذة.']
   };
   for (const lang of SUPPORTED) MP_LOBBY_KEYS.forEach((key, i) => { T[lang]['mp.' + key] = MP_LOBBY_TEXT[lang][i]; });
+
+  // Gem Rush copy, in SUPPORTED language order.
+  const GEM_COPY = {
+    'mode.gems': ['Gem Rush','ジェムラッシュ','젬 러시','宝石冲刺','寶石衝刺','เจมรัช','Cơn sốt đá quý','اندفاع الجواهر'],
+    'gems.tag': ['MATCH THREE','マッチ3','매치 3','三消','三消','จับคู่สาม','GHÉP BA','طابق ثلاثًا'],
+    'gems.kicker': ['A LITTLE SPARK','きらめきをつなごう','반짝임을 이어서','点亮连锁','點亮連鎖','ประกายเล็ก ๆ','MỘT CHÚT LẤP LÁNH','شرارة صغيرة'],
+    'gems.description': ['Swap gems, spark cascades, chase your best.','宝石を交換して連鎖を起こし、ベストを目指そう。','보석을 바꾸고 연쇄를 일으켜 최고 기록에 도전하세요.','交换宝石，触发连锁，挑战最佳成绩。','交換寶石，觸發連鎖，挑戰最佳成績。','สลับอัญมณี สร้างคอมโบ ทำสถิติใหม่','Đổi đá quý, tạo chuỗi liên hoàn, phá kỷ lục.','بدّل الجواهر وأطلق السلاسل وحطّم رقمك.'],
+    'gems.new': ['New game','新しいゲーム','새 게임','新游戏','新遊戲','เกมใหม่','Ván mới','لعبة جديدة'],
+    'gems.hint': ['Hint','ヒント','힌트','提示','提示','คำใบ้','Gợi ý','تلميح'],
+    'gems.board': ['Gem board','宝石の盤面','보석 보드','宝石棋盘','寶石棋盤','กระดานอัญมณี','Bàn đá quý','لوحة الجواهر'],
+    'gems.score': ['Score','スコア','점수','分数','分數','คะแนน','Điểm','النقاط'],
+    'gems.progress': ['Progress toward the target score','目標スコアまでの進捗','목표 점수 진행도','目标分数进度','目標分數進度','ความคืบหน้าสู่คะแนนเป้าหมาย','Tiến độ đạt điểm mục tiêu','التقدم نحو النقاط المطلوبة'],
+    'gems.moves': ['Moves left','残り手数','남은 횟수','剩余步数','剩餘步數','ตาที่เหลือ','Lượt còn lại','الحركات المتبقية'],
+    'gems.best': ['Best score','ベスト','최고 점수','最高分','最高分','คะแนนสูงสุด','Điểm cao nhất','أفضل نتيجة'],
+    'gems.how': ['How to play','遊び方','게임 방법','玩法说明','玩法說明','วิธีเล่น','Cách chơi','طريقة اللعب'],
+    'gems.help': ['Swap neighboring gems to match three or more. Reach the target before your 30 moves run out. Invalid swaps cost nothing.','隣り合う宝石を交換して3つ以上そろえよう。30手以内に目標スコアを達成。そろわない交換では手数は減りません。','이웃한 보석을 바꿔 3개 이상 맞추세요. 30번 안에 목표 점수를 달성하세요. 매치가 안 되면 횟수는 줄지 않아요.','交换相邻宝石，连成三个或更多。在30步内达到目标分数。无效交换不消耗步数。','交換相鄰寶石，連成三個或更多。在30步內達到目標分數。無效交換不消耗步數。','สลับอัญมณีที่อยู่ติดกันให้เรียงกันอย่างน้อย 3 เม็ด ทำคะแนนให้ถึงเป้าหมายใน 30 ตา สลับแล้วไม่เกิดคู่จะไม่เสียตา','Đổi hai viên kề nhau để ghép ít nhất ba viên. Đạt mục tiêu trong 30 lượt. Đổi không tạo bộ ghép sẽ không mất lượt.','بدّل جوهرتين متجاورتين لتطابق ثلاثًا أو أكثر. حقّق الهدف خلال 30 حركة. التبديل دون تطابق لا يستهلك حركة.'],
+    'gems.special_help': ['Match 4 for a line clear, 5 for a color prism, or a T/L for a burst. Match a special to activate it; swap a prism with any gem.','4つでライン消去、5つでプリズム、T字・L字でバースト。特殊宝石はそろえると発動。プリズムは好きな宝石と交換しよう。','4개는 줄 지우기, 5개는 프리즘, T/L 모양은 폭발 보석이 돼요. 특수 보석을 맞춰 발동하거나 프리즘을 아무 보석과 바꾸세요.','四连生成直线宝石，五连生成棱镜，T/L形生成爆破宝石。匹配特殊宝石即可触发；棱镜可与任意宝石交换。','四連生成直線寶石，五連生成稜鏡，T/L形生成爆破寶石。配對特殊寶石即可觸發；稜鏡可與任意寶石交換。','เรียง 4 ได้ตัวล้างแถว 5 ได้ปริซึม รูป T/L ได้ระเบิด จับคู่อัญมณีพิเศษเพื่อใช้ หรือสลับปริซึมกับอัญมณีใดก็ได้','Ghép 4 tạo đá xóa hàng, 5 tạo lăng kính, hình T/L tạo đá nổ. Ghép đá đặc biệt để kích hoạt; đổi lăng kính với viên bất kỳ.','طابق 4 لمسح خط، أو 5 لمنشور ألوان، أو شكل T/L لانفجار. طابق الجوهرة الخاصة لتفعيلها، أو بدّل المنشور مع أي جوهرة.'],
+    'gems.chain_help': ['Cascades multiply points, up to ×5. A board with no moves refreshes for free.','連鎖でスコアが最大5倍に。動かせなくなった盤面は無料で更新されます。','연쇄로 점수가 최대 5배가 돼요. 가능한 수가 없으면 보드가 무료로 갱신돼요.','连锁分数最高可达5倍。无可用移动时自动免费刷新棋盘。','連鎖分數最高可達5倍。無可用移動時自動免費更新棋盤。','คอมโบเพิ่มคะแนนสูงสุด ×5 ถ้าไม่มีตาให้เล่น กระดานจะเปลี่ยนใหม่ฟรี','Chuỗi liên hoàn nhân điểm tối đa ×5. Bàn hết nước đi sẽ được làm mới miễn phí.','السلاسل تضاعف النقاط حتى ×5. تتجدد اللوحة مجانًا عند نفاد الحركات الممكنة.'],
+    'gems.keyboard': ['Arrow keys move focus. Enter or Space selects a gem, then select its neighbor to swap.','矢印キーで移動。EnterかSpaceで宝石を選び、隣の宝石を選んで交換。','화살표로 이동하고 Enter나 Space로 선택한 뒤 이웃한 보석을 선택해 바꾸세요.','方向键移动焦点，Enter或空格选中宝石，再选相邻宝石交换。','方向鍵移動焦點，Enter或空白鍵選取寶石，再選相鄰寶石交換。','ใช้ลูกศรเลื่อน กด Enter หรือ Space เพื่อเลือก แล้วเลือกเม็ดข้าง ๆ เพื่อสลับ','Dùng phím mũi tên để di chuyển. Enter hoặc Space chọn đá, rồi chọn viên kề bên để đổi.','حرّك التركيز بالأسهم. اختر جوهرة بزر Enter أو المسافة، ثم اختر جارتها للتبديل.'],
+    'gems.saved': ['Progress and best score are saved on this device.','進捗とベストスコアはこの端末に保存されます。','진행 상황과 최고 점수는 이 기기에 저장돼요.','进度和最高分保存在此设备上。','進度和最高分儲存在此裝置上。','ความคืบหน้าและคะแนนสูงสุดบันทึกบนอุปกรณ์นี้','Tiến độ và điểm cao nhất được lưu trên thiết bị này.','يُحفظ التقدم وأفضل نتيجة على هذا الجهاز.'],
+    'gems.restart_title': ['Start a new game?','新しいゲームを始めますか？','새 게임을 시작할까요?','开始新游戏？','開始新遊戲？','เริ่มเกมใหม่ไหม?','Bắt đầu ván mới?','بدء لعبة جديدة؟'],
+    'gems.restart_hint': ['Your current board will be replaced. Your best score stays.','現在の盤面はリセットされます。ベストスコアは残ります。','현재 보드는 초기화돼요. 최고 점수는 유지돼요.','当前棋盘将被替换，最高分会保留。','目前棋盤將被替換，最高分會保留。','กระดานปัจจุบันจะถูกแทนที่ แต่คะแนนสูงสุดยังอยู่','Bàn hiện tại sẽ được thay thế. Điểm cao nhất vẫn được giữ.','ستُستبدل اللوحة الحالية. تبقى أفضل نتيجة محفوظة.'],
+    'gems.cancel': ['Keep playing','プレイを続ける','계속 플레이','继续游戏','繼續遊戲','เล่นต่อ','Chơi tiếp','متابعة اللعب'],
+    'gems.instructions': ['Drag a gem, or tap two neighbors, to match three.','宝石をドラッグするか、隣り合う2つをタップして3つそろえよう。','보석을 드래그하거나 이웃한 두 보석을 눌러 3개를 맞추세요.','拖动宝石，或点击相邻的两颗宝石，连成三个。','拖曳寶石，或點選相鄰的兩顆寶石，連成三個。','ลากอัญมณี หรือแตะสองเม็ดที่ติดกัน เพื่อเรียงให้ได้สามเม็ด','Kéo một viên hoặc chạm hai viên kề nhau để ghép ba.','اسحب جوهرة أو انقر جوهرتين متجاورتين لتطابق ثلاثًا.'],
+    'gems.invalid': ['No match — try another swap. No move used.','そろいませんでした。別の交換を試そう。手数は減りません。','매치가 없어요. 다른 교환을 시도하세요. 횟수는 그대로예요.','没有匹配，试试其他交换。未消耗步数。','沒有配對，試試其他交換。未消耗步數。','ไม่เกิดคู่ ลองสลับแบบอื่น ไม่เสียตา','Không tạo bộ ghép — thử đổi cặp khác. Không mất lượt.','لا يوجد تطابق. جرّب تبديلًا آخر؛ لم تُستهلك حركة.'],
+    'gems.cascade': ['Cascade ×{n}!','{n}連鎖！','{n}연쇄!','{n}连锁！','{n}連鎖！','คอมโบ ×{n}!','Liên hoàn ×{n}!','سلسلة ×{n}!'],
+    'gems.shuffled': ['No moves left on that board — fresh gems, no move spent.','動かせる宝石がないため盤面を更新しました。手数は減りません。','가능한 수가 없어 보드를 갱신했어요. 횟수는 그대로예요.','没有可用移动，已免费刷新棋盘。','沒有可用移動，已免費更新棋盤。','ไม่มีตาให้เล่น เปลี่ยนอัญมณีใหม่ให้แล้ว ไม่เสียตา','Bàn hết nước đi — đã làm mới, không mất lượt.','لا توجد حركات ممكنة؛ جواهر جديدة دون استهلاك حركة.'],
+    'gems.hint_shown': ['Try swapping the two highlighted gems.','光っている2つの宝石を交換してみよう。','표시된 두 보석을 바꿔 보세요.','试着交换两颗标出的宝石。','試著交換兩顆標出的寶石。','ลองสลับอัญมณีสองเม็ดที่เน้นไว้','Thử đổi hai viên được đánh dấu.','جرّب تبديل الجوهرتين المحددتين.'],
+    'gems.level': ['Level {n}','レベル {n}','레벨 {n}','第{n}关','第{n}關','ด่าน {n}','Màn {n}','المستوى {n}'],
+    'gems.target': ['Target · {n}','目標 · {n}','목표 · {n}','目标 · {n}','目標 · {n}','เป้าหมาย · {n}','Mục tiêu · {n}','الهدف · {n}'],
+    'gems.won': ['Target reached!','目標達成！','목표 달성!','目标达成！','目標達成！','ถึงเป้าหมายแล้ว!','Đạt mục tiêu!','تحقّق الهدف!'],
+    'gems.lost': ['Out of moves','手数がなくなりました','횟수를 모두 썼어요','步数用完了','步數用完了','หมดตาแล้ว','Hết lượt','نفدت الحركات'],
+    'gems.result_score': ['{score} points · best cascade ×{chain}','{score}点 · 最大{chain}連鎖','{score}점 · 최고 {chain}연쇄','{score}分 · 最高{chain}连锁','{score}分 · 最高{chain}連鎖','{score} คะแนน · คอมโบสูงสุด ×{chain}','{score} điểm · liên hoàn cao nhất ×{chain}','{score} نقطة · أفضل سلسلة ×{chain}'],
+    'gems.next': ['Next level','次のレベル','다음 레벨','下一关','下一關','ด่านถัดไป','Màn tiếp','المستوى التالي'],
+    'gems.retry': ['Try again','もう一度','다시 도전','再试一次','再試一次','ลองอีกครั้ง','Thử lại','حاول مجددًا'],
+    'gems.save_unavailable': ['Device storage is unavailable. Progress lasts for this visit.','端末に保存できません。進捗はこのページを開いている間のみ保持されます。','기기에 저장할 수 없어요. 이번 방문 중에만 진행 상황이 유지돼요.','设备存储不可用，进度仅在本次访问期间保留。','裝置儲存空間無法使用，進度僅在本次造訪期間保留。','บันทึกบนอุปกรณ์ไม่ได้ ความคืบหน้าจะอยู่เฉพาะครั้งนี้','Không thể lưu trên thiết bị. Tiến độ chỉ giữ trong lần truy cập này.','التخزين غير متاح. يستمر التقدم خلال هذه الزيارة فقط.'],
+    'gems.cell': ['Row {row}, column {col}: {gem}','{row}行{col}列：{gem}','{row}행 {col}열: {gem}','第{row}行第{col}列：{gem}','第{row}行第{col}列：{gem}','แถว {row} คอลัมน์ {col}: {gem}','Hàng {row}, cột {col}: {gem}','الصف {row}، العمود {col}: {gem}'],
+    'gems.ruby': ['Ruby diamond','ルビー・ひし形','루비 마름모','红宝石菱形','紅寶石菱形','ทับทิมรูปข้าวหลามตัด','Hồng ngọc hình thoi','ياقوت أحمر مُعيّن'],
+    'gems.amber': ['Amber hexagon','琥珀・六角形','호박 육각형','琥珀六边形','琥珀六邊形','อำพันหกเหลี่ยม','Hổ phách lục giác','كهرمان سداسي'],
+    'gems.emerald': ['Emerald square','エメラルド・四角形','에메랄드 사각형','翡翠方形','翡翠方形','มรกตสี่เหลี่ยม','Ngọc lục bảo vuông','زمرد مربع'],
+    'gems.sapphire': ['Sapphire triangle','サファイア・三角形','사파이어 삼각형','蓝宝石三角形','藍寶石三角形','ไพลินสามเหลี่ยม','Lam ngọc tam giác','ياقوت أزرق مثلث'],
+    'gems.amethyst': ['Amethyst pentagon','アメジスト・五角形','자수정 오각형','紫水晶五边形','紫水晶五邊形','อเมทิสต์ห้าเหลี่ยม','Thạch anh tím ngũ giác','جمشت خماسي'],
+    'gems.topaz': ['Topaz octagon','トパーズ・八角形','토파즈 팔각형','黄玉八边形','黃玉八邊形','โทแพซแปดเหลี่ยม','Hoàng ngọc bát giác','توباز ثماني'],
+    'gems.row': ['Row clear','横一列消去','가로줄 지우기','整行消除','整列橫向消除','ล้างแถว','Xóa hàng','مسح صف'],
+    'gems.column': ['Column clear','縦一列消去','세로줄 지우기','整列消除','整行直向消除','ล้างคอลัมน์','Xóa cột','مسح عمود'],
+    'gems.blast': ['Burst gem','バースト宝石','폭발 보석','爆破宝石','爆破寶石','อัญมณีระเบิด','Đá nổ','جوهرة انفجار'],
+    'gems.prism': ['Color prism','カラープリズム','컬러 프리즘','彩色棱镜','彩色稜鏡','ปริซึมสี','Lăng kính màu','منشور ألوان']
+  };
+  for (const [key, values] of Object.entries(GEM_COPY)) SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
 
   const I18N = { SUPPORTED, NATIVE, T, t, set, detect, apply, get current() { return current; } };
 

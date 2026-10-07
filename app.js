@@ -4893,6 +4893,8 @@
       },
     };
     window.DoomGame?.init(window.__doomDeps);
+    window.__gemDeps = {settings, captureKeyboard: on => setTypingActive(!!on)};
+    window.GemGame?.init(window.__gemDeps);
     bgm.addEventListener('play', () => {
       if (settings.gameMode === 'doom') { bgm.pause(); bgmPlaying = false; }
     });
@@ -4921,7 +4923,7 @@
       else if (mode === 'vsrg') settings.rhythmSubMode = 'mania';
       else if (mode === 'osu') settings.rhythmSubMode = 'standard';
       else if (mode === 'diva') settings.rhythmSubMode = 'diva';
-      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'diva' || mode === 'fishing' || mode === 'doom') ? mode : 'clicker';
+      settings.gameMode = (mode === 'typing' || mode === 'vsrg' || mode === 'osu' || mode === 'diva' || mode === 'fishing' || mode === 'doom' || mode === 'gems') ? mode : 'clicker';
       // Close whichever mode panel is not the newly-selected one. Each close()
       // only resets gameMode when it still owns it, so setting gameMode first
       // keeps these from stomping the new selection.
@@ -4931,6 +4933,7 @@
       if (settings.gameMode !== 'fishing' && window.FishingGame && window.FishingGame.close) window.FishingGame.close();
       if (settings.gameMode !== 'diva' && window.DivaGame && window.DivaGame.close) window.DivaGame.close();
       if (settings.gameMode !== 'doom') window.DoomGame?.close();
+      if (settings.gameMode !== 'gems') window.GemGame?.close();
       if (settings.gameMode === 'typing') {
         if (sub && window.TypingGame && window.TypingGame.setSubMode) window.TypingGame.setSubMode(sub);
         else saveSettings(settings);
@@ -4948,6 +4951,9 @@
       } else if (settings.gameMode === 'doom') {
         saveSettings(settings);
         window.DoomGame?.open();
+      } else if (settings.gameMode === 'gems') {
+        saveSettings(settings);
+        window.GemGame?.open();
       } else if (settings.gameMode === 'diva') {
         saveSettings(settings);
         if (window.DivaGame && window.DivaGame.open) window.DivaGame.open();
@@ -4960,7 +4966,7 @@
     window.addEventListener('aobinglaunch', (event) => {
       const mode = typeof event.detail === 'string' ? event.detail : event.detail?.mode;
       const sub = event.detail?.submode;
-      if (!['clicker', 'typing', 'fishing', 'osu', 'vsrg', 'diva', 'doom'].includes(mode)) return;
+      if (!['clicker', 'typing', 'fishing', 'osu', 'vsrg', 'diva', 'doom', 'gems'].includes(mode)) return;
       applyMode(mode, sub === 'ranked' || sub === 'casual' ? sub : settings.typingSubMode || 'casual');
       closeModePop();
     });
@@ -5032,7 +5038,7 @@
       }
     }
     function syncMusicMode() {
-      setMusicMode(['vsrg', 'osu', 'diva', 'fishing', 'doom'].includes(settings.gameMode));
+      setMusicMode(['vsrg', 'osu', 'diva', 'fishing', 'doom', 'gems'].includes(settings.gameMode));
       window.ActivityGames?.setMode?.(settings.gameMode);
     }
     window.addEventListener('gamemodechange', syncMusicMode);
