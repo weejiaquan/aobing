@@ -5,6 +5,15 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const MP = require('./multiplayer.js');
 
+test('Activity preview does not join or replace an existing lobby or selected map', () => {
+  for (const lobby of [null,{id:'JOINED',members:{self:{}}}]) {
+    const state={status:'online',uid:'self',lobby,currentMap:{hash:'original'}};
+    const next=MP.applyServerMessage(state,{type:'activity_lobby',lobby:{id:'PREVIEW',members:[]}});
+    assert.equal(next.lobby,lobby);
+    assert.equal(next.currentMap,state.currentMap);
+  }
+});
+
 test('multiplayer.js exports an engine object', () => {
   assert.equal(MP.MP_ENGINE, true);
 });

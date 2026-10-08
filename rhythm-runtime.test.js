@@ -36,7 +36,7 @@ function fixture(mode, width=1280, height=720, dpr=1) {
   vm.runInContext(fs.readFileSync('rhythm-core.js','utf8'),context);
   const file=mode==='osu'?'osustd.js':'vsrg.js';
   const hooks=`window.__runtime={ensureCtx,startRun,loop,render,pauseRun,resumeRun,teardownRun,finishRun,onKeyDown,${mode==='osu'?'onMouseDown,onMouseUp,updateSliders,rememberInput,':'onKeyUp,'} setPanelOpen(v){panelOpen=v;},get run(){return run;}, setAuto(v){autoplay=v;},setCursor(v){${mode==='osu'?'cursor=v;':''}}};`;
-  const source=fs.readFileSync(file,'utf8').replace('    function calOffset()',hooks+'\n    function calOffset()').replace("const rec = await idbGet('osz', hash);","const rec = window.__mpRecord;");
+  const source=fs.readFileSync(file,'utf8').replace('    function calOffset()',hooks+'\n    function calOffset()').replace("const rec = await api.getChartRecord(hash);","const rec = window.__mpRecord;");
   vm.runInContext(source,context,{filename:file});
   const settings={musicVol:0,osuKeys:['z','x']};
   window[mode==='osu'?'OsuStdGame':'VsrgGame'].init({settings,saveSettings(){}});

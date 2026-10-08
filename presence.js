@@ -224,6 +224,7 @@ if (typeof document !== 'undefined') {
     if (!_state) return;
     var rows = PRESENCE_ENGINE.buildRows(_state.nodes, _state.selfDiscordId);
     _render(_state.deps, _state.listEl, rows);
+    window.dispatchEvent(new CustomEvent('activityrosterchange', {detail:rows.filter(function(row) { return row.active; })}));
   }
 
   function _destroy() {
@@ -235,6 +236,7 @@ if (typeof document !== 'undefined') {
     // Mark left (not remove) so an explicit teardown still records the departure.
     try { if (_state.selfRef) _state.selfRef.update({ active: false, leftAt: _serverTs() }).catch(function () {}); } catch (e) {}
     _state = null;
+    window.dispatchEvent(new CustomEvent('activityrosterchange', {detail:[]}));
     var panel = document.getElementById('presence-panel'); if (panel) panel.style.display = 'none';
   }
 
@@ -289,6 +291,7 @@ if (typeof document !== 'undefined') {
     _recompute();
   }
 
-  window.Presence = { init: init, destroy: _destroy, _recompute: _recompute };
+  window.Presence = { init: init, destroy: _destroy, _recompute: _recompute,
+    getRows: function() { return _state ? PRESENCE_ENGINE.buildRows(_state.nodes, _state.selfDiscordId).filter(function(row) { return row.active; }) : []; } };
   window.dispatchEvent(new Event('presenceavailable'));
 }

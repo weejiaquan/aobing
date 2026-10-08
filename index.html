@@ -2991,7 +2991,7 @@
   <div id="vsrg-panel">
     <div id="vsrg-select" class="vsrg-screen">
       <div class="vsrg-select-head">
-        <h2 data-i18n="mode.vsrg">Rhythm</h2>
+        <h2 data-i18n="mode.mania">Mania</h2>
         <div class="vsrg-select-actions">
           <button id="vsrg-exit" type="button" title="Exit rhythm mode">✕ Exit</button>
           <span id="vsrg-keyfilter">
@@ -3610,6 +3610,7 @@
   </section>
 
   <link rel="stylesheet" href="ui-panels.css?v=mp-lobby-2">
+  <link rel="stylesheet" href="rhythm-select.css?v=1">
   <link rel="stylesheet" href="gems-ui.css?v=1">
   <link rel="stylesheet" href="marble-ui.css?v=1">
   <section id="marble-panel" hidden aria-labelledby="marble-title">
@@ -3740,16 +3741,17 @@
         .then(function () { return loadScript('rhythm-mania.js?v=2'); })
         .then(function () { return loadScript('rhythm-standard.js?v=2'); })
         .then(function () { return loadScript('rhythm-ui.js?v=2'); })
+        .then(function () { return loadScript('rhythm-select.js?v=1'); })
         .then(function () { return loadScript('hitsound.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=replay-2')); })
         // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
         .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
         // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
         // window.__vsrgDeps. Inert on the web until the mode is opened.
-        .then(function () { return loadScript('vsrg.js?v=replay-2' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('vsrg.js?v=rhythm-stage-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
         // osustd.js (osu!standard mode) loads after app.js and self-initialises from
         // window.__osustdDeps. Inert until the mode is opened.
-        .then(function () { return loadScript('osustd.js?v=replay-3' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-3')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
+        .then(function () { return loadScript('osustd.js?v=rhythm-stage-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
+        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-4')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
         // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
         // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
         // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.

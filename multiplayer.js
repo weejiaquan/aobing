@@ -19,7 +19,7 @@
   function applyServerMessage(state, msg) {
     const next = Object.assign({}, state);
     if (msg.type === 'auth_ok') { next.status = 'online'; next.uid = msg.uid; next.error = null; next.protocol = msg.protocol || 1; }
-    if (['lobby_state','member_joined','member_left','countdown'].includes(msg.type) || msg.lobby) {
+    if (msg.type !== 'activity_lobby' && (['lobby_state','member_joined','member_left','countdown'].includes(msg.type) || msg.lobby)) {
       next.lobby = msg.lobby || null;
       next.currentMap = next.lobby ? next.lobby.current_map : null;
       next.error = null;
@@ -300,6 +300,7 @@ if (typeof document !== 'undefined') (function () {
   const t = (key, args) => I18N.t(key, args);
   let container, conn, browseGen = 0, epoch = 0, mapKey = '', hostUid = null, status = '', prepared = null;
   let serverErrorShown = false;
+  let activityPreview, previewSupported = false, previewTimer = null;
   let haveMap = false, preparing = false, receiver = null, encodedCache = null, round = null;
   const peers = new Map(), uploads = new Map();
   const dialog = () => document.getElementById('multiplayer-dialog');
@@ -325,10 +326,66 @@ if (typeof document !== 'undefined') (function () {
     peers.forEach(p => p.close()); peers.clear(); uploads.clear();
   }
   function teardown() {
+    clearInterval(previewTimer); previewTimer = null; previewSupported = false; activityPreview = undefined;
     browseGen++; resetTransfer(); mapKey = ''; hostUid = null; round = null;
     if (conn) conn.close(); conn = null;
     if (game() && game().detachMultiplayer) game().detachMultiplayer();
     const hud = document.getElementById('mp-scoreboard'); if (hud) hud.remove();
+    renderPresenceEntry();
+  }
+  function avatar(member) {
+    const name = String(member.name || member.discordName || '?');
+    const n = node('span',{className:'mp-avatar',textContent:Array.from(name)[0],title:name});
+    const photo = member.photo || member.discordPhotoURL || member.photoURL;
+    try {
+      const url = new URL(photo);
+      if (url.protocol === 'https:') {
+        const img = node('img',{src:url.href,alt:'',referrerPolicy:'no-referrer'});
+        img.onerror = () => img.remove(); n.appendChild(img);
+        n.style.position='relative';img.style.position='absolute';img.style.inset='0';
+      }
+    } catch (_) {}
+    return n;
+  }
+  function rosterStrip(members) {
+    return node('span',{className:'mp-avatar-stack'},members.slice(0,6).map(avatar));
+  }
+  function presenceContent() {
+    const lobby = getState().lobby || activityPreview;
+    if(lobby) {
+      const members=Object.values(lobby.members || {}),busy=['countdown','racing'].includes(lobby.phase);
+      return {members,label:t('mp.in_room',{n:members.length}),hint:busy?t('mp.room_playing'):members.map(m=>m.name).join(', '),busy,full:members.length>=lobby.cap};
+    }
+    const members=window.Presence?.getRows?.() || [];
+    if(activityPreview===null)return {members:[],label:t('mp.room_empty'),hint:t('mp.activity_people',{n:members.length})};
+    return {members,label:t('mp.activity_people',{n:members.length}),hint:t('mp.room_unavailable')};
+  }
+  function renderPresenceEntry() {
+    if(!window.__ACTIVITY__?.instanceId)return;
+    const select=document.getElementById('osu-select');if(!select)return;
+    if(select.hidden && !dialog().open)return;
+    let entry=document.getElementById('mp-presence-entry');
+    if(!entry){entry=node('div',{id:'mp-presence-entry',className:'mp-presence-entry'});const stage=select.querySelector('.rs-stage');if(stage)select.insertBefore(entry,stage);else select.appendChild(entry);}
+    const info=presenceContent(),copy=node('span',{className:'mp-presence-copy'},[node('strong',{textContent:info.label}),node('small',{textContent:info.hint})]);
+    const join=button(t(getState().lobby?'mp.title':'mp.join_lobby'),()=>{
+      if(!dialog().open)dialog().showModal();container=document.getElementById('mp-panel');
+      if(getState().lobby){renderLobby(getState());return;}
+      ensureConnection();send({type:'join_activity',instance_id:window.__ACTIVITY__.instanceId});openBrowser();
+    },!getState().lobby && (info.busy || info.full));
+    entry.replaceChildren(rosterStrip(info.members),copy,join);
+    const inside=document.getElementById('mp-activity-roster');
+    if(inside)inside.replaceChildren(rosterStrip(info.members),node('span',{textContent:info.label}),node('small',{textContent:info.hint}));
+    const joinCard=container?.querySelector('.mp-activity-card > button');
+    if(joinCard)joinCard.disabled=!!(info.busy||info.full);
+  }
+  function pollActivity() {
+    if(document.hidden || !window.__ACTIVITY__?.instanceId)return;
+    if(previewSupported && !getState().lobby && document.getElementById('osu-panel')?.classList.contains('open') && !document.getElementById('osu-select')?.hidden)conn?.send({type:'activity_lobby',instance_id:window.__ACTIVITY__.instanceId});
+  }
+  function activatePresence() {
+    if(!window.__ACTIVITY__?.instanceId || !document.getElementById('osu-panel')?.classList.contains('open'))return;
+    renderPresenceEntry();
+    if(typeof firebase !== 'undefined' && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous)ensureConnection();
   }
   function send(msg) { if (!conn || !conn.send(msg)) throw new Error('offline'); }
   function stateMessage(state) {
@@ -496,7 +553,9 @@ if (typeof document !== 'undefined') (function () {
     prepared = null;
   }
   function onState(state) {
+    renderPresenceEntry();
     if (state.status === 'offline') {
+      activityPreview=undefined;clearInterval(previewTimer);previewTimer=null;renderPresenceEntry();
       resetTransfer(); mapKey = ''; hostUid = null; updateHud(null);
       if (game() && game().detachMultiplayer) game().detachMultiplayer();
       renderOffline(state.error); return;
@@ -529,7 +588,11 @@ if (typeof document !== 'undefined') (function () {
         if (!user || user.isAnonymous) throw new Error('auth_required');
         return user.getIdToken();
       }, onState,
-      onMessage: msg => { if (msg.type === 'relay') onRelay(msg.from_uid,msg.body).catch(() => message(t('mp.transfer_failed'))); }});
+      onMessage: msg => {
+        if(msg.type==='auth_ok'){previewSupported=msg.activity_preview===true;pollActivity();clearInterval(previewTimer);if(previewSupported)previewTimer=setInterval(pollActivity,5000);}
+        if(msg.type==='activity_lobby'){activityPreview=msg.lobby;renderPresenceEntry();}
+        if (msg.type === 'relay') onRelay(msg.from_uid,msg.body).catch(() => message(t('mp.transfer_failed')));
+      }});
   }
   function renderOffline(code) {
     if (!container) return;
@@ -562,7 +625,7 @@ if (typeof document !== 'undefined') (function () {
     Object.entries(lobby.members).forEach(([uid,m]) => {
       const badge = node('span',{className:'mp-member-state',textContent:t('mp.state_'+m.state)});
       badge.setAttribute('data-state',m.state);
-      list.appendChild(node('li',{},[node('span',{textContent:uid === lobby.host_uid ? t('mp.member_host',{name:m.name}) : m.name}),badge]));
+      list.appendChild(node('li',{},[node('span',{className:'mp-member-person'},[avatar(m),node('span',{textContent:uid === lobby.host_uid ? t('mp.member_host',{name:m.name}) : m.name})]),badge]));
     });
     container.appendChild(list);
     const line = node('p',{id:'mp-xfer-status',textContent:status}); line.setAttribute('role','status'); container.appendChild(line);
@@ -624,7 +687,8 @@ if (typeof document !== 'undefined') (function () {
           node('div',{},[
             node('span',{className:'mp-eyebrow',textContent:t('mp.activity_connected')}),
             node('h3',{textContent:t('mp.activity_title')}),
-            node('p',{id:'mp-activity-hint',textContent:t('mp.activity_hint')})
+            node('p',{id:'mp-activity-hint',textContent:t('mp.activity_hint')}),
+            node('div',{id:'mp-activity-roster',className:'mp-presence-entry'})
           ]),join
         ]));
       }
@@ -659,12 +723,20 @@ if (typeof document !== 'undefined') (function () {
         ]));
       });
       options.appendChild(publicRooms);
+      renderPresenceEntry();
     } catch (_) { if (generation === browseGen && !getState().lobby) renderOffline('no_server'); }
     finally { clearTimeout(timer); }
   }
-  window.MpUI = {open(target) { container = target; openBrowser(); },close:teardown,dismiss() { if (!getState().lobby) teardown(); }};
+  window.MpUI = {open(target) { container = target; openBrowser(); },close:teardown,dismiss() { if (!getState().lobby && !window.__ACTIVITY__?.instanceId) teardown(); }};
   window.addEventListener('beforeunload',teardown);
   window.addEventListener('gamemodechange',() => { if (conn) teardown(); });
+  window.addEventListener('activityrosterchange',renderPresenceEntry);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollActivity();});
+  const standardPanel=document.getElementById('osu-panel');
+  if(standardPanel)new MutationObserver(activatePresence).observe(standardPanel,{attributes:true,attributeFilter:['class']});
+  const standardSelect=document.getElementById('osu-select');
+  if(standardSelect)new MutationObserver(()=>{renderPresenceEntry();pollActivity();}).observe(standardSelect,{attributes:true,attributeFilter:['hidden']});
+  activatePresence();
   window.addEventListener('i18nchange',() => { if (container && dialog().open) { if (getState().lobby) renderLobby(getState()); else openBrowser(); } });
   // An account change must not leave the old identity authenticated on the socket.
   if (typeof firebase !== 'undefined') firebase.auth().onAuthStateChanged(user => {

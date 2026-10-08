@@ -419,6 +419,9 @@ if (typeof document !== 'undefined') {
       {key:'vsrgVisualOffset',label:'rhythm.visual_offset',min:-200,max:200,value:0,format:v=>v+' ms'}
     ]);
 
+    const selector = window.RhythmSelect?.create({mode:'vsrg', settings, save:deps.saveSettings, ensureCtx, pauseBgm:deps.pauseBgm, resumeBgm:deps.resumeBgm, play:loadAndPlay});
+    const stageHud = window.RhythmSelect?.hud('vsrg', pauseRun);
+
     function calOffset() { return Number(settings.vsrgCalibrationOffset) || 0; }
     // Scroll speed: higher multiplier -> shorter approach time -> faster notes.
     // Uncapped on top (some players want 10x+); floored at 0.5 to stay sane.
@@ -520,6 +523,7 @@ if (typeof document !== 'undefined') {
 
     // ---- Screen management -------------------------------------------------
     function show(name) {
+      selector?.screen(name);
       if (window.UIMotion) window.UIMotion.showScreen(panel, screens, name);
       else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
       panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
@@ -581,6 +585,7 @@ if (typeof document !== 'undefined') {
     }
 
     function renderSongList() {
+      if (selector) { selector.setEntries(library.filter(passesFilter)); return; }
       if (!songlistEl) return;
       const items = library.filter(passesFilter);
       if (items.length === 0) {
@@ -849,7 +854,7 @@ if (typeof document !== 'undefined') {
     // ---- Speed preview (mini highway in song-select; updates live with slider) -
     let previewRaf = 0;
     function startSpeedPreview() {
-      if (!speedPreview || previewRaf) return;
+      if (!speedPreview || previewRaf || document.hidden || (selector && !speedPreview.closest('details')?.open)) return;
       const g = speedPreview.getContext('2d');
       const W = speedPreview.width, H = speedPreview.height, lanes = 4;
       const laneW = W / lanes, hitY = H - 24, spacing = 360;
@@ -872,6 +877,10 @@ if (typeof document !== 'undefined') {
         previewRaf = requestAnimationFrame(frame);
       }
       previewRaf = requestAnimationFrame(frame);
+    }
+    if (selector) {
+      speedPreview?.closest('details')?.addEventListener('toggle', () => { stopSpeedPreview(); startSpeedPreview(); });
+      document.addEventListener('visibilitychange', () => { stopSpeedPreview(); if (!document.hidden && panelOpen && !screens.select.hidden) startSpeedPreview(); });
     }
     function stopSpeedPreview() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; }
 
@@ -934,14 +943,15 @@ if (typeof document !== 'undefined') {
       teardownRun();              // never leave a previous run/audio running
       lastSong = entry;
       setImportStatus('');
+      selector?.stop();
       try {
-        const osuText = await entry.getOsuText();
+        const [ac, osuText] = await Promise.all([ensureCtx(), entry.getOsuText()]);
         const chart = parseOsu(osuText);
-        const ac = await ensureCtx();
         const [audioBuf, samples] = await Promise.all([ac.decodeAudioData(await entry.getAudio()), window.Hitsound.prepare(ac, entry.getSamples ? await entry.getSamples() : [])]);
         if (gen !== loadGen || !panelOpen) return;   // user left during the load
         startRun(entry, chart, audioBuf);
         run.samples = samples;
+      } catch (_) { show('select');setImportStatus(window.I18N.t('rhythm.load_failed'));selector?.failure();return false;
       } finally {
         loading = false;
       }
@@ -959,6 +969,7 @@ if (typeof document !== 'undefined') {
       teardownRun();                 // defensive: never overlap with a prior run
       stopSpeedPreview();
       if (deps.pauseBgm) deps.pauseBgm();
+      stageHud?.start(entry);
       show('game');
       grabFocus();                   // pull keyboard focus into the iframe (Discord Activity)
       sizeCanvas();
@@ -1036,6 +1047,7 @@ if (typeof document !== 'undefined') {
     function loop() {
       if (!run || run.finished || run.paused) return;
       const st = songTimeNow();
+      stageHud?.update(st, run.lastNoteTime);
       if (run.auto) autoPlay(st);   // preview: hit each note on time, hold through tails
       sweepMisses(st);
       render(st + calOffset() + (Number(settings.vsrgVisualOffset) || 0));
@@ -1265,14 +1277,14 @@ if (typeof document !== 'undefined') {
       ctx2d.clearRect(0, 0, W, H);
       ctx2d.save();
       if (flip) { ctx2d.translate(0, H); ctx2d.scale(1, -1); }
-      ctx2d.fillStyle = '#0e0f13'; ctx2d.fillRect(0, 0, W, H);
+      ctx2d.fillStyle = '#081b2b'; ctx2d.fillRect(0, 0, W, H);
       // album art: cover-fit, heavily dimmed so notes stay readable
       if (run.artImg) {
         const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
         if (iw && ih) {
           const scale = Math.max(W / iw, H / ih);
           const dw = iw * scale, dh = ih * scale;
-          ctx2d.globalAlpha = 0.22;
+          ctx2d.globalAlpha = 0.10;
           ctx2d.drawImage(run.artImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
           ctx2d.globalAlpha = 1;
         }
@@ -1280,9 +1292,14 @@ if (typeof document !== 'undefined') {
       for (let i = 0; i < keyCount; i++) {
         ctx2d.fillStyle = held[i] ? 'rgba(255,255,255,0.09)' : ((i % 2) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)');
         ctx2d.fillRect(i * laneW, 0, laneW, H);
+        if (held[i]) {
+          const beam=ctx2d.createLinearGradient(0,Math.max(0,hitY-H*.45),0,hitY);
+          beam.addColorStop(0,'transparent');beam.addColorStop(1,view.colors[i]+'55');
+          ctx2d.fillStyle=beam;ctx2d.fillRect(i*laneW,Math.max(0,hitY-H*.45),laneW,H*.45);
+        }
       }
       // judgement line
-      ctx2d.fillStyle = '#4a5060'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
+      ctx2d.fillStyle = '#74cde9'; ctx2d.fillRect(0, hitY - 2 * dpr, W, 4 * dpr);
 
       // receptors (style-aware; filled + glowing while the lane key is held)
       const style = view.style;
@@ -1693,6 +1710,7 @@ if (typeof document !== 'undefined') {
       stopSpeedPreview();
       panel.classList.remove('open'); window.UIMotion?.clear(panel);
       panelOpen = false;
+      selector?.close();
       if (deps.captureKeyboard) deps.captureKeyboard(false);  // release the keyboard
       if (deps.resumeBgm) deps.resumeBgm();
       if (settings.gameMode === 'vsrg') {
@@ -1703,7 +1721,7 @@ if (typeof document !== 'undefined') {
     }
 
     // ---- Wire UI events ----------------------------------------------------
-    if (songlistEl) songlistEl.addEventListener('click', (e) => {
+    if (songlistEl && !selector) songlistEl.addEventListener('click', (e) => {
       const b = e.target.closest('.vsrg-song');
       if (!b) return;
       const idx = Number(b.getAttribute('data-i'));
@@ -1724,7 +1742,7 @@ if (typeof document !== 'undefined') {
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     if (calibrateBtn) calibrateBtn.addEventListener('click', openCalibration);
     if (skipBtn) skipBtn.addEventListener('click', doSkip);
-    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.textContent = 'Auto: ' + (autoplay ? 'on' : 'off'); });
+    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.dataset.i18n = autoplay ? 'rhythm.auto_on' : 'rhythm.auto_off'; autoBtn.textContent = window.I18N.t(autoBtn.dataset.i18n); });
     const exitBtn = document.getElementById('vsrg-exit');
     if (exitBtn) exitBtn.addEventListener('click', function () { close(); });
     // Panel-level Escape: back out of a sub-screen, or exit the mode entirely.
@@ -1820,7 +1838,7 @@ if (typeof document !== 'undefined') {
     // re-grab focus whenever the user clicks anywhere in the panel (Discord
     // steals focus when its chat box is clicked).
     if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; }
-    if (panel) panel.addEventListener('pointerdown', grabFocus);
+    if (panel) panel.addEventListener('pointerdown', () => { if (run && !run.finished && !run.paused) grabFocus(); });
 
     api.open = open;
     api.close = close;

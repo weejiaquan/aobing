@@ -1,0 +1,98 @@
+/* Aobing rhythm stage: shared by Standard and Mania. */
+:is(#osu-select,#vsrg-select).rhythm-select { --rs-surface: #effaffed; --rs-ink: #183653; --rs-muted: #57738e; position:absolute;isolation:isolate;padding:22px 30px 76px;gap:14px;overflow:hidden;background:#ccebf5;color:var(--rs-ink); }
+body[data-sky-phase='night'] :is(#osu-select,#vsrg-select).rhythm-select { --rs-surface:#102c45ed;--rs-ink:#e4f7ff;--rs-muted:#a4c6db;background:#0c2339; }
+.rs-background,.rs-backdrop { position:absolute;inset:0;z-index:-2;pointer-events:none; }
+.rs-background { background:center/cover;opacity:.28;transition:background-image .3s; }
+.rs-backdrop { z-index:-1;background:linear-gradient(105deg,var(--rs-surface) 3%,transparent 70%),url('assets/sky-halos.svg') left center/80% auto no-repeat,linear-gradient(0deg,var(--rs-surface),transparent 75%); }
+.rhythm-select :is(.osu-select-head,.vsrg-select-head) { padding:0;border:0;flex-wrap:nowrap;align-items:center;gap:20px;flex:none;position:relative;z-index:4; }
+.rs-brand { display:flex;align-items:baseline;gap:16px;white-space:nowrap; }
+.rhythm-select .rs-brand h2 { font:italic 900 clamp(22px,3vw,38px)/1.2 'Arial Black','Segoe UI',sans-serif;margin:0;color:var(--rs-ink); }
+.rs-eyebrow { color:#0087c4;font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase; }
+body[data-sky-phase='night'] .rs-eyebrow { color:#73dfff; }
+.rs-nav { display:flex;align-items:center;gap:8px;margin-inline-start:auto; }
+.rs-nav :is(button,summary) { white-space:nowrap; }
+.rs-nav>button { padding:9px 15px; }
+.rs-tools>summary { cursor:pointer;list-style:none;font-size:13px;padding:11px 16px;background:var(--rs-surface);border:1px solid #69b7d64d;border-radius:4px;white-space:nowrap; }
+.rs-tools>summary::marker { display:none; }
+.rs-tools[open]>summary { color:#0085bd; }
+.rs-tools-body { position:absolute;inset-inline-end:0;top:calc(100% + 10px);width:min(650px,calc(100vw - 60px));max-height:min(440px,65dvh);overflow:auto;padding:22px;background:var(--rs-surface);box-shadow:0 20px 60px #001a3d40;backdrop-filter:blur(24px);border:1px solid #69b7d670;border-radius:6px 6px 26px 6px; }
+.rs-tools-body>div:first-child { display:flex;flex-wrap:wrap;gap:8px; }
+.rs-tools-body .import-hint { margin-top:16px; }.rs-tools-body .osu-sort-row { display:none; }
+.rs-stage { display:grid;grid-template-columns:minmax(250px,.88fr) minmax(320px,1.12fr);gap:clamp(22px,4vw,72px);flex:1;min-height:0;max-width:1600px;width:100%;margin:auto; }
+.rs-hero { min-height:0;display:flex;flex-direction:column;position:relative;padding:6px 0; }
+.rs-art { flex:1;min-height:80px;max-height:40vh;position:relative;overflow:hidden;background:linear-gradient(145deg,#70d8f3,#b4e7f5 38%,#285f8c);background-position:center;background-size:cover;border-radius:8px 8px 58px 8px;box-shadow:0 18px 50px #0b345323; }
+.rs-art:after { content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,#06243b55);border:1px solid #ffffff55;border-radius:inherit;pointer-events:none; }
+.rs-halo { position:absolute;inset:13% 24%;border:2px solid #b3f2ff99;border-radius:50%;box-shadow:0 0 0 12px #9befff15,0 0 0 14px #b3f2ff55;transform:rotate(-23deg) scale(calc(1 + var(--rs-level,0)*.08));opacity:calc(.35 + var(--rs-level,0)*.5);transition:transform 90ms linear,opacity 90ms linear;pointer-events:none; }
+.rs-hero-text { padding:24px 8px 0; }.rs-artist { margin:8px 0 4px;font-size:14px;color:var(--rs-muted); }
+.rs-title { font:italic 900 clamp(23px,3vw,45px)/1.12 'Arial Black','Segoe UI',sans-serif;letter-spacing:-1px;margin:0 0 9px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:8px; }
+.rs-difficulty { font-size:14px;font-weight:700;margin:0;overflow-wrap:anywhere; }
+.rs-stats { display:flex;gap:24px;flex-wrap:wrap;margin-top:18px; }.rs-stat { display:flex;flex-direction:column;gap:4px; }.rs-stat b { font-size:20px;font-variant-numeric:tabular-nums; }.rs-stat small { font-size:9px;letter-spacing:.08em;color:var(--rs-muted);text-transform:uppercase; }
+.rs-mapper { font-size:12px;color:var(--rs-muted);margin:14px 0 0; }.rs-status { min-height:18px;margin:8px;font-size:12px;color:var(--rs-muted); }
+.rs-play-actions { display:flex;gap:10px;align-items:center;margin-top:auto;padding-top:10px; }
+:is(#osu-panel,#vsrg-panel) .rs-play { flex:1;min-height:66px;background:linear-gradient(110deg,#008ccf,#1ebdec);border:1px solid #6deaff;color:white;border-radius:5px 5px 25px 5px;font:italic 900 27px 'Arial Black','Segoe UI',sans-serif;box-shadow:0 8px 30px #009fe830;transition:transform .2s,box-shadow .2s; }
+:is(#osu-panel,#vsrg-panel) .rs-play:hover:not(:disabled) { transform:translateY(-3px);box-shadow:0 14px 34px #009fe855; }
+:is(#osu-panel,#vsrg-panel) .rs-preview { min-height:48px;padding:10px 18px;background:transparent; }.rs-preview.playing { color:#009fe8!important;border-color:#009fe8!important; }
+.rs-browser { min-height:0;display:flex;flex-direction:column;gap:12px; }
+.rs-filter { display:flex;gap:8px;flex-wrap:wrap; }.rs-search { flex:1;min-width:100px; }.rs-search,.rs-sort { font:inherit;font-size:13px;background:var(--rs-surface);color:var(--rs-ink);border:1px solid #69b7d670;border-radius:5px;min-height:44px;padding:10px 14px; }
+.rs-filter #vsrg-keyfilter { display:flex;gap:5px;align-items:center; }.rs-filter #vsrg-keyfilter button { min-height:30px;padding:4px 10px; }
+.rs-list-head { display:flex;align-items:center;justify-content:space-between;padding:4px 12px; }.rs-count { color:var(--rs-muted);font-size:11px; }
+:is(#osu-songlist,#vsrg-songlist) { scrollbar-width:thin;scrollbar-color:#63b5d8 transparent; }
+.rhythm-select :is(#osu-songlist,#vsrg-songlist) { min-height:0;flex:1 1 0;padding:8px 12px 22px 14px;margin:0;display:flex;flex-direction:column;gap:10px;overflow:auto;overscroll-behavior:contain; }
+.rs-song { flex:none;border:1px solid #80bed04d;background:var(--rs-surface);border-radius:5px 5px 20px 5px;overflow:hidden;transition:transform .18s,background .18s,box-shadow .18s; }
+.rs-song.selected { transform:translateX(-8px);background:var(--rs-surface);border-color:#13ace0;box-shadow:inset 4px 0 #13ace0,0 8px 25px #126c8f20; }
+.rs-song:hover { transform:translateX(-5px); }
+:is(#osu-panel,#vsrg-panel) .rs-song-main { display:flex;gap:14px;width:100%;min-height:82px;align-items:center;text-align:start;padding:14px 18px;background:transparent;border:0; }
+.rs-song-number { color:#6aa8bf;font:italic 900 20px 'Arial Black',sans-serif;min-width:26px;opacity:.65; }
+.rs-song-copy { display:flex;flex-direction:column;gap:6px;min-width:0;flex:1; }.rs-song-copy strong { font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }.rs-song-copy small { color:var(--rs-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }.rs-song-rating { color:#0085bc;font-size:13px;font-weight:800;white-space:nowrap; }
+.rs-diffs { display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 14px 58px; }
+:is(#osu-panel,#vsrg-panel) .rs-diff { min-height:32px;font-size:12px;max-width:100%;overflow-wrap:anywhere;padding:6px 12px;border-radius:4px;background:transparent;border:1px solid #68aec844; }
+:is(#osu-panel,#vsrg-panel) .rs-diff.selected { background:#009fe8;color:white;border-color:#009fe8; }
+.rs-empty { padding:30px;color:var(--rs-muted);line-height:1.7; }.rs-more { flex:none; }
+.rs-footer { display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:11px;color:var(--rs-muted);flex:none; }.rs-footer button { padding:7px 20px; }
+.rhythm-select :focus-visible { outline:3px solid #00a9e9;outline-offset:3px; }
+/* Play HUD stays around the playfield, with no moving scenery behind notes. */
+body.music-mode:has(#osu-panel.open #osu-select:not([hidden]),#vsrg-panel.open #vsrg-select:not([hidden])) #hub-launch { right:190px;bottom:18px; }
+@media(max-width:760px) { body.music-mode:has(#osu-panel.open #osu-select:not([hidden]),#vsrg-panel.open #vsrg-select:not([hidden])) #hub-launch { right:164px;bottom:12px; } }
+:is(#osu-game,#vsrg-game) { background:radial-gradient(ellipse at 50% 65%,#143653,#071827 75%); }
+#osu-canvas { background:#071827; } #vsrg-canvas { box-shadow:0 0 60px #00bfff12;border-inline:1px solid #5fbade50; }
+:is(#osu-acc,#vsrg-acc) { top:24px;right:26px;left:auto;font:800 clamp(18px,2.5vw,29px)/1.2 'Segoe UI',sans-serif;letter-spacing:-.03em;color:#e9faff;text-shadow:0 2px 12px #041524; }
+#osu-combo { bottom:38px;left:30px;font:italic 900 clamp(30px,5vw,62px) 'Arial Black',sans-serif;color:#abedff; }
+#vsrg-combo { font:italic 900 36px 'Arial Black',sans-serif;color:#c5f3ff;text-shadow:0 3px 15px #041524; }
+.rhythm-run-title { position:absolute;top:26px;left:26px;max-width:40%;display:flex;flex-direction:column;gap:4px;color:#b4d7e9; }.rhythm-run-title b { font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }.rhythm-run-title small { font-size:10px;opacity:.75; }
+.rhythm-progress { position:absolute;top:0;left:0;width:100%;height:3px;appearance:none;border:0;background:#a2dfff16; }.rhythm-progress::-webkit-progress-bar { background:#a2dfff16; }.rhythm-progress::-webkit-progress-value { background:#5edbff; }.rhythm-progress::-moz-progress-bar { background:#5edbff; }
+:is(#osu-panel,#vsrg-panel) .rhythm-pause-button { position:absolute;left:22px;bottom:12px;pointer-events:auto;background:#0d2b42b8;color:#abd7ea;border:1px solid #7adfff30;font-size:11px;min-height:30px;padding:5px 12px; }
+.rhythm-run-time { position:absolute;top:62px;right:27px;font-size:11px;color:#83acc2;font-variant-numeric:tabular-nums; }
+:is(#osu-fps,#vsrg-fps) { top:auto;bottom:15px;left:auto;right:22px;font-size:10px;opacity:.65; }
+.osu-key.active { background:#008ac7!important;color:white!important; }
+.rhythm-countdown { position:absolute;inset:42% 0 auto;text-align:center;font:italic 900 60px 'Arial Black',sans-serif;color:#d5f7ff;text-shadow:0 0 30px #00aaff66; }
+#osu-keys-overlay { right:22px; }.osu-key { border-radius:4px!important;background:#102f48b0!important;border-color:#3d779a!important;color:#b7daea!important; }.osu-key.down { background:#008ac7!important;color:white!important; }
+.rhythm-pause { border:1px solid #91d7ed;border-radius:6px 6px 38px 6px;padding:40px;box-shadow:0 24px 100px #00172e66; }.rhythm-pause::backdrop { background:#051829b0;backdrop-filter:blur(12px); }.rhythm-pause h2 { font-style:italic;font-weight:900; }
+:is(#osu-results,#vsrg-results) { background:radial-gradient(ellipse at 10% 0%,#65d5f331,transparent 65%),var(--ui-surface)!important; }
+:is(#osu-results,#vsrg-results)>h2 { font-size:clamp(34px,5vw,64px); }
+.osu-res-grade { color:#009fe8;text-shadow:6px 6px #7bdbf62b;font-style:italic; }
+.mp-avatar { width:34px;height:34px;flex:none;border-radius:50%;display:inline-grid;place-items:center;background:#a3dcec;color:#164363;font-size:13px;font-weight:900;overflow:hidden;border:2px solid var(--ui-card,#effaff); }.mp-avatar img { width:100%;height:100%;object-fit:cover; }
+.mp-avatar-stack { display:flex;align-items:center; }.mp-avatar-stack .mp-avatar+.mp-avatar { margin-inline-start:-9px; }.mp-member-person { display:flex;align-items:center;gap:10px;min-width:0; }
+.mp-presence-entry { display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--rs-surface,var(--ui-card));border:1px solid #63b7d675;border-radius:5px 5px 18px 5px;color:var(--rs-ink,var(--ui-text));font-size:12px; }.mp-presence-copy { flex:1; }.mp-presence-copy small { display:block;opacity:.7;margin-top:3px; }
+@media(min-width:900px) { #vsrg-game .rhythm-run-title { max-width:calc(50% - 235px); } }
+@media(max-width:760px) {
+  :is(#osu-select,#vsrg-select).rhythm-select { padding:14px 14px 72px;gap:10px; }.rs-brand { flex-direction:column;gap:3px; }.rs-brand .rs-eyebrow { font-size:8px; }.rhythm-select .rs-brand h2 { font-size:23px; }.rs-nav { gap:4px; }.rs-nav>button,.rs-tools>summary { font-size:11px;padding:8px; }
+  .rs-stage { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(130px,1fr);gap:14px; }.rs-hero { display:grid;grid-template-columns:100px minmax(0,1fr);gap:0 14px;padding:0; }.rs-art { grid-column:1;grid-row:1/4;max-height:none;min-height:130px;border-radius:5px 5px 28px 5px; }.rs-hero-text { padding:0; }.rs-hero-text>.rs-eyebrow,.rs-mapper,.rs-stats { display:none; }.rs-title { font-size:22px;margin-bottom:4px; }.rs-artist { font-size:11px;margin-top:0; }.rs-difficulty { font-size:11px; }.rs-status { margin:5px 0;font-size:10px;min-height:14px; }.rs-play-actions { padding:0;gap:5px; }.rs-play-actions .rs-play { font-size:18px!important;min-height:40px!important; }.rs-play-actions .rs-preview { font-size:11px!important;padding:6px!important;min-height:35px!important; }.rs-filter { gap:5px; }.rs-search,.rs-sort { min-height:38px;padding:7px;font-size:12px; }.rs-song-main { min-height:70px!important;padding:10px!important;gap:8px!important; }.rs-song-copy strong { font-size:14px; }.rs-diffs { padding-inline-start:42px; }.rs-footer>span { font-size:9px; }.rs-footer button { font-size:11px;min-height:32px!important;padding:5px 10px; }.rs-tools-body { width:calc(100vw - 30px); }.rs-browser { gap:5px; }
+  :is(#osu-acc,#vsrg-acc) { top:14px;right:14px;font-size:18px; }.rhythm-run-title { top:15px;left:14px;max-width:43%; }.rhythm-run-title b { font-size:10px; }.rhythm-run-title small { font-size:9px; }.rhythm-run-time { top:40px;right:14px;font-size:9px; }#osu-combo { left:15px;bottom:49px;font-size:34px; }.mp-presence-entry { padding:6px 10px; }.mp-avatar { width:27px;height:27px; }.mp-presence-copy small { display:none; }
+}
+@media(max-height:560px) and (min-width:761px) { :is(#osu-select,#vsrg-select).rhythm-select { padding:12px 24px 62px;gap:8px; }.rs-art { display:none; }.rs-hero-text { padding-top:0; }.rs-title { font-size:28px; }.rs-stats { margin-top:12px; }.rs-mapper { margin-top:8px; }.rs-play { min-height:45px!important; }.rs-footer { display:none; } }
+@media(max-height:440px) and (max-width:760px) { .rs-stage { grid-template-columns:minmax(200px,.8fr) minmax(240px,1.2fr);grid-template-rows:minmax(0,1fr);gap:15px; }.rs-hero { display:flex; }.rs-art { display:none; }.rs-play-actions { margin-top:auto; }.rs-footer { display:none; }.rs-title { font-size:24px; } }
+@media(prefers-reduced-motion:reduce) { .rs-song,.rs-background,.rs-play,.rs-halo { transition:none!important; }.rs-halo { transform:rotate(-23deg); }.rs-song:hover,.rs-song.selected,.rs-play:hover { transform:none!important; } }
+
+@media(max-width:760px) {
+ .rhythm-select :is(.osu-select-head,.vsrg-select-head){gap:8px;}
+ :is(#osu-panel,#vsrg-panel) .rs-nav>button,.rs-tools>summary{font-size:11px;min-height:34px;padding:8px;}
+ .rs-brand{flex:none;}.rs-nav{min-width:0;}
+}
+
+.rs-cover { position:absolute;inset:0;background:center/cover;opacity:0;transition:opacity .28s ease;pointer-events:none; }
+.rs-cover.visible { opacity:1; }
+@media(prefers-reduced-motion:reduce) { .rs-cover{transition:none;} }
+
+.rs-song-thumb { flex:none;width:86px;height:55px;background:linear-gradient(130deg,#72cbdf,#246289);background-size:cover;background-position:center;position:relative;overflow:hidden;border-radius:3px 3px 16px 3px; }
+.rs-song-thumb .rs-song-number { position:absolute;bottom:3px;left:5px;font-size:11px;opacity:1;color:white;text-shadow:0 1px 4px #001d33; }
+@media(max-width:760px) { .rs-song-thumb{width:58px;height:44px;}.rs-song-main{gap:10px!important;} }

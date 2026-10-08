@@ -428,7 +428,7 @@ if (typeof window !== 'undefined') window.OsuStdEngine = ENGINE;
 // =========================================================================
 if (typeof document !== 'undefined') {
   const api = { init: initBrowser };
-  const COMBO_COLORS = ['#ffd166', '#56a0ff', '#39d98a', '#ff7eb6', '#b06bff'];
+  const COMBO_COLORS = ['#67dfff', '#f5bd67', '#7cafff', '#9ce7d6', '#cab6ff'];
   const LEAD_IN_MS = 1500, END_PAD_MS = 2500;
   const PLAY_W = 512, PLAY_H = 384;
 
@@ -484,6 +484,7 @@ if (typeof document !== 'undefined') {
     let trail = [];                                   // recent cursor positions (osu!px) for a trail
     let bursts = [];                                  // hit feedback at the circle: { x, y, result, t }
     let errTicks = [];                                // recent signed hit errors for the live error bar
+    let chartSources = new Map(), libraryVersion = 0;
     let localEntries = [];                            // maps imported this session (folder; not persisted)
     let availableSkins = [];                          // skin folders found in the last import/sync (selectable)
     let skin = null;                                  // active custom osu! skin (null = built-in look)
@@ -535,6 +536,9 @@ if (typeof document !== 'undefined') {
       {key:'osuVisualOffset',label:'rhythm.visual_offset',min:-200,max:200,value:0,format:v=>v+' ms'}
     ]);
 
+    const selector = window.RhythmSelect?.create({mode:'osu', settings, save:deps.saveSettings, ensureCtx, pauseBgm:deps.pauseBgm, resumeBgm:deps.resumeBgm, play:loadAndPlay});
+    const stageHud = window.RhythmSelect?.hud('osu', pauseRun);
+
     function calOffset() { return Number(settings.osuCalibrationOffset) || 0; }   // osu!standard's own offset
     function cursorScale() { const s = Number(settings.osuCursorScale); return (s >= 0.5 && s <= 2) ? s : 1; }
     function bgBrightness() { const d = Number(settings.osuBgDim); return (1 - (isNaN(d) ? 80 : d) / 100); }   // 0 = black, 1 = full art
@@ -566,6 +570,7 @@ if (typeof document !== 'undefined') {
     // otherwise the built-in palette (matches osu's per-combo colour cycling).
     function comboColors() { return (skin && skin.colors && skin.colors.length) ? skin.colors : COMBO_COLORS; }
     function show(name) {
+      selector?.screen(name);
       if (window.UIMotion) window.UIMotion.showScreen(panel, screens, name);
       else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
       panel.querySelectorAll('[data-rhythm-setting]').forEach(el => el.rhythmRefresh());
@@ -632,7 +637,7 @@ if (typeof document !== 'undefined') {
           const osuText = await fetch(base + '/' + m.osu).then((r) => r.text());
           let chart; try { chart = assembleChart(osuText); } catch (e) { continue; }
           entries.push({
-            id: 'bundled:' + m.id, title: chart.title, artist: chart.artist, diffName: chart.diffName,
+            id: 'bundled:' + m.id, hash: await sha256(osuText), title: chart.title, artist: chart.artist, diffName: chart.diffName,
             stars: chart.stars, length: chart.length,
             getOsuText: () => Promise.resolve(osuText),
             getAudio: () => fetch(base + '/' + m.audio).then((r) => r.arrayBuffer()),
@@ -667,6 +672,7 @@ if (typeof document !== 'undefined') {
     }
     function starStr(s) { return '~' + (Number(s) || 0).toFixed(1) + '★'; }
     function renderSongList() {
+      if (selector) { selector.setEntries(library); return; }
       if (!songlistEl) return;
       if (!library.length) { songlistEl.innerHTML = '<div class="osu-empty">No songs yet.</div>'; return; }
       currentGroups = buildGroups();
@@ -725,10 +731,15 @@ if (typeof document !== 'undefined') {
       thumbUrls.forEach((u) => URL.revokeObjectURL(u)); thumbUrls.clear();
     }
     async function refreshLibrary() {
+      const version = ++libraryVersion;
       const bundled = await loadBundled();
       let cached = [];
       try { cached = await loadCachedOsz(); } catch (e) {}
-      library = dedupeLibrary(bundled.concat(cached).concat(localEntries));
+      const all = bundled.concat(cached).concat(localEntries);
+      const pairs = await Promise.all(all.map(async entry => { entry.hash = entry.hash || (entry.getHash ? await entry.getHash() : await sha256(await entry.getOsuText())); return [entry.hash, entry]; }));
+      if (version !== libraryVersion) return;
+      chartSources = new Map(pairs);
+      library = dedupeLibrary(all);
       renderSongList();
     }
 
@@ -910,7 +921,7 @@ if (typeof document !== 'undefined') {
       return { entries: out, scanned: scanned, foreign: foreign };
     }
     function makeEntry(source, osuText, chart, getOsuText, getAudio, getArt, getSamples) {
-      return { id: source + ':' + chart.title + ':' + chart.diffName, source: source,
+      return { id: source + ':' + chart.artist + ':' + chart.title + ':' + chart.diffName, source: source, hash: chart.hash, getHash: () => chart.hash ? Promise.resolve(chart.hash) : sha256(osuText),
         title: chart.title, artist: chart.artist, diffName: chart.diffName,
         stars: chart.stars, length: chart.length,   // chart = assembled chart, or a stored osz record carrying these
         getOsuText: getOsuText, getAudio: getAudio, getArt: getArt, getSamples: getSamples };
@@ -1139,21 +1150,22 @@ if (typeof document !== 'undefined') {
     async function loadAndPlay(entry) {
       if (loading) return;
       loading = true; const gen = ++loadGen; teardownRun(); run = null;
+      selector?.stop();
       try {
-        const osuText = await entry.getOsuText();
+        const [ac, osuText] = await Promise.all([ensureCtx(), entry.getOsuText()]);
         const chart = assembleChart(osuText);
-        const ac = await ensureCtx();
         const [audioBuf, samples] = await Promise.all([ac.decodeAudioData(await entry.getAudio()), window.Hitsound.prepare(ac, entry.getSamples ? await entry.getSamples() : [])]);
         if (gen !== loadGen || !panelOpen) return;
         startRun(entry, chart, audioBuf);
         run.samples = samples;
-      } catch (e) { try { console.error('[osustd] load', e); } catch (_) {} }
+      } catch (e) { show('select');setImportStatus(window.I18N.t('rhythm.load_failed'));selector?.failure();return false; }
       finally { loading = false; }
     }
 
     function startRun(entry, chart, audioBuf, multiplayer) {
       teardownRun();
       if (deps.pauseBgm) deps.pauseBgm();
+      stageHud?.start(entry);
       show('game'); grabFocus(); sizeCanvas();
       const ac = audioCtx;
       const preempt = arPreempt(chart.ar), fadeIn = arFadeIn(chart.ar);
@@ -1231,6 +1243,7 @@ if (typeof document !== 'undefined') {
     function loop() {
       if (!run || run.finished || run.paused) return;
       const st = songTimeNow();
+      stageHud?.update(st, run.lastTime);
       if (run.auto) {   // preview: drive cursor (+ trail) + auto-hit
         cursor = autoCursor(st);
         trail.push({ x: cursor.x, y: cursor.y, t: performance.now() }); if (trail.length > 24) trail.shift();
@@ -1546,14 +1559,12 @@ if (typeof document !== 'undefined') {
     function render(st, view=liveRenderView()) {
       const {canvas,g,run,skin,tf,dpr,cursor,trail,bursts,errTicks,now}=view;
       const W = canvas.width, H = canvas.height;
-      g.clearRect(0, 0, W, H); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, W, H);
+      g.clearRect(0, 0, W, H); g.fillStyle = '#071827'; g.fillRect(0, 0, W, H);
       if (run.artImg) {
         const iw = run.artImg.naturalWidth, ih = run.artImg.naturalHeight;
         if (iw && ih) { const s = Math.max(W / iw, H / ih); g.globalAlpha = view.brightness; g.drawImage(run.artImg, (W - iw * s) / 2, (H - ih * s) / 2, iw * s, ih * s); g.globalAlpha = 1; }
       }
-      // playfield border
-      const p0 = osuToScreen(0, 0, tf), p1 = osuToScreen(PLAY_W, PLAY_H, tf);
-      g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1 * dpr; g.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+      // No boxed boundary: the letterboxed hit geometry remains unchanged.
       const rad = run.radius * tf.scale;
       // Connections respect combo boundaries and start at a slider's final end.
       const connections=run.connections || run.chart.objects;
@@ -1647,16 +1658,18 @@ if (typeof document !== 'undefined') {
           g.drawImage(tintImage('hc', skin.images.hitcircle, s.color), sc.x - rad, sc.y - rad, d, d);
           if (skin.images.hitcircleoverlay) g.drawImage(skin.images.hitcircleoverlay, sc.x - rad, sc.y - rad, d, d);
           if (skin.images.digits.length) drawSkinNumber(sc, s.number, rad, g, skin);
-          else { g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(s.number || ''), sc.x, sc.y); }
+          else { g.fillStyle = '#fff'; g.font = '700 ' + (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(s.number || ''), sc.x, sc.y); }
           if (ap > 0) {
             const ar = rad * (1 + ap * 3);
             if (skin.images.approachcircle) g.drawImage(tintImage('ac', skin.images.approachcircle, s.color), sc.x - ar, sc.y - ar, ar * 2, ar * 2);
             else { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, ar, 0, Math.PI * 2); g.stroke(); }
           }
         } else {
-          g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
+          g.fillStyle = '#071827'; g.beginPath(); g.arc(sc.x, sc.y, rad, 0, Math.PI * 2); g.fill();
+          g.save(); g.globalAlpha=fade*.2; g.fillStyle=s.color;g.fill();g.restore();
+          g.strokeStyle='rgba(230,250,255,.85)';g.lineWidth=1.2*dpr;g.stroke();
           g.strokeStyle = s.color; g.lineWidth = 3 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad - 2 * dpr, 0, Math.PI * 2); g.stroke();
-          g.fillStyle = '#fff'; g.font = (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillStyle = '#fff'; g.font = '700 ' + (rad * 0.9) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillText(String(s.number || ''), sc.x, sc.y);
           if (ap > 0) { g.strokeStyle = s.color; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(sc.x, sc.y, rad * (1 + ap * 3), 0, Math.PI * 2); g.stroke(); }
         }
@@ -1892,12 +1905,13 @@ if (typeof document !== 'undefined') {
       if (calibLoop) { cancelAnimationFrame(calibLoop); calibLoop = null; calibTiming = null; tapState = null; }
       revokeThumbs();
       panel.classList.remove('open'); window.UIMotion?.clear(panel); panelOpen = false;
+      selector?.close();
       if (deps.captureKeyboard) deps.captureKeyboard(false);
       if (deps.resumeBgm) deps.resumeBgm();
       if (settings.gameMode === 'osu') { settings.gameMode = 'clicker'; if (deps.saveSettings) deps.saveSettings(); window.dispatchEvent(new CustomEvent('gamemodechange')); }
     }
 
-    if (songlistEl) songlistEl.addEventListener('click', (e) => {
+    if (songlistEl && !selector) songlistEl.addEventListener('click', (e) => {
       const diff = e.target.closest('.osu-diff');
       if (diff) { const entry = library[Number(diff.getAttribute('data-i'))]; if (entry) loadAndPlay(entry); return; }
       const head = e.target.closest('.osu-group');
@@ -1936,7 +1950,7 @@ if (typeof document !== 'undefined') {
       sortEl.value = settings.osuSortBy || 'title';
       sortEl.addEventListener('change', () => { settings.osuSortBy = sortEl.value; if (deps.saveSettings) deps.saveSettings(); renderSongList(); });
     }
-    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.textContent = 'Auto: ' + (autoplay ? 'on' : 'off'); });
+    if (autoBtn) autoBtn.addEventListener('click', () => { autoplay = !autoplay; autoBtn.classList.toggle('on', autoplay); autoBtn.dataset.i18n = autoplay ? 'rhythm.auto_on' : 'rhythm.auto_off'; autoBtn.textContent = window.I18N.t(autoBtn.dataset.i18n); });
     if (hitsoundBtn) hitsoundBtn.addEventListener('click', () => { show('hitsound'); if (window.Hitsound) window.Hitsound.renderControls(hsControlsEl); });
     if (hitsoundDoneBtn) hitsoundDoneBtn.addEventListener('click', () => show('select'));
     function syncVisualControls() {
@@ -1967,7 +1981,7 @@ if (typeof document !== 'undefined') {
     });
     window.addEventListener('resize', () => { if (run && !run.finished) sizeCanvas(); });
     if (canvas) { canvas.setAttribute('tabindex', '0'); canvas.style.outline = 'none'; canvas.style.cursor = 'none'; canvas.addEventListener('contextmenu', (e) => e.preventDefault()); }
-    if (panel) panel.addEventListener('pointerdown', grabFocus);
+    if (panel) panel.addEventListener('pointerdown', () => { if (run && !run.finished && !run.paused) grabFocus(); });
 
     function reportMultiplayer(state) {
       if (!run || !run.multiplayer) return;
@@ -1987,7 +2001,8 @@ if (typeof document !== 'undefined') {
       }
       const ac = await ensureCtx();
       if (ac.state !== 'running') throw new Error('audio_suspended');
-      const rec = await idbGet('osz', hash);
+      selector?.stop();
+      const rec = await api.getChartRecord(hash);
       if (!rec) throw new Error('missing_map');
       const chart = assembleChart(rec.osuText);
       const entry = makeEntry('osz', rec.osuText, chart, async () => rec.osuText,
@@ -2018,19 +2033,25 @@ if (typeof document !== 'undefined') {
       if (n && panelOpen) await refreshLibrary();
       return n;
     };
-    api.hasChart = function (hash) {
-      return idbGet('osz', hash).then(function (r) { return !!r; });
+    api.hasChart = async function (hash) {
+      return chartSources.has(hash) || !!(await idbGet('osz', hash));
     };
-    api.getChartRecord = function (hash) {
-      return idbGet('osz', hash);
+    api.getChartRecord = async function (hash) {
+      // A live folder library also works when persistent browser storage is unavailable.
+      let stored;try { stored = await idbGet('osz', hash); } catch (_) {}
+      if (stored) return stored;
+      const entry = chartSources.get(hash);
+      if (!entry) return null;
+      const osuText = await entry.getOsuText();
+      if (await sha256(osuText) !== hash) throw new Error('map_changed');
+      const [audio, art, samples] = await Promise.all([entry.getAudio(), entry.getArt?.(), entry.getSamples?.()]);
+      return {hash, osuText, title:entry.title, artist:entry.artist, diffName:entry.diffName,
+        stars:entry.stars, length:entry.length, audio:new Uint8Array(audio),
+        art:art ? new Uint8Array(await art.arrayBuffer()) : null, samples:samples || []};
     };
-    api.listCharts = function () {
-      return idbGetAll('osz').then(function (rows) {
-        return (rows || []).map(function (r) {
-          return { hash: r.hash, title: r.title, artist: r.artist,
-            diffName: r.diffName, stars: r.stars, length: r.length };
-        });
-      });
+    api.listCharts = async function () {
+      await refreshLibrary();
+      return [...chartSources].map(([hash,r]) => ({hash,title:r.title,artist:r.artist,diffName:r.diffName,stars:r.stars,length:r.length}));
     };
     api.importSkinFile = function (file) { return handleSkinOsk(file); };
     api.importSkinFromFolder = async function (fileList) {   // auto-load a skin from a picked folder

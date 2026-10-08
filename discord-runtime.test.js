@@ -11,14 +11,14 @@ function presenceFixture(){
     update(p){this.writes.push(p);return Promise.resolve();},onDisconnect(){return {update:p=>{let resolve;const result=new Promise(r=>resolve=r);this.registrations.push({payload:p,resolve});return result;},cancel:()=>Promise.resolve()};},
     on(_,fn){this.listeners.add(fn);},off(_,fn){this.listeners.delete(fn);this.offCount++;},once(){return Promise.resolve({val:()=>this.value});},emit(v){this.value=v;this.listeners.forEach(fn=>fn({val:()=>v}));}});return refs.get(path);}
   const window={events:[],dispatchEvent(e){this.events.push(e.type);}};
-  vm.runInNewContext(fs.readFileSync('presence.js','utf8'),{window,document,console,Event,setInterval:f=>{intervals.set(++timer,f);return timer;},clearInterval:id=>intervals.delete(id)});
+  vm.runInNewContext(fs.readFileSync('presence.js','utf8'),{window,document,console,Event,CustomEvent,setInterval:f=>{intervals.set(++timer,f);return timer;},clearInterval:id=>intervals.delete(id)});
   const deps={db:{ref},activity:{uid:'u',instanceId:'i',discordId:'123',discordName:'Alice'},getSelfState:()=>({name:'Alice',totalClicks:10,sessionClicks:2})};
   window.Presence.init(deps);
   return {window,deps,refs,intervals,elements,connection:ref('.info/connected'),self:ref('activities/i/participants/u')};
 }
 
 test('presence registers disconnect before publishing and re-registers after reconnect with unchanged counters',async()=>{
-  const f=presenceFixture();assert.deepEqual(f.window.events,['presenceavailable']);
+  const f=presenceFixture();assert.deepEqual(f.window.events,['presenceavailable','activityrosterchange']);
   assert.equal(f.self.writes.length,0);f.connection.emit(true);assert.equal(f.self.registrations.length,1);assert.equal(f.self.writes.length,0);
   f.self.registrations[0].resolve();await flush();assert.equal(f.self.writes[0].active,true);
   f.connection.emit(false);f.connection.emit(true);f.self.registrations[1].resolve();await flush();

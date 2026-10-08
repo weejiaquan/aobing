@@ -2959,6 +2959,52 @@
   };
   for(const [key,values] of Object.entries(MARBLE_COPY))SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
 
+  const RHYTHM_STAGE_COPY = {
+    'rhythm.all':['All','すべて','전체','全部','全部','ทั้งหมด','Tất cả','الكل'],
+    'rhythm.import_folder':['Import osu! folder','osu!フォルダーを読み込む','osu! 폴더 가져오기','导入 osu! 文件夹','匯入 osu! 資料夾','นำเข้าโฟลเดอร์ osu!','Nhập thư mục osu!','استيراد مجلد osu!'],
+    'rhythm.import_osz':['Import .osz','.oszを読み込む','.osz 가져오기','导入 .osz','匯入 .osz','นำเข้า .osz','Nhập .osz','استيراد .osz'],
+    'rhythm.skin_file':['Skin (.osk)','スキン (.osk)','스킨 (.osk)','皮肤 (.osk)','外觀 (.osk)','สกิน (.osk)','Giao diện (.osk)','المظهر (.osk)'],
+    'rhythm.skin_folder':['Skin folder','スキンフォルダー','스킨 폴더','皮肤文件夹','外觀資料夾','โฟลเดอร์สกิน','Thư mục giao diện','مجلد المظهر'],
+    'rhythm.sync':['Sync new songs','新しい曲を同期','새 곡 동기화','同步新歌曲','同步新歌曲','ซิงก์เพลงใหม่','Đồng bộ bài mới','مزامنة الأغاني الجديدة'],
+    'rhythm.hitsounds':['Hitsounds','ヒットサウンド','히트 사운드','打击音效','打擊音效','เสียงกดโน้ต','Âm thanh nhấn','أصوات الضربات'],
+    'rhythm.appearance':['Appearance','表示設定','화면 설정','外观','外觀','รูปลักษณ์','Hiển thị','المظهر'],
+    'rhythm.calibrate':['Calibrate','タイミング調整','타이밍 보정','校准','校準','ปรับเทียบ','Hiệu chỉnh','المعايرة'],
+    'rhythm.auto_off':['Autoplay: off','オートプレイ：オフ','자동 플레이: 꺼짐','自动演示：关','自動演示：關','เล่นอัตโนมัติ: ปิด','Tự động chơi: tắt','اللعب التلقائي: معطل'],
+    'rhythm.auto_on':['Autoplay: on','オートプレイ：オン','자동 플레이: 켜짐','自动演示：开','自動演示：開','เล่นอัตโนมัติ: เปิด','Tự động chơi: bật','اللعب التلقائي: مفعل'],
+    'rhythm.speed':['Speed','速度','속도','速度','速度','ความเร็ว','Tốc độ','السرعة'],
+    'rhythm.setup':['Setup & imports','設定・インポート','설정 및 가져오기','设置与导入','設定與匯入','ตั้งค่าและนำเข้า','Thiết lập và nhập','الإعدادات والاستيراد'],
+    'rhythm.selected':['Selected beatmap','選択中の譜面','선택한 비트맵','所选谱面','所選譜面','บีตแมปที่เลือก','Beatmap đã chọn','الخريطة المحددة'],
+    'rhythm.play':['Play','プレイ','플레이','开始','開始','เล่น','Chơi','العب'],
+    'rhythm.preview':['Listen','試聴','미리 듣기','试听','試聽','ฟังตัวอย่าง','Nghe thử','استمع'],
+    'rhythm.search':['Search songs, artists, difficulties…','曲・アーティスト・難易度を検索…','곡, 아티스트, 난이도 검색…','搜索歌曲、歌手、难度…','搜尋歌曲、歌手、難度…','ค้นหาเพลง ศิลปิน ความยาก…','Tìm bài hát, nghệ sĩ, độ khó…','ابحث عن الأغاني والفنانين والصعوبة…'],
+    'rhythm.sort':['Sort by','並び順','정렬 기준','排序方式','排序方式','เรียงตาม','Sắp xếp theo','ترتيب حسب'],
+    'rhythm.sort_title':['Title','タイトル','제목','标题','標題','ชื่อเพลง','Tên bài','العنوان'],
+    'rhythm.sort_artist':['Artist','アーティスト','아티스트','歌手','歌手','ศิลปิน','Nghệ sĩ','الفنان'],
+    'rhythm.sort_difficulty':['Difficulty','難易度','난이도','难度','難度','ความยาก','Độ khó','الصعوبة'],
+    'rhythm.library':['Song library','曲ライブラリ','곡 라이브러리','曲库','曲庫','คลังเพลง','Thư viện bài hát','مكتبة الأغاني'],
+    'rhythm.select_hint':['Select to listen · Click again or Enter to play · ↑ ↓ browse','選択で試聴 · 再クリック／Enterでプレイ · ↑ ↓で移動','선택하여 듣기 · 다시 클릭 또는 Enter로 플레이 · ↑ ↓ 탐색','选择试听 · 再次点击或按 Enter 开始 · ↑ ↓ 浏览','選擇試聽 · 再次點擊或按 Enter 開始 · ↑ ↓ 瀏覽','เลือกเพื่อฟัง · คลิกซ้ำหรือ Enter เพื่อเล่น · ↑ ↓ เลื่อน','Chọn để nghe · Nhấp lại hoặc Enter để chơi · ↑ ↓ duyệt','حدد للاستماع · انقر مجددًا أو Enter للعب · ↑ ↓ للتصفح'],
+    'rhythm.random':['Random · F2','ランダム · F2','무작위 · F2','随机 · F2','隨機 · F2','สุ่ม · F2','Ngẫu nhiên · F2','عشوائي · F2'],
+    'rhythm.preview_loading':['Loading preview…','試聴を準備中…','미리 듣기 준비 중…','正在加载试听…','正在載入試聽…','กำลังโหลดตัวอย่าง…','Đang tải nghe thử…','جارٍ تحميل المعاينة…'],
+    'rhythm.previewing':['Now playing','試聴中','재생 중','正在试听','正在試聽','กำลังเล่น','Đang phát','قيد التشغيل'],
+    'rhythm.preview_failed':['Preview unavailable. Select Listen to retry.','試聴できません。試聴を押して再試行。','미리 듣기를 사용할 수 없어요. 다시 눌러 재시도하세요.','试听不可用，点击试听重试。','無法試聽，點擊試聽重試。','ฟังตัวอย่างไม่ได้ กดฟังตัวอย่างเพื่อลองอีกครั้ง','Không thể nghe thử. Chọn Nghe thử để thử lại.','المعاينة غير متاحة. اختر استمع للمحاولة مجددًا.'],
+    'rhythm.empty':['Import songs to build your library.','曲をインポートして始めましょう。','곡을 가져와 라이브러리를 채우세요.','导入歌曲以建立曲库。','匯入歌曲以建立曲庫。','นำเข้าเพลงเพื่อสร้างคลังเพลง','Nhập bài hát để tạo thư viện.','استورد الأغاني لبناء مكتبتك.'],
+    'rhythm.no_matches':['No matching songs. Try another search.','該当する曲がありません。検索を変えてください。','일치하는 곡이 없어요. 다른 검색어를 입력하세요.','没有匹配歌曲，请尝试其他关键词。','沒有符合的歌曲，請嘗試其他關鍵字。','ไม่พบเพลง ลองค้นหาด้วยคำอื่น','Không tìm thấy bài hát. Thử từ khóa khác.','لا توجد أغانٍ مطابقة. جرّب بحثًا آخر.'],
+    'rhythm.estimate':['Est. difficulty','推定難易度','예상 난이도','估算难度','估算難度','ความยากโดยประมาณ','Độ khó ước tính','الصعوبة التقديرية'],
+    'rhythm.keys':['Keys','キー数','키 수','键数','鍵數','จำนวนคีย์','Số phím','المفاتيح'],
+    'rhythm.mapped_by':['Mapped by {name}','譜面制作：{name}','제작: {name}','谱师：{name}','譜師：{name}','สร้างบีตแมปโดย {name}','Người tạo: {name}','إعداد الخريطة: {name}'],
+    'rhythm.preparing':['Preparing your beatmap…','譜面を準備中…','비트맵 준비 중…','正在准备谱面…','正在準備譜面…','กำลังเตรียมบีตแมป…','Đang chuẩn bị beatmap…','جارٍ تجهيز الخريطة…'],
+    'rhythm.load_failed':['Could not load this song. Check folder access or import it again.','曲を読み込めません。フォルダーへのアクセスを確認するか再インポートしてください。','곡을 불러올 수 없어요. 폴더 접근 권한을 확인하거나 다시 가져오세요.','无法加载歌曲。请检查文件夹权限或重新导入。','無法載入歌曲。請檢查資料夾權限或重新匯入。','โหลดเพลงไม่ได้ ตรวจสอบสิทธิ์โฟลเดอร์หรือนำเข้าอีกครั้ง','Không tải được bài hát. Kiểm tra quyền truy cập thư mục hoặc nhập lại.','تعذر تحميل الأغنية. تحقق من الوصول إلى المجلد أو استوردها مجددًا.'],
+    'rhythm.more':['More songs','さらに表示','더 보기','更多歌曲','更多歌曲','เพลงเพิ่มเติม','Thêm bài hát','المزيد من الأغاني'],
+    'rhythm.song_count':['{n} songs','{n} 曲','{n}곡','{n} 首歌曲','{n} 首歌曲','{n} เพลง','{n} bài hát','{n} أغنية'],
+    'rhythm.progress':['Song progress','曲の進行','곡 진행률','歌曲进度','歌曲進度','ความคืบหน้าเพลง','Tiến độ bài hát','تقدم الأغنية'],
+    'rhythm.pause':['Pause · Esc','一時停止 · Esc','일시 정지 · Esc','暂停 · Esc','暫停 · Esc','หยุดชั่วคราว · Esc','Tạm dừng · Esc','إيقاف مؤقت · Esc'],
+    'mp.in_room':['{n} in lobby','ロビーに {n} 人','로비에 {n}명','大厅内 {n} 人','大廳內 {n} 人','{n} คนในล็อบบี้','{n} người trong phòng','{n} في الردهة'],
+    'mp.activity_people':['{n} in Activity','アクティビティに {n} 人','활동에 {n}명','活动中 {n} 人','活動中 {n} 人','{n} คนในกิจกรรม','{n} người trong Hoạt động','{n} في النشاط'],
+    'mp.room_empty':['Be the first to join','最初の参加者になろう','첫 번째로 참가하세요','成为首位加入的玩家','成為首位加入的玩家','เข้าร่วมเป็นคนแรก','Hãy là người đầu tiên tham gia','كن أول من ينضم'],
+    'mp.room_unavailable':['Lobby preview unavailable','ロビー情報を取得できません','로비 정보를 불러올 수 없어요','大厅预览不可用','大廳預覽無法使用','ดูตัวอย่างล็อบบี้ไม่ได้','Không xem trước được phòng','معاينة الردهة غير متاحة'],
+    'mp.room_playing':['Round in progress','ラウンド進行中','라운드 진행 중','对局进行中','對局進行中','กำลังแข่งขัน','Ván đấu đang diễn ra','الجولة جارية']
+  };
+  for(const [key,values] of Object.entries(RHYTHM_STAGE_COPY))SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
   const I18N = { SUPPORTED, NATIVE, T, t, set, detect, apply, get current() { return current; } };
 
   if (typeof module !== 'undefined' && module.exports) { module.exports = I18N; return; }

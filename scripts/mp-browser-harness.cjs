@@ -14,7 +14,7 @@ exports.createClient=function(base,uid,initial=[],activity=null,options={}){
     close(){this.open=false;}showModal(){this.open=true;}
   }
   const body=new Element('body'),dialog=new Element('dialog'),panel=new Element();dialog.id='multiplayer-dialog';panel.id='mp-panel';body.appendChild(dialog);dialog.appendChild(panel);dialog.open=true;
-  const document={body,hidden:false,createElement:tag=>new Element(tag),getElementById:id=>body.querySelector('#'+id)};
+  const document={body,hidden:false,addEventListener(){},createElement:tag=>new Element(tag),getElementById:id=>body.querySelector('#'+id)};
   const records=new Map(initial.map(r=>[r.hash,r])),launched=[];
   const game={getChartRecord:async hash=>records.get(hash),listCharts:async()=>[...records.values()].map(({audio,osuText,samples,art,...m})=>m),
     async importForeignCharts(rows){rows.forEach(r=>records.set(r.hash,r));return rows.length;},

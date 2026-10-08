@@ -1,6 +1,6 @@
 # Aobing IT! design specification
 
-Last updated: 2026-10-07. This is the current design contract for the game shell,
+Last updated: 2026-10-08. This is the current design contract for the game shell,
 based on the owner's requests. Follow it for future UI work; newer explicit user
 instructions take precedence. Update this document when the direction changes.
 Timings and colors below describe the current baseline and may be tuned while
@@ -519,6 +519,63 @@ except for the accepted Fishing and rhythm changes specified below.
   licensed bundles, controls, save patterns and verification.
 
 ### Standard and Mania gameplay
+
+The October 8 presentation direction is **modern osu!lazer-inspired browsing for
+both Standard and Mania**, in Aobing's cyan/ice/navy palette and italic display
+type. This changes presentation, not the stable-compatible judgement target below.
+Replace the crowded utility header and office-like song table with an illustrated
+selected-song stage, responsive song cards with covers, expandable difficulties,
+search, sorting, random selection, and a prominent Play action. Import, skin and
+setup controls live in a compact disclosure. Keep Multiplayer visible in Standard.
+
+- First activation selects and previews music; the second activation of a selected
+  difficulty, Enter, or Play starts a round. Merely entering a mode never starts
+  preview audio. Arrow keys browse; F2 chooses a random visible difficulty. Use the
+  map's PreviewTime when valid, a fallback point otherwise, and the saved music
+  volume. Keep music continuous between difficulties sharing the same audio.
+- Preview loading, audio, image decoding and transitions must ignore stale selection
+  work. Crossfade cover layers, ease the active card into place, and let the cover
+  halo respond gently to actual preview audio. Stop preview audio and its sampling
+  timer on gameplay, calibration, a modal, page hiding or mode exit. Release source
+  nodes and object URLs; bound thumbnail caching and serialize audio decoding.
+- Keep large collections usable through lazy cover loading and progressive list
+  rendering. Keep selection stable through library refreshes. Show estimated
+  difficulty explicitly; do not imply native osu! star calculations or rankings.
+- Standard retains its exact hit geometry and custom skins, with a navy field,
+  clearer built-in circles and no visible rectangular playfield border. Mania keeps
+  lane geometry and saved appearance choices, with dimmed art and held-lane light.
+  Both use restrained edge HUD typography, real song progress, a lead-in countdown
+  and a visible Pause action. The replay export layout remains unchanged.
+- In these two song menus only, Library and Shop sit side by side in the reserved
+  bottom strip. Shop stays bottom-right. Both are hidden during gameplay as before.
+- Discord Standard selection shows a persistent avatar/count/join strip. Actual
+  match membership comes from the authenticated multiplayer service; Activity
+  presence alone must be labelled as Activity presence. Initials replace missing
+  or failed avatars. Reflect room changes and prevent joining full/racing rooms.
+  Joined-room roster rows also show avatars and status. Closing the dialog retains
+  the Activity discovery connection; changing modes closes it.
+- Folder, bundled and cached OSZ maps share multiplayer lookup by the SHA-256 of
+  the chart text. Index chart metadata, then read audio, artwork and custom samples
+  only for the chosen map. Folder files remain local and are read on demand; do not
+  copy an entire installation into IndexedDB. Verify unchanged chart text before
+  transfer and preserve existing content verification and Ready gating.
+- `rhythm-select.js` / `rhythm-select.css` own shared browsing, preview audio and
+  stage HUD presentation. `osustd.js` / `vsrg.js` keep playback and engine adapters.
+  `multiplayer.js` renders room avatars and the join strip; `presence.js` exposes
+  active Activity rows. Companion `kei-bot` multiplayer routes advertise
+  `activity_preview` and answer the read-only `activity_lobby` query without joining
+  or creating a room. Poll only while visible in Standard and not already joined.
+  Servers without the capability retain the existing join flow and clearly labelled
+  Activity presence. Deploy the companion change for pre-join room membership.
+
+References: [osu! interface](https://osu.ppy.sh/wiki/en/Client/Interface),
+[Standard play](https://osu.ppy.sh/wiki/en/Game_mode/osu!), and
+[osu!lazer source](https://github.com/ppy/osu).
+`scripts/test-rhythm-stage-browser.cjs` exercises actual adapters with local files,
+Web Audio and IndexedDB; multiplayer UI/integration fixtures exercise room lifecycle
+without contacting Discord. Review desktop, portrait, short landscape, night,
+Arabic and reduced-motion layouts. These tests cannot establish physical latency
+or confirm a production Discord deployment.
 
 The owner approved the October 2026 gameplay audit and implementation, including
 logic changes. **osu!stable is the compatibility target**, rather than mixing
