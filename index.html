@@ -2295,7 +2295,7 @@
   <button id="hub-launch" type="button" data-open-library aria-haspopup="dialog" aria-controls="game-library"><small data-i18n="library.launch_kicker">CHOOSE YOUR NEXT SIDE QUEST</small><strong data-i18n="library.launch_title">Game library</strong><b aria-hidden="true">↗</b></button>
   <dialog id="game-library" aria-labelledby="library-title">
     <div class="library-inner">
-      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 09 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
+      <div class="library-top"><div><div class="hub-eyebrow" data-i18n="library.eyebrow">Game library / 11 games</div><h2 id="library-title" data-i18n="library.title">Choose your play.</h2></div><button id="library-close" type="button" aria-label="Close game library" data-i18n-attr="aria-label:library.close_aria"><span data-i18n="library.close">Close</span> ✕</button></div>
       <div class="library-grid" id="library-games">
         <button class="game-card" type="button" data-launch-mode="clicker"><span class="card-number">01 / <span data-i18n="library.tag.casual">CASUAL</span></span><img src="assets/aoba-idle.webp" alt="" loading="lazy"><span class="card-copy"><small data-i18n="library.card.clicker.kicker">ONE MORE SQUEAK</small><strong data-i18n="mode.clicker">Clicker</strong><span data-i18n="library.card.clicker.desc">Tap, collect, and meet your favourites.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="typing"><span class="card-number">02 / <span data-i18n="library.tag.challenge">CHALLENGE</span></span><span class="card-symbol" aria-hidden="true">Aa_</span><span class="card-copy"><small data-i18n="library.card.typing.kicker">FIND YOUR FLOW</small><strong data-i18n="mode.typing">Typing</strong><span data-i18n="library.card.typing.desc">Casual practice or a ranked sprint.</span></span></button>
@@ -2306,6 +2306,8 @@
         <button class="game-card" type="button" data-launch-mode="doom"><span class="card-number">07 / <span data-i18n="dos.tag">DOS CLASSIC</span></span><span class="card-symbol" aria-hidden="true">⊕</span><span class="card-copy"><small data-i18n="dos.card_kicker">LOCK AND LOAD</small><strong data-i18n="mode.doom">Doom</strong><span data-i18n="dos.card_desc">Play Freedoom or bring your own Doom.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="gems"><span class="card-number">08 / <span data-i18n="gems.tag">MATCH THREE</span></span><span class="card-symbol" aria-hidden="true">◆</span><span class="card-copy"><small data-i18n="gems.kicker">A LITTLE SPARK</small><strong data-i18n="mode.gems">Gem Rush</strong><span data-i18n="gems.description">Swap gems, spark cascades, chase your best.</span></span></button>
         <button class="game-card" type="button" data-launch-mode="marble"><span class="card-number">09 / <span data-i18n="marble.tag">MARBLE SHOOTER</span></span><span class="card-symbol" aria-hidden="true">●</span><span class="card-copy"><small data-i18n="marble.kicker">KEEP THE CHAIN AT BAY</small><strong data-i18n="mode.marble">Marble Trail</strong><span data-i18n="marble.description">Aim, match, and stop the rolling chain.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="drift"><span class="card-number">10 / <span data-i18n="drift.tag">SLIDE &amp; MERGE</span></span><span class="card-symbol" aria-hidden="true">⊞</span><span class="card-copy"><small data-i18n="drift.kicker">DOUBLE IT UP</small><strong data-i18n="mode.drift">Merge Drift</strong><span data-i18n="drift.description">Slide matching tiles together and build to 2048.</span></span></button>
+        <button class="game-card" type="button" data-launch-mode="snake"><span class="card-number">11 / <span data-i18n="snake.tag">ARCADE CLASSIC</span></span><span class="card-symbol" aria-hidden="true">∿</span><span class="card-copy"><small data-i18n="snake.kicker">CHASE THE STARS</small><strong data-i18n="mode.snake">Sky Snake</strong><span data-i18n="snake.description">Steer, snack on stars, and don’t bite your tail.</span></span></button>
       </div>
       <section id="library-typing" hidden aria-label="Typing modes" data-i18n-attr="aria-label:library.typing_aria">
         <button id="library-back" class="library-back" type="button">← <span data-i18n="library.back">All games</span></button>
@@ -2453,7 +2455,7 @@
     <div class="boot-controls"><button id="boot-start" type="button" disabled data-i18n="boot.connecting">CONNECTING…</button><p id="boot-status" role="status" data-i18n="boot.loading">Getting your games ready…</p></div>
     <div class="boot-bottom"><span data-i18n="boot.welcome">Welcome to Aobing IT!</span><span data-i18n="boot.modes">CLICKER · TYPING · FISHING · RHYTHM</span></div>
   </div>
-  <script src="i18n.js?v=marble-trail-1"></script>
+  <script src="i18n.js?v=drift-snake-1"></script>
   <script src="sky-time.js"></script>
   <script src="game-shell.js?v=activity-launch-1"></script>
 
@@ -3629,6 +3631,42 @@
     </div>
     <dialog id="marble-confirm" aria-labelledby="marble-confirm-title"><h2 id="marble-confirm-title" data-i18n="marble.restart_title">Restart this level?</h2><p data-i18n="marble.restart_hint">The current chain and score will reset. Your best score stays.</p><div class="marble-actions"><button id="marble-cancel" type="button" data-i18n="marble.cancel" autofocus>Keep this round</button><button id="marble-confirm-restart" type="button" data-i18n="marble.restart">Restart</button></div></dialog>
   </section>
+  <link rel="stylesheet" href="drift-ui.css?v=1">
+  <section id="drift-panel" hidden aria-labelledby="drift-title">
+    <header class="drift-header"><div><p class="ui-kicker" data-i18n="drift.tag">SLIDE &amp; MERGE</p><h1 id="drift-title" data-i18n="mode.drift">Merge Drift</h1></div><button id="drift-new" type="button" data-i18n="gems.new">New game</button></header>
+    <div class="drift-layout">
+      <div class="drift-play">
+        <div class="drift-board-wrap">
+          <div id="drift-board" tabindex="0" role="group" aria-describedby="drift-controls"><div class="drift-grid" aria-hidden="true"></div></div>
+          <div id="drift-result" hidden><span class="drift-result-art" aria-hidden="true">⊞</span><h2 id="drift-result-title" tabindex="-1"></h2><p id="drift-result-score"></p><div class="drift-result-actions"><button id="drift-continue" type="button"></button><button id="drift-again" type="button" data-i18n="gems.new">New game</button></div></div>
+        </div>
+        <p id="drift-status" role="status" aria-live="polite"></p>
+      </div>
+      <aside class="drift-sidebar">
+        <div class="drift-score-card"><span data-i18n="gems.score">Score</span><strong id="drift-score">0</strong><div class="drift-metrics"><div><span data-i18n="drift.highest">Highest tile</span><strong id="drift-highest">2</strong></div><div><span data-i18n="gems.best">Best score</span><strong id="drift-best">0</strong></div></div></div>
+        <details class="drift-help"><summary data-i18n="gems.how">How to play</summary><p data-i18n="drift.help">Every move slides all tiles as far as they go. Two equal tiles that meet merge into their sum, and a new 2 or 4 appears. Build a 2048 tile, then keep going for a higher score.</p><p id="drift-controls" data-i18n="drift.controls">Swipe or drag on the board, or use the arrow keys or WASD.</p></details>
+        <p id="drift-saved" data-i18n="gems.saved">Progress and best score are saved on this device.</p>
+      </aside>
+    </div>
+    <dialog id="drift-confirm" aria-labelledby="drift-confirm-title"><h2 id="drift-confirm-title" data-i18n="gems.restart_title">Start a new game?</h2><p data-i18n="gems.restart_hint">Your current board will be replaced. Your best score stays.</p><div class="drift-confirm-actions"><button id="drift-cancel" type="button" data-i18n="gems.cancel" autofocus>Keep playing</button><button id="drift-restart" type="button" data-i18n="gems.new">New game</button></div></dialog>
+  </section>
+  <link rel="stylesheet" href="snake-ui.css?v=1">
+  <section id="snake-panel" hidden aria-labelledby="snake-title">
+    <header class="snake-header"><div><p class="ui-kicker" data-i18n="snake.tag">ARCADE CLASSIC</p><h1 id="snake-title" data-i18n="mode.snake">Sky Snake</h1></div><div class="snake-actions"><button id="snake-pause" type="button" data-i18n="marble.pause">Pause</button><button id="snake-restart" type="button" data-i18n="marble.restart">Restart</button></div></header>
+    <div class="snake-layout">
+      <div class="snake-arena">
+        <div class="snake-board"><canvas id="snake-canvas" width="540" height="540" tabindex="0" data-i18n-attr="aria-label:snake.canvas" aria-describedby="snake-controls"></canvas>
+          <div id="snake-overlay"><span class="snake-overlay-art" aria-hidden="true">✦</span><h2 id="snake-overlay-title" tabindex="-1"></h2><p id="snake-overlay-hint"></p><button id="snake-play" type="button"></button></div>
+        </div>
+        <p id="snake-status" role="status" aria-live="polite" data-i18n="snake.goal">Collect stars to grow. Avoid the walls and your own tail.</p>
+      </div>
+      <aside class="snake-sidebar"><div class="snake-stats"><div class="snake-stat"><span data-i18n="gems.score">Score</span><strong id="snake-score">0</strong></div><div class="snake-stat"><span data-i18n="snake.length">Length</span><strong id="snake-length">3</strong></div><div class="snake-stat"><span data-i18n="snake.speed">Speed</span><strong id="snake-speed">1</strong></div><div class="snake-stat"><span data-i18n="gems.best">Best score</span><strong id="snake-best">0</strong></div></div>
+        <details class="snake-help"><summary data-i18n="gems.how">How to play</summary><p data-i18n="snake.help">Each star adds a segment. Every five stars the snake speeds up and stars are worth more.</p><p id="snake-controls" data-i18n="snake.controls">Steer with the arrow keys or WASD, or swipe on the field. Escape or P pauses.</p></details>
+        <p id="snake-saved" data-i18n="snake.saved">Best score is saved on this device. Leaving pauses the round; reloading starts a new one.</p>
+      </aside>
+    </div>
+    <dialog id="snake-confirm" aria-labelledby="snake-confirm-title"><h2 id="snake-confirm-title" data-i18n="snake.restart_title">Restart this round?</h2><p data-i18n="snake.restart_hint">Your snake and score will reset. Your best score stays.</p><div class="snake-actions"><button id="snake-cancel" type="button" data-i18n="marble.cancel" autofocus>Keep this round</button><button id="snake-confirm-restart" type="button" data-i18n="marble.restart">Restart</button></div></dialog>
+  </section>
   <link rel="stylesheet" href="fishing-ui.css?v=catch-notice-v1">
   <script src="ui-motion.js?v=1" defer></script>
   <script src="ui-panels.js" defer></script>
@@ -3732,9 +3770,13 @@
         .then(function () { return loadScript('gems-ui.js?v=1'); })
         .then(function () { return loadScript('marble.js?v=1'); })
         .then(function () { return loadScript('marble-ui.js?v=1'); })
+        .then(function () { return loadScript('drift.js?v=1'); })
+        .then(function () { return loadScript('drift-ui.js?v=1'); })
+        .then(function () { return loadScript('snake.js?v=1'); })
+        .then(function () { return loadScript('snake-ui.js?v=1'); })
         // In the Activity, cache-bust app.js each launch so code changes appear immediately
         // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
-        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=marble-trail-1')); })
+        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=drift-snake-1')); })
         // hitsound.js (shared rhythm hitsound engine) loads after app.js and self-
         // initialises from window.__hitsoundDeps; vsrg.js/osustd.js call window.Hitsound.
         .then(function () { return loadScript('rhythm-core.js?v=2'); })

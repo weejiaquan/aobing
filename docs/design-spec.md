@@ -389,9 +389,9 @@ except for the accepted Fishing and rhythm changes specified below.
 - Keep the character central, profile toward the lower left, game launcher and
   Shop toward the lower right, and labeled utility controls along the
   bottom: Settings, Characters, Rankings, Statistics.
-- Preserve the native game-library dialog and nine choices: Clicker, Typing,
-  Fishing, Standard, Mania, Diva, Doom, Gem Rush, and Marble Trail. Reuse existing mode switching
-  and settings.
+- Preserve the native game-library dialog and eleven choices: Clicker, Typing,
+  Fishing, Standard, Mania, Diva, Doom, Gem Rush, Marble Trail, Merge Drift and
+  Sky Snake. Reuse existing mode switching and settings.
 - Replace permanent marketing copy with the temporary greeting:
   **Welcome back, [username].** / **Hope you enjoy your stay.** Use the profile
   display name safely through `textContent`, with “Sensei” as the fallback.
@@ -470,6 +470,57 @@ except for the accepted Fishing and rhythm changes specified below.
   simulation and collision rules; `scripts/test-marble-browser.cjs` exercises
   the real shell/router and controller with local state fixtures and no account
   services, including pause, input, win/loss, persistence and responsive layouts.
+
+### Merge Drift
+
+- The owner requested 2048. **Merge Drift** is an original sliding-merge number
+  puzzle in that genre with its own name, tile palette and presentation; do not
+  present it as the official 2048 game or reuse that game's artwork. Preserve its
+  place as the tenth game.
+- Use a 4×4 board. Each move slides every tile as far as possible; equal tiles
+  that meet merge once per move into their sum, which is added to the score. A
+  valid move spawns one 2 (90%) or 4 (10%); a move that changes nothing is
+  ignored at no cost. Reaching a 2048 tile shows a win screen once with **Keep
+  going** and **New game**; a full board without equal neighbours is lost.
+- Arrow keys and WASD move while the panel is focused; mouse drag and touch swipe
+  on the board move too, and tiny drags are ignored. Show score, highest tile and
+  best score, expandable rules, and a live status line naming merges or blocked
+  moves. Tile colours step through the shared library palette; text size shrinks
+  for long numbers.
+- Save the complete board and best score locally after every move, before
+  animating, so leaving or reloading mid-slide cannot lose or repeat a move.
+  Starting over requires confirmation once a move has been made. Honor reduced
+  motion and saved SFX volume; no idle animation loop, account, economy or
+  multiplayer.
+- `drift.js` is the deterministic, DOM-free rules engine with save validation.
+  `drift-ui.js` / `drift-ui.css` own presentation, input and persistence.
+
+### Sky Snake
+
+- The owner requested Snake. **Sky Snake** is an original take on the classic
+  snake genre drawn in canvas: a teal snake collects stars over a sky field with
+  clouds by day and faint stars by night. Preserve its place as the eleventh game.
+- Use an 18×18 field with solid walls. The snake starts at length three moving
+  right. Each star adds a segment; every five stars the step speeds up (six
+  tiers, 150 ms down to 70 ms) and stars are worth 10 × the tier. Hitting a wall
+  or the body loses; filling the whole field wins. The head may enter the cell
+  the tail is leaving unless the snake is growing.
+- Arrow keys and WASD steer, buffering up to two turns between steps; reversals
+  are refused. Swipe or drag on the field steers, and one drag can chain turns.
+  Escape or P pauses. Show score, length, speed tier and best score.
+- Start, Resume and Retry require activation. Pause on window blur, hidden page,
+  modal opening or game exit, never auto-resume, and pause rather than
+  fast-forward after a stalled frame. Restart requires confirmation. Save only
+  the best score locally; leaving keeps the paused round in memory and reloading
+  starts a new one, as the UI explains.
+- `snake.js` owns seeded grid rules and step timing. `snake-ui.js` /
+  `snake-ui.css` own canvas rendering, audio, input and lifecycle; draw only
+  while playing or on visible UI updates and cap DPR at 2.
+- Translate all copy for both games in the eight `i18n.js` dictionaries.
+  `drift.test.js` and `snake.test.js` cover the engines;
+  `scripts/test-drift-snake-browser.cjs` exercises the real shell/router and both
+  controllers with local state fixtures and no account services, including
+  input, pause, win/loss, persistence and responsive day/night/Arabic layouts.
 
 ### Doom and DOS games
 

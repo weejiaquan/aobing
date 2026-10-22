@@ -157,7 +157,7 @@
       // game library
       'library.launch_kicker':'CHOOSE YOUR NEXT SIDE QUEST',
       'library.launch_title':'Game library',
-      'library.eyebrow':'Game library / 09 games',
+      'library.eyebrow':'Game library / 11 games',
       'library.title':'Choose your play.',
       'library.close':'Close',
       'library.close_aria':'Close game library',
@@ -362,7 +362,7 @@
       // game library
       'library.launch_kicker':'次のサイドクエストを選ぼう',
       'library.launch_title':'ゲームライブラリ',
-      'library.eyebrow':'ゲームライブラリ / 9ゲーム',
+      'library.eyebrow':'ゲームライブラリ / 11ゲーム',
       'library.title':'遊ぶものを選ぼう。',
       'library.close':'閉じる',
       'library.close_aria':'ゲームライブラリを閉じる',
@@ -620,7 +620,7 @@
       // game library
       'library.launch_kicker':'다음 사이드 퀘스트를 골라요',
       'library.launch_title':'게임 라이브러리',
-      'library.eyebrow':'게임 라이브러리 / 게임 9개',
+      'library.eyebrow':'게임 라이브러리 / 게임 11개',
       'library.title':'무엇을 플레이할까요.',
       'library.close':'닫기',
       'library.close_aria':'게임 라이브러리 닫기',
@@ -878,7 +878,7 @@
       // game library
       'library.launch_kicker':'选择下一个支线任务',
       'library.launch_title':'游戏库',
-      'library.eyebrow':'游戏库 / 9 款游戏',
+      'library.eyebrow':'游戏库 / 11 款游戏',
       'library.title':'选择你的玩法。',
       'library.close':'关闭',
       'library.close_aria':'关闭游戏库',
@@ -1136,7 +1136,7 @@
       // game library
       'library.launch_kicker':'選擇下一個支線任務',
       'library.launch_title':'遊戲庫',
-      'library.eyebrow':'遊戲庫 / 9 款遊戲',
+      'library.eyebrow':'遊戲庫 / 11 款遊戲',
       'library.title':'選擇你的玩法。',
       'library.close':'關閉',
       'library.close_aria':'關閉遊戲庫',
@@ -1394,7 +1394,7 @@
       // game library
       'library.launch_kicker':'เลือกเควสต์เสริมถัดไป',
       'library.launch_title':'คลังเกม',
-      'library.eyebrow':'คลังเกม / 9 เกม',
+      'library.eyebrow':'คลังเกม / 11 เกม',
       'library.title':'เลือกเกมที่จะเล่น',
       'library.close':'ปิด',
       'library.close_aria':'ปิดคลังเกม',
@@ -1652,7 +1652,7 @@
       // game library
       'library.launch_kicker':'اختر مهمتك الجانبية التالية',
       'library.launch_title':'مكتبة الألعاب',
-      'library.eyebrow':'مكتبة الألعاب / 9 ألعاب',
+      'library.eyebrow':'مكتبة الألعاب / 11 لعبة',
       'library.title':'اختر ما تريد لعبه.',
       'library.close':'إغلاق',
       'library.close_aria':'إغلاق مكتبة الألعاب',
@@ -1960,7 +1960,7 @@
       // game library
       'library.launch_kicker':'CHỌN NHIỆM VỤ PHỤ TIẾP THEO',
       'library.launch_title':'Thư viện game',
-      'library.eyebrow':'Thư viện game / 09 game',
+      'library.eyebrow':'Thư viện game / 11 game',
       'library.title':'Chọn cách chơi của bạn.',
       'library.close':'Đóng',
       'library.close_aria':'Đóng thư viện game',
@@ -2958,6 +2958,51 @@
     'marble.purple': ['Purple circle','紫の丸','보라색 원','紫色圆形','紫色圓形','วงกลมสีม่วง','Hình tròn tím','دائرة بنفسجية']
   };
   for(const [key,values] of Object.entries(MARBLE_COPY))SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
+
+  // Order: en, ja, ko, zh-Hans, zh-Hant, th, vi, ar.
+  const DRIFT_COPY = {
+    'mode.drift': ['Merge Drift','マージドリフト','머지 드리프트','合并漂移','合併漂移','เมิร์จดริฟต์','Trượt và gộp','انزلاق الدمج'],
+    'drift.tag': ['SLIDE & MERGE','スライド＆合体','밀고 합치기','滑动合并','滑動合併','เลื่อนและรวม','TRƯỢT & GỘP','حرّك وادمج'],
+    'drift.kicker': ['DOUBLE IT UP','倍にしていこう','두 배로 키워요','翻倍再翻倍','翻倍再翻倍','คูณสองไปเรื่อย ๆ','NHÂN ĐÔI LÊN','ضاعفها'],
+    'drift.description': ['Slide matching tiles together and build to 2048.','同じ数字をスライドで合わせて2048を目指そう。','같은 타일을 밀어 합치고 2048을 만드세요.','滑动合并相同方块，拼出2048。','滑動合併相同方塊，拼出2048。','เลื่อนแผ่นเลขที่เหมือนกันมารวมกันให้ถึง 2048','Trượt các ô giống nhau để gộp và đạt 2048.','حرّك المربعات المتطابقة لدمجها وصولًا إلى 2048.'],
+    'drift.board': ['Number tile board','数字タイルの盤面','숫자 타일 보드','数字方块棋盘','數字方塊棋盤','กระดานแผ่นตัวเลข','Bàn ô số','لوحة مربعات الأرقام'],
+    'drift.highest': ['Highest tile','最大タイル','최고 타일','最大方块','最大方塊','แผ่นสูงสุด','Ô lớn nhất','أعلى مربع'],
+    'drift.help': ['Every move slides all tiles as far as they go. Two equal tiles that meet merge into their sum, and a new 2 or 4 appears. Build a 2048 tile, then keep going for a higher score.','動かすと全タイルが端まで滑ります。同じ数字がぶつかると合体して合計になり、新しく2か4が出現。2048を作ったら、さらに高スコアを目指そう。','움직일 때마다 모든 타일이 끝까지 밀려요. 같은 숫자가 만나면 합쳐지고, 새 2 또는 4가 나타나요. 2048을 만든 뒤에도 계속해서 더 높은 점수에 도전하세요.','每次移动，所有方块都会滑到尽头。两个相同数字相遇会合并为它们的和，并出现新的2或4。拼出2048后还可以继续冲击高分。','每次移動，所有方塊都會滑到盡頭。兩個相同數字相遇會合併為它們的和，並出現新的2或4。拼出2048後還可以繼續衝擊高分。','ทุกครั้งที่เลื่อน แผ่นทั้งหมดจะไถลไปจนสุด แผ่นเลขเท่ากันที่ชนกันจะรวมเป็นผลบวก แล้วจะมี 2 หรือ 4 ใหม่โผล่มา สร้างแผ่น 2048 แล้วเล่นต่อเพื่อทำคะแนนให้สูงขึ้น','Mỗi lượt, mọi ô trượt hết cỡ. Hai ô bằng nhau gặp nhau sẽ gộp thành tổng, và một ô 2 hoặc 4 mới xuất hiện. Tạo được ô 2048 rồi chơi tiếp để lấy điểm cao hơn.','كل حركة تزلق جميع المربعات إلى أبعد حد. يندمج مربعان متساويان عند التقائهما في مجموعهما، ويظهر 2 أو 4 جديد. اصنع مربع 2048 ثم تابع لنتيجة أعلى.'],
+    'drift.controls': ['Swipe or drag on the board, or use the arrow keys or WASD.','盤面をスワイプ・ドラッグするか、矢印キーかWASDで操作。','보드를 스와이프·드래그하거나 화살표 키 또는 WASD를 사용하세요.','在棋盘上滑动或拖动，或使用方向键/WASD。','在棋盤上滑動或拖曳，或使用方向鍵/WASD。','ปัดหรือลากบนกระดาน หรือใช้ปุ่มลูกศรหรือ WASD','Vuốt hoặc kéo trên bàn, hoặc dùng phím mũi tên hay WASD.','اسحب على اللوحة، أو استخدم مفاتيح الأسهم أو WASD.'],
+    'drift.instructions': ['Swipe or press an arrow key to slide the tiles.','スワイプか矢印キーでタイルを動かそう。','스와이프하거나 화살표 키로 타일을 밀어 보세요.','滑动或按方向键移动方块。','滑動或按方向鍵移動方塊。','ปัดหรือกดปุ่มลูกศรเพื่อเลื่อนแผ่น','Vuốt hoặc nhấn phím mũi tên để trượt các ô.','اسحب أو اضغط مفتاح سهم لتحريك المربعات.'],
+    'drift.merged': ['Merged up to {value} · +{points}','{value}まで合体 · +{points}','{value}까지 합침 · +{points}','合并至 {value} · +{points}','合併至 {value} · +{points}','รวมได้ถึง {value} · +{points}','Đã gộp đến {value} · +{points}','دمج حتى {value} · +{points}'],
+    'drift.blocked': ['Nothing can slide that way. Try another direction.','その方向には動かせません。別の方向を試そう。','그 방향으로는 밀 수 없어요. 다른 방향을 시도하세요.','这个方向无法移动，换个方向试试。','這個方向無法移動，換個方向試試。','เลื่อนทางนั้นไม่ได้ ลองทิศอื่น','Không thể trượt theo hướng đó. Thử hướng khác.','لا شيء يتحرك في هذا الاتجاه. جرّب اتجاهًا آخر.'],
+    'drift.won': ['You built 2048!','2048達成！','2048 완성!','拼出2048了！','拼出2048了！','สร้าง 2048 สำเร็จ!','Bạn đã tạo 2048!','صنعت 2048!'],
+    'drift.lost': ['No moves left','もう動かせません','더 이상 움직일 수 없어요','无法再移动','無法再移動','ไม่มีทางเลื่อนแล้ว','Hết nước đi','لا حركات متبقية'],
+    'drift.result': ['{score} points · highest tile {tile}','{score}点 · 最大タイル {tile}','{score}점 · 최고 타일 {tile}','{score}分 · 最大方块 {tile}','{score}分 · 最大方塊 {tile}','{score} คะแนน · แผ่นสูงสุด {tile}','{score} điểm · ô lớn nhất {tile}','{score} نقطة · أعلى مربع {tile}'],
+    'drift.keep': ['Keep going','続ける','계속하기','继续挑战','繼續挑戰','เล่นต่อ','Chơi tiếp','تابع اللعب']
+  };
+  for (const [key, values] of Object.entries(DRIFT_COPY)) SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
+
+  const SNAKE_COPY = {
+    'mode.snake': ['Sky Snake','スカイスネーク','스카이 스네이크','天空贪吃蛇','天空貪食蛇','งูเหินฟ้า','Rắn bầu trời','ثعبان السماء'],
+    'snake.tag': ['ARCADE CLASSIC','アーケード定番','아케이드 클래식','街机经典','街機經典','อาร์เคดคลาสสิก','KINH ĐIỂN ARCADE','كلاسيكية أركيد'],
+    'snake.kicker': ['CHASE THE STARS','星を追いかけよう','별을 쫓아라','追逐星星','追逐星星','ไล่ตามดวงดาว','ĐUỔI THEO NGÔI SAO','طارد النجوم'],
+    'snake.description': ['Steer, snack on stars, and don’t bite your tail.','星を食べて伸びよう。しっぽはかまないで。','방향을 틀어 별을 먹고, 꼬리는 물지 마세요.','转向、吃星星，别咬到尾巴。','轉向、吃星星，別咬到尾巴。','เลี้ยวไปกินดาว แต่อย่ากัดหางตัวเอง','Lái, ăn sao và đừng cắn vào đuôi.','وجّه، والتهم النجوم، ولا تعضّ ذيلك.'],
+    'snake.canvas': ['Snake playfield. Steer with the arrow keys or WASD.','スネークのフィールド。矢印キーかWASDで操作。','스네이크 필드. 화살표 키나 WASD로 조종하세요.','贪吃蛇场地。用方向键或WASD控制方向。','貪食蛇場地。用方向鍵或WASD控制方向。','สนามงู ใช้ปุ่มลูกศรหรือ WASD บังคับทิศ','Sân rắn. Điều khiển bằng phím mũi tên hoặc WASD.','ساحة الثعبان. وجّه بمفاتيح الأسهم أو WASD.'],
+    'snake.goal': ['Collect stars to grow. Avoid the walls and your own tail.','星を集めて伸びよう。壁と自分のしっぽに注意。','별을 모아 길어지세요. 벽과 자기 꼬리를 피하세요.','收集星星变长，避开墙壁和自己的尾巴。','收集星星變長，避開牆壁和自己的尾巴。','เก็บดาวเพื่อให้ยาวขึ้น ระวังกำแพงและหางตัวเอง','Thu thập sao để dài ra. Tránh tường và đuôi của bạn.','اجمع النجوم لتطول. تجنّب الجدران وذيلك.'],
+    'snake.length': ['Length','長さ','길이','长度','長度','ความยาว','Độ dài','الطول'],
+    'snake.speed': ['Speed','スピード','속도','速度','速度','ความเร็ว','Tốc độ','السرعة'],
+    'snake.help': ['Each star adds a segment. Every five stars the snake speeds up and stars are worth more.','星1つで1節伸びます。星5つごとにスピードが上がり、星の得点も増えます。','별 하나에 한 칸씩 길어져요. 별 5개마다 빨라지고 별 점수도 올라가요.','每颗星星增加一节。每吃五颗星星，速度加快，星星分值也会提高。','每顆星星增加一節。每吃五顆星星，速度加快，星星分值也會提高。','ดาวแต่ละดวงเพิ่มความยาวหนึ่งข้อ ทุกห้าดวงงูจะเร็วขึ้นและดาวได้คะแนนมากขึ้น','Mỗi ngôi sao thêm một đốt. Cứ năm sao rắn lại nhanh hơn và sao được nhiều điểm hơn.','كل نجمة تضيف قطعة. كل خمس نجوم يتسارع الثعبان وتزداد قيمة النجوم.'],
+    'snake.controls': ['Steer with the arrow keys or WASD, or swipe on the field. Escape or P pauses.','矢印キーかWASD、またはフィールドをスワイプして操作。EscapeかPで一時停止。','화살표 키나 WASD, 또는 필드를 스와이프해 조종하세요. Escape나 P로 일시 정지.','用方向键或WASD控制，或在场地上滑动。Escape或P暂停。','用方向鍵或WASD控制，或在場地上滑動。Escape或P暫停。','ใช้ปุ่มลูกศรหรือ WASD หรือปัดบนสนามเพื่อบังคับ กด Escape หรือ P เพื่อพัก','Điều khiển bằng phím mũi tên, WASD hoặc vuốt trên sân. Escape hoặc P để tạm dừng.','وجّه بالأسهم أو WASD، أو اسحب على الساحة. Escape أو P للإيقاف المؤقت.'],
+    'snake.saved': ['Best score is saved on this device. Leaving pauses the round; reloading starts a new one.','ベストスコアはこの端末に保存。離れると一時停止し、再読み込みすると新しいラウンドになります。','최고 점수는 이 기기에 저장돼요. 나가면 일시 정지되고, 새로고침하면 새 라운드가 시작돼요.','最高分保存在此设备上。离开会暂停本局，刷新后开始新的一局。','最高分儲存在此裝置上。離開會暫停本局，重新整理後開始新的一局。','บันทึกคะแนนสูงสุดบนอุปกรณ์นี้ ออกไปจะพักรอบไว้ โหลดใหม่จะเริ่มรอบใหม่','Điểm cao nhất được lưu trên thiết bị này. Rời đi sẽ tạm dừng ván; tải lại sẽ bắt đầu ván mới.','تُحفظ أفضل نتيجة على هذا الجهاز. المغادرة توقف الجولة مؤقتًا، وإعادة التحميل تبدأ جولة جديدة.'],
+    'snake.ready': ['Ready to fly?','飛び立つ準備はいい？','날아오를 준비 됐나요?','准备起飞了吗？','準備起飛了嗎？','พร้อมบินหรือยัง?','Sẵn sàng bay chưa?','مستعد للتحليق؟'],
+    'snake.play': ['Start','スタート','시작','开始','開始','เริ่ม','Bắt đầu','ابدأ'],
+    'snake.again': ['Play again','もう一度遊ぶ','다시 플레이','再玩一次','再玩一次','เล่นอีกครั้ง','Chơi lại','العب مجددًا'],
+    'snake.lost_wall': ['Bumped into the wall','壁にぶつかった','벽에 부딪혔어요','撞到墙了','撞到牆了','ชนกำแพงแล้ว','Đâm vào tường rồi','اصطدمت بالجدار'],
+    'snake.lost_self': ['Bit your own tail','しっぽをかんじゃった','꼬리를 물었어요','咬到自己的尾巴了','咬到自己的尾巴了','กัดหางตัวเองแล้ว','Cắn phải đuôi rồi','عضضت ذيلك'],
+    'snake.won': ['The whole sky is yours!','空はすべてあなたのもの！','온 하늘이 당신 거예요!','整片天空都是你的！','整片天空都是你的！','ท้องฟ้าทั้งหมดเป็นของคุณ!','Cả bầu trời là của bạn!','السماء كلها لك!'],
+    'snake.result': ['{score} points · length {length}','{score}点 · 長さ {length}','{score}점 · 길이 {length}','{score}分 · 长度 {length}','{score}分 · 長度 {length}','{score} คะแนน · ยาว {length}','{score} điểm · dài {length}','{score} نقطة · الطول {length}'],
+    'snake.faster': ['Speed {n}! Stars are now worth {points}.','スピード{n}！星は{points}点に。','속도 {n}! 이제 별은 {points}점이에요.','速度 {n}！星星现在值 {points} 分。','速度 {n}！星星現在值 {points} 分。','ความเร็ว {n}! ตอนนี้ดาวได้ {points} คะแนน','Tốc độ {n}! Mỗi sao giờ được {points} điểm.','السرعة {n}! النجمة الآن بـ {points} نقطة.'],
+    'snake.restart_title': ['Restart this round?','このラウンドをやり直しますか？','이 라운드를 다시 시작할까요?','重新开始本局？','重新開始本局？','เริ่มรอบนี้ใหม่ไหม?','Chơi lại ván này?','إعادة هذه الجولة؟'],
+    'snake.restart_hint': ['Your snake and score will reset. Your best score stays.','ヘビとスコアはリセットされます。ベストスコアは残ります。','뱀과 점수가 초기화돼요. 최고 점수는 유지돼요.','蛇和分数将重置，最高分会保留。','蛇和分數將重設，最高分會保留。','งูและคะแนนจะเริ่มใหม่ แต่คะแนนสูงสุดยังอยู่','Rắn và điểm sẽ đặt lại. Điểm cao nhất vẫn được giữ.','سيُعاد الثعبان والنقاط. تبقى أفضل نتيجة محفوظة.']
+  };
+  for (const [key, values] of Object.entries(SNAKE_COPY)) SUPPORTED.forEach((lang,i)=>{T[lang][key]=values[i];});
 
   const RHYTHM_STAGE_COPY = {
     'rhythm.all':['All','すべて','전체','全部','全部','ทั้งหมด','Tất cả','الكل'],
