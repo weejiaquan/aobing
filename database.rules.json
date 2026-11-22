@@ -84,11 +84,11 @@
         "profile": {
           "displayName":      { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
           "country":          { ".validate": "newData.isString() && newData.val().length === 2" },
-          "photoURL":         { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "photoURL":         { ".validate": "newData.isString() && newData.val().length <= 500 && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().matches(/^[^\"'<> ]+$/)))" },
           "provider":         { ".validate": "newData.isString() && newData.val().length <= 32" },
           "linkedAt":         { ".validate": "newData.isNumber()" },
           "discordName":      { ".validate": "newData.isString() && newData.val().length <= 64" },
-          "discordPhotoURL":  { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "discordPhotoURL":  { ".validate": "newData.isString() && newData.val().length <= 500 && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().matches(/^[^\"'<> ]+$/)))" },
           "leaderboardPhoto": { ".validate": "newData.isString() && (newData.val() === 'google' || newData.val() === 'discord' || newData.val() === 'none')" }
         },
         "stats": {
@@ -251,9 +251,9 @@
             ".write": "auth != null && auth.uid === $uid",
             "discordId":       { ".validate": "newData.isString() && newData.val() === auth.token.discord_id + ''" },
             "discordName":     { ".validate": "newData.isString() && newData.val().length <= 64" },
-            "discordPhotoURL": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "discordPhotoURL": { ".validate": "newData.isString() && newData.val().length <= 500 && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().matches(/^[^\"'<> ]+$/)))" },
             "name":            { ".validate": "newData.isString() && newData.val().length <= 64" },
-            "photoURL":        { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "photoURL":        { ".validate": "newData.isString() && newData.val().length <= 500 && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().matches(/^[^\"'<> ]+$/)))" },
             "totalClicks":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('users').child($uid).child('stats').child('totalClicks').exists() ? root.child('users').child($uid).child('stats').child('totalClicks').val() : 0) + 10000" },
             "sessionClicks":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
             "active":          { ".validate": "newData.isBoolean()" },

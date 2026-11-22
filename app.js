@@ -2814,7 +2814,7 @@
           const flag = flagFromCountry(r.country);
           const isHidden = r.hidden === true;
           const avatar = r.photoURL
-            ? `<img class="lb-avatar" src="${activityImg(r.photoURL)}" alt="">`
+            ? `<img class="lb-avatar" src="${escapeHtml(activityImg(r.photoURL))}" alt="">`
             : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--ba-accent-strong);font-weight:800;">${escapeHtml((r.name || '?').slice(0,1))}</div>`;
           const adminCol = adminActive
             ? `<button class="lb-admin-del" data-del-uid="${escapeHtml(r.uid)}" data-del-name="${escapeHtml(r.name || '')}" data-hidden="${isHidden}" title="${I18N.t(isHidden ? 'admin.show_row' : 'admin.hide_row')}">${isHidden ? '↺' : '×'}</button>`
@@ -3216,7 +3216,7 @@
       wrap.innerHTML = opts.map((o) => {
         const m  = meta[o] || meta.none;
         const av = m.photo
-          ? `<img class="ppo-av" src="${activityImg(m.photo)}" alt="">`
+          ? `<img class="ppo-av" src="${escapeHtml(activityImg(m.photo))}" alt="">`
           : `<div class="ppo-av ppo-av-ph">${o === 'none' ? '∅' : escapeHtml((m.sub || '?').slice(0, 1))}</div>`;
         return `<button type="button" class="profile-photo-opt${o === active ? ' selected' : ''}" data-photo="${o}">` +
           av + `<span class="ppo-label">${m.label}</span>` +
