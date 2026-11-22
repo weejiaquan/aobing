@@ -340,7 +340,7 @@ if (typeof document !== 'undefined') (function () {
     try {
       const url = new URL(photo);
       if (url.protocol === 'https:') {
-        const img = node('img',{src:url.href,alt:'',referrerPolicy:'no-referrer'});
+        const img = node('img',{src:typeof activityImg === 'function' ? activityImg(url.href) : url.href,alt:'',referrerPolicy:'no-referrer'});
         img.onerror = () => img.remove(); n.appendChild(img);
         n.style.position='relative';img.style.position='absolute';img.style.inset='0';
       }

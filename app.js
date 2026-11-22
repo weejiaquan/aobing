@@ -76,12 +76,20 @@
     // --- kei-bot base URL --------------------------------------------------------
     const KEI_BASE = 'https://kei.aobing.it';
 
-    // In the Discord Activity, external avatar images (e.g. Google photos) are blocked by
-    // the iframe's img-src CSP. Route them through kei-bot's image proxy via the same-origin
-    // /.proxy/kei path (a direct kei.aobing.it img URL would also be CSP-blocked). Discord
-    // CDN images are already allowed, so leave those alone. No-op on the normal web.
+    // Resolves a stored avatar URL to the one to display.
+    // - Stored Discord avatar URLs embed the avatar hash and 404 once the user changes their
+    //   avatar, so they are pointed at kei-bot's /api/discord/avatar/<id>, which redirects
+    //   to the user's current avatar.
+    // - In the Discord Activity, external images (e.g. Google photos) are blocked by the
+    //   iframe's img-src CSP, so they go through kei-bot's image proxy via the same-origin
+    //   /.proxy/kei path (a direct kei.aobing.it URL would also be CSP-blocked). Discord CDN
+    //   images are already allowed there.
+    const DISCORD_AVATAR_URL = /^https:\/\/cdn\.discordapp\.com\/avatars\/(\d{15,20})\//;
     function activityImg(url) {
+      const discordAvatar = DISCORD_AVATAR_URL.exec(url || '');
+      if (discordAvatar) url = KEI_BASE + '/api/discord/avatar/' + discordAvatar[1];
       if (!window.__ACTIVITY__ || !url || !/^https:\/\//.test(url)) return url;
+      if (url.startsWith(KEI_BASE + '/')) return '/.proxy/kei' + url.slice(KEI_BASE.length);
       if (/discordapp\.(com|net)\//.test(url)) return url;
       return '/.proxy/kei/api/img?url=' + encodeURIComponent(url);
     }
@@ -2526,6 +2534,9 @@
       }
     }
 
+    // Ranked typing modes: the WPM/Score leaderboards are keyed leaderboard/typing{Wpm,Score}/<mode>/<uid>.
+    const VALID_BMODES = { s15: 1, s30: 1, s60: 1 };
+
     function subscribeUserData(uid) {
       if (userStatsUnsub)   { userStatsUnsub();   userStatsUnsub = null; }
       if (userProfileUnsub) { userProfileUnsub(); userProfileUnsub = null; }
@@ -2605,7 +2616,6 @@
           // Per-mode WPM/Score boards (15s/30s/60s are ranked separately — fair).
           // Transaction (not update) so wpmAt/scoreAt is stamped only the moment a
           // NEW best lands and the original date survives later profile-only syncs.
-          const VALID_BMODES = { s15: 1, s30: 1, s60: 1 };
           const mirrorRecord = (kind, md, val) => {
             const ref   = db.ref('leaderboard/typing' + (kind === 'wpm' ? 'Wpm' : 'Score') + '/' + md + '/' + uid);
             const atKey = kind === 'wpm' ? 'wpmAt' : 'scoreAt';
@@ -3254,8 +3264,10 @@
         // change shows without waiting for the next click flush.
         const photo = lbPhoto(userProfile);
         const uid = currentUser.uid;
-        ['topClicks', 'typingWords', 'typingWpm'].forEach(async (board) => {
-          const ref = db.ref('leaderboard/' + board + '/' + uid);
+        const rowPaths = ['topClicks/' + uid, 'typingWords/' + uid];
+        for (const md in VALID_BMODES) rowPaths.push('typingWpm/' + md + '/' + uid, 'typingScore/' + md + '/' + uid);
+        rowPaths.forEach(async (rowPath) => {
+          const ref = db.ref('leaderboard/' + rowPath);
           if ((await ref.once('value')).exists()) ref.update({ photoURL: photo }).catch(() => {});
         });
       } catch (err) { console.error('set leaderboardPhoto failed', err); }
