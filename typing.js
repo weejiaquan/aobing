@@ -326,7 +326,7 @@ if (typeof document !== 'undefined') {
     const db = deps.db;
     const settings = deps.settings;
     const t = deps.t || ((k) => k);
-    const esc = deps.escapeHtml || ((s) => String(s));
+    const esc = deps.escapeHtml;
     const flag = deps.flagFromCountry || (() => '');
     const activityImg = deps.activityImg || ((u) => u);
 

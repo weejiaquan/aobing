@@ -647,7 +647,7 @@ if (typeof document !== 'undefined') {
       } catch (e) { /* no bundled maps */ }
       return entries;
     }
-    function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
+    function escapeH(s) { return deps.escapeHtml(String(s)); }
     // Group the flat library by song (artist+title) so each song is one collapsible
     // row; difficulties live under it and only one song is expanded at a time.
     function buildGroups() {
@@ -1483,7 +1483,7 @@ if (typeof document !== 'undefined') {
       tapKeys().concat(['m1', 'm2']).forEach((k) => {
         const label = k === 'm1' ? 'M1' : k === 'm2' ? 'M2' : (k === ' ' ? '␣' : k.toUpperCase());
         const box = document.createElement('div'); box.className = 'osu-key';
-        box.innerHTML = '<span class="osu-key-label">' + label + '</span><span class="osu-key-count">0</span>';
+        box.innerHTML = '<span class="osu-key-label">' + escapeH(label) + '</span><span class="osu-key-count">0</span>';
         keysOverlayEl.appendChild(box); keyBoxes[k] = box; keyCounts[k] = 0;
       });
     }

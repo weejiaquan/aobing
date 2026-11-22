@@ -39,7 +39,9 @@ function fixture(mode, width=1280, height=720, dpr=1) {
   const source=fs.readFileSync(file,'utf8').replace('    function calOffset()',hooks+'\n    function calOffset()').replace("const rec = await api.getChartRecord(hash);","const rec = window.__mpRecord;");
   vm.runInContext(source,context,{filename:file});
   const settings={musicVol:0,osuKeys:['z','x']};
-  window[mode==='osu'?'OsuStdGame':'VsrgGame'].init({settings,saveSettings(){}});
+  // app.js always supplies its HTML escaper to the mode modules; mirror that here.
+  const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  window[mode==='osu'?'OsuStdGame':'VsrgGame'].init({settings,saveSettings(){},escapeHtml});
   const runtime=window.__runtime;
   return {window,context,runtime,settings,drawCalls,get,async start(chart,auto=false){await runtime.ensureCtx();runtime.setAuto(auto);runtime.startRun({title:'Test',diffName:'Test'},chart,{duration:60});},time(t){audio.currentTime=runtime.run.startCtx+t/1000;},event(key,extra={}){return {key,timeStamp:5000,preventDefault(){},...extra};}};
 }
@@ -174,4 +176,15 @@ test('Standard actual multiplayer API can prepare a new round after a paused for
   api.startMultiplayer(next,{startAt:10000,onScore:s=>reports.push(s)});
   assert.equal(f.runtime.run.startCtx,15);assert.equal(f.runtime.run.paused,false);
   assert.equal(reports.length,1);f.runtime.teardownRun();
+});
+
+test('osu: key overlay escapes bound key labels instead of injecting them as HTML',async()=>{
+  const f=fixture('osu');
+  f.settings.osuKeys=['<','"'];
+  await f.start(stdChart());
+  const html=f.get('osu-keys-overlay').children.map(c=>c.innerHTML);
+  console.log('key overlay HTML:',JSON.stringify(html));
+  assert.equal(html.length,4,'two tap keys plus M1/M2');
+  assert.ok(html[0].includes('<span class="osu-key-label">&lt;</span>'),'< must render as &lt;: '+html[0]);
+  assert.ok(html[1].includes('<span class="osu-key-label">&quot;</span>'),'" must render as &quot;: '+html[1]);
 });

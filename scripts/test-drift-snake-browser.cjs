@@ -16,7 +16,7 @@ function driftBoard(rows,extra={}){
   const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
   const router=app.slice(app.indexOf('    // --- Persistent shop launcher'),app.indexOf('    window.__aobingAppReady = true;'));
   assert.ok(router.includes("settings.gameMode === 'drift'")&&router.includes("settings.gameMode === 'snake'"),'router must open both games');
-  let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/,'') /* page CSP would block this fixture's injected inline script; csp.test.js covers the CSP */;
   html=html.replace('</body>', ['i18n.js','sky-time.js','game-shell.js','drift.js','drift-ui.js','snake.js','snake-ui.js'].map(src=>'<script src="/'+src+'"></script>').join('')+`<script>
     const settings={sfxVol:0,gameMode:'clicker'},saveSettings=()=>{},shopBtn=document.getElementById('shop-btn');
     let musicModeOn=false,autoTimer=null,musicIdlePeriodMs=0,musicIdleStart=0;

@@ -251,7 +251,7 @@
       else for (const k in screens) if (screens[k]) screens[k].hidden = (k !== name);
     }
     function grabFocus() { try { window.focus(); } catch (e) {} try { canvas.focus({ preventScroll: true }); } catch (e) {} }
-    function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
+    function escapeH(s) { return deps.escapeHtml(String(s)); }
 
     function ensureCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -942,7 +942,7 @@
     // ---- Keybind / macro UI --------------------------------------------------
     let rebind = null;   // { kind:'button'|'macro', target, slot }
     const KEY_LABEL = { ' ': '␣', lshift: '⇧L', rshift: '⇧R', lcontrol: '⌃L', rcontrol: '⌃R', lalt: '⌥L', ralt: '⌥R', lmeta: '◆L', rmeta: '◆R' };
-    function keyLabel(k) { return k ? (KEY_LABEL[k] || k.toUpperCase()) : '—'; }
+    function keyLabel(k) { return k ? escapeH(KEY_LABEL[k] || k.toUpperCase()) : '—'; }
     function renderKeybinds() {
       if (keybindsEl) {
         const map = divaKeys();

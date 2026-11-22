@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Content-Security-Policy: blocks injected inline script/handlers even if a render path forgets to escape.
+       GitHub Pages can't send headers, so it lives here. Keep inline scripts and on*= handler attributes out of this page (csp.test.js enforces it). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com https://www.google.com https://*.firebaseio.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://kei.aobing.it wss://kei.aobing.it https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.google.com https://api.country.is https://ipwho.is https://get.geojs.io https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-src https://aobing-dfe10.firebaseapp.com https://www.google.com https://recaptcha.google.com https://apis.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Click to make Aoba squeak!" data-i18n-attr="content:meta.description">
   <meta property="og:title" content="Aobing IT!">
@@ -2338,82 +2341,7 @@
        after Discord SDK authorize + token exchange with kei-bot.
        ================================================================ -->
   <div id="activity-log" style="display:none;position:fixed;bottom:0;left:0;max-width:48ch;max-height:40vh;overflow:auto;z-index:99999;background:rgba(20,20,24,.85);color:#9f9;font:11px/1.4 monospace;padding:6px;white-space:pre-wrap"></div>
-  <script type="module">
-    if (location.hostname.endsWith('.discordsays.com')) {
-      // The on-screen log stays hidden on success; it only reveals itself if boot errors,
-      // so you can still diagnose in the wild. (All steps are also in the console.)
-      const box = document.getElementById('activity-log');
-      const log = (m) => { box.textContent += m + '\n'; console.log('[activity]', m); };
-      const bounded = (promise, ms) => new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Discord connection timed out')), ms);
-        Promise.resolve(promise).then(resolve, reject).finally(() => clearTimeout(timer));
-      });
-      (async () => {
-        try {
-          // Cache-bust everything this thin shell loads, so updates land without waiting on
-          // a cache. (index.html itself is the only file with GitHub Pages' ~10min cache.)
-          const ts = Date.now();
-          const { DiscordSDK, patchUrlMappings } = await bounded(import('/vendor/discord-embedded-app-sdk.js?t=' + ts), 20000);
-          // URL mappings live in a cache-busted file so we can add/change them without ever
-          // editing index.html. Same-origin fetch (allowed by connect-src 'self' before the
-          // mappings are even applied). Minimal inline fallback only if that fetch fails.
-          let mappings = [{ prefix: '/kei', target: 'kei.aobing.it' }];
-          try { mappings = await bounded(fetch('/activity-mappings.json?t=' + ts).then(r => { if (!r.ok) throw new Error('mappings'); return r.json(); }), 8000); }
-          catch (e) { log('mappings.json fetch failed; using minimal fallback'); }
-          patchUrlMappings(mappings);
-          log('SDK + ' + mappings.length + ' mappings loaded. init…');
-          const sdk = new DiscordSDK('1514146586748256306');
-          await bounded(sdk.ready(), 30000);
-          log('ready. authorizing…');
-          const { code } = await bounded(sdk.commands.authorize({
-            client_id: '1514146586748256306', response_type: 'code', state: '', prompt: 'none', scope: ['identify'],
-          }), 60000);
-          log('authorized. exchanging token…');
-          const resp = await bounded(fetch('https://kei.aobing.it/api/activity/token', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
-          }), 20000);
-          if (!resp.ok) throw new Error('token HTTP ' + resp.status);
-          const data = await bounded(resp.json(), 10000);
-          if (!data.token || !data.uid || !data.appCheckToken) throw new Error('Incomplete Activity sign-in response');
-          // Hand off to app.js: it reads window.__ACTIVITY__ to use the custom App Check provider + signIn.
-          window.__ACTIVITY__ = {
-            customToken: data.token,
-            appCheckToken: data.appCheckToken,
-            appCheckTtlMillis: data.appCheckTtlMillis,
-            uid: data.uid,
-            keiBase: 'https://kei.aobing.it',
-            // Discord identity (from kei-bot's /token exchange): id is the merge key
-            // between the SDK participants roster and the RTDB game nodes; name/avatar
-            // persist into the user's profile so the web leaderboard photo-picker works.
-            // Optional — the presence panel degrades gracefully if any are absent.
-            instanceId: sdk.instanceId,
-            discordId: data.discordId,
-            discordName: data.discordName,
-            discordPhotoURL: data.discordPhotoURL,
-            // Roster accessors for the in-game presence panel (presence.js via app.js).
-            getParticipants: () => sdk.commands.getInstanceConnectedParticipants(),
-            subscribeParticipants: (cb) => {
-              sdk.subscribe('ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE', cb);
-              return () => { try { sdk.unsubscribe('ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE', cb); } catch (e) {} };
-            },
-            // External links must go through the SDK in the Activity — a normal navigation
-            // to an external site is blocked by the iframe and freezes the app.
-            openExternalLink: (url) => sdk.commands.openExternalLink({ url }),
-          };
-          log('token ok (uid=' + data.uid + '). loading game…');
-          window.__loadLibsAndApp();   // now load libs (proxied) + app.js
-          log('boot handed to app.js');
-        } catch (e) {
-          box.style.display = 'block';   // reveal the log only when something went wrong
-          log('ERROR: ' + (e && e.message || e));
-          console.error('[activity] boot failed', e);
-          const retry = document.createElement('button');
-          retry.textContent = window.I18N ? I18N.t('mp.retry') : 'Retry';
-          retry.onclick = () => location.reload(); box.appendChild(retry);
-        }
-      })();
-    }
-  </script>
+  <script type="module" src="activity-boot.js?v=1"></script>
   <!-- END DISCORD ACTIVITY BOOT -->
 
   <!-- Intro Elements -->
@@ -2515,7 +2443,7 @@
       <p style="font-size: 0.78rem; color: var(--ba-text-muted); margin-bottom: 10px;"
          data-i18n="profile.anon_blurb">Sign in to save your progress across devices and appear on the leaderboard.</p>
       <button id="profile-google-btn" class="profile-button" data-i18n="auth.sign_in_google">Sign in with Google</button>
-      <button id="profile-discord-login-btn" class="profile-button" style="background:#5865F2;color:#fff;margin-top:6px;" onclick="discordLogin()"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Sign in with Discord</button>
+      <button id="profile-discord-login-btn" class="profile-button" style="background:#5865F2;color:#fff;margin-top:6px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Sign in with Discord</button>
       <div class="profile-error" id="profile-error"></div>
     </div>
     <div id="profile-linked" hidden>
@@ -2538,8 +2466,8 @@
       </div>
       <button id="profile-save-btn" class="profile-button" data-i18n="profile.save">Save</button>
       <button id="profile-signout-btn" class="profile-button secondary" data-i18n="auth.sign_out">Sign out</button>
-      <button id="profile-discord-btn" class="profile-button secondary" onclick="linkDiscord()" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Link Discord</button>
-      <button id="profile-discord-unlink-btn" class="profile-button secondary" onclick="unlinkDiscord()" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Unlink Discord</button>
+      <button id="profile-discord-btn" class="profile-button secondary" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Link Discord</button>
+      <button id="profile-discord-unlink-btn" class="profile-button secondary" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M20.317 4.369a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.947 2.418-2.157 2.418z"/></svg>Unlink Discord</button>
       <div class="profile-error" id="profile-error-linked"></div>
     </div>
   </div>
@@ -3346,18 +3274,7 @@
     <header class="ui-window-head"><div><p class="ui-kicker" data-i18n="mp.kicker">STANDARD / ONLINE</p><h2 id="multiplayer-title" class="stats-title" data-i18n="mp.title">Multiplayer</h2></div><button id="mp-close" class="ui-close" type="button" aria-label="Close multiplayer" data-i18n-attr="aria-label:mp.close_aria">✕</button></header>
     <div id="mp-panel"></div>
   </dialog>
-  <script>
-    const multiplayerDialog = document.getElementById('multiplayer-dialog');
-    document.getElementById('mp-open-btn').addEventListener('click', function () {
-      multiplayerDialog.showModal();
-      if (window.MpUI) window.MpUI.open(document.getElementById('mp-panel'));
-      else document.getElementById('mp-panel').textContent = I18N.t('mp.offline');
-    });
-    multiplayerDialog.addEventListener('close', () => { if (window.MpUI) window.MpUI.dismiss(); });
-    document.getElementById('mp-close').addEventListener('click', () => multiplayerDialog.close());
-    multiplayerDialog.addEventListener('click', (event) => { if (event.target === multiplayerDialog) multiplayerDialog.close(); });
-    window.addEventListener('keydown', (event) => { if (multiplayerDialog.open) event.stopPropagation(); }, true);
-  </script>
+  <script src="multiplayer-dialog.js?v=1"></script>
 
   <!-- Project Diva (Future Tone style) performance panel -->
   <div id="divaft-panel">
@@ -3676,154 +3593,9 @@
 
   <!-- Import path hints — tell the user WHERE to point each import (browsers can't read
        arbitrary paths, so we show the common install locations for their OS). -->
-  <script>
-    (function () {
-      function fillImportHints() {
-        var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '';
-        var os = /mac|iphone|ipad/i.test(ua) ? 'mac' : /linux|x11|android|cros/i.test(ua) ? 'linux' : 'win';
-        var osuPath = { win: '%LocalAppData%\\osu!', mac: '~/Library/Application Support/osu!', linux: '~/.local/share/osu-wine/osu! (or ~/.local/share/osu!)' }[os];
-        var steamPath = {
-          win: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hatsune Miku Project DIVA Mega Mix Plus',
-          mac: '~/Library/Application Support/Steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus',
-          linux: '~/.steam/steam/steamapps/common/Hatsune Miku Project DIVA Mega Mix Plus'
-        }[os];
-        var skinPath = (os === 'win' ? '%LocalAppData%\\osu!\\Skins\\&lt;SkinName&gt;' : (osuPath + '/Skins/&lt;SkinName&gt;'));
-        var osuHint =
-          '<span class="ih-line">📁 <b>Beatmaps:</b> your <b>osu! folder</b> or its <b>Songs</b> folder' +
-          (os === 'win' ? ' — paste <code>%LocalAppData%\\osu!</code> into the file picker’s address bar' : ' — usually <code>' + osuPath + '</code>') +
-          '. A single <b>.osz</b> works too.</span>' +
-          '<span class="ih-line">🎨 <b>Skin:</b> a <b>.osk</b> file or an extracted <b>skin folder</b> &mdash; skins live in <code>' + skinPath + '</code>. (Importing the osu! folder also loads its skins.)</span>';
-        var phData = { win: '%AppData%\\Project Heartbeat', mac: '~/Library/Application Support/Project Heartbeat', linux: '~/.local/share/Project Heartbeat' }[os];
-        var modsHint = 'A mod folder containing <code>rom/</code> &mdash; e.g. <code>…\\Mega Mix Plus\\mods\\&lt;ModName&gt;</code>.';
-        var cpkHint = 'Select <b>both</b> <code>diva_main.cpk</code> and <code>diva_main_region.cpk</code> from <code>' + steamPath + '</code> (or your Steam-library drive).';
-        var phHint = 'Point at your songs (Steam Workshop <code>…\\steamapps\\workshop\\content\\1216230</code>) <b>and</b> your PH folder <code>' + phData + '</code> for cached audio. Songs you’ve played in PH have audio.';
-        var set = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
-        set('osu-import-hint', osuHint);
-        set('vsrg-import-hint', osuHint);
-        set('divaft-hint-mods', modsHint);
-        set('divaft-hint-cpk', cpkHint);
-        set('divaft-hint-ph', phHint);
-      }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillImportHints);
-      else fillImportHints();
-    })();
-  </script>
+  <script src="import-hints.js?v=1"></script>
 
   <!-- Lib + app loader — callable from web (immediate) or activity (after Discord flow) -->
-  <script>
-    window.__loadLibsAndApp = function () {
-      // In the Discord Activity, patchUrlMappings rewrites fetch/XHR/WebSocket but NOT a
-      // dynamically-set <script>.src, so CSP blocks external lib scripts. Rewrite those
-      // URLs to Discord's /.proxy/<prefix> path ourselves (prefixes match the Dev Portal
-      // URL Mappings). No-op on the normal web.
-      var IN_ACTIVITY = location.hostname.endsWith('.discordsays.com');
-      var PROXY_MAP = {
-        'www.gstatic.com':     '/gstatic',
-        'cdn.jsdelivr.net':    '/jsdelivr',
-        'fonts.googleapis.com':'/gfonts',
-        'fonts.gstatic.com':   '/gfonts-static',
-      };
-      function proxify(url) {
-        if (!IN_ACTIVITY) return url;
-        try {
-          var u = new URL(url, location.href);
-          var prefix = PROXY_MAP[u.hostname];
-          if (prefix) return '/.proxy' + prefix + u.pathname + u.search;
-        } catch (e) {}
-        return url;
-      }
-      function loadScript(src) {
-        return new Promise(function (res, rej) {
-          var s = document.createElement('script');
-          s.src = proxify(src); s.async = false;
-          s.onload = res; s.onerror = function () { rej(new Error('lib load failed: ' + s.src)); };
-          document.head.appendChild(s);
-        });
-      }
-      var FB = 'https://www.gstatic.com/firebasejs/10.12.0/';
-      // firebase-app must load before the other firebase modules
-      loadScript(FB + 'firebase-app-compat.js')
-        .then(function () {
-          var mods = [
-            loadScript(FB + 'firebase-auth-compat.js'),
-            loadScript(FB + 'firebase-database-compat.js'),
-            loadScript(FB + 'firebase-app-check-compat.js'),
-            loadScript('https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js'),
-            loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'),
-          ];
-          // Analytics is skipped in the Activity (gtag/installations are CSP-blocked there).
-          if (!IN_ACTIVITY) mods.push(loadScript(FB + 'firebase-analytics-compat.js'));
-          return Promise.all(mods);
-        })
-        // Fishing mode engine + session + controller load before app.js so the globals
-        // (FishingEngine, FishData, FishSprite, FishingSession, FishingGame) exist when
-        // app.js injects its deps into window.__fishingDeps.
-        .then(function () { return loadScript('fishing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fish-data.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fish-sprite.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-session.js?v=catch-reveal-1s' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-scene.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-ui.js?v=catch-notice-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-dex.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('fishing-dex-ui.js?v=anime-motion-v1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('gems.js?v=1'); })
-        .then(function () { return loadScript('gems-ui.js?v=1'); })
-        .then(function () { return loadScript('marble.js?v=1'); })
-        .then(function () { return loadScript('marble-ui.js?v=1'); })
-        .then(function () { return loadScript('drift.js?v=1'); })
-        .then(function () { return loadScript('drift-ui.js?v=1'); })
-        .then(function () { return loadScript('snake.js?v=1'); })
-        .then(function () { return loadScript('snake-ui.js?v=1'); })
-        // In the Activity, cache-bust app.js each launch so code changes appear immediately
-        // (Discord's proxy + embedded browser otherwise cache it). Web caches normally.
-        .then(function () { return loadScript('app.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=drift-snake-1')); })
-        // hitsound.js (shared rhythm hitsound engine) loads after app.js and self-
-        // initialises from window.__hitsoundDeps; vsrg.js/osustd.js call window.Hitsound.
-        .then(function () { return loadScript('rhythm-core.js?v=2'); })
-        .then(function () { return loadScript('rhythm-mania.js?v=2'); })
-        .then(function () { return loadScript('rhythm-standard.js?v=2'); })
-        .then(function () { return loadScript('rhythm-ui.js?v=2'); })
-        .then(function () { return loadScript('rhythm-select.js?v=1'); })
-        .then(function () { return loadScript('hitsound.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=replay-2')); })
-        // typing.js loads AFTER app.js and self-initialises from window.__typingDeps.
-        .then(function () { return loadScript('typing.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        // vsrg.js (Rhythm mode) loads after app.js and self-initialises from
-        // window.__vsrgDeps. Inert on the web until the mode is opened.
-        .then(function () { return loadScript('vsrg.js?v=rhythm-stage-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        // osustd.js (osu!standard mode) loads after app.js and self-initialises from
-        // window.__osustdDeps. Inert until the mode is opened.
-        .then(function () { return loadScript('osustd.js?v=rhythm-stage-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        .then(function () { return loadScript('multiplayer.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '?v=multiplayer-4')).catch(function (e) { console.warn('Multiplayer unavailable', e); }); })
-        // divaft.js (Project Diva mode) self-initialises from window.__divaftDeps.
-        // divadsc.js (binary .dsc decoder) + divapvdb.js (pv_db parser) feed divaft.js's
-        // folder import; load them first so window.DivaDsc / window.DivaPvdb exist.
-        .then(function () { return loadScript('divadsc.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('divapvdb.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        // cpk.js (CRI CPK reader, AES content decrypt) lets divaft.js import base-game songs.
-        .then(function () { return loadScript('cpk.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        // phsong.js (Project Heartbeat song parser) feeds divaft.js's PH import.
-        .then(function () { return loadScript('phsong.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('divaft.js?v=ui-polish-1' + (IN_ACTIVITY ? '&t=' + Date.now() : '')); })
-        // presence.js (Discord Activity presence panel) loads after app.js; app.js calls
-        // window.Presence.init(...) once the user's profile is ready. Inert on the web.
-        .then(function () { return loadScript('dos-runtime.js?v=5'); })
-        .then(function () { return loadScript('dos-games.js?v=4'); })
-        .then(function () { return loadScript('dos-bindings.js?v=1'); })
-        .then(function () { return loadScript('dos-ui.js?v=4'); })
-        .then(function () { return loadScript('presence.js' + (IN_ACTIVITY ? '?t=' + Date.now() : '')); })
-        .then(function () { return loadScript('activity-games.js?v=7').catch(function (e) { console.warn('Activity chat unavailable', e); }); })
-        .then(function () { if (IN_ACTIVITY) return loadScript('activity-replay.js?v=4').catch(function (e) { console.warn('Activity replay unavailable', e); }); })
-        .then(async function () {
-          if (!window.__aobingAppReady) throw new Error('Game initialization failed');
-          await window.ActivityGames?.init();
-          window.dispatchEvent(new Event('aobingready'));
-        })
-        .catch(function (e) { console.error('lib load failed', e); window.dispatchEvent(new Event('aobingloaderror')); });
-    };
-    // Coordinator: on web, load immediately; in Activity, the module below calls this after Discord flow
-    if (!location.hostname.endsWith('.discordsays.com')) {
-      window.__loadLibsAndApp();
-    }
-  </script>
+  <script src="lib-loader.js?v=1"></script>
 </body>
 </html>

@@ -2900,6 +2900,15 @@
       _linkToastTimer = setTimeout(() => _linkToastEl.classList.remove('visible'), 3000);
     }
 
+    // authorizeUrl comes from the kei API; only ever open an https URL so a bad
+    // response can't hand window.open a javascript: URL.
+    function openAuthorizePopup(authorizeUrl, windowName) {
+      let protocol = '';
+      try { protocol = new URL(authorizeUrl).protocol; } catch {}
+      if (protocol !== 'https:') { console.error('kei returned a non-https authorizeUrl'); return; }
+      window.open(authorizeUrl, windowName, 'width=500,height=820');
+    }
+
     async function linkDiscord() {
       const user = auth.currentUser;
       if (!user || user.isAnonymous) return;
@@ -2914,7 +2923,7 @@
         if (!resp.ok) throw new Error('start failed');
         ({ authorizeUrl } = await resp.json());
       } catch (e) { console.error('link start failed', e); return; }
-      window.open(authorizeUrl, 'discord-link', 'width=500,height=820');
+      openAuthorizePopup(authorizeUrl, 'discord-link');
     }
 
     async function refreshLinkUi() {
@@ -2965,8 +2974,12 @@
         if (!resp.ok) throw new Error('start failed');
         ({ authorizeUrl } = await resp.json());
       } catch (e) { console.error('discord login start failed', e); return; }
-      window.open(authorizeUrl, 'discord-login', 'width=500,height=820');
+      openAuthorizePopup(authorizeUrl, 'discord-login');
     }
+
+    document.getElementById('profile-discord-login-btn').addEventListener('click', discordLogin);
+    document.getElementById('profile-discord-btn').addEventListener('click', linkDiscord);
+    document.getElementById('profile-discord-unlink-btn').addEventListener('click', unlinkDiscord);
 
     async function ensureDiscordProfile(uid, displayName, photoURL) {
       try {
@@ -3016,13 +3029,15 @@
     }
 
     function mergeCardHtml(side, s) {
+      // Stats come from the kei API; coerce to numbers so a bad response can't inject markup.
+      const n = (v) => (Number(v) || 0).toLocaleString();
       return '<div class="merge-card" data-keep="' + side + '">'
         + '<h4>' + (side === 'google' ? 'This account' : 'Discord account') + '</h4>'
-        + '<p>Level ' + s.level + '</p>'
-        + '<p>' + s.totalClicks.toLocaleString() + ' clicks</p>'
-        + '<p>' + s.prestigeStars + ' ★ prestige</p>'
-        + '<p>' + s.coinBalance.toLocaleString() + ' coins</p>'
-        + '<p>' + s.charactersOwned + ' characters</p>'
+        + '<p>Level ' + n(s.level) + '</p>'
+        + '<p>' + n(s.totalClicks) + ' clicks</p>'
+        + '<p>' + n(s.prestigeStars) + ' ★ prestige</p>'
+        + '<p>' + n(s.coinBalance) + ' coins</p>'
+        + '<p>' + n(s.charactersOwned) + ' characters</p>'
         + '<button class="merge-pick" data-keep="' + side + '">Keep this</button></div>';
     }
 

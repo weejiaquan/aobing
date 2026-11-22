@@ -8,7 +8,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
   server=http.createServer((req,res)=>{
     const name=req.url.split('?')[0].slice(1);
     if(name==='fidelity'){
-      let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+      let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/,'') /* page CSP would block this fixture's injected inline script; csp.test.js covers the CSP */;
       html=html.replace('</body>','<script>window.requestAnimationFrame=()=>0;window.__replayRuntime={};window.RhythmUI={controls(){},pausePanel(){return {show(){},hide(){},cancelCountdown(){}}}};</script>'+['i18n.js','rhythm-core.js','rhythm-standard.js','rhythm-mania.js','hitsound.js','activity-replay.js','osustd.js','vsrg.js','scripts/replay-fidelity-fixture.js'].map(n=>'<script src="/'+n+'"></script>').join('')+'</body>');
       res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;
     }

@@ -7,7 +7,7 @@ let server,child,ws;const wait=ms=>new Promise(r=>setTimeout(r,ms));
   server=http.createServer((req,res)=>{
     const name=decodeURIComponent(req.url.split('?')[0]).slice(1);
     if(!name){
-      let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+      let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/,'') /* page CSP would block this fixture's injected inline script; csp.test.js covers the CSP */;
       const scripts=['i18n.js','rhythm-core.js','rhythm-standard.js','rhythm-mania.js','rhythm-ui.js','ui-motion.js','rhythm-select.js','hitsound.js','osustd.js','vsrg.js'];
       html=html.replace('</body>',`<style>body>:not(style):not(link):not(#osu-panel):not(#vsrg-panel):not(#multiplayer-dialog):not(#hub-launch):not(#mode-menu){display:none!important}body{margin:0}</style>${scripts.map(s=>'<script src="/'+s+'"></script>').join('')}<script>
       document.body.classList.add('music-mode');window.settings={gameMode:'osu',musicVol:20,osuKeys:['z','x']};window.hooks={};

@@ -603,7 +603,7 @@ if (typeof document !== 'undefined') {
       ).join('');
     }
 
-    function escapeH(s) { return deps.escapeHtml ? deps.escapeHtml(String(s)) : String(s); }
+    function escapeH(s) { return deps.escapeHtml(String(s)); }
 
     async function refreshLibrary() {
       const bundled = await loadBundled();

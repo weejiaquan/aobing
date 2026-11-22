@@ -194,7 +194,8 @@
           "typingWords": { ".validate": "newData.isNumber() && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (root.child('users').child($uid).child('stats').child('typingWords').exists() ? root.child('users').child($uid).child('stats').child('typingWords').val() : 0))" },
           "prestigeStars": { ".validate": "newData.isNumber() && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (root.child('users').child($uid).child('stats').child('prestigeStars').exists() ? root.child('users').child($uid).child('stats').child('prestigeStars').val() : 0))" },
           "level":       { ".validate": "newData.isNumber()" },
-          "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+          "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" },
+          "$other":   { ".validate": false }
         }
       },
       "typingWords": {
@@ -207,7 +208,8 @@
           "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 500 && (root.child('admins').child(auth.uid).val() === true || newData.val() === '' || newData.val() === (root.child('users').child($uid).child('profile').child('photoURL').exists() ? root.child('users').child($uid).child('profile').child('photoURL').val() : '') || newData.val() === (root.child('users').child($uid).child('profile').child('discordPhotoURL').exists() ? root.child('users').child($uid).child('profile').child('discordPhotoURL').val() : ''))" },
           "typingWords": { ".validate": "newData.isNumber() && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (root.child('users').child($uid).child('stats').child('typingWords').exists() ? root.child('users').child($uid).child('stats').child('typingWords').val() : 0))" },
           "level":       { ".validate": "newData.isNumber()" },
-          "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+          "hidden":      { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" },
+          "$other":   { ".validate": false }
         }
       },
       "typingWpm": {
@@ -222,7 +224,8 @@
             "wpm":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
             "wpmAt":    { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "level":    { ".validate": "newData.isNumber()" },
-            "hidden":   { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+            "hidden":   { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" },
+            "$other":   { ".validate": false }
           }
         }
       },
@@ -238,7 +241,8 @@
             "score":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000000" },
             "scoreAt":  { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "level":    { ".validate": "newData.isNumber()" },
-            "hidden":   { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" }
+            "hidden":   { ".validate": "newData.isBoolean() && root.child('admins').child(auth.uid).val() === true" },
+            "$other":   { ".validate": false }
           }
         }
       }
