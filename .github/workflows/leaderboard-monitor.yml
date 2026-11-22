@@ -1,0 +1,37 @@
+name: Leaderboard injection monitor
+
+# Cheap defence-in-depth: every 30 min, scan the public leaderboard for values
+# that look like an injection attempt and alert (Discord webhook + a red run that
+# emails the repo owner). Escaping + DB rules are the real fix; this just means a
+# future attempt is noticed in minutes instead of after someone reports it.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Detector unit tests — no credentials needed; proves the logic before any live scan.
+      - name: Test detector
+        run: node --test scripts/leaderboard-monitor.test.js
+
+      - name: Install firebase-admin
+        run: npm install firebase-admin@12 --no-save --no-audit --no-fund
+
+      # Live scan. Skips cleanly (green) until the FIREBASE_SERVICE_ACCOUNT secret
+      # is set, so this workflow is safe to merge before you add secrets.
+      - name: Scan leaderboard
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: node scripts/leaderboard-monitor.js
