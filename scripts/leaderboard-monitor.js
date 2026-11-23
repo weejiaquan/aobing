@@ -48,7 +48,32 @@ function scanBoard(board, rows) {
   return Object.entries(rows || {}).flatMap(([uid, row]) => scanRow(board, uid, row));
 }
 
-module.exports = { BOARDS, scanRow, scanBoard, CLEAN_PHOTO, ATTACK };
+// Discord-markdown alert text: the total plus the first 10 findings.
+function formatAlert(findings) {
+  const lines = findings.slice(0, 10).map(f =>
+    `• \`${f.board}/${f.uid}\` **${f.field}** — ${f.reason}\n  \`${f.value.slice(0, 180).replace(/`/g, "'")}\``);
+  return `⚠️ Leaderboard injection monitor found ${findings.length} suspicious value(s):\n${lines.join('\n')}`;
+}
+
+// Ask kei-bot to DM the owner (POST /internal/notify). Returns the HTTP status, or null
+// when kei-bot is unreachable. Never throws: the red CI run (owner email) must still happen.
+async function notifyKei(findings, { url, secret }) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Secret': secret },
+      body: JSON.stringify({ kind: 'leaderboard-injection', text: formatAlert(findings).slice(0, 1800) }),
+      signal: AbortSignal.timeout(10000),
+    });
+    console.error('kei-bot notify status', r.status);
+    return r.status;
+  } catch (e) {
+    console.error('kei-bot notify failed:', e.message);
+    return null;
+  }
+}
+
+module.exports = { BOARDS, scanRow, scanBoard, CLEAN_PHOTO, ATTACK, formatAlert, notifyKei };
 
 // --- live run: only when executed directly, and only with credentials --------
 if (require.main === module) {
@@ -79,10 +104,11 @@ if (require.main === module) {
     console.error(`ALERT: ${findings.length} suspicious value(s):`);
     for (const f of findings) console.error(`  ${f.board}/${f.uid} [${f.field}] ${f.reason}: ${f.value.slice(0, 160)}`);
 
+    if (process.env.KEI_NOTIFY_URL && process.env.KEI_INTERNAL_SECRET) {
+      await notifyKei(findings, { url: process.env.KEI_NOTIFY_URL, secret: process.env.KEI_INTERNAL_SECRET });
+    }
     if (webhook) {
-      const lines = findings.slice(0, 10).map(f =>
-        `• \`${f.board}/${f.uid}\` **${f.field}** — ${f.reason}\n  \`${f.value.slice(0, 180).replace(/`/g, "'")}\``);
-      const body = { content: `⚠️ Leaderboard injection monitor found ${findings.length} suspicious value(s):\n${lines.join('\n')}` };
+      const body = { content: formatAlert(findings) };
       try {
         const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         console.error('webhook status', r.status);

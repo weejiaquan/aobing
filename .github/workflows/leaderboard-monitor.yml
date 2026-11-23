@@ -34,4 +34,8 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          # kei-bot DMs the owner on a finding. Both unset = skipped; any failure is logged
+          # and the run still goes red.
+          KEI_NOTIFY_URL: ${{ secrets.KEI_NOTIFY_URL }}
+          KEI_INTERNAL_SECRET: ${{ secrets.KEI_INTERNAL_SECRET }}
         run: node scripts/leaderboard-monitor.js

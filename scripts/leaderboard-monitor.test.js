@@ -58,3 +58,70 @@ test('flags a non-https or broken photoURL even without obvious HTML', () => {
     assert.ok(f.length > 0, 'should flag bad photoURL: ' + url);
   }
 });
+
+// --- kei-bot owner alert ------------------------------------------------------
+// A real local HTTP server stands in for kei-bot's /internal/notify, so these tests
+// exercise the actual fetch, headers and body the monitor sends.
+const http = require('node:http');
+const { formatAlert, notifyKei } = require('./leaderboard-monitor');
+
+function finding(i) {
+  return { board: 'leaderboard/topClicks', uid: `uid${i}`, field: 'photoURL',
+           reason: 'photoURL is not a clean https URL', value: `https://x/a.png" onload="alert(${i})` };
+}
+
+function listen(handler) {
+  return new Promise(resolve => {
+    const server = http.createServer(handler);
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
+
+test('notifyKei sends the secret header and a bounded alert body', async () => {
+  let seen;
+  const server = await listen((req, res) => {
+    let raw = '';
+    req.on('data', c => { raw += c; });
+    req.on('end', () => {
+      seen = { method: req.method, secret: req.headers['x-internal-secret'], body: JSON.parse(raw) };
+      res.writeHead(202, { 'Content-Type': 'application/json' }).end('{"id":1}');
+    });
+  });
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/internal/notify`;
+    const status = await notifyKei(Array.from({ length: 40 }, (_, i) => finding(i)), { url, secret: 's3cret' });
+    console.log('status', status, 'kind', seen.body.kind, 'text length', seen.body.text.length);
+    assert.equal(status, 202);
+    assert.equal(seen.method, 'POST');
+    assert.equal(seen.secret, 's3cret');
+    assert.equal(seen.body.kind, 'leaderboard-injection');
+    assert.ok(seen.body.text.includes('leaderboard/topClicks/uid0'), 'names the poisoned row');
+    assert.ok(seen.body.text.length <= 1800, 'fits kei-bot\'s 1800-char limit');
+  } finally { server.close(); }
+});
+
+test('notifyKei swallows an unreachable endpoint', async () => {
+  const server = await listen(() => {});
+  const port = server.address().port;
+  await new Promise(r => server.close(r));  // the port is now closed
+  const status = await notifyKei([finding(1)], { url: `http://127.0.0.1:${port}/internal/notify`, secret: 's' });
+  console.log('unreachable ->', status);
+  assert.equal(status, null);
+});
+
+test('notifyKei reports a rejected secret without throwing', async () => {
+  const server = await listen((req, res) => { req.resume(); res.writeHead(401).end('{"detail":"Bad internal secret."}'); });
+  try {
+    const status = await notifyKei([finding(1)], { url: `http://127.0.0.1:${server.address().port}/`, secret: 'wrong' });
+    console.log('wrong secret ->', status);
+    assert.equal(status, 401);
+  } finally { server.close(); }
+});
+
+test('formatAlert lists at most 10 findings and the total count', () => {
+  const text = formatAlert(Array.from({ length: 15 }, (_, i) => finding(i)));
+  const bullets = text.split('\n').filter(line => line.startsWith('•'));
+  console.log(text.split('\n')[0], '| bullets:', bullets.length);
+  assert.equal(bullets.length, 10);
+  assert.ok(text.includes('15 suspicious value(s)'));
+});
